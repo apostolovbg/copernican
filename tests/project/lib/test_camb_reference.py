@@ -52,6 +52,12 @@ class CambReferenceModuleTestCase(unittest.TestCase):
         self.assertIn(
             "build_lcdm_full_reference_fixture", camb_reference.__all__
         )
+        self.assertIn(
+            "build_camb_full_reference_fixture", camb_reference.__all__
+        )
+        self.assertIn(
+            "build_camb_parity_reference_set", camb_reference.__all__
+        )
         self.assertIn("compare_lcdm_reference_spectra", camb_reference.__all__)
         self.assertIn(
             "load_lcdm_full_reference_fixture", camb_reference.__all__
@@ -181,6 +187,37 @@ class CambReferenceModuleTestCase(unittest.TestCase):
             camb_reference.compare_lcdm_reference_spectra(
                 {"TT": [1.0]},
                 {"TT": frozen["spectra"]["TT"]},
+            )
+
+    def test_parity_reference_set_retains_multiple_fixed_points(self):
+        """The scientific harness records complete CAMB surfaces per point."""
+
+        shifted = dict(camb_reference.FIXED_LCDM_REFERENCE_CONTRACT)
+        shifted["param_map"] = dict(shifted["param_map"])
+        shifted["param_map"]["As"] = 2.2e-9
+        report = camb_reference.build_camb_parity_reference_set(
+            {
+                "model_lcdm.yml": {
+                    "initial": camb_reference.FIXED_LCDM_REFERENCE_CONTRACT,
+                    "shifted_amplitude": shifted,
+                }
+            },
+            ells=(2, 20, 100),
+        )
+
+        points = report["models"]["model_lcdm.yml"]
+        self.assertEqual(set(points), {"initial", "shifted_amplitude"})
+        for fixture in points.values():
+            self.assertEqual(
+                tuple(fixture["declared_observables"]),
+                camb_reference.CAMB_PARITY_SPECTRA,
+            )
+            self.assertEqual(set(fixture["spectra"]["TT"]), {"C_ell", "D_ell"})
+            self.assertTrue(
+                all(
+                    numpy.all(numpy.isfinite(values["D_ell"]))
+                    for values in fixture["spectra"].values()
+                )
             )
 
 

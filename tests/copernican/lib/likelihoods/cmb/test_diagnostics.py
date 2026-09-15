@@ -29,6 +29,7 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     _jsonable,
     _run_scalar_batch_cache_check,
     assess_acoustic_structure,
+    assess_cmb_cache_request_sequence,
     assess_physical_spectrum_shape,
     assess_scalar_batch_cache_evidence,
     audit_cmb_repository_integrity,
@@ -1877,6 +1878,45 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         self.assertTrue(evidence["available"])
         self.assertEqual(evidence["status"], "passed")
         self.assertTrue(cache_evidence["isolated"])
+
+    def test_cache_sequence_evidence_requires_all_runtime_request_states(self):
+        """Cache evidence distinguishes cold, warm, repeat, and cross hits."""
+
+        records = (
+            {
+                "request_key": "base",
+                "request_identity": "base",
+                "cache_state": "cold",
+                "spectra": {"TT": [1.0, 2.0]},
+            },
+            {
+                "request_key": "base",
+                "request_identity": "base",
+                "cache_state": "warm",
+                "spectra": {"TT": [1.0, 2.0]},
+            },
+            {
+                "request_key": "base",
+                "request_identity": "base",
+                "cache_state": "exact_cache_hit",
+                "spectra": {"TT": [1.0, 2.0]},
+            },
+            {
+                "request_key": "shifted",
+                "request_identity": "shifted",
+                "cache_state": "warm",
+                "spectra": {"TT": [2.0, 3.0]},
+            },
+        )
+
+        evidence = assess_cmb_cache_request_sequence(records)
+
+        self.assertTrue(evidence["converged"])
+        self.assertTrue(evidence["cold"])
+        self.assertTrue(evidence["warm"])
+        self.assertTrue(evidence["exact_repeat"])
+        self.assertTrue(evidence["cross_request"])
+        self.assertTrue(evidence["spectra_equal"])
 
 
 if __name__ == "__main__":

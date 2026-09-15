@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-09-14
+**Last Updated:** 2026-09-15
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -300,6 +300,13 @@ Tier-controlled parity uses the same declared numerical overrides and workload
 for both paths. The cached scalar wrapper retains its typed result, raw
 unscaled spectra, request metadata, solver identity, and phase provenance so
 the audit compares solver products rather than plot output.
+Slice Seven closes the production parity and graph boundary. The shared
+`canonical_cmb_theory_spectra()` payload is consumed by likelihoods,
+diagnostics, and graph rendering. Independent CAMB fixtures retain complete
+raw `C_ell`/`D_ell` surfaces, fixed-point metadata, physical-shape evidence,
+and artifact hashes; cache reports retain request-state and cross-request
+reuse evidence. CMB graphs display typed execution or surface failures when a
+theory cannot produce a valid curve.
 Slice Eleven closes the final evidence boundary. The
 `audit_cmb_repository_integrity()` helper checks the production CCMBS tree
 for reference-solver imports, surrogates,

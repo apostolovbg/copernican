@@ -256,6 +256,77 @@ class TestPlotter(unittest.TestCase):
         self.assertTrue(any("tensor_TT" in title for title in captured_titles))
         self.assertTrue(any("PP" in title for title in captured_titles))
 
+    def test_plot_cmb_displays_typed_failure_when_theory_is_missing(
+        self,
+        tmp_path=None,
+    ) -> None:
+        """A failed theory remains visible in the graph artifact."""
+
+        tmp_path = _tmp_path_or_default(tmp_path)
+        observations = pandas.DataFrame(
+            {
+                "ell": [20, 30],
+                "spectrum": ["TT", "TT"],
+                "Dl_obs": [10.0, 12.0],
+            }
+        )
+        observations.attrs.update(
+            {
+                "dataset_id": "cmb_failure",
+                "dataset_name": "CMB failure",
+                "covariance_matrix_inv": numpy.eye(2),
+            }
+        )
+        failed = {
+            "theory_spectrum": None,
+            "chi2_cmb": float("inf"),
+            "cmb_failure": {
+                "category": "convergence_failure",
+                "message": "production grid did not converge",
+            },
+        }
+        fit_results = {
+            "fitted_model_params": {},
+            "chi2_total": float("inf"),
+        }
+        captured_text: list[str] = []
+
+        def _capture_savefig(path: str, **_kwargs: Any) -> None:
+            figure = plotter.plt.gcf()
+            captured_text.extend(
+                text.get_text() for axis in figure.axes for text in axis.texts
+            )
+            captured_text.extend(text.get_text() for text in figure.texts)
+            Path(path).touch()
+
+        with mock.patch.object(
+            plotter.plt,
+            "savefig",
+            side_effect=_capture_savefig,
+        ):
+            plotter.plot_cmb_spectrum(
+                observations,
+                failed,
+                failed,
+                fit_results,
+                fit_results,
+                _ReferencePlugin,
+                _DummyPlugin,
+                plot_dir=str(tmp_path),
+                timestamp="20260914_000000",
+                comparison=_TEST_COMPARISON,
+            )
+
+        self.assertTrue(
+            any("convergence_failure" in text for text in captured_text)
+        )
+        self.assertTrue(
+            any(
+                "production grid did not converge" in text
+                for text in captured_text
+            )
+        )
+
 
 def _case_format_model_summary_text_handles_missing_chi2_total(self) -> None:
     """Ensure missing totals render as ``N/A`` instead of raising errors."""

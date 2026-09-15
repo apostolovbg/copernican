@@ -20,7 +20,11 @@ from copernican import version as version_module
 
 from . import latex_utils
 from .cmb_identity import CCMBS_LABEL
-from .cmb_output import cmb_observation_blocks, cmb_theory_values_for_block
+from .cmb_output import (
+    canonical_cmb_theory_spectra,
+    cmb_observation_blocks,
+    cmb_theory_values_for_block,
+)
 from .likelihoods.sne import compute_sne_intercept_delta
 from .logger import get_logger
 from .model_selection import ComparisonRequest, comparison_slug
@@ -914,6 +918,50 @@ def _apply_common_style() -> None:
     )
 
 
+def _cmb_failure_details(failure: Any) -> tuple[str, str]:
+    """Return the stable category and message for a CMB graph failure."""
+
+    if isinstance(failure, Mapping):
+        return (
+            str(failure.get("category", "cmb_failure")),
+            str(failure.get("message", "")),
+        )
+    return "cmb_failure", str(failure)
+
+
+def _annotate_cmb_failure(
+    axis: Any,
+    model_name: str,
+    failure: Any,
+    *,
+    color: str,
+    y: float,
+) -> None:
+    """Place typed CMB failure evidence on a graph panel."""
+
+    category, message = _cmb_failure_details(failure)
+    detail = f"{model_name}: {category}"
+    if message:
+        detail += f"\n{message}"
+    axis.text(
+        0.02,
+        y,
+        textwrap.fill(detail, width=68, subsequent_indent="  "),
+        transform=axis.transAxes,
+        va="top",
+        ha="left",
+        fontsize=10,
+        color=color,
+        bbox={
+            "boxstyle": "round,pad=0.35",
+            "facecolor": "white",
+            "edgecolor": color,
+            "alpha": 0.9,
+        },
+        zorder=20,
+    )
+
+
 def format_model_summary_text(
     model_plugin: Any,
     dataset_type: str,
@@ -1020,12 +1068,7 @@ def format_model_summary_text(
         lines.append(_format_numeric_line(r"$\chi^2_{CMB}$", chi2_cmb))
         failure = kwargs.get("cmb_failure")
         if failure:
-            if isinstance(failure, Mapping):
-                category = str(failure.get("category", "cmb_failure"))
-                message = str(failure.get("message", ""))
-            else:
-                category = "cmb_failure"
-                message = str(failure)
+            category, message = _cmb_failure_details(failure)
             lines.append(r"$\mathbf{CMB\ Execution\ Failure:}$")
             lines.append(f"  {category}: {message}")
         if "chi2_total" in kwargs:
@@ -1827,10 +1870,33 @@ def plot_cmb_spectrum(
 
     control_theory = None
     test_theory = None
+    control_cmb_failure = None
+    test_cmb_failure = None
+    graph_failures: dict[str, Any] = {}
+    annotated_graph_failures: set[str] = set()
     if control_cmb_results:
         control_theory = control_cmb_results.get("theory_spectrum")
+        control_cmb_failure = control_cmb_results.get("cmb_failure")
     if test_cmb_results:
         test_theory = test_cmb_results.get("theory_spectrum")
+        test_cmb_failure = test_cmb_results.get("cmb_failure")
+
+    def _canonical_theory(theory: Any, role: str) -> Any:
+        """Canonicalize one production payload and retain graph failures."""
+
+        if theory is None:
+            return None
+        try:
+            return canonical_cmb_theory_spectra(theory)
+        except (TypeError, ValueError) as exc:
+            graph_failures[role] = {
+                "category": "graph_payload_failure",
+                "message": str(exc),
+            }
+            return None
+
+    control_theory = _canonical_theory(control_theory, "control")
+    test_theory = _canonical_theory(test_theory, "test")
 
     test_name_latex = test_latex
 
@@ -1853,7 +1919,7 @@ def plot_cmb_spectrum(
                 dtype=float,
             )[block.row_indices][order]
 
-        def _theory_values(theory):
+        def _theory_values(theory, role: str):
             """Return this block's theory values in plotting order."""
 
             if theory is None:
@@ -1864,12 +1930,19 @@ def plot_cmb_spectrum(
                     block,
                     total_row_count=len(cmb_data_df),
                 )
-            except (KeyError, TypeError, ValueError):
+            except (KeyError, TypeError, ValueError) as exc:
+                graph_failures.setdefault(
+                    role,
+                    {
+                        "category": "graph_surface_failure",
+                        "message": (f"{metadata.canonical_name}: {exc}"),
+                    },
+                )
                 return None
             return values[order]
 
-        control_values = _theory_values(control_theory)
-        test_values = _theory_values(test_theory)
+        control_values = _theory_values(control_theory, "control")
+        test_values = _theory_values(test_theory, "test")
 
         axs[idx_main].errorbar(
             ells,
@@ -1894,6 +1967,24 @@ def plot_cmb_spectrum(
             alpha=0.3,
             label="Data ±1σ",
         )
+
+        if i == 0:
+            if control_cmb_failure is not None:
+                _annotate_cmb_failure(
+                    axs[idx_main],
+                    control_latex,
+                    control_cmb_failure,
+                    color="darkred",
+                    y=0.98,
+                )
+            if test_cmb_failure is not None:
+                _annotate_cmb_failure(
+                    axs[idx_main],
+                    test_latex,
+                    test_cmb_failure,
+                    color="darkblue",
+                    y=0.82,
+                )
 
         if control_values is not None:
             chi2_control = (
@@ -2020,6 +2111,26 @@ def plot_cmb_spectrum(
             fontsize=font_sizes["title"],
             pad=title_pad,
         )
+        if i == 0:
+            for role, failure in graph_failures.items():
+                if role == "control" and control_cmb_failure is None:
+                    _annotate_cmb_failure(
+                        axs[idx_main],
+                        control_latex,
+                        failure,
+                        color="darkred",
+                        y=0.98,
+                    )
+                    annotated_graph_failures.add(role)
+                if role == "test" and test_cmb_failure is None:
+                    _annotate_cmb_failure(
+                        axs[idx_main],
+                        test_latex,
+                        failure,
+                        color="darkblue",
+                        y=0.82,
+                    )
+                    annotated_graph_failures.add(role)
         axs[idx_main].minorticks_on()
         axs[idx_main].tick_params(
             axis="both", which="major", labelsize=font_sizes["ticks"]
@@ -2046,6 +2157,26 @@ def plot_cmb_spectrum(
             True, which="both", color="#E0E0E0", linestyle="-", linewidth=0.5
         )
 
+    for role, failure in graph_failures.items():
+        if role in annotated_graph_failures:
+            continue
+        if role == "control" and control_cmb_failure is None:
+            _annotate_cmb_failure(
+                axs[0],
+                control_latex,
+                failure,
+                color="darkred",
+                y=0.98,
+            )
+        elif role == "test" and test_cmb_failure is None:
+            _annotate_cmb_failure(
+                axs[0],
+                test_latex,
+                failure,
+                color="darkblue",
+                y=0.82,
+            )
+
     bbox_control = dict(
         boxstyle="round,pad=0.5",
         fc="#FFEEEE",
@@ -2069,6 +2200,7 @@ def plot_cmb_spectrum(
             control_sne_results,
             chi2_cmb=control_cmb_results.get("chi2_cmb"),
             chi2_total=control_sne_results.get("chi2_total"),
+            cmb_failure=control_cmb_failure,
         ),
         fontsize=font_sizes["infobox"],
         va="top",
@@ -2086,6 +2218,7 @@ def plot_cmb_spectrum(
             test_sne_results,
             chi2_cmb=test_cmb_results.get("chi2_cmb"),
             chi2_total=test_sne_results.get("chi2_total"),
+            cmb_failure=test_cmb_failure,
         ),
         fontsize=font_sizes["infobox"],
         va="top",

@@ -754,6 +754,64 @@ def _parity_row_shape(
     }
 
 
+def _parity_entry_representations(entry: Any) -> dict[str, Any]:
+    """Return every raw representation present in one parity entry."""
+
+    if not isinstance(entry, Mapping):
+        return {"VALUES": _jsonable(entry)}
+    normalized = {str(key).upper(): value for key, value in entry.items()}
+    return {
+        key: _jsonable(normalized[key])
+        for key in ("C_ELL", "D_ELL", "VALUES")
+        if key in normalized
+    }
+
+
+def _parity_artifact_manifest(payload: Mapping[str, Any]) -> dict[str, Any]:
+    """Hash raw parity arrays and their declared representations."""
+
+    rows = _flatten_parity_surfaces(payload)
+    surface_hashes: dict[str, str] = {}
+    representation_hashes: dict[str, dict[str, str]] = {}
+    for row_name, (_observable, entry) in sorted(rows.items()):
+        representations = _parity_entry_representations(entry)
+        representation_hashes[row_name] = {
+            key: _canonical_sha256(value)
+            for key, value in representations.items()
+        }
+        surface_hashes[row_name] = _canonical_sha256(representations)
+    return {
+        "schema_version": 1,
+        "surface_sha256": surface_hashes,
+        "representation_sha256": representation_hashes,
+        "payload_sha256": _canonical_sha256(payload),
+    }
+
+
+def _parity_acoustic_evidence(
+    payload: Mapping[str, Any],
+    ell_values: numpy.ndarray,
+    *,
+    representation: str,
+) -> dict[str, Any]:
+    """Extract acoustic, damping, phase, and sign evidence from raw rows."""
+
+    spectra: dict[str, numpy.ndarray] = {}
+    for row_name, (observable, entry) in _flatten_parity_surfaces(
+        payload
+    ).items():
+        _sector, _separator, _name = row_name.partition(":")
+        try:
+            values, _, _mapping = _parity_representation_values(
+                entry,
+                representation=representation,
+            )
+        except (TypeError, ValueError):
+            continue
+        spectra.setdefault(observable, values.astype(float, copy=False))
+    return assess_acoustic_structure(ell_values, spectra)
+
+
 def compare_full_cmb_observable_parity(
     actual: Mapping[str, Any],
     reference: Mapping[str, Any],
@@ -879,6 +937,12 @@ def compare_full_cmb_observable_parity(
         row["reference_shape"] = reference_shape
         row["actual"] = _jsonable(actual_values)
         row["reference"] = _jsonable(reference_values)
+        row["actual_representations"] = _parity_entry_representations(
+            actual_entry[1]
+        )
+        row["reference_representations"] = _parity_entry_representations(
+            reference_entry[1]
+        )
         if not actual_shape["finite"] or not reference_shape["finite"]:
             issues.append("spectrum contains non-finite values")
         if not actual_shape["nonnegative"]:
@@ -1037,6 +1101,22 @@ def compare_full_cmb_observable_parity(
         "ell_values": tuple(int(value) for value in ell_array),
         "rows": rows,
         "row_count": len(rows),
+        "physical_shape": {
+            "actual": _parity_acoustic_evidence(
+                actual,
+                ell_array,
+                representation=selected_representation,
+            ),
+            "reference": _parity_acoustic_evidence(
+                reference,
+                ell_array,
+                representation=selected_representation,
+            ),
+        },
+        "artifact_hashes": {
+            "actual": _parity_artifact_manifest(actual),
+            "reference": _parity_artifact_manifest(reference),
+        },
         "fixture_digest": digest or None,
         "fixture_digest_valid": digest_valid,
         "refinement_required": bool(require_refinement),
@@ -3918,11 +3998,38 @@ def run_cmb_model_diagnostic(
             "metrics": {},
         }
         if reference_spectra is not None:
-            reference_comparison = compare_cmb_spectra_to_reference(
-                public_spectra,
-                reference_spectra,
-                relative_tolerances=reference_tolerances,
+            has_full_reference = isinstance(reference_spectra, Mapping) and (
+                "ell_values" in reference_spectra
+                or isinstance(reference_spectra.get("spectra"), Mapping)
             )
+            if has_full_reference:
+                actual_reference_payload = {
+                    "sector": "scalar",
+                    "ell_values": requested_ells,
+                    "spectra": {
+                        name: {
+                            "C_ell": raw_spectra[name],
+                            "D_ell": public_spectra[name],
+                        }
+                        for name in requested_spectra
+                    },
+                }
+                reference_comparison = compare_full_cmb_observable_parity(
+                    actual_reference_payload,
+                    reference_spectra,
+                    ell_values=requested_ells,
+                    representation="D_ell",
+                    relative_tolerances=reference_tolerances,
+                    refinement=refinement,
+                    fixture_digest=reference_spectra.get("fixture_sha256"),
+                    require_fixture_digest=True,
+                )
+            else:
+                reference_comparison = compare_cmb_spectra_to_reference(
+                    public_spectra,
+                    reference_spectra,
+                    relative_tolerances=reference_tolerances,
+                )
         if (
             failure is None
             and reference_spectra is not None
@@ -4312,6 +4419,79 @@ def assess_scalar_batch_cache_evidence(
     return evidence
 
 
+def assess_cmb_cache_request_sequence(
+    requests: Sequence[Mapping[str, Any]] | None,
+) -> dict[str, Any]:
+    """Audit cache states, exact repeats, and cross-request separation.
+
+    Each request record may contain ``cache_state``, ``request_identity``,
+    ``request_key``, and a named ``spectra`` payload.  The helper is pure so
+    a scientific run can assemble evidence from the solver's existing
+    telemetry without issuing a second solve for each observable or graph.
+    """
+
+    records = tuple(requests or ())
+    required_states = {"cold", "warm", "exact_cache_hit"}
+    observed_states = {
+        str(record.get("cache_state", "")).lower() for record in records
+    }
+    state_evidence = {
+        name: name in observed_states for name in sorted(required_states)
+    }
+    identities = [
+        repr(record.get("request_identity"))
+        for record in records
+        if record.get("request_identity") is not None
+    ]
+    request_keys = [record.get("request_key") for record in records]
+    distinct_request_keys = {
+        repr(value) for value in request_keys if value is not None
+    }
+    cross_request = len(distinct_request_keys) > 1 and len(set(identities)) > 1
+    exact_repeat = any(
+        str(record.get("cache_state", "")).lower() == "exact_cache_hit"
+        for record in records
+    )
+    issues: list[str] = []
+    for state, present in state_evidence.items():
+        if not present:
+            issues.append(f"cache sequence has no {state} request")
+    if not cross_request:
+        issues.append("cache sequence has no distinct cross-request identity")
+    if not exact_repeat:
+        issues.append("cache sequence has no exact-repeat hit")
+    spectra_by_key: dict[str, Any] = {}
+    spectra_equal = True
+    for record in records:
+        key = record.get("request_key")
+        values = record.get("spectra")
+        if key is None or values is None:
+            continue
+        normalized_key = repr(key)
+        if normalized_key not in spectra_by_key:
+            spectra_by_key[normalized_key] = values
+            continue
+        if _canonical_sha256(spectra_by_key[normalized_key]) != (
+            _canonical_sha256(values)
+        ):
+            spectra_equal = False
+            issues.append("exact-repeat spectra changed")
+    return {
+        "schema_version": 1,
+        "available": bool(records),
+        "converged": bool(records) and not issues,
+        "request_count": len(records),
+        "states": state_evidence,
+        "cold": state_evidence["cold"],
+        "warm": state_evidence["warm"],
+        "exact_repeat": exact_repeat,
+        "cross_request": cross_request,
+        "spectra_equal": spectra_equal,
+        "issues": tuple(issues),
+        "sequence_sha256": _canonical_sha256(records),
+    }
+
+
 def _matrix_batch_parameter_points(
     plugin: Any,
 ) -> tuple[tuple[tuple[float, ...], ...], str | None]:
@@ -4503,12 +4683,32 @@ def _run_scalar_batch_cache_check(
                 ],
             }
         )
+        sequence_requests = []
+        for result in batch_results:
+            performance = getattr(result, "performance_envelope", {}) or {}
+            provenance = getattr(result, "cache_provenance", {}) or {}
+            sequence_requests.append(
+                {
+                    "request_key": (
+                        tuple(getattr(result, "requested_ells", ())),
+                        tuple(getattr(result, "requested_spectra", ())),
+                        int(getattr(result, "index", 0)),
+                    ),
+                    "cache_state": performance.get("cache_state"),
+                    "request_identity": provenance.get("cache_identity"),
+                    "spectra": getattr(result, "spectrum", None),
+                }
+            )
+        evidence["cache_request_sequence"] = assess_cmb_cache_request_sequence(
+            sequence_requests
+        )
         cache_evidence = {
             "available": bool(evidence["available"]),
             "isolated": bool(evidence["cache_isolated"]),
             "status": evidence["status"],
             "identity_count": int(evidence.get("identity_count", 0)),
             "issues": tuple(evidence.get("issues", ())),
+            "request_sequence": evidence["cache_request_sequence"],
         }
         return evidence, cache_evidence
     except (
@@ -5793,6 +5993,7 @@ __all__ = [
     "CMBCorpusBaselineRow",
     "CMBModelDiagnostic",
     "CMBModelDiscoveryRecord",
+    "assess_cmb_cache_request_sequence",
     "assess_scalar_batch_cache_evidence",
     "assess_acoustic_structure",
     "assess_physical_spectrum_shape",

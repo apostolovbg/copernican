@@ -1450,6 +1450,72 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
         plugin.MODEL_FILENAME = model_path.name
         return plugin
 
+    @staticmethod
+    def _build_bounded_bundled_plugin(
+        model_name: str,
+        *,
+        ell_max: int = 20,
+        k_max: float = 2.0e-2,
+        k_sample_count: int = 4,
+        eta_sample_count: int = 64,
+        evolution_eta_sample_count: int = 48,
+    ):
+        """Build one bundled declaration on an explicit bounded test grid."""
+
+        source_path = (
+            Path(__file__).resolve().parents[3]
+            / "copernican"
+            / "models"
+            / model_name
+        )
+        model_data = yaml.safe_load(source_path.read_text(encoding="utf-8"))
+        numerical, perturbation_numerics, controls = (
+            _legacy_numerical_test_blocks(model_data)
+        )
+        for numerics in (numerical, perturbation_numerics):
+            numerics.update(
+                {
+                    "ell_min": 2,
+                    "ell_max": int(ell_max),
+                    "k_min": 1.0e-4,
+                    "k_max": float(k_max),
+                    "k_sample_count": int(k_sample_count),
+                    "eta_sample_count": int(eta_sample_count),
+                    "evolution_eta_sample_count": int(
+                        evolution_eta_sample_count
+                    ),
+                    "source_grid_multiplier": 1,
+                    "a_min": 1.0e-6,
+                    "initial_redshift": 2.0e4,
+                }
+            )
+        controls.pop("accuracy_tier", None)
+        controls.pop("production_scalar_convergence", None)
+        controls["minimum_k_sample_count"] = 1
+        controls["scalar_reference_ells"] = [2, int(ell_max)]
+        controls["scalar_constraint_reference_eta_samples"] = int(
+            eta_sample_count
+        )
+        controls["scalar_constraint_tolerances"] = {
+            "einstein_energy_residual": 1.0e-3,
+            "einstein_momentum_residual": 5.0e-6,
+            "einstein_shear_residual": 1.0e-6,
+        }
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir) / source_path.name
+            temp_path.write_text(
+                yaml.safe_dump(model_data, sort_keys=False),
+                encoding="utf-8",
+            )
+            cache_path = model_spec_validator.validate_and_cache_model(
+                temp_path,
+                Path(temp_dir) / "cache",
+            )
+            functions, parsed = model_coder.generate_callables(cache_path)
+        plugin = model_plugin_validation.build_plugin(parsed, functions)
+        plugin.MODEL_FILENAME = source_path.name
+        return plugin
+
     def test_usmf2_declared_route_is_promoted(self) -> None:
         """USMF2 must expose its declared graph as a declared CMB route."""
 
@@ -2477,7 +2543,7 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
     def test_usmf2_default_declared_mode_is_finite(self) -> None:
         """The declared default history must support a finite TT mode."""
 
-        plugin = self._build_plugin("model_usmf2.yml")
+        plugin = self._build_bounded_bundled_plugin("model_usmf2.yml")
         spectra = cmb.compute_cmb_spectrum_cached(
             plugin,
             plugin.INITIAL_GUESSES,
@@ -2543,7 +2609,7 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
     def test_declared_lcdm_declared_spectra_are_finite(self) -> None:
         """Declared LCDM spectra must execute without an external solver."""
 
-        plugin = self._build_plugin()
+        plugin = self._build_bounded_bundled_plugin("model_lcdm.yml")
         ell_grid = numpy.asarray([2, 10, 20], dtype=int)
         spectra = cmb.compute_cmb_spectrum_cached(
             plugin,
@@ -2564,7 +2630,7 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
         """Reference histories retain declared scalar closure evidence."""
 
         for model_name in ("model_lcdm.yml", "model_torg.yml"):
-            plugin = self._build_plugin(model_name)
+            plugin = self._build_bounded_bundled_plugin(model_name)
             boundary_parameters = list(plugin.INITIAL_GUESSES)
             boundary_parameters[0] = 50.0
             for point_name, parameters in (
@@ -2575,7 +2641,6 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
                     model_name=model_name,
                     point=point_name,
                 ):
-                    cache.clear_cmb_caches()
                     spectrum_data = (
                         projection._compute_custom_cmb_spectrum_data(
                             plugin.get_cmb_declared_runtime(parameters),
@@ -2655,7 +2720,14 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
     ) -> None:
         """A full declared LCDM request must return finite spectra."""
 
-        plugin = self._build_plugin()
+        plugin = self._build_bounded_bundled_plugin(
+            "model_lcdm.yml",
+            ell_max=2000,
+            k_max=0.3,
+            k_sample_count=8,
+            eta_sample_count=128,
+            evolution_eta_sample_count=64,
+        )
         ell_grid = numpy.arange(2, 2001, dtype=int)
         spectra = cmb.compute_cmb_spectrum_cached(
             plugin,

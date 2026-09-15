@@ -1473,12 +1473,7 @@ def _custom_contract(**perturbation_kwargs: object) -> dict[str, object]:
 
 
 def _speedup_contract(contract: dict[str, object]) -> dict[str, object]:
-    """Return ``contract`` with lighter numerics for governed behavior tests.
-
-    Fast runtime-response coverage uses this helper so the full governed suite
-    stays integral while the separate scientific reference checks keep their
-    production-like numerics unchanged.
-    """
+    """Return ``contract`` with bounded numerics for behavior tests."""
 
     contract["numerical"].update(
         {
@@ -3073,6 +3068,17 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
             {row["row"] for row in report["rows"]},
             {f"scalar:{name}" for name in factors},
         )
+        self.assertIn("artifact_hashes", report)
+        self.assertEqual(
+            set(report["artifact_hashes"]), {"actual", "reference"}
+        )
+        self.assertTrue(
+            all(
+                row["actual_representations"]
+                and row["reference_representations"]
+                for row in report["rows"]
+            )
+        )
 
     def test_full_parity_report_rejects_missing_refinement(self) -> None:
         """Finite arrays alone cannot pass the full parity gate."""
@@ -4475,7 +4481,7 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
 
 
 class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
-    """Fast runtime-response coverage for declared-graph execution."""
+    """Runtime-response coverage for declared-graph execution."""
 
     def test_declared_los_simpson_weights_integrate_nonuniform_quadratic(
         self,

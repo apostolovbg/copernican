@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-09-14
+**Last Updated:** 2026-09-15
 **Project Version:** 12.0.26
 
 ## Overview
@@ -171,6 +171,14 @@ Tier-controlled parity uses the same declared numerical overrides and workload
 for both paths. The cached scalar wrapper retains its typed result, raw
 unscaled spectra, request metadata, solver identity, and phase provenance so
 the audit compares solver products rather than plot output.
+Slice Seven closes this boundary for production consumers. Likelihood,
+diagnostic, and graph code share `canonical_cmb_theory_spectra()` so aliases
+and array shapes are resolved once. Independent CAMB fixtures retain complete
+raw `C_ell` and `D_ell` surfaces at explicit fixed points, with physical-shape
+metrics and deterministic artifact hashes. Cache evidence records cold, warm,
+exact-repeat, cross-request, and spectrum-equality states. Graph artifacts
+retain typed CMB execution and missing-surface failures instead of omitting a
+failed theory.
 Slice Eleven closes the final evidence boundary. The
 `audit_cmb_repository_integrity()` helper checks production CCMBS sources for
 reference-solver imports, surrogates, delayed acceptance, hidden backend

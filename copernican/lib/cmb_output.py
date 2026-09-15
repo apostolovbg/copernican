@@ -69,6 +69,25 @@ def _canonical_theory_mapping(
 ) -> dict[str, numpy.ndarray]:
     """Return a canonical theory map while rejecting ambiguous aliases."""
 
+    return canonical_cmb_theory_spectra(theory)
+
+
+def canonical_cmb_theory_spectra(
+    theory: Mapping[str, Any] | numpy.ndarray,
+) -> dict[str, numpy.ndarray]:
+    """Return one canonical, named production spectrum payload.
+
+    The likelihood, CSV writer, diagnostics, and graph renderer all consume
+    this representation.  Canonicalizing once at that boundary prevents a
+    graph panel from selecting a different alias or array shape than the
+    spectrum that was used by the likelihood.
+    """
+
+    if isinstance(theory, numpy.ndarray):
+        theory = {"TT": theory}
+    if not isinstance(theory, Mapping):
+        raise TypeError("CMB theory must be a named mapping or TT array")
+
     theory_map: dict[str, numpy.ndarray] = {}
     for name, values in theory.items():
         canonical_name = canonical_cmb_spectrum_name(name)
@@ -77,7 +96,13 @@ def _canonical_theory_mapping(
                 "CMB theory contains duplicate canonical spectrum "
                 f"'{canonical_name}'"
             )
-        theory_map[canonical_name] = numpy.asarray(values, dtype=float)
+        array = numpy.asarray(values, dtype=float)
+        if array.ndim != 1:
+            raise ValueError(
+                f"CMB theory spectrum '{canonical_name}' must be one-"
+                "dimensional"
+            )
+        theory_map[canonical_name] = array
     return theory_map
 
 
@@ -247,7 +272,7 @@ def cmb_theory_values_for_block(
     """Select theory values for one block on full or compact ell surfaces."""
 
     if isinstance(theory, Mapping):
-        theory_map = _canonical_theory_mapping(theory)
+        theory_map = canonical_cmb_theory_spectra(theory)
     else:
         theory_map = None
     return _theory_values_for_block(
@@ -296,7 +321,7 @@ def assemble_cmb_theory_vector(
 
     result = numpy.full(int(total_row_count), numpy.nan, dtype=float)
     normalized_theory = (
-        _canonical_theory_mapping(theory)
+        canonical_cmb_theory_spectra(theory)
         if isinstance(theory, Mapping)
         else theory
     )
@@ -315,6 +340,7 @@ __all__ = [
     "CMBObservationBlock",
     "CMBSpectrumMetadata",
     "assemble_cmb_theory_vector",
+    "canonical_cmb_theory_spectra",
     "canonical_cmb_spectrum_name",
     "cmb_observation_blocks",
     "cmb_theory_values_for_block",

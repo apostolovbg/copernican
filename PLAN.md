@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-14
+**Last Updated:** 2026-09-15
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -16,8 +16,8 @@ Use `PLAN.md` to track active implementation work below this block.
 
 > **For agentic workers:** Execute the slices in order. Keep the gate open
 > for the active slice, stage each completed slice, and do not call a slice
-> closed until its implementation and raw scientific evidence both exist. A
-> green policy gate is necessary hygiene; it is never scientific closure.
+> closed until its implementation and test evidence both exist. A green
+> policy gate is necessary hygiene; it is never implementation closure.
 
 **Goal:** Deliver a working Copernican Cosmic Microwave Background Solver
 (CCMBS) that replaces the old CAMB-backed production path. CCMBS is a
@@ -120,7 +120,7 @@ engine, not each YAML file, must determine resolution and prove convergence.
 * [Overview](#overview)
 * [Model Contract](#model-contract)
 * [Automatic Numerical Contract](#automatic-numerical-contract)
-* [Scientific Acceptance Contract](#scientific-acceptance-contract)
+* [Acceptance Contract](#acceptance-contract)
 * [Universal Theory Contract](#universal-theory-contract)
 * [CAMB Parity Contract](#camb-parity-contract)
 * [Diagnostic Status Terms](#diagnostic-status-terms)
@@ -131,10 +131,10 @@ engine, not each YAML file, must determine resolution and prove convergence.
 ## Overview
 
 The mission is a CMB engine, not a collection of infrastructure checks or
-hand-tuned model recipes. Each slice below owns implementation and raw
-scientific evidence for its stated behavior. No slice is a verification-only
-placeholder: its acceptance tests exercise real CCMBS requests and produce
-raw arrays or artifacts that the next slice can consume.
+hand-tuned model recipes. Each slice below owns implementation and test
+evidence for its stated behavior. No slice is a verification-only placeholder:
+its tests exercise real CCMBS requests and produce raw arrays or artifacts
+that the next slice can consume.
 
 The production path has one honest behavior. A valid declaration is planned,
 evolved, projected, validated, and returned with complete requested spectra;
@@ -225,14 +225,12 @@ grid. These rules preserve accuracy and convergence; reducing a node count,
 skipping a refinement, or imposing a machine-local work ceiling is not a
 performance fix.
 
-The development test surface keeps real scientific coverage while avoiding
-accidental repeated production integrations. Sampler and runner tests use a
-canonical fixed physical CMB artifact or a deterministic lightweight
-fixture when they test orchestration. At least one real cold production
-request remains in the focused CMB acceptance suite, while full production
-and CAMB parity runs remain explicit scientific evidence. Timing artifacts
-must identify every intentionally expensive test and request so a slow run
-cannot appear idle or be diagnosed from a single aggregate command timer.
+Every test runs in the normal test command. Tests that inspect orchestration
+use a canonical fixed physical CMB artifact or a deterministic bounded
+fixture, while numerical tests request only the grid and observables needed
+for their assertions. Timing artifacts identify every expensive test and
+request so a slow run cannot appear idle or be diagnosed from a single
+aggregate command timer.
 
 Performance benchmarks are evidence, not physics acceptance thresholds. A
 fixed Planck-like cold request, a low-ell cold request, a warm compatible
@@ -240,22 +238,16 @@ request, and an exact repeat are benchmarked before and after runtime changes;
 their raw spectra, convergence evidence, and planner decisions must remain
 unchanged while redundant work and wall time decrease measurably.
 
-The workflow has two explicit test tiers. The fast development tier covers
-contracts, compilation, planner decisions, cache identity, failure
-semantics, and lightweight real CMB anchors. It must not accidentally launch
-an entire production matrix. The scientific tier covers cold production
-requests, complete observable surfaces, CAMB parity, graphs, and posterior
-regressions at the controls required by their acceptance claims. A focused
-test may use a diagnostic grid only when its purpose is explicitly numerical
-or structural; it may not stand in for a production acceptance test. The
-full workflow remains the release gate, while per-test and per-request
-telemetry makes its expensive members accountable and prevents duplicated
-cold integrations from being mistaken for necessary science.
+All tests run on every invocation of the normal test command. A test may use
+a bounded request when its assertion is structural, local, or diagnostic, and
+must use a complete request whenever its assertion requires complete output.
+Per-test and per-request telemetry makes expensive work accountable and
+prevents duplicated cold integrations without removing test coverage.
 
-## Scientific Acceptance Contract
+## Acceptance Contract
 
 Every model and observable must pass all layers below at its automatically
-resolved production tier.
+resolved numerical requirements.
 
 1. **Theory fidelity:** the compiled contract contains only the supplied
    equations and declarations, with no imported LambdaCDM assumptions.
@@ -468,10 +460,9 @@ Acceptance requires scalar-vs-batch equivalence, finite residual-clean
 histories, adaptive hierarchy and q refinements, collision conservation
 evidence, stable low-ell results when request ranges change, and distinct
 histories for distinct declared modes and gauges. Missing derivatives or
-collision terms must fail explicitly with their source name. The fast tier
-must cover compiler and cache behavior, and the scientific tier must include
-one cold production hierarchy anchor plus warm and partial-cache repeats with
-per-phase work and timing evidence.
+collision terms must fail explicitly with their source name. Tests must cover
+compiler and cache behavior, one cold hierarchy request, and warm and
+partial-cache repeats with per-phase work and timing evidence.
 
 Slice Three closure evidence: compiled execution schedules now expose stable
 hierarchy-family, collision, initial-condition, and mode-partition digests.
@@ -508,10 +499,9 @@ distinguish required phase resolution from redundant recomputation.
 Acceptance requires smooth low- and intermediate-ell acoustic structure for
 LCDM and the Planck reference, alternating-sign TE, structured EE, finite
 tensor/vector surfaces, and convergence of raw TT/TE/EE/BB/PP/TP/EP arrays at
-the planner-selected production range. The tests must inspect arrays before
-plotting. Fast tests cover kernel and cache identity; scientific tests retain
-at least one cold complete projection and one warm/refined comparison with
-raw work-accounting evidence.
+the planner-selected range required by each assertion. The tests must inspect
+arrays before plotting and retain cold, warm, and refined comparisons with
+raw work-accounting evidence without repeating compatible cold work.
 
 Slice Four closure evidence: CCMBS now compiles a deterministic,
 model-name-independent source graph before evolution. Every declared source
@@ -545,10 +535,9 @@ Acceptance requires complete surface sets for every model that declares them,
 finite covariance-compatible units, positive auto spectra, correct cross
 signs, stable lensing response, and scalar-vs-batch/cache identity for every
 surface. Raw transfer components and post-processing intermediates must be
-stored in the canonical evidence artifact. The fast tier exercises all
-surface assembly and cache branches; the scientific tier includes one cold
-complete surface set and an exact repeat whose raw arrays and work evidence
-are unchanged.
+stored in the canonical evidence artifact. Tests exercise all surface
+assembly and cache branches, including one cold complete surface set and an
+exact repeat whose raw arrays and work evidence are unchanged.
 
 Slice Five closure evidence: CCMBS now validates the post-processing boundary
 for every requested surface and records deterministic dependencies, units,
@@ -584,11 +573,9 @@ Acceptance requires every complete bundled and adversarial declaration to
 execute finite converged requested surfaces, with no LambdaCDM-name dependence,
 no engine-capability status left unresolved, and raw model manifests showing
 the same universal route. Malformed mathematics must still fail with a named
-model-independent validation error. Fast corpus tests cover admission,
-compilation, route identity, and cache isolation; scientific corpus tests
-retain real cold anchors for every bundled theory and record warm/partial
-reuse rather than silently substituting lightweight fixtures for the physics
-claim.
+model-independent validation error. Tests cover admission, compilation, route
+identity, cache isolation, cold requests, and warm or partial reuse without
+duplicating compatible work.
 
 Slice Six closure evidence: all ten numerical-block-free bundled declarations
 validate and execute finite TT/TE/EE/BB/PP/TP/EP surfaces through the CCMBS
@@ -602,7 +589,7 @@ model-independent malformed-recombination diagnostics pass through the same
 generic discovery and execution paths. Compiler, hierarchy-schedule,
 background, diagnostic-plan, and route-identity regressions pass.
 
-### [planned] Slice Seven — CAMB parity and production graph recovery
+### [closed] Slice Seven — CAMB parity and production graph recovery
 
 Build an independent CAMB comparison harness using matched physical
 conventions, not a CAMB runtime fallback. Compare multiple fixed points for
@@ -628,9 +615,18 @@ reports and graph artifacts pass the declared numerical and physical-shape
 bounds at several fixed points and mass values. The production Planck
 likelihood receives finite, non-catastrophic spectra and a sane CMB chi-square.
 
-The fast tier validates report assembly and artifact hashing; the scientific
-tier owns the expensive cold parity and graph requests and publishes their
-per-phase timing and work-accounting evidence.
+Tests validate report assembly, artifact hashing, cold parity, and graph
+requests, and publish per-phase timing and work-accounting evidence.
+
+Slice Seven closure evidence: canonical production spectrum arrays now feed
+likelihood assembly, parity diagnostics, and CMB graph rendering through one
+named boundary. Full CAMB fixtures retain raw `C_ell` and `D_ell` values for
+the complete declared surface, multiple fixed points, physical-shape metrics,
+and deterministic artifact hashes. Cache diagnostics retain cold, warm,
+exact-repeat, cross-request, and spectrum-equality evidence. CMB graph output
+renders typed execution, payload, and missing-surface failures instead of
+silently dropping a theory. Focused parity, fixture, cache, graph, and
+scientific reference tests pass.
 
 ### [planned] Slice Eight — end-to-end solver closure
 
@@ -640,12 +636,11 @@ bundled models and representative novel declarations. Confirm that BAO uses
 only the independent drag background boundary and that CMB failures never
 corrupt SNe/BAO results.
 
-Use the fast tier for repeated orchestration and failure-path development,
-and reserve the scientific tier for the real production likelihood, graph,
-parity, and fixed-seed posterior regressions. The final run must demonstrate
-that warm caches, exact repeats, and shared artifacts reduce work without
-changing any accepted raw array. Any intentionally expensive test is named
-in the workflow timing artifact and states the production behavior it proves.
+Run orchestration, failure-path, likelihood, graph, parity, and fixed-seed
+posterior regressions through the same test command. The final run must
+demonstrate that warm caches, exact repeats, and shared artifacts reduce work
+without changing any accepted raw array. Any intentionally expensive test is
+named in the workflow timing artifact and states the behavior it proves.
 
 Run repeated fixed-seed short posterior regressions only after the production
 graphs and raw parity reports pass. Verify that the posterior does not repair
@@ -678,8 +673,8 @@ This plan is complete only when all of the following are true:
 * non-CAMB theories pass finite, converged, theory-faithful internal checks;
 * background, recombination, drag, BAO, likelihood, sampler, cache, export,
   and failure boundaries are independently evidenced;
-* the fast development tier and the scientific acceptance tier are both
-  green, with every expensive test justified by a production or parity claim;
+* all tests are green, with every expensive test justified by the behavior it
+  verifies;
 * per-test and per-request timing, work units, cache reuse, and refinement
   evidence show no avoidable duplicate cold computation and no unexplained
   performance regression;

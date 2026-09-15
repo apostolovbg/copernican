@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-14
+**Last Updated:** 2026-09-15
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,70 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-09-15:
+  Change: Bounded repeated CMB test requests and removed test-tier wording.
+  Why: Prevented redundant production-sized fixtures from making every test
+  run take hours while retaining the behavior each assertion covers.
+  Impact: All tests remain in the normal command, with bounded local fixtures
+  and explicit complete-output requests where required.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/cmb_output.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/plotter.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_cmb_output.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_plotter.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+
+- 2026-09-15:
+  Change: Updated Slice Seven evidence and synchronized current-date headers.
+  Why: Reconciled the active gate session with today's documentation policy.
+  Impact: Retained traceability for all implementation, test, plan, and
+  documentation paths in the current changelog entry.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/cmb_output.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/plotter.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_cmb_output.py
+  tests/copernican/lib/test_plotter.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+
+- 2026-09-14:
+  Change: Added complete CAMB parity evidence and typed CMB graph failures.
+  Why: Reconciled production arrays, independent fixtures, and cache states.
+  Impact: Diagnostics and graphs retain raw surfaces and explicit failures.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/cmb_output.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/plotter.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_cmb_output.py
+  tests/copernican/lib/test_plotter.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
 
 - 2026-09-14:
   Change: Fixed structural L2 cache reuse while preserving model-labelled

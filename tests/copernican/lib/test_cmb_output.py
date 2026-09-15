@@ -18,6 +18,7 @@ class CMBOutputTestCase(unittest.TestCase):
         self.assertIsInstance(cmb_output.CMBSpectrumMetadata, type)
         self.assertTrue(callable(cmb_output.CMBSpectrumMetadata.as_mapping))
         self.assertTrue(callable(cmb_output.assemble_cmb_theory_vector))
+        self.assertTrue(callable(cmb_output.canonical_cmb_theory_spectra))
         self.assertTrue(callable(cmb_output.canonical_cmb_spectrum_name))
         self.assertTrue(callable(cmb_output.cmb_observation_blocks))
         self.assertTrue(callable(cmb_output.cmb_theory_values_for_block))
