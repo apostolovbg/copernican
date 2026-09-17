@@ -157,9 +157,9 @@ _SUPPORTED_CMB_CONTRACT_KEYS = {
     *_REQUIRED_CMB_CONTRACT_KEYS,
     "background",
     "model_parameters",
-    "numerical",
     "value_definitions",
 }
+_LEGACY_CMB_CONTRACT_KEYS = frozenset({"numerical"})
 _SUPPORTED_CMB_GRID_KEYS = {
     "lower",
     "points",
@@ -174,17 +174,25 @@ _SUPPORTED_CMB_PERTURBATION_KEYS = {
     "closures",
     "constraints",
     "contract_version",
+    "collision_operators",
+    "conservation_rules",
     "derived",
     "equations",
     "gauge",
+    "hierarchy_families",
     "initial_conditions",
+    "initial_condition_families",
+    "interactions",
     "notes",
-    "numerics",
     "observables",
+    "projection_typing",
+    "sectors",
     "sources",
+    "species",
     "validity",
     "variables",
 }
+_LEGACY_CMB_PERTURBATION_KEYS = frozenset({"accuracy_controls", "numerics"})
 _SUPPORTED_CMB_GRID_SPACING = {"linear"}
 _SUPPORTED_CMB_PERTURBATION_GAUGES = {
     "conformal_newtonian",
@@ -434,6 +442,8 @@ def _validate_cmb_contract_definition_impl(
     contract: Mapping[str, Any],
     parameter_names: Sequence[str],
     latex_names: Sequence[str],
+    *,
+    allow_legacy_solver_controls: bool = False,
 ) -> None:
     """Validate the declared CMB contract."""
 
@@ -445,7 +455,10 @@ def _validate_cmb_contract_definition_impl(
     if missing_contract_keys:
         missing_str = ", ".join(sorted(missing_contract_keys))
         raise ValueError(f"Missing CMB contract key(s): {missing_str}")
-    invalid_contract_keys = contract_keys - _SUPPORTED_CMB_CONTRACT_KEYS
+    supported_contract_keys = set(_SUPPORTED_CMB_CONTRACT_KEYS)
+    if allow_legacy_solver_controls:
+        supported_contract_keys.update(_LEGACY_CMB_CONTRACT_KEYS)
+    invalid_contract_keys = contract_keys - supported_contract_keys
     if invalid_contract_keys:
         invalid_str = ", ".join(sorted(invalid_contract_keys))
         raise ValueError(f"Unknown CMB contract key(s): {invalid_str}")
@@ -698,6 +711,14 @@ def _validate_cmb_contract_definition_impl(
     perturbations = contract.get("perturbations")
     if not isinstance(perturbations, Mapping):
         raise ValueError("cmb.perturbations must be a mapping")
+    supported_perturbation_keys = set(_SUPPORTED_CMB_PERTURBATION_KEYS)
+    if allow_legacy_solver_controls:
+        supported_perturbation_keys.update(_LEGACY_CMB_PERTURBATION_KEYS)
+    perturbation_keys = {str(key) for key in perturbations}
+    invalid_perturbation_keys = perturbation_keys - supported_perturbation_keys
+    if invalid_perturbation_keys:
+        invalid_str = ", ".join(sorted(invalid_perturbation_keys))
+        raise ValueError("Unknown key(s) in cmb.perturbations: " + invalid_str)
     background_reference_names = set(param_map_keys)
     background_reference_names.update(grid_symbols.values())
     background_reference_names.update(value_names)
@@ -805,6 +826,8 @@ def _validate_cmb_contract_definition(
     contract: Mapping[str, Any],
     parameter_names: Sequence[str],
     latex_names: Sequence[str],
+    *,
+    allow_legacy_solver_controls: bool = False,
 ) -> None:
     """Validate one declaration and type all failures at its source.
 
@@ -822,6 +845,7 @@ def _validate_cmb_contract_definition(
             contract,
             parameter_names,
             latex_names,
+            allow_legacy_solver_controls=allow_legacy_solver_controls,
         )
     except ModelDeclarationError:
         raise
@@ -967,6 +991,7 @@ class CMBContractEvaluator:
             self.contract,
             self.parameter_names,
             self.latex_names,
+            allow_legacy_solver_controls=True,
         )
         object.__setattr__(
             self,
@@ -1535,6 +1560,7 @@ def _validate_plugin_cmb_contract(plugin: ModelPlugin) -> None:
         contract,
         getattr(plugin, "PARAMETER_NAMES", ()),
         getattr(plugin, "PARAMETER_LATEX_NAMES", ()),
+        allow_legacy_solver_controls=True,
     )
 
 

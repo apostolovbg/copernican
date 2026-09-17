@@ -2729,7 +2729,7 @@ def _resolve_custom_cmb_numerics(
     raw = contract.get("_engine_numerical_plan")
     if raw is None:
         raw = contract.get("numerical", {}) or {}
-    else:
+    elif str(contract.get("_engine_request_mode", "")) == "diagnostic":
         # A prepared runtime carries an immutable engine plan.  A caller may
         # still create a bounded diagnostic request by supplying explicit
         # top-level overrides; merge those request values without mutating

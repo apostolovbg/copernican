@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-09-15
+**Last Updated:** 2026-09-17
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -57,6 +57,12 @@ source, transfer, and line-of-sight refinements retain their raw arrays and
 reuse evidence.  Scalar, vector, and tensor routes therefore share one
 validated projection contract without model-name dispatch or fabricated
 zero-valued sources.
+
+Normal public requests, including explicit ell arrays, use the engine's final
+production accuracy envelope and request-shaped grids. Reduced grids are
+available only through an explicit diagnostic boundary. YAML model validation
+rejects solver-owned numerical and accuracy blocks; compatibility fixtures are
+translated after clean source validation and never become production metadata.
 
 Corpus admission and execution keep theory labels separate from physical
 identity. Renaming a complete declaration preserves its route, compiled

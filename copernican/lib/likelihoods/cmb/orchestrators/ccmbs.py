@@ -468,16 +468,24 @@ def _compute_declared_perturbation_spectrum_impl(
         canonical_requested_spectra,
         perturbation_data=perturbation_data,
     )
+    planned_contract = dict(contract_or_params)
+    request_mode = (
+        "diagnostic"
+        if bool(planned_contract.get("_diagnostic_matrix_fast_path"))
+        or str(planned_contract.get("_engine_request_mode", ""))
+        == "diagnostic"
+        else "production"
+    )
     # Resolve request-dependent grids in the engine.  The model contributes
     # only its compiled physical graph; all numerical choices are derived
     # from this observable request and the graph's declared sectors.
     from ..runtime.planner import plan_cmb_numerics, planner_accuracy_controls
 
-    planned_contract = dict(contract_or_params)
     request_plan = plan_cmb_numerics(
         planned_contract,
         ells=requested_ell_grid,
         spectra=base_requested_spectra,
+        request_mode=request_mode,
     )
     request_numerics = dict(request_plan.numerical_controls)
     request_numerics.update(request_plan.hierarchy_controls)
@@ -494,7 +502,7 @@ def _compute_declared_perturbation_spectrum_impl(
     # bundled model declarations no longer contain this mapping.
     legacy_numerics = planned_contract.get("numerical")
     baseline_numerics = planned_contract.get("_engine_numerical_plan")
-    if (
+    if request_mode == "diagnostic" and (
         isinstance(legacy_numerics, Mapping)
         and isinstance(baseline_numerics, Mapping)
         and dict(legacy_numerics) != dict(baseline_numerics)
@@ -505,6 +513,7 @@ def _compute_declared_perturbation_spectrum_impl(
         planned_contract,
         ells=requested_ell_grid,
         spectra=base_requested_spectra,
+        request_mode=request_mode,
     )
     planned_contract["_engine_planner_evidence"] = {
         **dict(request_plan.physical_scale_evidence),

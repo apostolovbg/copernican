@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-15
+**Last Updated:** 2026-09-17
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -394,11 +394,15 @@ USMF2, QAU, QRSF, TOG, TORG, wCDM, and w0wa. These runtime, performance,
 and contract-boundary criteria are the Slice One closure standard; a
 policy-only green gate is not closure evidence.
 
-Slice One closure evidence: the ten bundled model files contain no solver
-numerical or accuracy blocks; the engine planner is the sole source of runtime
-resolution; planner/cache/compiler firewall tests and the fixed cold/warm/
-partial-cache benchmark pass; and the Slice One `devcovenant run` completed
-successfully before this slice opened.
+Slice One recovery closure evidence: the planner now treats every ordinary
+explicit-ell request as production, while reduced-grid fixtures require an
+explicit diagnostic mode. Request scale changes the selected `k_max`, the
+engine-owned plan is authoritative over the compatibility view, and doubled-k
+production convergence uses the request plan. The YAML declaration boundary
+rejects top-level `numerical` and nested `numerics` or `accuracy_controls`
+blocks; legacy in-memory fixtures are translated only after clean source
+validation. Focused planner, compiler, model-adapter, and public explicit-ell
+regressions pass, and the slice is closed.
 
 ### [closed] Slice Two — automatic background, recombination, and drag
 
@@ -589,7 +593,13 @@ model-independent malformed-recombination diagnostics pass through the same
 generic discovery and execution paths. Compiler, hierarchy-schedule,
 background, diagnostic-plan, and route-identity regressions pass.
 
-### [closed] Slice Seven — CAMB parity and production graph recovery
+### [reopened] Slice Seven — CAMB parity and production graph recovery
+
+Post-closure audit reopened this slice. The current tests establish parity
+comparison and graph-reporting machinery, but they do not yet establish that
+the normal CCMBS request produces resolved acoustic waves or that its arrays
+match an independent CAMB solve. Bounded plumbing tests and synthetic parity
+inputs are not Slice Seven scientific closure evidence.
 
 Build an independent CAMB comparison harness using matched physical
 conventions, not a CAMB runtime fallback. Compare multiple fixed points for
@@ -618,17 +628,34 @@ likelihood receives finite, non-catastrophic spectra and a sane CMB chi-square.
 Tests validate report assembly, artifact hashing, cold parity, and graph
 requests, and publish per-phase timing and work-accounting evidence.
 
-Slice Seven closure evidence: canonical production spectrum arrays now feed
-likelihood assembly, parity diagnostics, and CMB graph rendering through one
-named boundary. Full CAMB fixtures retain raw `C_ell` and `D_ell` values for
-the complete declared surface, multiple fixed points, physical-shape metrics,
-and deterministic artifact hashes. Cache diagnostics retain cold, warm,
-exact-repeat, cross-request, and spectrum-equality evidence. CMB graph output
-renders typed execution, payload, and missing-surface failures instead of
-silently dropping a theory. Focused parity, fixture, cache, graph, and
-scientific reference tests pass.
+Slice Seven recovery acceptance requires:
+
+* one normal public LCDM request with an explicit production ell range to
+  retain final controls and produce raw TT/TE/EE (and every applicable
+  declared surface) with visible, resolved acoustic structure;
+* the same request to produce a retained graph artifact whose curves are
+  finite, smooth, physically shaped, and not missing because of a convergence
+  exception;
+* actual CCMBS arrays and independently generated CAMB arrays to be aligned
+  on the same ell grid and compared without synthetic replacement, first at a
+  fixed LCDM point and then at the required additional points and models; and
+* the parity report to retain raw arrays, convergence evidence, graph hashes,
+  physical-shape metrics, and cache/work evidence from that same production
+  solve.
+
+The wave-bearing LCDM artifact is the close-but-no-cigar milestone. Slice
+Seven remains open until it exists; parity and Planck-likelihood acceptance
+remain the cigar-stage requirements.
+
+Prior Slice Seven closure evidence established the shared production-array,
+parity, cache, and graph boundaries and retained complete CAMB fixture data.
+It did not include a real matched CCMBS/CAMB production comparison or a
+wave-bearing graph artifact, so it is insufficient after the audit.
 
 ### [planned] Slice Eight — end-to-end solver closure
+
+This slice is gated on the recovery of Slices One and Seven. It must not
+convert unresolved production numerics into end-to-end green status.
 
 Exercise the normal runner, model adapter, likelihood assembly, sampler, CSV
 and plot exporters, GUI/CLI, cache reuse, and failure reporting against all
@@ -647,6 +674,13 @@ graphs and raw parity reports pass. Verify that the posterior does not repair
 bad CMB spectra by driving `H_0`, matter, baryon, or `N_eff` to absurd values.
 Publish the final corpus matrix, complete observable artifacts, parity rows,
 planner evidence, graph hashes, and a reproducible closure manifest.
+
+Sampler timeout behavior is part of this closure. A CMB evaluation timeout
+must remain distinguishable from an invalid physical point and must not be
+silently treated as an ordinary posterior exclusion. Worker telemetry must
+retain the typed timeout, elapsed time, request identity, and phase so a
+posterior run can be aborted or diagnosed instead of silently biasing the
+chain.
 
 Acceptance requires the full declared test suite, all slice acceptance tests,
 green DevCovenant verification, finite and physically sensible graphs for all

@@ -13,7 +13,8 @@ import math
 from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
-_ENGINE_VERSION = "cmb-engine-planner-v2"
+_ENGINE_VERSION = "cmb-engine-planner-v3"
+_PLANNER_REQUEST_MODES = frozenset({"production", "diagnostic"})
 
 
 def _mapping(value: Any) -> Mapping[str, Any]:
@@ -97,14 +98,24 @@ def plan_cmb_numerics(
     *,
     ells: Sequence[int] | None = None,
     spectra: Sequence[str] = (),
+    request_mode: str = "production",
 ) -> CMBNumericalPlan:
     """Plan all solver grids from physical declarations and request shape.
 
     The planner deliberately accepts both a raw declaration and a compiled
     runtime contract.  Only physical graph metadata is inspected.  Legacy
     ``numerical`` and ``accuracy_controls`` keys are ignored here so a model
-    cannot steer the engine's resolution.
+    cannot steer the engine's resolution.  ``diagnostic`` is reserved for
+    explicit reduced-grid fixtures; normal public requests are production.
     """
+
+    request_mode = str(request_mode).strip().lower()
+    if request_mode not in _PLANNER_REQUEST_MODES:
+        allowed_modes = ", ".join(sorted(_PLANNER_REQUEST_MODES))
+        raise ValueError(
+            f"Unsupported CMB planner request mode {request_mode!r}; "
+            f"expected one of: {allowed_modes}"
+        )
 
     requested_ell_values = _requested_ells(ells)
     # Scalar transfer histories always include the physical quadrupole.  A
@@ -285,7 +296,7 @@ def plan_cmb_numerics(
     # The phase scale k(eta_0-eta_*) grows approximately linearly with ell.
     # The bounded formulas are deterministic and intentionally conservative;
     # later refinement is driven by measured residuals, never by model knobs.
-    phase_scale = max(1.0, float(ell_max) / 14000.0)
+    phase_scale = max(1.0e-5, float(ell_max) / 14000.0)
     k_max = min(1.0, max(0.30, 2.0 * phase_scale + 0.05))
     k_min = max(1.0e-5, min(1.0e-4, 0.02 / max(ell_max, 2)))
     k_nodes = min(
@@ -371,10 +382,10 @@ def plan_cmb_numerics(
         "runtime_envelope": "bounded",
         "source_history_reconstruction": True,
     }
-    if ells is None:
-        # Bundled production runtimes carry a final numerical envelope owned
-        # by the engine.  Explicit low-resolution requests remain diagnostic
-        # requests and intentionally keep the small public helper contract.
+    if request_mode == "production":
+        # Every normal request, including an explicit ell array, carries the
+        # final numerical envelope owned by the engine.  Reduced-grid tests
+        # must opt into the diagnostic boundary explicitly.
         required_spectra = tuple(
             name
             for name in requested_spectra
@@ -427,6 +438,7 @@ def plan_cmb_numerics(
         "hierarchy_family_names": family_names,
         "massive_neutrino_sector": bool(has_massive),
         "ell_count": len(requested_ell_values),
+        "request_mode": request_mode,
         "phase_scale_k_eta": float(phase_scale),
         "selection": "request_shape_and_declared_physical_graph",
         "background_resolution": "equation_scales_visibility_width_drag_depth",
@@ -495,6 +507,7 @@ def plan_cmb_numerics(
         "planner_version": _ENGINE_VERSION,
         "ell_range": (ell_min, ell_max),
         "requested_spectra": requested_spectra,
+        "request_mode": request_mode,
         "numerical_controls": numerical_controls,
         "hierarchy_controls": hierarchy_controls,
         "momentum_grid_controls": momentum_grid_controls,
@@ -522,6 +535,7 @@ def planner_accuracy_controls(
     *,
     ells: Sequence[int] | None = None,
     spectra: Sequence[str] = (),
+    request_mode: str = "production",
 ) -> Mapping[str, Any]:
     """Return the engine-generated accuracy envelope for a request."""
 
@@ -529,6 +543,7 @@ def planner_accuracy_controls(
         contract,
         ells=ells,
         spectra=spectra,
+        request_mode=request_mode,
     )
     return dict(plan.accuracy_controls)
 

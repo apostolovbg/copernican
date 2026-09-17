@@ -10,6 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 import numpy
 import yaml
@@ -20,6 +21,7 @@ from copernican.lib import model_adapter as model_plugin_validation
 from copernican.lib import model_coder, model_spec_validator, run_manifest
 from copernican.lib.cmb_identity import CCMBS_ID
 from copernican.lib.likelihoods.cmb import cache, cmb, projection
+from copernican.lib.likelihoods.cmb.orchestrators import ccmbs
 from copernican.lib.likelihoods.cmb.runtime import background as cmb_background
 from copernican.lib.likelihoods.cmb.runtime import evolution
 from copernican.lib.model_adapter import PluginValidationError
@@ -38,6 +40,19 @@ def _legacy_numerical_test_blocks(model_data):
     perturbation_numerics = perturbations.setdefault("numerics", {})
     controls = perturbations.setdefault("accuracy_controls", {})
     return numerical, perturbation_numerics, controls
+
+
+def _build_legacy_test_plugin(source_path, model_data):
+    """Build a legacy reduced-grid fixture without revalidating YAML."""
+
+    with tempfile.TemporaryDirectory() as cache_dir:
+        cache_path = model_spec_validator.validate_and_cache_model(
+            source_path,
+            cache_dir,
+        )
+        functions, parsed = model_coder.generate_callables(cache_path)
+    parsed["cmb"] = copy.deepcopy(model_data["cmb"])
+    return model_plugin_validation.build_plugin(parsed, functions)
 
 
 def _dummy_func(*_args, **_kwargs):
@@ -1178,39 +1193,24 @@ class ModelInterfaceTestCase(unittest.TestCase):
                 )
                 controls["scalar_reference_ells"] = [2, 20]
                 controls["minimum_k_sample_count"] = 1
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    temp_path = Path(temp_dir) / model_name
-                    temp_path.write_text(
-                        yaml.safe_dump(model_data, sort_keys=False),
-                        encoding="utf-8",
-                    )
-                    cache_path = (
-                        model_spec_validator.validate_and_cache_model(
-                            temp_path,
-                            Path(temp_dir) / "cache",
-                        )
-                    )
-                    functions, parsed = model_coder.generate_callables(
-                        cache_path
-                    )
-                    plugin = model_plugin_validation.build_plugin(
-                        parsed,
-                        functions,
-                    )
-                    spectra = cmb.compute_cmb_spectrum_cached(
-                        plugin,
-                        plugin.INITIAL_GUESSES,
-                        numpy.asarray([2], dtype=int),
-                        spectra=(
-                            "TT",
-                            "TE",
-                            "EE",
-                            "BB",
-                            "PP",
-                            "TP",
-                            "EP",
-                        ),
-                    )
+                plugin = _build_legacy_test_plugin(
+                    models_dir / model_name,
+                    model_data,
+                )
+                spectra = cmb.compute_cmb_spectrum_cached(
+                    plugin,
+                    plugin.INITIAL_GUESSES,
+                    numpy.asarray([2], dtype=int),
+                    spectra=(
+                        "TT",
+                        "TE",
+                        "EE",
+                        "BB",
+                        "PP",
+                        "TP",
+                        "EP",
+                    ),
+                )
                 for values in spectra.values():
                     self.assertTrue(numpy.all(numpy.isfinite(values)))
 
@@ -1501,18 +1501,7 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
             "einstein_momentum_residual": 5.0e-6,
             "einstein_shear_residual": 1.0e-6,
         }
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir) / source_path.name
-            temp_path.write_text(
-                yaml.safe_dump(model_data, sort_keys=False),
-                encoding="utf-8",
-            )
-            cache_path = model_spec_validator.validate_and_cache_model(
-                temp_path,
-                Path(temp_dir) / "cache",
-            )
-            functions, parsed = model_coder.generate_callables(cache_path)
-        plugin = model_plugin_validation.build_plugin(parsed, functions)
+        plugin = _build_legacy_test_plugin(source_path, model_data)
         plugin.MODEL_FILENAME = source_path.name
         return plugin
 
@@ -1876,25 +1865,14 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
             )
         controls["minimum_k_sample_count"] = 1
         controls["scalar_reference_ells"] = [2, 20]
-        with tempfile.TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir) / source_path.name
-            temp_path.write_text(
-                yaml.safe_dump(model_data, sort_keys=False),
-                encoding="utf-8",
-            )
-            cache_path = model_spec_validator.validate_and_cache_model(
-                temp_path,
-                Path(temp_dir) / "cache",
-            )
-            functions, parsed = model_coder.generate_callables(cache_path)
-            plugin = model_plugin_validation.build_plugin(parsed, functions)
-            ells = numpy.arange(2, 21, dtype=int)
-            spectra = cmb.compute_cmb_spectrum_cached(
-                plugin,
-                plugin.INITIAL_GUESSES,
-                ells,
-                spectra=("TT", "TE", "EE", "BB", "PP", "TP", "EP"),
-            )
+        plugin = _build_legacy_test_plugin(source_path, model_data)
+        ells = numpy.arange(2, 21, dtype=int)
+        spectra = cmb.compute_cmb_spectrum_cached(
+            plugin,
+            plugin.INITIAL_GUESSES,
+            ells,
+            spectra=("TT", "TE", "EE", "BB", "PP", "TP", "EP"),
+        )
         self.assertEqual(
             set(spectra),
             {"TT", "TE", "EE", "BB", "PP", "TP", "EP"},
@@ -1933,18 +1911,7 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
             )
         controls["minimum_k_sample_count"] = 1
         controls["scalar_reference_ells"] = [2, 20]
-        with tempfile.TemporaryDirectory() as temp_dir:
-            model_path = Path(temp_dir) / source_path.name
-            model_path.write_text(
-                yaml.safe_dump(model_data, sort_keys=False),
-                encoding="utf-8",
-            )
-            cache_path = model_spec_validator.validate_and_cache_model(
-                model_path,
-                Path(temp_dir) / "cache",
-            )
-            functions, parsed = model_coder.generate_callables(cache_path)
-        plugin = model_plugin_validation.build_plugin(parsed, functions)
+        plugin = _build_legacy_test_plugin(source_path, model_data)
         plugin.MODEL_FILENAME = source_path.name
         return plugin
 
@@ -2386,18 +2353,7 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
         controls.setdefault("production_scalar_convergence", {})[
             "enabled"
         ] = production_enabled
-        with tempfile.TemporaryDirectory() as model_dir:
-            model_path = Path(model_dir) / source_path.name
-            model_path.write_text(
-                yaml.safe_dump(model_data, sort_keys=False),
-                encoding="utf-8",
-            )
-            cache_path = model_spec_validator.validate_and_cache_model(
-                model_path,
-                Path(model_dir) / "cache",
-            )
-            functions, parsed = model_coder.generate_callables(cache_path)
-        plugin = model_plugin_validation.build_plugin(parsed, functions)
+        plugin = _build_legacy_test_plugin(source_path, model_data)
         plugin.MODEL_FILENAME = source_path.name
         return plugin
 
@@ -2802,6 +2758,48 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
 
         self.assertEqual(int(controls["minimum_k_sample_count"]), 64)
         self.assertGreaterEqual(int(numerics["k_sample_count"]), 64)
+
+    def test_explicit_public_request_keeps_production_planner_controls(
+        self,
+    ) -> None:
+        """Explicit public ell requests must not fall back to bounded mode."""
+
+        plugin = self._build_plugin()
+        contract = plugin.get_cmb_declared_runtime(plugin.INITIAL_GUESSES)
+        fake_data = cmb_background.CustomCMBSpectrumData(
+            ell_grid=numpy.asarray((2, 2500), dtype=int),
+            k_grid=numpy.asarray((0.1, 0.2), dtype=float),
+            transfer_components={},
+            spectra={"TT": numpy.asarray((1.0, 1.0))},
+            spectrum_availability={"TT": "computed"},
+        )
+        with mock.patch.object(
+            ccmbs,
+            "_compute_custom_cmb_spectrum_data",
+            return_value=fake_data,
+        ) as execute:
+            result = ccmbs._compute_declared_perturbation_spectrum_impl(
+                contract,
+                numpy.asarray((2, 2500), dtype=int),
+                spectra=("TT",),
+            )
+
+        self.assertEqual(result.shape, (2,))
+        planned = execute.call_args.args[0]
+        self.assertEqual(planned["_engine_request_mode"], "production")
+        self.assertEqual(
+            planned["_engine_accuracy_controls"]["accuracy_tier"],
+            "final",
+        )
+        self.assertGreater(
+            float(planned["_engine_numerical_plan"]["k_max"]),
+            0.30,
+        )
+        resolved = cmb_background._resolve_custom_cmb_numerics(planned)
+        self.assertEqual(
+            int(resolved.k_sample_count),
+            int(planned["_engine_numerical_plan"]["k_sample_count"]),
+        )
 
 
 if __name__ == "__main__":

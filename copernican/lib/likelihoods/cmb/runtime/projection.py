@@ -1273,7 +1273,7 @@ def _build_projection_k_grid(
         # declared count as the lower bound and in runtime evidence.
         sample_count = max(128, 2 * sample_count)
     phase_setting = accuracy_controls.get("phase_aware_k_quadrature")
-    phase_aware_k_enabled = (
+    phase_aware_k_enabled = not diagnostic_matrix_fast_path and (
         bool(phase_setting)
         if phase_setting is not None
         else generated_final_hierarchy
@@ -11182,7 +11182,11 @@ def _compute_custom_cmb_spectrum_data(
         )
         if production_enforced and production_record is None:
             base_numerical = dict(
-                contract_or_params.get("numerical", {}) or {}
+                contract_or_params.get(
+                    "_engine_numerical_plan",
+                    contract_or_params.get("numerical", {}) or {},
+                )
+                or {}
             )
             base_k_count = int(base_numerical.get("k_sample_count", 0))
             if base_k_count < 1:

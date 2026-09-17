@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import tempfile
 import unittest
 from pathlib import Path
@@ -60,6 +61,33 @@ from copernican.lib.likelihoods.cmb.runtime import cache
 
 class CCMBSDiagnosticTestCase(unittest.TestCase):
     """Verify raw fixed-point evidence is captured before plotting."""
+
+    @staticmethod
+    def _declaration_without_solver_controls(model_data):
+        """Keep legacy test controls out of source-validated YAML."""
+
+        declaration = copy.deepcopy(model_data)
+        cmb_contract = declaration.get("cmb", {})
+        cmb_contract.pop("numerical", None)
+        perturbations = cmb_contract.get("perturbations", {}) or {}
+        perturbations.pop("numerics", None)
+        perturbations.pop("accuracy_controls", None)
+        return declaration
+
+    @staticmethod
+    def _build_legacy_diagnostic_plugin(source_path, model_data):
+        """Apply reduced-grid controls only after clean YAML validation."""
+
+        with tempfile.TemporaryDirectory() as cache_dir:
+            cache_path = model_spec_validator.validate_and_cache_model(
+                source_path,
+                cache_dir,
+            )
+            functions, parsed = model_coder.generate_callables(cache_path)
+        parsed["cmb"] = copy.deepcopy(model_data["cmb"])
+        plugin = model_adapter.build_plugin(parsed, functions)
+        plugin.MODEL_FILENAME = source_path.name
+        return plugin
 
     def test_request_overrides_update_prepared_engine_plan(self):
         """Diagnostic grids override the immutable plan at the request edge."""
@@ -167,20 +195,10 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         accuracy_controls = cmb_data["perturbations"]["accuracy_controls"]
         accuracy_controls["scalar_reference_ells"] = [2, 20]
         accuracy_controls["minimum_k_sample_count"] = 1
-        with tempfile.TemporaryDirectory() as model_dir:
-            model_path = Path(model_dir) / source_path.name
-            model_path.write_text(
-                yaml.safe_dump(model_data, sort_keys=False),
-                encoding="utf-8",
-            )
-            cache_path = model_spec_validator.validate_and_cache_model(
-                model_path,
-                Path(model_dir) / "cache",
-            )
-            functions, parsed = model_coder.generate_callables(cache_path)
-        plugin = model_adapter.build_plugin(parsed, functions)
-        plugin.MODEL_FILENAME = source_path.name
-        return plugin
+        return CCMBSDiagnosticTestCase._build_legacy_diagnostic_plugin(
+            source_path,
+            model_data,
+        )
 
     @staticmethod
     def _universal_recombination_fixture(model_name: str):
@@ -675,12 +693,20 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             second_data = self._universal_recombination_fixture(
                 "Unrelated Model Name"
             )
-            (models_path / "model_fairy_dust.yaml").write_text(
-                yaml.safe_dump(first_data, sort_keys=False),
+            first_path = models_path / "model_fairy_dust.yaml"
+            second_path = models_path / "model_unrelated_name.yml"
+            first_path.write_text(
+                yaml.safe_dump(
+                    self._declaration_without_solver_controls(first_data),
+                    sort_keys=False,
+                ),
                 encoding="utf-8",
             )
-            (models_path / "model_unrelated_name.yml").write_text(
-                yaml.safe_dump(second_data, sort_keys=False),
+            second_path.write_text(
+                yaml.safe_dump(
+                    self._declaration_without_solver_controls(second_data),
+                    sort_keys=False,
+                ),
                 encoding="utf-8",
             )
             records = discover_cmb_model_records(models_path)
@@ -692,12 +718,16 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
                 records[0].plugin.CMB_DECLARED_RUNTIME.runtime_signature,
                 records[1].plugin.CMB_DECLARED_RUNTIME.runtime_signature,
             )
+            plugins = (
+                self._build_legacy_diagnostic_plugin(first_path, first_data),
+                self._build_legacy_diagnostic_plugin(second_path, second_data),
+            )
             results = []
-            for record in records:
+            for plugin in plugins:
                 results.append(
                     cmb_api.compute_cmb_spectrum_cached(
-                        record.plugin,
-                        record.plugin.INITIAL_GUESSES,
+                        plugin,
+                        plugin.INITIAL_GUESSES,
                         (2,),
                         spectra=spectra,
                     )
@@ -749,21 +779,26 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             model_path = Path(directory) / "model_role_graph.yaml"
             model_path.write_text(
-                yaml.safe_dump(model_data, sort_keys=False),
+                yaml.safe_dump(
+                    self._declaration_without_solver_controls(model_data),
+                    sort_keys=False,
+                ),
                 encoding="utf-8",
             )
             record = discover_cmb_model_records(Path(directory))[0]
             self.assertEqual(record.status, "ready")
-            runtime = record.plugin.get_cmb_declared_runtime(
-                record.plugin.INITIAL_GUESSES
+            plugin = self._build_legacy_diagnostic_plugin(
+                model_path,
+                model_data,
             )
+            runtime = plugin.get_cmb_declared_runtime(plugin.INITIAL_GUESSES)
             roles = dict(runtime["background_runtime"].recombination_roles)
             self.assertEqual(
                 roles["electron_fraction"], "free_electron_fraction"
             )
             result = cmb_api.compute_cmb_spectrum_cached(
-                record.plugin,
-                record.plugin.INITIAL_GUESSES,
+                plugin,
+                plugin.INITIAL_GUESSES,
                 (2,),
                 spectra=spectra,
             )
@@ -782,7 +817,10 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             model_path = Path(directory) / "model_incomplete.yaml"
             model_path.write_text(
-                yaml.safe_dump(model_data, sort_keys=False),
+                yaml.safe_dump(
+                    self._declaration_without_solver_controls(model_data),
+                    sort_keys=False,
+                ),
                 encoding="utf-8",
             )
             record = discover_cmb_model_records(directory)[0]
@@ -805,7 +843,10 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             model_path = Path(directory) / "model_future_interaction.yaml"
             model_path.write_text(
-                yaml.safe_dump(model_data, sort_keys=False),
+                yaml.safe_dump(
+                    self._declaration_without_solver_controls(model_data),
+                    sort_keys=False,
+                ),
                 encoding="utf-8",
             )
             record = discover_cmb_model_records(directory)[0]
@@ -816,10 +857,12 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
                 "temperature_monopole_source",
                 perturbations.sources,
             )
+            plugin = self._build_legacy_diagnostic_plugin(
+                model_path,
+                model_data,
+            )
             contract = dict(
-                record.plugin.get_cmb_declared_runtime(
-                    record.plugin.INITIAL_GUESSES
-                )
+                plugin.get_cmb_declared_runtime(plugin.INITIAL_GUESSES)
             )
             contract["_defer_production_scalar_convergence"] = True
             result = cmb_api.compute_cmb_spectrum_from_contract(

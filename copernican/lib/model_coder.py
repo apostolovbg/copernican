@@ -207,6 +207,7 @@ class DeclaredCMBRuntime:
     perturbation_data: Any
     background_runtime: DeclaredCMBBackgroundRuntime
     accuracy_controls: Mapping[str, Any] = field(default_factory=dict)
+    request_mode: str = "production"
     planner_evidence: Mapping[str, Any] = field(default_factory=dict)
     grids: Mapping[str, Any] = field(default_factory=dict)
     values: Mapping[str, Any] = field(default_factory=dict)
@@ -258,6 +259,7 @@ class DeclaredCMBRuntime:
             "calls": self.calls,
             "numerical": self.numerical,
             "_engine_numerical_plan": self.numerical,
+            "_engine_request_mode": self.request_mode,
             "_engine_accuracy_controls": self.accuracy_controls,
             "_engine_planner_evidence": self.planner_evidence,
             # Preserve the immutable declaration object.  Engine-owned
@@ -458,6 +460,11 @@ def _compile_declared_cmb_runtime_impl(
         (cmb_contract.get("perturbations", {}) or {}).get("numerics"),
         (cmb_contract.get("perturbations", {}) or {}).get("accuracy_controls"),
     )
+    request_mode = (
+        "diagnostic"
+        if any(value is not None for value in legacy_resolution)
+        else "production"
+    )
     cache_key = (
         tuple(str(name) for name in parameter_names),
         tuple(str(name) for name in latex_names),
@@ -559,7 +566,10 @@ def _compile_declared_cmb_runtime_impl(
     # contract are retained only as a compatibility input for the engine
     # planner; they are never copied into the physical declaration passed to
     # the graph compiler or returned by the runtime bundle.
-    engine_plan = plan_cmb_numerics(cmb_contract)
+    engine_plan = plan_cmb_numerics(
+        cmb_contract,
+        request_mode=request_mode,
+    )
     engine_numerics = dict(engine_plan.numerical_controls)
     engine_numerics.update(engine_plan.hierarchy_controls)
     legacy_numerics_raw = cmb_contract.get("numerical")
@@ -666,6 +676,7 @@ def _compile_declared_cmb_runtime_impl(
                     if str(name) in {"TT", "TE", "EE", "BB", "PP", "TP", "EP"}
                 )
             ),
+            request_mode=request_mode,
         )
     if isinstance(legacy_accuracy_controls, Mapping):
         # This translation is intentionally limited to in-memory fixtures.
@@ -816,6 +827,7 @@ def _compile_declared_cmb_runtime_impl(
         calls=tuple(copy.deepcopy(cmb_contract.get("calls", []) or [])),
         numerical=copy.deepcopy(engine_numerics),
         accuracy_controls=copy.deepcopy(engine_accuracy_controls),
+        request_mode=request_mode,
         planner_evidence=copy.deepcopy(engine_plan.physical_scale_evidence)
         | {"signature": engine_plan.signature},
         perturbation_data=perturbation_data,

@@ -57,6 +57,10 @@ class AutomaticCMBPlannerTestCase(unittest.TestCase):
             high.numerical_controls["k_sample_count"],
             low.numerical_controls["k_sample_count"],
         )
+        self.assertGreater(
+            high.numerical_controls["k_max"],
+            low.numerical_controls["k_max"],
+        )
         for value in low.numerical_controls.values():
             if value is not None:
                 self.assertTrue(float(value) == float(value))
@@ -79,12 +83,38 @@ class AutomaticCMBPlannerTestCase(unittest.TestCase):
         self.assertTrue(callable(build_cmb_planner_manifest))
         plan = plan_cmb_numerics(contract, ells=(2, 30))
         self.assertIsInstance(plan, CMBNumericalPlan)
+        self.assertEqual(plan.accuracy_controls["accuracy_tier"], "final")
+        self.assertTrue(plan.accuracy_controls["phase_aware_k_quadrature"])
         self.assertEqual(
-            planner_accuracy_controls(contract, ells=(2, 30)),
+            planner_accuracy_controls(
+                contract,
+                ells=(2, 30),
+                request_mode="diagnostic",
+            ),
             {
                 "runtime_envelope": "bounded",
                 "source_history_reconstruction": True,
             },
+        )
+
+    def test_diagnostic_mode_is_an_explicit_boundary(self) -> None:
+        """Reduced grids require an explicit diagnostic planner mode."""
+
+        contract = self._lcdm_contract()
+        diagnostic = plan_cmb_numerics(
+            contract,
+            ells=(2, 30),
+            request_mode="diagnostic",
+        )
+        production = plan_cmb_numerics(contract, ells=(2, 30))
+        self.assertNotIn("accuracy_tier", diagnostic.accuracy_controls)
+        self.assertEqual(
+            production.physical_scale_evidence["request_mode"],
+            "production",
+        )
+        self.assertEqual(
+            diagnostic.physical_scale_evidence["request_mode"],
+            "diagnostic",
         )
 
     def test_bundled_planner_manifest_covers_reference_models(self) -> None:

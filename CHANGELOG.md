@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-15
+**Last Updated:** 2026-09-17
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,85 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-09-17:
+  Change: Fixed template validation and bounded diagnostic projection.
+  Why: The canonical template still declared removed solver controls, and
+  its smoke test entered the production phase-resolution floor.
+  Impact: Template validation follows the declarative boundary, while the
+  explicit diagnostic path can execute its reduced projection surface.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_model_spec_validator.py
+  tests/project/lib/test_model_template.py
+
+- 2026-09-17:
+  Change: Updated Slice One recovery planning and compatibility validation.
+  Why: Corrected diagnostic fixtures to exercise legacy controls in memory
+  while YAML sources remain declarative.
+  Impact: Preserved production planner behavior and aligned diagnostics with
+  the intended declaration boundary.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  README.md
+  copernican/README.md
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_model_spec_validator.py
+
+- 2026-09-16:
+  Change: Closed Slice One recovery and corrected production planner routing.
+  Why: Fixed explicit-ell requests inheriting bounded controls and accepted
+  solver blocks, while preserving isolated diagnostic fixture compatibility.
+  Impact: Production requests retain engine-owned convergence and scale-aware
+  grids, and YAML declarations reject solver controls at the boundary.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/model_adapter.py
+  copernican/lib/model_coder.py
+  README.md
+  copernican/README.md
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_model_spec_validator.py
+
+- 2026-09-15:
+  Change: Updated Slice One and Slice Seven to add production recovery gates.
+  Why: Addressed independent audit findings on explicit-ell controls, planner
+  scaling, declaration rejection, real wave artifacts, and CAMB parity.
+  Impact: Enforced scientific closure through actual converged production
+  arrays, sensible graphs, matched reference evidence, and typed sampler
+  timeouts.
+  Files:
+  CHANGELOG.md
+  PLAN.md
 
 - 2026-09-15:
   Change: Bounded repeated CMB test requests and removed test-tier wording.

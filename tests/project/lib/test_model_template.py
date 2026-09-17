@@ -76,6 +76,7 @@ class ModelTemplateTestCase(unittest.TestCase):
             "eta_sample_count": 64,
             "source_grid_multiplier": 1,
         }
+        contract["_diagnostic_matrix_fast_path"] = True
         spectra = cmb.compute_cmb_spectrum_from_contract(
             contract,
             [2, 3],
