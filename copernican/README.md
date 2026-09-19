@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-09-17
+**Last Updated:** 2026-09-19
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -63,6 +63,15 @@ production accuracy envelope and request-shaped grids. Reduced grids are
 available only through an explicit diagnostic boundary. YAML model validation
 rejects solver-owned numerical and accuracy blocks; compatibility fixtures are
 translated after clean source validation and never become production metadata.
+
+The request-shaped production path is coordinated by the CMB runtime planner,
+phase-aware adaptive grid builder, and projection convergence layer in
+`copernican.lib.likelihoods.cmb.runtime`. They retain distinct base and
+refinement grids, fill duplicate phase anchors deterministically, and preserve
+the final grid and convergence evidence in the runtime envelope. The
+diagnostics API replans prepared contracts from its requested ell range before
+applying diagnostic overrides, so reduced diagnostic requests cannot inherit a
+stale production-sized grid.
 
 Corpus admission and execution keep theory labels separate from physical
 identity. Renaming a complete declaration preserves its route, compiled

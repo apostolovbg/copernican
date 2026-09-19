@@ -112,6 +112,36 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             {"k_sample_count": 64},
         )
 
+    def test_request_shape_replans_prepared_diagnostic_contract(self):
+        """Diagnostic binding follows the requested ell range."""
+
+        contract = {
+            "numerical": {
+                "ell_min": 2,
+                "ell_max": 2500,
+                "k_max": 1.0,
+            },
+            "_engine_numerical_plan": {
+                "ell_min": 2,
+                "ell_max": 2500,
+                "k_max": 1.0,
+            },
+        }
+
+        bound = diagnostics._bound_contract(
+            contract,
+            {"k_sample_count": 256},
+            ells=(2, 20, 100, 300),
+        )
+
+        self.assertEqual(bound["numerical"]["ell_max"], 300)
+        self.assertLess(bound["numerical"]["k_max"], 1.0)
+        self.assertEqual(bound["numerical"]["k_sample_count"], 256)
+        self.assertEqual(
+            bound["_engine_numerical_plan"]["ell_max"],
+            300,
+        )
+
     def test_full_parity_helpers_build_and_compare_raw_rows(self):
         """Full parity helpers preserve strict raw-row acceptance."""
 

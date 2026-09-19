@@ -168,6 +168,25 @@ class AdaptiveControlsTestCase(unittest.TestCase):
         self.assertTrue(numpy.any(numpy.isclose(grid, 0.05)))
         self.assertTrue(numpy.any(numpy.isclose(grid, 0.1)))
 
+    def test_phase_aware_k_grid_fills_duplicate_optional_nodes(self) -> None:
+        """Duplicate optional nodes cannot violate the minimum budget."""
+
+        grid = phase_aware_k_grid(
+            1.0e-5,
+            0.30,
+            minimum_nodes=1024,
+            maximum_nodes=1024,
+            phase_points_per_cycle=8.0,
+            eta_distance=14000.0,
+            sound_horizon=140.0,
+        )
+
+        self.assertEqual(grid.size, 1024)
+        self.assertTrue(numpy.all(numpy.isfinite(grid)))
+        self.assertTrue(numpy.all(numpy.diff(grid) > 0.0))
+        self.assertAlmostEqual(float(grid[0]), 1.0e-5)
+        self.assertAlmostEqual(float(grid[-1]), 0.30)
+
     def test_phase_requirements_report_uncapped_physical_resolution(
         self,
     ) -> None:

@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-17
+**Last Updated:** 2026-09-19
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,44 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-09-19:
+  Change: Updated Slice Seven documentation and gate metadata.
+  Why: Align touched documentation and changelog coverage with today's
+  verification session.
+  Impact: Enables the green verification gate before the requested workflow
+  run while retaining the staged Slice Seven implementation evidence.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/project/lib/test_slice_seven.py
+
+- 2026-09-18:
+  Change: Implemented production LCDM graph recovery and adaptive CMB grids.
+  Why: Corrected sparse production resolution, diagnostic replanning, and
+  duplicate phase-node handling so wave-bearing output can be verified.
+  Impact: Added retained graph, shape, cache, convergence, and work evidence;
+  amended the plan to close Slice Seven and queue CAMB parity for Slice Eight.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/project/lib/test_slice_seven.py
 
 - 2026-09-17:
   Change: Fixed template validation and bounded diagnostic projection.

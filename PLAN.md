@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-17
+**Last Updated:** 2026-09-19
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -593,69 +593,55 @@ model-independent malformed-recombination diagnostics pass through the same
 generic discovery and execution paths. Compiler, hierarchy-schedule,
 background, diagnostic-plan, and route-identity regressions pass.
 
-### [reopened] Slice Seven — CAMB parity and production graph recovery
+### [closed] Slice Seven — production graph recovery
 
-Post-closure audit reopened this slice. The current tests establish parity
-comparison and graph-reporting machinery, but they do not yet establish that
-the normal CCMBS request produces resolved acoustic waves or that its arrays
-match an independent CAMB solve. Bounded plumbing tests and synthetic parity
-inputs are not Slice Seven scientific closure evidence.
+This slice recovered the normal public production graph path. The previous
+bounded plumbing and synthetic parity evidence was not sufficient, so closure
+required one real LCDM production solve and the artifact produced from its
+canonical arrays. Absolute CAMB parity is deliberately not claimed here; it
+is the next slice's scientific gate.
 
-Build an independent CAMB comparison harness using matched physical
-conventions, not a CAMB runtime fallback. Compare multiple fixed points for
-LCDM, massive-neutrino LCDM, the Planck reference, wCDM, and w0wa over the
-complete applicable surface and production ell range. Record raw CCMBS/CAMB
-arrays, all error metrics, peak positions, phases, damping tails, signs, and
-artifact hashes.
+The closed recovery acceptance is:
 
-Run the real GUI/CLI graph path with normal production requests. LCDM and the
-Planck reference must both produce sensible CAMB-like TT/TE/EE/BB/PP/cross
-graphs, with no missing curve caused by a convergence exception. The graph
-path must display an explicit typed failure instead of silently omitting a
-theory when any genuinely invalid request fails.
-
-Parity comparisons and graph generation consume the same canonical production
-arrays. The harness must not rerun a cold CCMBS solve separately for each
-observable, graph panel, or error metric. It records cold, warm, exact-repeat,
-and cross-request cache evidence while keeping parity controls identical
-between the compared products.
-
-Acceptance is actual parity evidence, not synthetic arrays: complete raw
-reports and graph artifacts pass the declared numerical and physical-shape
-bounds at several fixed points and mass values. The production Planck
-likelihood receives finite, non-catastrophic spectra and a sane CMB chi-square.
-
-Tests validate report assembly, artifact hashing, cold parity, and graph
-requests, and publish per-phase timing and work-accounting evidence.
-
-Slice Seven recovery acceptance requires:
-
-* one normal public LCDM request with an explicit production ell range to
-  retain final controls and produce raw TT/TE/EE (and every applicable
-  declared surface) with visible, resolved acoustic structure;
-* the same request to produce a retained graph artifact whose curves are
+* one normal public LCDM request with an explicit production ell range retains
+  final controls and produces finite raw TT/TE/EE arrays with visible
+  acoustic trough-to-peak structure;
+* the same request produces one retained graph artifact whose curves are
   finite, smooth, physically shaped, and not missing because of a convergence
-  exception;
-* actual CCMBS arrays and independently generated CAMB arrays to be aligned
-  on the same ell grid and compared without synthetic replacement, first at a
-  fixed LCDM point and then at the required additional points and models; and
-* the parity report to retain raw arrays, convergence evidence, graph hashes,
-  physical-shape metrics, and cache/work evidence from that same production
-  solve.
+  exception; and
+* graph generation, physical-shape diagnostics, exact-repeat cache evidence,
+  convergence evidence, and work accounting consume the same canonical
+  production arrays without another cold solve per observable.
 
-The wave-bearing LCDM artifact is the close-but-no-cigar milestone. Slice
-Seven remains open until it exists; parity and Planck-likelihood acceptance
-remain the cigar-stage requirements.
+Slice Seven closure evidence: the production test requests ell values from 2
+through 300, observes final-tier controls, a 512-node base k grid with a
+1024-node convergence refinement, and a 2205-node eta grid. The returned
+TT/TE/EE arrays are finite and smooth, auto spectra are nonnegative, TE
+changes sign, TT retains a trough followed by a substantially higher peak,
+and the plotter retains a hashed PNG artifact. The exact repeat returns
+identical arrays as an exact cache hit. CAMB comparison remains explicitly
+open for Slice Eight because the current CCMBS/CAMB arrays are not yet
+parity-aligned.
 
-Prior Slice Seven closure evidence established the shared production-array,
-parity, cache, and graph boundaries and retained complete CAMB fixture data.
-It did not include a real matched CCMBS/CAMB production comparison or a
-wave-bearing graph artifact, so it is insufficient after the audit.
+### [planned] Slice Eight — CAMB parity and end-to-end solver closure
 
-### [planned] Slice Eight — end-to-end solver closure
+Slice Seven production graph recovery is complete. This slice owns the
+remaining scientific closure and must not convert unresolved production
+numerics into end-to-end green status.
 
-This slice is gated on the recovery of Slices One and Seven. It must not
-convert unresolved production numerics into end-to-end green status.
+Build or complete an independent CAMB comparison harness using matched
+physical conventions, not a CAMB runtime fallback. Compare the canonical
+CCMBS arrays against independently generated CAMB arrays on the same ell grid,
+first at the fixed LCDM point and then for massive-neutrino LCDM, the Planck
+reference, wCDM, and w0wa over every applicable surface and production range.
+Record raw arrays, all error metrics, peak positions, phases, damping tails,
+signs, convergence evidence, and artifact hashes. Do not mark parity green
+from fixtures or synthetic arrays.
+
+Run the normal GUI/CLI graph path and the Planck likelihood only after the
+fixed-point parity report passes. The graph path must display an explicit
+typed failure instead of silently omitting a theory when any genuinely
+invalid request fails.
 
 Exercise the normal runner, model adapter, likelihood assembly, sampler, CSV
 and plot exporters, GUI/CLI, cache reuse, and failure reporting against all

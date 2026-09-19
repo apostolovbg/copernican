@@ -305,6 +305,14 @@ def plan_cmb_numerics(
     )
     eta_nodes = min(1024, max(192, 128 + int(math.sqrt(ell_max) * 8.0)))
     evolution_nodes = min(512, max(128, eta_nodes // 2))
+    if request_mode == "production" and ell_max >= 200:
+        # Recombination and reionization histories need the same final-tier
+        # background floor used by the bundled production runtime.  A purely
+        # ell-scaled diagnostic budget is too sparse for the visibility
+        # refinement even when the requested surface reaches the first
+        # acoustic feature.
+        eta_nodes = max(528, eta_nodes)
+        evolution_nodes = max(264, evolution_nodes)
 
     photon_l_max = max(10, 4 + int(math.ceil(math.sqrt(ell_max) / 4.0)))
     polarization_l_max = max(photon_l_max, 10)

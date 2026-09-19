@@ -448,11 +448,25 @@ def phase_aware_k_grid(
             )[1:-1]
             required_nodes.update(float(value) for value in optional_nodes)
         resolved = numpy.asarray(sorted(required_nodes), dtype=float)
-        if resolved.size < minimum:
-            raise ValueError(
-                "Phase-aware k quadrature could not satisfy its minimum "
-                "node budget"
+        while resolved.size < minimum:
+            log_values = numpy.log(resolved)
+            gap_index = int(numpy.argmax(numpy.diff(log_values)))
+            midpoint = numpy.exp(
+                0.5 * (log_values[gap_index] + log_values[gap_index + 1])
             )
+            if not numpy.isfinite(midpoint) or midpoint <= resolved[gap_index]:
+                midpoint = 0.5 * (
+                    resolved[gap_index] + resolved[gap_index + 1]
+                )
+            if (
+                midpoint <= resolved[gap_index]
+                or midpoint >= resolved[gap_index + 1]
+            ):
+                raise ValueError(
+                    "Phase-aware k quadrature could not satisfy its minimum "
+                    "node budget"
+                )
+            resolved = numpy.insert(resolved, gap_index + 1, midpoint)
         if require_phase_resolution:
             status = phase_aware_k_grid_status(
                 resolved,

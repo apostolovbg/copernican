@@ -1791,6 +1791,8 @@ def _diagnostic_failure_availability(error: BaseException) -> str:
 def _bound_contract(
     contract: Mapping[str, Any],
     overrides: Mapping[str, Any] | None = None,
+    *,
+    ells: Sequence[int] | None = None,
 ) -> dict[str, Any]:
     """Bind request-local numerical overrides to a prepared contract.
 
@@ -1801,7 +1803,32 @@ def _bound_contract(
     """
 
     bound = dict(contract)
-    numerical = dict(bound.get("numerical", {}) or {})
+    explicit_diagnostic_controls = dict(
+        bound.get("_engine_accuracy_controls", {}) or {}
+    )
+    preserve_diagnostic_grid = str(
+        bound.get("_engine_request_mode", "")
+    ).lower() == "diagnostic" and (
+        "minimum_k_sample_count" in explicit_diagnostic_controls
+        or "scalar_reference_ells" in explicit_diagnostic_controls
+    )
+    if ells is not None and not preserve_diagnostic_grid:
+        from .runtime.planner import plan_cmb_numerics
+
+        request_plan = plan_cmb_numerics(
+            bound,
+            ells=tuple(int(value) for value in ells),
+            request_mode="diagnostic",
+        )
+        numerical = dict(request_plan.numerical_controls)
+        numerical.update(request_plan.hierarchy_controls)
+        if request_plan.momentum_grid_controls:
+            numerical["momentum_grids"] = {
+                str(name): dict(values)
+                for name, values in request_plan.momentum_grid_controls.items()
+            }
+    else:
+        numerical = dict(bound.get("numerical", {}) or {})
     requested_overrides = dict(overrides or {})
     for name, value in requested_overrides.items():
         if isinstance(value, bool):
@@ -3841,7 +3868,11 @@ def run_cmb_model_diagnostic(
     tolerances.update(relative_tolerances or {})
 
     base_contract = plugin.get_cmb_declared_runtime(parameter_values)
-    base = _bound_contract(base_contract, numerical_overrides)
+    base = _bound_contract(
+        base_contract,
+        numerical_overrides,
+        ells=requested_ells,
+    )
     if refine_wave_number_grid:
         # This report owns the explicit base/refined comparison below.  Keep
         # the base products available when that comparison rejects a model;
@@ -4582,8 +4613,11 @@ def _run_scalar_batch_cache_check(
         contracts: list[Mapping[str, Any]] = []
         for index, parameters in enumerate(points):
             contract = plugin.get_cmb_declared_runtime(parameters)
-            if numerical_overrides:
-                contract = _bound_contract(contract, numerical_overrides)
+            contract = _bound_contract(
+                contract,
+                numerical_overrides,
+                ells=ells,
+            )
             contract = dict(contract)
             contract["_diagnostic_matrix_fast_path"] = True
             contracts.append(contract)

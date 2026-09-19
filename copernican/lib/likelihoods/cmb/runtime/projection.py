@@ -1236,9 +1236,11 @@ def _build_projection_k_grid(
         # by this floor.
         # Scale the declared ladder before applying the floor.  Otherwise a
         # 64-node base request and a 96-node refinement both collapse to the
-        # same 512-node grid, so the convergence comparison does not actually
-        # measure a refinement.
-        sample_count = max(sample_count * refinement_factor * 8, 512)
+        # same production grid, so the convergence comparison does not
+        # actually measure a refinement.  The 4x floor keeps the base and
+        # doubled ladders distinct without making every public request pay
+        # for an unnecessary 2048-mode refinement.
+        sample_count = max(sample_count * refinement_factor * 4, 512)
     production_probe = accuracy_controls.get(
         "production_scalar_convergence",
         {},
