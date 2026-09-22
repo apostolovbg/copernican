@@ -219,6 +219,14 @@ class CMBProjectionContractTestCase(unittest.TestCase):
             ),
             "spherical_bessel_second_derivative_window",
         )
+        self.assertEqual(
+            resolve_declared_source_kernel(
+                "line_of_sight_temperature",
+                "quadrupole_derivative",
+                kernel="temperature_mixed_window",
+            ),
+            "spherical_bessel_window",
+        )
 
     def test_temperature_source_role_rejects_undeclared_role(self) -> None:
         """Temperature projection cannot silently ignore a source role."""

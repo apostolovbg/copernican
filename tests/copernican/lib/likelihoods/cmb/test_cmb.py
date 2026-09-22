@@ -2813,7 +2813,7 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
             self.assertAlmostEqual(metrics[name]["normalized_rms"], 0.01)
 
     def test_declared_k_grid_scales_to_requested_multipoles(self) -> None:
-        """Declared projection surfaces stay fixed across request shapes."""
+        """Declared projection surfaces resolve the requested ell range."""
 
         raw_contract = _declared_scalar_hierarchy_contract(sum_mnu=0.0)
         raw_contract["numerical"].update(
@@ -2823,9 +2823,6 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
                 "eta_sample_count": 64,
             }
         )
-        raw_contract["perturbations"]["accuracy_controls"] = {
-            "scalar_reference_ells": [2, 2000]
-        }
         contract = _prepare_declared_contract(raw_contract)
         numerics = cmb_background._resolve_custom_cmb_numerics(contract)
         physical_params = (
@@ -2848,14 +2845,18 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
             numerics=numerics,
             perturbation_data=contract["perturbation_data"],
         )
-        numpy.testing.assert_array_equal(
-            low_ell_grid,
-            full_ell_grid,
-            err_msg=(
-                "The same declared numerical surface must be used for low "
-                "and full multipole requests."
-            ),
+        production_ell_grid = cmb_projection._build_projection_k_grid(
+            ell_arr=numpy.asarray((20, 60, 120), dtype=int),
+            background=background_data,
+            numerics=numerics,
+            perturbation_data=contract["perturbation_data"],
+            retain_declared_surface=True,
         )
+        self.assertEqual(low_ell_grid[0], full_ell_grid[0])
+        self.assertLess(low_ell_grid[-1], full_ell_grid[-1])
+        self.assertEqual(production_ell_grid[-1], full_ell_grid[-1])
+        self.assertEqual(low_ell_grid.size, full_ell_grid.size)
+        self.assertGreater(low_ell_grid.size, 8)
 
     def test_declared_scalar_absolute_parity_surface_is_fixed(self) -> None:
         """The scalar parity fixture must use one declared graph."""
@@ -4482,6 +4483,68 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
 
 class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     """Runtime-response coverage for declared-graph execution."""
+
+    def test_stage_diagnostic_captures_raw_state_and_source_histories(self):
+        """Stage diagnostics retain aligned histories for one requested k."""
+
+        contract_data = _speedup_contract(
+            _declared_scalar_hierarchy_contract()
+        )
+        contract_data["numerical"].update(
+            {
+                "k_min": 0.019,
+                "k_max": 0.021,
+                "k_sample_count": 2,
+                "eta_sample_count": 48,
+                "evolution_eta_sample_count": 64,
+            }
+        )
+        contract_data["perturbations"]["numerics"] = dict(
+            contract_data["numerical"]
+        )
+        contract = _prepare_declared_contract(contract_data)
+        contract["_stage_diagnostic"] = {
+            "k_values": (0.02,),
+            "fields": (
+                "Phi",
+                "theta_gamma0",
+                "theta_gamma1",
+                "temperature_monopole",
+            ),
+        }
+        cache.clear_cmb_result_caches()
+        spectrum_data = _raw_declared_spectrum_data(
+            contract,
+            numpy.asarray((20, 30), dtype=int),
+        )
+
+        diagnostic = spectrum_data.runtime_envelope["stage_diagnostic"]
+        self.assertEqual(diagnostic["schema_version"], 1)
+        self.assertEqual(
+            diagnostic["fields"],
+            contract["_stage_diagnostic"]["fields"],
+        )
+        self.assertEqual(
+            tuple(diagnostic["requested_k_values"]),
+            (0.02,),
+        )
+        artifact = diagnostic["histories_by_k"]["0.02"]
+        self.assertTrue(numpy.isfinite(float(artifact["selected_k"])))
+        evolution_eta = numpy.asarray(artifact["evolution_eta"], dtype=float)
+        source_eta = numpy.asarray(artifact["source_eta"], dtype=float)
+        self.assertGreaterEqual(evolution_eta.size, 3)
+        self.assertGreaterEqual(source_eta.size, 3)
+        self.assertTrue(numpy.all(numpy.diff(evolution_eta) > 0.0))
+        self.assertTrue(numpy.all(numpy.diff(source_eta) > 0.0))
+        for field in contract["_stage_diagnostic"]["fields"]:
+            values = artifact["evolution_histories"].get(field)
+            expected_size = evolution_eta.size
+            if values is None:
+                values = artifact["source_histories"].get(field)
+                expected_size = source_eta.size
+            self.assertIsNotNone(values, field)
+            self.assertEqual(len(values), expected_size)
+            self.assertTrue(numpy.all(numpy.isfinite(values)))
 
     def test_declared_los_simpson_weights_integrate_nonuniform_quadratic(
         self,
@@ -6838,7 +6901,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         spectra_by_grid = {}
         for label, k_count, source_multiplier in (
             ("baseline", 64, 2),
-            ("k_refined", 96, 2),
+            ("k_refined", 64, 2),
             ("source_refined", 64, 4),
         ):
             contract = _speedup_contract(
@@ -6856,6 +6919,11 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             contract["perturbations"]["numerics"] = copy.deepcopy(
                 contract["numerical"]
             )
+            if label == "k_refined":
+                contract["_k_grid_refinement_factor"] = 2
+                contract["_k_grid_refinement_anchors"] = tuple(
+                    spectra_by_grid["baseline_k_grid"]
+                )
             cache.clear_cmb_caches()
             spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
                 _prepare_declared_contract(contract),
@@ -6863,6 +6931,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 requested_spectra=("TT", "TE", "EE", "PP"),
             )
             spectra_by_grid[label] = spectrum_data.spectra
+            if label == "baseline":
+                spectra_by_grid["baseline_k_grid"] = tuple(
+                    float(value) for value in spectrum_data.k_grid
+                )
 
         for refined_label in ("k_refined", "source_refined"):
             with self.subTest(refinement=refined_label):
@@ -7131,6 +7203,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "accuracy_tier": "final",
             "scalar_reference_ells": [2, 120],
             "runtime_envelope": "bounded",
+            "phase_aware_k_quadrature": True,
+            "require_phase_resolution": True,
         }
         contract = _prepare_declared_contract(raw_contract)
         numerics = cmb_background._resolve_custom_cmb_numerics(contract)
@@ -7149,7 +7223,28 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             perturbation_data=contract["perturbation_data"],
             allow_final_production_floor=True,
         )
+        requirements = cmb_projection.phase_aware_k_grid_requirements(
+            float(k_grid[0]),
+            float(k_grid[-1]),
+            phase_points_per_cycle=8.0,
+            eta_distance=(
+                float(background_data.eta0) - float(background_data.eta_rec)
+            ),
+            sound_horizon=max(float(background_data.sound_horizon_mpc), 1.0),
+        )
+        status = cmb_projection.phase_aware_k_grid_status(
+            k_grid,
+            phase_points_per_cycle=8.0,
+            eta_distance=(
+                float(background_data.eta0) - float(background_data.eta_rec)
+            ),
+            sound_horizon=max(float(background_data.sound_horizon_mpc), 1.0),
+        )
         self.assertGreaterEqual(int(k_grid.size), 512)
+        self.assertGreaterEqual(
+            int(k_grid.size), int(requirements["required_nodes"])
+        )
+        self.assertTrue(bool(status["resolved"]))
 
     def test_declared_tensor_k_grid_covers_spin2_tail(self) -> None:
         """Tensor k sampling must retain the spin-2 projection tail."""
@@ -8632,7 +8727,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertIn("EP", perturbation_data.observables)
         self.assertEqual(
             perturbation_data.derived["polarization_moment"].expression,
-            "theta_gamma2 + e_gamma0 + e_gamma2",
+            "theta_gamma2 + 6.0 * e_gamma2",
         )
         self.assertEqual(
             perturbation_data.initial_conditions["e_gamma2_seed"].expression,
@@ -8654,17 +8749,22 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         self.assertEqual(
             perturbation_data.sources["temperature_quadrupole"].expression,
-            "0.0",
+            "0.0625 * visibility * polarization_moment",
         )
         self.assertEqual(
             perturbation_data.sources[
                 "temperature_quadrupole_derivative"
             ].expression,
-            "0.0",
+            "0.1875 * visibility_polarization_moment_tau_tau / "
+            "acoustic_k_sq",
+        )
+        self.assertEqual(
+            perturbation_data.sources["temperature_monopole"].expression,
+            "visibility * (observable_theta_gamma0 + Psi)",
         )
         self.assertEqual(
             perturbation_data.sources["polarization_source"].expression,
-            "0.75 * visibility * polarization_moment",
+            "0.1875 * visibility * polarization_moment",
         )
         self.assertEqual(
             perturbation_data.sources["lensing_potential"].expression,
@@ -8675,11 +8775,11 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "-acoustic_k * theta_gamma1 - Phi_tau",
         )
         self.assertIn(
-            "- 0.6 * acoustic_k * nu_l3",
+            "- 0.3 * acoustic_k * nu_l3",
             perturbation_data.equations["evolve_sigma_nu"].rhs,
         )
         self.assertIn(
-            "0.4285714285714285 * acoustic_k * sigma_nu",
+            "0.8571428571428571 * acoustic_k * sigma_nu",
             perturbation_data.equations["evolve_nu_l3"].rhs,
         )
         self.assertIn(
@@ -8708,10 +8808,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "photon_polarization_quadrupole",
             ),
         )
-        self.assertEqual(collision.exact_form.matrix[2][2], "-0.8")
-        self.assertEqual(collision.exact_form.matrix[2][3], "0.1")
-        self.assertEqual(collision.exact_form.matrix[3][2], "0.05")
-        self.assertEqual(collision.exact_form.matrix[3][3], "-0.25")
+        self.assertEqual(collision.exact_form.matrix[2][2], "-0.9")
+        self.assertEqual(collision.exact_form.matrix[2][3], "0.6")
+        self.assertEqual(collision.exact_form.matrix[3][2], "0.1")
+        self.assertEqual(collision.exact_form.matrix[3][3], "-0.4")
 
     def test_declared_vector_hierarchy_materializes_generated_hierarchy(
         self,
@@ -10059,6 +10159,29 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             max(float(values["Phi"]) for values in state_history.values()),
             0.1,
         )
+
+    def test_generated_scalar_superhorizon_metric_seed_stays_regular(
+        self,
+    ) -> None:
+        """Early radiation-era stages must preserve the regular metric mode."""
+
+        contract = _prepare_declared_contract(
+            _speedup_contract(_declared_scalar_hierarchy_contract())
+        )
+        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+            contract,
+            numpy.arange(20, 24, dtype=int),
+            requested_spectra=("TT",),
+            workload="fixed_parameter_diagnostic",
+        )
+        history_by_k = spectrum_data.runtime_envelope[
+            "source_history_residual_samples_by_k"
+        ]
+        mode_key = min(history_by_k, key=float)
+        early_phi = float(history_by_k[mode_key]["samples"][0]["Phi"])
+
+        self.assertGreater(early_phi, 0.0)
+        self.assertGreater(early_phi, 0.3)
 
     def test_projection_k_grid_rejects_undeclared_high_k_request(
         self,

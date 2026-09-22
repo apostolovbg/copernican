@@ -392,6 +392,7 @@ def compute_cmb_spectrum_cached(
             prepared_contract["numerical"] = numerical
         if diagnostic_matrix_fast_path:
             prepared_contract["_diagnostic_matrix_fast_path"] = True
+            prepared_contract["_engine_request_mode"] = "diagnostic"
         prepared = selected_solver.prepare(prepared_contract)
         result = selected_solver.evaluate(
             prepared,

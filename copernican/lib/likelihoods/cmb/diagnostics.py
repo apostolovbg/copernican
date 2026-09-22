@@ -1197,7 +1197,6 @@ _SOURCE_RESIDUAL_DEFINITIONS = {
         "visibility",
         "observable_theta_gamma0",
         "Psi",
-        "polarization_moment",
         "temperature_monopole",
     ),
     "visibility_quadrupole": (
@@ -1206,8 +1205,8 @@ _SOURCE_RESIDUAL_DEFINITIONS = {
         "temperature_quadrupole",
     ),
     "visibility_quadrupole_derivative": (
-        "visibility",
-        "polarization_moment",
+        "acoustic_k_sq",
+        "visibility_polarization_moment_tau_tau",
         "temperature_quadrupole_derivative",
     ),
     "visibility_doppler": (
@@ -1437,21 +1436,19 @@ def audit_source_history_residuals(
         elif name == "visibility_monopole":
             terms = (
                 values["visibility"]
-                * (
-                    values["observable_theta_gamma0"]
-                    + values["Psi"]
-                    + 0.25 * values["polarization_moment"]
-                ),
+                * (values["observable_theta_gamma0"] + values["Psi"]),
                 -values["temperature_monopole"],
             )
         elif name == "visibility_quadrupole":
             terms = (
-                0.0,
+                0.0625 * values["visibility"] * values["polarization_moment"],
                 -values["temperature_quadrupole"],
             )
         elif name == "visibility_quadrupole_derivative":
             terms = (
-                0.0,
+                0.1875
+                * values["visibility_polarization_moment_tau_tau"]
+                / values["acoustic_k_sq"],
                 -values["temperature_quadrupole_derivative"],
             )
         elif name == "visibility_doppler":
@@ -1463,7 +1460,7 @@ def audit_source_history_residuals(
             )
         elif name == "polarization":
             terms = (
-                0.75 * values["visibility"] * values["polarization_moment"],
+                0.1875 * values["visibility"] * values["polarization_moment"],
                 -values["polarization_source"],
             )
         else:

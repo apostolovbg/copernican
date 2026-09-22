@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-09-19
+**Last Updated:** 2026-09-22
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -101,9 +101,11 @@ is validated rather than solved for a replacement potential, preventing
 low-k round-off from collapsing the initial metric and corrupting every
 projected spectrum.
 
-Final generated scalar spectra promote the declared Fourier ladder to at least
-512 modes. This resolves the rapidly oscillating spherical-Bessel phase that
-a 64-mode smoke-test ladder aliases into a jagged CMB curve. The hierarchy
+Final generated scalar spectra promote the declared Fourier ladder to the
+physical radial/acoustic phase requirement, with 512 modes as the minimum
+floor when that requirement is smaller. This resolves the rapidly oscillating
+spherical-Bessel phase that a 64-mode smoke-test ladder aliases into a jagged
+CMB curve. The hierarchy
 also uses quarter-cycle Runge-Kutta stages through recombination, then returns
 to the declared phase step for the late integrated Sachs-Wolfe tail.
 The bundled final LambdaCDM contract additionally declares a bounded
@@ -145,6 +147,8 @@ separate metadata in plots, diagnostics, and long-form CSV output. Runtime
 payloads distinguish computed, unrequested, physically zero, and unavailable
 spectra, while cache identities bind the graph, parameters, numerical grids,
 accuracy controls, requested spectra, and multipole sequence.
+The shared CMB χ² helper accepts an explicit solver selection for deterministic
+likelihood tests; normal application calls retain the CCMBS default.
 The post-processing boundary records the complete dependency graph for every
 requested surface. It hashes raw transfer components, unlensed products, and
 public outputs, validates finite non-negative auto spectra, preserves cross
@@ -395,10 +399,10 @@ bias of a trapezoid rule. Material negative auto-spectrum lobes still fall
 back to the positive trapezoid rule. Fixed-point
 diagnostics also record ordered TT peaks and troughs, damping, TE sign
 changes, and EE peaks directly from raw arrays before plotting.
-The generated scalar hierarchy uses the standard `Pi = Theta_gamma,2 +
-E_gamma,0 + E_gamma,2` collision moment, includes it once in the visibility
-monopole, and applies the `3/4` E-source coefficient. The deprecated split
-temperature quadrupole terms are explicit zeroes.
+The generated scalar hierarchy uses CAMB's `Pi = Theta_gamma,2 +
+6 E_gamma,2` collision moment, whose `polter = Pi / 10` normalization gives
+the `3/16` E-source coefficient. Temperature's integrated quadrupole source
+uses the matching `1/16` ordinary and `3/16` second-derivative coefficients.
 Coarsened projection batches preserve zero-width optional vector and tensor
 sectors without indexing absent kernels, so scalar refinement remains warning
 free under NumPy's strict empty-axis rules.

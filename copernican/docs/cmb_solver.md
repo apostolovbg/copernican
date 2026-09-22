@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-09-15
+**Last Updated:** 2026-09-22
 **Project Version:** 12.0.26
 
 ## Overview
@@ -268,6 +268,14 @@ arrays, raw source terms, hierarchy and initial-state residuals, derivative
 provenance, audit controls, and the independent closure decision to one
 deterministic SHA-256 value. Explicit model graphs report a typed
 `not_applicable` digest instead of fabricating generated-history evidence.
+
+For scientific debugging, an internal `_stage_diagnostic` request may select
+specific wave numbers and named state/source fields. The runtime then retains
+the native evolution and source eta grids together with the selected raw
+histories and bypasses transfer and spectrum caches for that request. This
+record is intended for first-divergence comparisons with an independent CAMB
+time-evolution reference; it is not production parity evidence and does not
+alter numerical acceptance.
 
 Generated scalar contracts are validated at compilation. CCMBS requires
 explicit `Phi_tau`, `Psi_tau`, and evolved-history `Phi_history_tau` metadata,
@@ -545,12 +553,11 @@ convention and may carry odd-parity multipoles.
 For the generated scalar hierarchy, `polarization_moment` means
 
 ```text
-polarization_moment = Theta_gamma,2 + E_gamma,0 + E_gamma,2
+polarization_moment = Theta_gamma,2 + 6 E_gamma,2
 ```
 
-This is the dimensionless scalar Thomson source moment used by the standard
-truncated scalar collision block. Vector and tensor contracts may declare
-their own sector-specific moment normalization.
+This is ten times CAMB's scalar `polter` source moment. Vector and tensor
+contracts may declare their own sector-specific moment normalization.
 
 `polarization_b_mode_seed` is the declared odd-parity transfer seed carried
 through exact lensing when a model declares primordial or sourced `B`.
@@ -690,7 +697,7 @@ Vector temperature uses the two flat-space radial families
 `sqrt(3l(l+1)/2) (j_l'(x)/x - j_l(x)/x^2)`; vector E and B use
 the corresponding spin-1 radial limits.
 The generated scalar E-mode line-of-sight source is
-`3/4 * visibility * polarization_moment` before the declared spin-2
+`3/16 * visibility * polarization_moment` before the declared spin-2
 projection. The scalar radial window carries the standard spin-2 factorial
 prefactor and `j_l / x^2`.
 
@@ -991,7 +998,7 @@ Theta_gamma,2' = 2 k Theta_gamma,1 / 5
                  + photon_quadrupole_collision
 
 [Theta_gamma,2', E_gamma,2']_collision = tau_dot *
-    [[-4/5, 1/10], [1/20, -1/4]]
+    [[-9/10, 3/5], [1/10, -2/5]]
     [Theta_gamma,2, E_gamma,2]
 ```
 
@@ -1132,11 +1139,12 @@ contract preparation rather than selecting a hidden fallback.
 The generated scalar source decomposition is:
 
 ```text
-S_T = g (Theta_gamma,0 + Psi + polarization_moment / 4)
+S_T = g (Theta_gamma,0 + Psi)
+    + g Pi / 16 + 3/(16 k^2) d^2/d eta^2 [g Pi]
     + d/d eta [g v_b] / k
     + exp(-tau) (Phi' + Psi')
 
-S_E = 3 g polarization_moment / 4
+S_E = 3 g polarization_moment / 16
 
 S_B = 0 for scalar modes
 
@@ -1149,13 +1157,17 @@ the factors above, and the photon contribution to the Einstein shear source
 is `4 Omega_gamma0 Theta_gamma,2 / a^2`.
 
 The source-role contract is the authoritative dispatch table for these
-terms. Monopole, ISW, and additive roles use the ordinary spherical-Bessel
-window. Doppler uses the first radial derivative, and additive_derivative
-uses the second radial derivative. The temperature projection does not
-infer a role from a source name and does not combine unbound source
-histories. E polarization uses the declared spin-2 E kernel, while a
-potential role uses the signed lensing-potential geometry. This keeps source
-normalization and radial-kernel selection separate from the evolution code.
+terms. Monopole, ISW, additive, and quadrupole_derivative roles use the
+ordinary spherical-Bessel window. The quadrupole derivative source is the
+second conformal-time derivative of the visibility-weighted polarization
+moment, so it is projected as an independent integrated source history;
+`additive_derivative` remains available for explicitly declared graphs that
+need the generic second radial-derivative window. Doppler uses the first
+radial derivative. The temperature projection does not infer a role from a
+source name and does not combine unbound source histories. E polarization
+uses the declared spin-2 E kernel, while a potential role uses the signed
+lensing-potential geometry. This keeps source normalization and radial-kernel
+selection separate from the evolution code.
 
 ## Independent Projection Kernels
 
@@ -1194,11 +1206,13 @@ arrays.
 
 The generated scalar Doppler source uses the baryon velocity
 `v_b = theta_b / k` and projects `g v_b` through the derivative spherical-
-Bessel kernel. The polarization contribution is included once, as
-`g polarization_moment / 4` in the visibility monopole. The deprecated split
-quadrupole and second-derivative roles are explicit zeroes, preventing a
-second copy of the polarization source from entering the temperature
-transfer.
+Bessel kernel. The polarization contribution is carried once in the
+temperature transfer as `g Pi / 16` plus
+`3 (g Pi)'' / (16 k^2)`, where `Pi` is the declared
+`polarization_moment`. The same CAMB-normalized moment is used by the
+`3 g Pi / 16` E source. The ordinary-Bessel and second-time-derivative
+histories are explicit, preventing a second copy of the polarization source
+from entering the temperature transfer.
 
 During tight coupling, the declared hierarchy evolves one photon-baryon
 velocity by the declared momentum-weighted combination of the photon and
@@ -1319,21 +1333,23 @@ family. Contracts that need a controlled accuracy tier can enable the
 adaptive transfer, source, and line-of-sight projection surfaces described
 below.
 
-For high-resolution scalar requests, a contract can enable
-`phase_aware_k_quadrature`. The fixed k envelope then uses the phase-aware
-quadrature helper from declared multipole anchors, conformal distance, and
-sound-horizon scales. The helper keeps acoustic phase coverage inside the
-declared node budget instead of adding an unbounded high-k tail. Reference-ell
-anchors remain explicit inputs to the bounded grid. Contracts without this
-control retain the bounded anchor-and-gap grid.
+For final scalar requests, the engine enables
+`phase_aware_k_quadrature` and requires its physical phase resolution. The
+quadrature helper uses declared multipole anchors, conformal distance, and
+sound-horizon scales; it promotes the engine-owned node budget when the
+nominal floor cannot resolve the radial or acoustic phase. Reference-ell
+anchors remain explicit inputs to the grid. Bounded diagnostic contracts may
+retain a capped ladder, but its runtime evidence remains under-resolved and
+it cannot be accepted as production output.
 Coarsened projection batches preserve zero-width optional vector and tensor
 sectors without indexing absent kernels, so scalar refinement remains warning
 free under NumPy's strict empty-axis rules.
 
 When a generated scalar hierarchy declares the `final` accuracy tier, CCMBS
-promotes its Fourier ladder to at least 512 modes even when the model's base
-smoke-test count is smaller. This is a quadrature-resolution safeguard, not a
-new physical source or a post-projection smoothing step. The same final route
+promotes its Fourier ladder to at least the physical radial/acoustic phase
+requirement, with 512 modes as the minimum floor when that requirement is
+smaller. This is a quadrature-resolution safeguard, not a new physical source
+or a post-projection smoothing step. The same final route
 uses a quarter-cycle explicit-RK phase target through recombination, where the
 acoustic transfer is formed, and returns to the declared phase target for the
 late integrated Sachs-Wolfe tail. The runtime envelope records the effective
@@ -1343,7 +1359,10 @@ phase-aware line-of-sight grid. A final route with an explicit phase-aware
 line-of-sight section raises the retained generated hierarchy history to that
 section's maximum eta-node budget. This prevents a sparse evolution history
 from being interpolated onto a dense LOS grid and aliasing acoustic sources
-before projection. CCMBS records whether the LOS grid was applied, its node
+before projection. For ordinary generated scalar requests, the engine also
+retains one common physical evolution mesh with its dense early-time prefix;
+a request-local node budget cannot erase the super-horizon history. CCMBS
+records whether the LOS grid was applied, its node
 bounds, the effective eta-node count, the evolution-history floor, and its
 smallest and largest spacing in the raw runtime envelope. Contracts without
 the explicit section retain their declared LOS grid and do not inherit this
@@ -1746,9 +1765,10 @@ independent reference RMS so their sign changes and zero crossings remain
 well-defined.
 
 The generated scalar source uses the independent-reference coefficients
-`1 / 4` in the visibility monopole and `3 / 4` for the E source. The declared
-`polarization_moment` uses the same normalization as the generated hierarchy,
-so no post-projection conversion is applied.
+`1 / 16` and `3 / 16` for the integrated polarization-quadrupole terms and
+`3 / 16` for the E source. The declared `polarization_moment` uses the same
+normalization as the generated hierarchy, so no post-projection conversion is
+applied.
 
 Declared projection preparation reuses bounded Bessel and projection-kernel
 caches. Projection kernels are evaluated in ell batches so a high-multipole

@@ -881,6 +881,7 @@ def _integrate_power_spectrum(
     *,
     auto_spectrum: bool = False,
     use_cubic_spline: bool = True,
+    use_positive_trapezoid: bool = False,
 ) -> numpy.ndarray:
     """Return one finite power-spectrum quadrature in extended precision.
 
@@ -941,10 +942,17 @@ def _integrate_power_spectrum(
     # The phase-aware grid intentionally combines a logarithmic scaffold with
     # linear phase nodes.  A cubic spline antiderivative integrates that
     # irregular grid without treating a refinement as a relocation of the
-    # anchors (the generalized Simpson rule had a measurable EE drift on the
-    # 64-to-96 node ladder).  Very short grids retain the positive trapezoid
-    # fallback because a spline needs at least three nodes.
-    if use_cubic_spline and log_k_ld.size >= 3:
+    # anchors.  Production transfer products are instead allowed to request
+    # the positive trapezoid explicitly: interpolation between oscillatory
+    # transfer nodes can invent auto-spectrum power and cross-spectrum lobes.
+    if use_positive_trapezoid:
+        integral = numpy.sum(
+            0.5
+            * (weighted[:, :-1] + weighted[:, 1:])
+            * log_k_steps[numpy.newaxis, :],
+            axis=1,
+        )
+    elif use_cubic_spline and log_k_ld.size >= 3:
         spline_scale = numpy.maximum(
             numpy.max(numpy.abs(weighted), axis=1),
             numpy.longdouble(1.0),
@@ -1096,21 +1104,35 @@ def _build_projection_k_grid(
     allow_final_production_floor: bool = True,
     diagnostic_matrix_fast_path: bool = False,
     surface_ell_max_override: int | None = None,
+    retain_declared_surface: bool = False,
     refinement_anchors: Sequence[float] | None = None,
 ) -> numpy.ndarray:
     """Return a projection k-grid that satisfies declared numerical bounds.
 
-    Fixed-point diagnostics may request a bounded multipole surface.  That
-    surface is explicit at the call site and never changes ordinary
-    production requests, which continue to use the contract's full ell
-    ceiling.
+    Diagnostic requests own their k bounds.  Final generated production
+    requests retain the declared ell ceiling so sparse observations share
+    one physical transfer surface.
     """
 
     ell_values = numpy.asarray(ell_arr, dtype=int)
-    sample_count = max(8, int(numerics.k_sample_count))
+    diagnostic_minimum = 1 if diagnostic_matrix_fast_path else 8
+    sample_count = max(diagnostic_minimum, int(numerics.k_sample_count))
     declared_ell_max = int(getattr(numerics, "ell_max", int(ell_values.max())))
     declared_k_min = float(numerics.k_min)
     declared_k_max = float(numerics.k_max)
+    accuracy_controls = (
+        getattr(
+            perturbation_data,
+            "accuracy_controls",
+            {},
+        )
+        or {}
+    )
+    manifest_summary = getattr(perturbation_data, "manifest_summary", {}) or {}
+    generated_final_hierarchy = bool(
+        manifest_summary.get("generated_scalar_hierarchy")
+        and accuracy_controls.get("accuracy_tier") == "final"
+    )
     if not numpy.isfinite(declared_k_min) or not numpy.isfinite(
         declared_k_max
     ):
@@ -1124,9 +1146,6 @@ def _build_projection_k_grid(
         float(background.eta0) - float(background.eta_rec),
         1.0,
     )
-    declared_required_k_max = 1.5 * (
-        (float(declared_ell_max) + 16.0) / eta_rec_distance
-    )
     if surface_ell_max_override is not None:
         requested_surface_ell_max = int(surface_ell_max_override)
         if requested_surface_ell_max < int(ell_values.max()):
@@ -1135,14 +1154,24 @@ def _build_projection_k_grid(
                 "multipole"
             )
         surface_ell_max = min(declared_ell_max, requested_surface_ell_max)
-    elif declared_required_k_max <= declared_k_max:
-        surface_ell_max = declared_ell_max
     else:
-        # A low-ell request can still be evaluated when a model declares an
-        # ell ceiling whose k ceiling is too small to support the full range.
-        # Keep the request-local surface in that inconsistent case, and let
-        # the preflight below reject only requests that actually exceed k_max.
-        surface_ell_max = int(ell_values.max())
+        declared_required_k_max = 1.5 * (
+            (float(declared_ell_max) + 16.0) / eta_rec_distance
+        )
+        if (
+            declared_required_k_max <= declared_k_max
+            and retain_declared_surface
+        ):
+            # Production requests retain the model-declared physical surface
+            # even when the caller selects sparse multipoles from it.  The
+            # high-k tail contributes to low-ell power through the same
+            # transfer graph and is required for a stable acoustic shape.
+            surface_ell_max = declared_ell_max
+        else:
+            # A low-ell diagnostic request can still be evaluated when a
+            # model declares an ell ceiling whose k ceiling is too small to
+            # support the full range.
+            surface_ell_max = int(ell_values.max())
     configured_reference_ells = _configured_reference_ells(
         perturbation_data,
         maximum_ell=max(int(ell_values.max()), surface_ell_max),
@@ -1176,22 +1205,9 @@ def _build_projection_k_grid(
         0.2 * max(float(grid_ell_min), 2.0) / eta0_floor,
     )
     required_k_max = 1.5 * ((float(grid_ell_max) + 16.0) / eta_rec_distance)
-    accuracy_controls = (
-        getattr(
-            perturbation_data,
-            "accuracy_controls",
-            {},
-        )
-        or {}
-    )
-    manifest_summary = getattr(perturbation_data, "manifest_summary", {}) or {}
     refinement_factor = max(
         1,
         int(getattr(numerics, "k_grid_refinement_factor", 1)),
-    )
-    generated_final_hierarchy = bool(
-        manifest_summary.get("generated_scalar_hierarchy")
-        and accuracy_controls.get("accuracy_tier") == "final"
     )
     if refinement_factor > 1 and not generated_final_hierarchy:
         # Explicit graphs do not use the generated final-grid floor below.
@@ -1207,7 +1223,15 @@ def _build_projection_k_grid(
         # scalar projection envelope.  Keep that tail in the fixed node
         # budget so the absolute tensor surfaces converge at the reference
         # multipoles instead of biasing EE and BB low.
-        k_floor = max(12.0 * k_min, 5.0 * required_k_max)
+        # Round the tail outward by one representable float.  The requested
+        # bound and the test-side physical estimate use the same expression,
+        # but independent evaluation order can otherwise leave the generated
+        # endpoint one ulp below the declared spin-2 requirement.
+        tensor_tail_floor = numpy.nextafter(
+            5.0 * required_k_max,
+            numpy.inf,
+        )
+        k_floor = max(12.0 * k_min, tensor_tail_floor)
     else:
         # Keep scalar quadrature nodes on the requested projection surface.
         # A fixed 0.08/Mpc floor spends the declared node budget on modes
@@ -1280,6 +1304,34 @@ def _build_projection_k_grid(
         if phase_setting is not None
         else generated_final_hierarchy
     )
+    require_phase_resolution = bool(
+        accuracy_controls.get("require_phase_resolution", False)
+    )
+    if phase_aware_k_enabled and require_phase_resolution:
+        # A final request must resolve the physical radial/acoustic phase
+        # before mode evolution.  The old bounded path capped the linear
+        # phase ladder at its nominal sample count and merely recorded an
+        # under-resolved status; that allowed aliased Bessel oscillations to
+        # enter an otherwise successful production spectrum.  Promote the
+        # engine-owned budget to the uncapped requirement, while preserving
+        # explicit diagnostic budgets and their evidence-only status.
+        phase_requirements = phase_aware_k_grid_requirements(
+            k_min,
+            k_max,
+            phase_points_per_cycle=float(
+                _accuracy_control_value(
+                    accuracy_controls,
+                    "phase_points_per_cycle",
+                )
+                or 8.0
+            ),
+            eta_distance=eta_rec_distance,
+            sound_horizon=max(float(background.sound_horizon_mpc), 1.0),
+        )
+        sample_count = max(
+            int(sample_count),
+            int(phase_requirements["required_nodes"]),
+        )
     # Keep the physical anchor set independent of the requested node count.
     # Otherwise a 64-node and a 96-node refinement choose different ell
     # anchors before refinement even begins, measuring an anchor relocation
@@ -1355,12 +1407,15 @@ def _build_projection_k_grid(
             ]
         while len(ordered_nodes) < sample_count:
             linear_nodes = numpy.asarray(ordered_nodes, dtype=float)
-            widest_gap_index = int(numpy.argmax(numpy.diff(linear_nodes)))
+            log_nodes = numpy.log(linear_nodes)
+            widest_gap_index = int(numpy.argmax(numpy.diff(log_nodes)))
             midpoint = float(
-                0.5
-                * (
-                    linear_nodes[widest_gap_index]
-                    + linear_nodes[widest_gap_index + 1]
+                numpy.exp(
+                    0.5
+                    * (
+                        log_nodes[widest_gap_index]
+                        + log_nodes[widest_gap_index + 1]
+                    )
                 )
             )
             if (
@@ -1389,9 +1444,7 @@ def _build_projection_k_grid(
             eta_distance=eta_rec_distance,
             sound_horizon=max(float(background.sound_horizon_mpc), 1.0),
             anchors=anchor_nodes,
-            require_phase_resolution=bool(
-                accuracy_controls.get("require_phase_resolution", False)
-            ),
+            require_phase_resolution=bool(require_phase_resolution),
         )
     if (
         result.ndim != 1
@@ -3333,6 +3386,15 @@ def _compute_custom_cmb_spectrum_data_impl(
             # its bounded, under-resolved scaffold for raw evidence.
             allow_final_production_floor=not diagnostic_matrix_fast_path,
             diagnostic_matrix_fast_path=diagnostic_matrix_fast_path,
+            surface_ell_max_override=(
+                max(int(numerics.ell_max), int(ell_arr.max()))
+                if diagnostic_matrix_fast_path
+                else None
+            ),
+            retain_declared_surface=(
+                generated_scalar_hierarchy
+                and declared_accuracy_controls.get("accuracy_tier") == "final"
+            ),
             refinement_anchors=contract_or_params.get(
                 "_k_grid_refinement_anchors"
             ),
@@ -3582,6 +3644,48 @@ def _compute_custom_cmb_spectrum_data_impl(
     source_history_cache_misses = 0
     initial_state_cache_hits = 0
     initial_state_cache_misses = 0
+    stage_diagnostic = contract_or_params.get("_stage_diagnostic")
+    if stage_diagnostic is None:
+        stage_diagnostic = {}
+    if not isinstance(stage_diagnostic, Mapping):
+        raise ValueError("_stage_diagnostic must be a mapping")
+    stage_diagnostic_k_values = tuple(
+        sorted(
+            {float(value) for value in stage_diagnostic.get("k_values", ())}
+        )
+    )
+    if any(
+        not numpy.isfinite(value) or value <= 0.0
+        for value in stage_diagnostic_k_values
+    ):
+        raise ValueError(
+            "_stage_diagnostic.k_values must be finite and positive"
+        )
+    stage_diagnostic_fields = tuple(
+        str(value)
+        for value in stage_diagnostic.get(
+            "fields",
+            (
+                "Phi",
+                "Psi",
+                "theta_gamma0",
+                "theta_gamma1",
+                "theta_gamma2",
+                "e_gamma2",
+                "theta_b",
+                "delta_b",
+                "delta_c",
+                "delta_nu",
+                "sigma_nu",
+                "temperature_monopole",
+                "temperature_quadrupole",
+                "temperature_doppler",
+                "polarization_source",
+                "lensing_potential",
+            ),
+        )
+    )
+    stage_diagnostic_histories_by_k: dict[str, dict[str, Any]] = {}
     source_eta_signature = hashlib.sha256(
         numpy.asarray(source_grids["eta"], dtype=numpy.float64).tobytes()
     ).hexdigest()
@@ -3684,6 +3788,7 @@ def _compute_custom_cmb_spectrum_data_impl(
             "observable_theta_gamma0",
             "observable_theta_b",
             "polarization_moment",
+            "visibility_polarization_moment_tau_tau",
             "temperature_monopole",
             "temperature_quadrupole",
             "temperature_quadrupole_derivative",
@@ -3733,6 +3838,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                 "observable_theta_gamma0",
                 "observable_theta_b",
                 "polarization_moment",
+                "visibility_polarization_moment_tau_tau",
                 "temperature_monopole",
                 "temperature_quadrupole",
                 "temperature_quadrupole_derivative",
@@ -4739,11 +4845,101 @@ def _compute_custom_cmb_spectrum_data_impl(
             ),
             "sound_horizon": float(background.sound_horizon_mpc),
         }
+        if generated_scalar_hierarchy:
+            # The generated hierarchy can start at eta values many orders
+            # below recombination.  Linear interpolation of Hconf across a
+            # sparse evolution interval turns the radiation-era relation
+            # Hconf ~ 1/eta into an O(1) stage error, which then breaks the
+            # regular Einstein momentum cancellation.  Use the background's
+            # monotone physical interpolants at RK stage coordinates instead
+            # of interpolating the sampled history values a second time.
+            sampled_background = background.sample(float(eta_value))
+
+            def _sampled_scalar(name: str) -> float:
+                """Return one finite scalar from a sampled background."""
+
+                values = numpy.asarray(sampled_background[name], dtype=float)
+                return float(values.reshape(-1)[-1])
+
+            sampled_a = _sampled_scalar("a")
+            sampled_z = _sampled_scalar("z")
+            try:
+                a_tau = float(
+                    background.a_of_eta.derivative()(float(eta_value))
+                )
+                a_tau_tau = float(
+                    background.a_of_eta.derivative(2)(float(eta_value))
+                )
+                sampled_hconf = a_tau / max(sampled_a, 1.0e-30)
+                sampled_h = (
+                    sampled_hconf * _C_LIGHT_KM_S / max(sampled_a, 1.0e-30)
+                )
+                sampled_hconf_tau = (
+                    a_tau_tau / max(sampled_a, 1.0e-30)
+                    - sampled_hconf * sampled_hconf
+                )
+            except (AttributeError, TypeError, ValueError):
+                sampled_h = _sampled_scalar("H")
+                sampled_hconf = sampled_a * sampled_h / _C_LIGHT_KM_S
+                sampled_hconf_tau = _blend_history(
+                    active_grids["Hconf_tau"],
+                    step_index=step_index,
+                    blend=blend,
+                )
+            sampled_collision_rate = max(
+                -_sampled_scalar("tau_dot"),
+                0.0,
+            )
+            scalar_context.update(
+                {
+                    "a": sampled_a,
+                    "z": sampled_z,
+                    "H": sampled_h,
+                    "Hconf": sampled_hconf,
+                    "Hconf_tau": sampled_hconf_tau,
+                    "tau": _sampled_scalar("tau"),
+                    "tau_dot": _sampled_scalar("tau_dot"),
+                    "visibility": _sampled_scalar("visibility"),
+                    "chi": _sampled_scalar("chi"),
+                    "angular_diameter_distance": _sampled_scalar(
+                        "angular_diameter_distance"
+                    ),
+                    "sound_speed": _sampled_scalar("sound_speed"),
+                    "baryon_sound_speed_sq": _sampled_scalar(
+                        "baryon_sound_speed_sq"
+                    ),
+                    "collision_rate": sampled_collision_rate,
+                    "sound_speed_sq": 1.0
+                    / (
+                        3.0
+                        * (
+                            1.0
+                            + (
+                                3.0
+                                * physical_params.Omega_b0
+                                * sampled_a
+                                / max(
+                                    4.0 * physical_params.Omega_gamma0,
+                                    1.0e-12,
+                                )
+                            )
+                        )
+                    ),
+                }
+            )
+            scalar_context["baryon_loading"] = (
+                3.0
+                * physical_params.Omega_b0
+                * sampled_a
+                / max(4.0 * physical_params.Omega_gamma0, 1.0e-12)
+            )
         collision_rate = _blend_history(
             active_grids["collision_rate"],
             step_index=step_index,
             blend=blend,
         )
+        if generated_scalar_hierarchy:
+            collision_rate = float(scalar_context["collision_rate"])
         tight_coupling_drag = _compute_tight_coupling_drag(
             collision_rate=collision_rate,
             k_value=float(active_k_value if k_value is None else k_value),
@@ -4757,6 +4953,17 @@ def _compute_custom_cmb_spectrum_data_impl(
                 step_index=step_index,
                 blend=blend,
             )
+        if generated_scalar_hierarchy:
+            declared_stage = _resolve_declared_background_context(
+                contract_or_params,
+                a_values=float(scalar_context["a"]),
+                z_values=float(scalar_context["z"]),
+            )
+            for name, value in declared_stage.items():
+                if name in {"a", "z"}:
+                    continue
+                values = numpy.asarray(value, dtype=float)
+                scalar_context[name] = float(values.reshape(-1)[-1])
         cached_context = (float(eta_value), scalar_context)
         scalar_background_context_cache[context_key] = cached_context
         return cached_context
@@ -5025,12 +5232,21 @@ def _compute_custom_cmb_spectrum_data_impl(
             generated_scalar_hierarchy
             and evolution_sample_count_override is None
             and not adaptive_controls.evolution_enabled
+            and not stage_diagnostic_k_values
         )
         if common_scalar_evolution:
             requested_evolution_samples = max(
                 int(requested_evolution_samples or 0),
                 512,
             )
+            # The hierarchy history is a physical product, not a
+            # line-of-sight product.  Building it from ``source_eta_start``
+            # makes an early-start and a late-start request use different
+            # meshes over their shared interval, so the later request can
+            # drift even though both requests have the same declaration.
+            # Evolve the common scalar history from the earliest background
+            # surface on one engine-owned mesh and sample it separately for
+            # each request below.
             eta_mode_grid = _evolution_eta_grid(
                 eta_background_start,
                 sample_count_override=int(requested_evolution_samples),
@@ -5678,7 +5894,7 @@ def _compute_custom_cmb_spectrum_data_impl(
             float(initial_eta),
             int(len(runtime_spec.state_slots)),
         )
-        if not diagnostic_source_audit:
+        if not diagnostic_source_audit and not stage_diagnostic_k_values:
             cached_initial = cache.get_cmb_initial_state(initial_cache_key)
             if cached_initial is not None:
                 initial_state_cache_hits += 1
@@ -5810,7 +6026,7 @@ def _compute_custom_cmb_spectrum_data_impl(
             context=initial_state_context,
             k_value=float(mode_k_value),
         )
-        if not diagnostic_source_audit:
+        if not diagnostic_source_audit and not stage_diagnostic_k_values:
             cache.set_cmb_initial_state(
                 initial_cache_key,
                 (
@@ -7468,6 +7684,55 @@ def _compute_custom_cmb_spectrum_data_impl(
                 }
         return source_histories, source_arrays
 
+    def _record_stage_diagnostic_histories(
+        mode_index: int,
+        mode_k_value: float,
+        *,
+        evolution_eta: numpy.ndarray,
+        evolution_histories: Mapping[str, numpy.ndarray],
+        source_eta: numpy.ndarray,
+        source_histories: Mapping[str, numpy.ndarray],
+        source_arrays: Mapping[str, numpy.ndarray],
+    ) -> None:
+        """Retain native and source-grid histories for selected modes."""
+
+        if not stage_diagnostic_k_values:
+            return
+        for requested_k_value in stage_diagnostic_k_values:
+            selected_index = int(
+                numpy.argmin(numpy.abs(k_values - requested_k_value))
+            )
+            if selected_index != int(mode_index):
+                continue
+            evolution_payload = {
+                name: numpy.asarray(values, dtype=float).copy()
+                for name, values in evolution_histories.items()
+                if name in stage_diagnostic_fields
+            }
+            source_payload = {
+                name: numpy.asarray(values, dtype=float).copy()
+                for name, values in source_histories.items()
+                if name in stage_diagnostic_fields
+            }
+            source_payload.update(
+                {
+                    name: numpy.asarray(values, dtype=float).copy()
+                    for name, values in source_arrays.items()
+                    if name in stage_diagnostic_fields
+                }
+            )
+            stage_diagnostic_histories_by_k[f"{requested_k_value:.12g}"] = {
+                "requested_k": float(requested_k_value),
+                "selected_k": float(mode_k_value),
+                "evolution_eta": numpy.asarray(
+                    evolution_eta,
+                    dtype=float,
+                ).copy(),
+                "evolution_histories": evolution_payload,
+                "source_eta": numpy.asarray(source_eta, dtype=float).copy(),
+                "source_histories": source_payload,
+            }
+
     def _evolve_declared_modes_batched(
         mode_k_values: numpy.ndarray,
     ) -> dict[int, dict[str, numpy.ndarray]]:
@@ -8691,8 +8956,10 @@ def _compute_custom_cmb_spectrum_data_impl(
                         )
                         + 1
                     )
+                    scalar_history_sink: dict[str, Any] = {}
                     _, scalar_source_arrays = _evolve_declared_mode(
                         mode_k_value,
+                        history_sink=scalar_history_sink,
                         # The corrective scalar evolution is the accepted
                         # source history for this mode.  Always collect the
                         # scalar constraint diagnostics so a generated
@@ -8701,13 +8968,44 @@ def _compute_custom_cmb_spectrum_data_impl(
                         # ``diagnostic_source_audit`` inside the evaluator.
                         collect_diagnostics=True,
                     )
+                    _record_stage_diagnostic_histories(
+                        int(mode_index),
+                        float(mode_k_value),
+                        evolution_eta=scalar_history_sink["evolution_eta"],
+                        evolution_histories=scalar_history_sink[
+                            "evolution_histories"
+                        ],
+                        source_eta=scalar_history_sink["source_eta"],
+                        source_histories=scalar_history_sink[
+                            "source_histories"
+                        ],
+                        source_arrays=scalar_source_arrays,
+                    )
                     results[int(mode_index)] = scalar_source_arrays
                     continue
-                results[int(mode_index)] = _evaluate_source_histories(
+                evaluated_source_arrays = _evaluate_source_histories(
                     mode_k_value,
                     source_histories,
                     required_source_names=required_source_names,
                 )
+                _record_stage_diagnostic_histories(
+                    int(mode_index),
+                    mode_k_value,
+                    evolution_eta=eta_values,
+                    evolution_histories={
+                        name: numpy.asarray(
+                            histories[row_index, :, slot.index],
+                            dtype=float,
+                        )
+                        for name in history_names
+                        for slot in runtime_spec.state_slots
+                        if slot.variable == name and slot.order == 0
+                    },
+                    source_eta=source_eta,
+                    source_histories=source_histories,
+                    source_arrays=evaluated_source_arrays,
+                )
+                results[int(mode_index)] = evaluated_source_arrays
 
         scalar_base_context_cache = {}
         scalar_background_context_cache = {}
@@ -8719,7 +9017,8 @@ def _compute_custom_cmb_spectrum_data_impl(
         return results
 
     transfer_cache_reuse_allowed = not (
-        diagnostic_source_audit
+        stage_diagnostic_k_values
+        or diagnostic_source_audit
         or adaptive_controls.transfer_enabled
         or adaptive_controls.source_enabled
         or adaptive_controls.projection_enabled
@@ -8946,7 +9245,7 @@ def _compute_custom_cmb_spectrum_data_impl(
     )
     with performance_timer.phase("evolution"):
         cached_mode_source_arrays: dict[int, dict[str, numpy.ndarray]] = {}
-        if not diagnostic_source_audit:
+        if not diagnostic_source_audit and not stage_diagnostic_k_values:
             for k_index, k_value in enumerate(k_values):
                 cached = cache.get_cmb_source_history(
                     _source_history_cache_key(float(k_value))
@@ -9039,7 +9338,10 @@ def _compute_custom_cmb_spectrum_data_impl(
                 total=int(k_values.size),
             )
             for k_index, source_arrays in batched_mode_source_arrays.items():
-                if not diagnostic_source_audit:
+                if (
+                    not diagnostic_source_audit
+                    and not stage_diagnostic_k_values
+                ):
                     cache.set_cmb_source_history(
                         _source_history_cache_key(float(k_values[k_index])),
                         {
@@ -10281,6 +10583,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                             row_index
                         ],
                         auto_spectrum=primary_name == secondary_name,
+                        use_positive_trapezoid=True,
                     )[0]
                 )
         spectra_results = direct_spectra
@@ -10665,6 +10968,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                             primary=primary[row_index],
                             secondary=secondary[row_index],
                             auto_spectrum=primary_name == secondary_name,
+                            use_positive_trapezoid=True,
                         )
                     )[0]
         if adaptive_ell_indices.size >= 2:
@@ -10792,6 +11096,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                                 row_index
                             ],
                             auto_spectrum=primary_name == secondary_name,
+                            use_positive_trapezoid=True,
                         )
                     )[0]
         if adaptive_ell_indices.size >= 2:
@@ -11031,6 +11336,57 @@ def _compute_custom_cmb_spectrum_data_impl(
             "mode_count": int(source_history_mode_count),
             "sample_count": 0,
             "included_fields": (),
+        }
+    if stage_diagnostic_k_values:
+        for requested_k_value in stage_diagnostic_k_values:
+            diagnostic_key = f"{requested_k_value:.12g}"
+            record = stage_diagnostic_histories_by_k.get(diagnostic_key)
+            if record is None:
+                selected_index = int(
+                    numpy.argmin(numpy.abs(k_values - requested_k_value))
+                )
+                selected_k_value = float(k_values[selected_index])
+                history_sink: dict[str, Any] = {}
+                state_histories, source_arrays = _evolve_declared_mode(
+                    selected_k_value,
+                    history_sink=history_sink,
+                    collect_diagnostics=False,
+                )
+                _record_stage_diagnostic_histories(
+                    selected_index,
+                    selected_k_value,
+                    evolution_eta=history_sink["evolution_eta"],
+                    evolution_histories=history_sink["evolution_histories"],
+                    source_eta=history_sink["source_eta"],
+                    source_histories=state_histories,
+                    source_arrays=source_arrays,
+                )
+                record = stage_diagnostic_histories_by_k[diagnostic_key]
+            stage_diagnostic_histories_by_k[diagnostic_key] = {
+                "requested_k": float(record["requested_k"]),
+                "selected_k": float(record["selected_k"]),
+                "evolution_eta": numpy.asarray(
+                    record["evolution_eta"],
+                    dtype=float,
+                ).tolist(),
+                "evolution_histories": {
+                    name: numpy.asarray(values, dtype=float).tolist()
+                    for name, values in record["evolution_histories"].items()
+                },
+                "source_eta": numpy.asarray(
+                    record["source_eta"],
+                    dtype=float,
+                ).tolist(),
+                "source_histories": {
+                    name: numpy.asarray(values, dtype=float).tolist()
+                    for name, values in record["source_histories"].items()
+                },
+            }
+        runtime_envelope["stage_diagnostic"] = {
+            "schema_version": 1,
+            "requested_k_values": stage_diagnostic_k_values,
+            "fields": stage_diagnostic_fields,
+            "histories_by_k": stage_diagnostic_histories_by_k,
         }
     kernel_cache_after = cache.cmb_cache_stats()[
         "declared_projection_kernel_batch"

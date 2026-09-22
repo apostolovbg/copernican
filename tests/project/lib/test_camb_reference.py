@@ -64,6 +64,25 @@ class CambReferenceModuleTestCase(unittest.TestCase):
         )
         self.assertIn("reference_fixture_sha256", camb_reference.__all__)
 
+    def test_scalar_time_evolution_returns_aligned_finite_histories(self):
+        """The independent scalar-history reference preserves grid shape."""
+
+        eta_values = numpy.asarray((10.0, 100.0, 1000.0), dtype=float)
+        histories = camb_reference.compute_camb_scalar_time_evolution(
+            camb_reference.FIXED_LCDM_REFERENCE_CONTRACT,
+            0.02,
+            eta_values,
+            variables=("delta_photon", "v_photon", "T_source"),
+        )
+
+        self.assertEqual(
+            set(histories),
+            {"delta_photon", "v_photon", "T_source"},
+        )
+        for values in histories.values():
+            self.assertEqual(values.shape, eta_values.shape)
+            self.assertTrue(numpy.all(numpy.isfinite(values)))
+
     def test_fixed_lcdm_fixture_is_self_describing(self):
         """The frozen fixture records arrays, conventions, and its digest."""
 

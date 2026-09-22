@@ -331,6 +331,66 @@ def _compute_cmb_spectrum_direct(
     return result
 
 
+def compute_camb_scalar_time_evolution(
+    contract_or_params: Mapping[str, Any],
+    k_value: float,
+    eta_values: Sequence[float] | numpy.ndarray,
+    *,
+    variables: Sequence[str] = (
+        "delta_cdm",
+        "delta_baryon",
+        "delta_photon",
+        "delta_neutrino",
+        "v_newtonian_baryon",
+        "v_photon",
+        "pi_photon",
+        "E_2",
+        "Weyl",
+        "T_source",
+        "E_source",
+    ),
+    frame: str = "Newtonian",
+    l_accuracy_boost: int = 4,
+) -> dict[str, numpy.ndarray]:
+    """Return independent CAMB scalar histories on the requested eta grid."""
+
+    k_scalar = _coerce_numeric_scalar(k_value, name="k_value")
+    if k_scalar <= 0.0:
+        raise ValueError("k_value must be positive")
+    eta_array = _coerce_numeric_array(eta_values, name="eta_values")
+    variable_names = tuple(str(name) for name in variables)
+    if not variable_names:
+        raise ValueError("variables must not be empty")
+    if int(l_accuracy_boost) < 1:
+        raise ValueError("l_accuracy_boost must be positive")
+    params = _make_camb_params(contract_or_params, lmax=32)
+    results = camb.get_results(params)
+    values = numpy.asarray(
+        results.get_time_evolution(
+            k_scalar,
+            eta_array,
+            vars=list(variable_names),
+            lAccuracyBoost=int(l_accuracy_boost),
+            frame=str(frame),
+        ),
+        dtype=float,
+    )
+    if values.ndim == 1:
+        values = values[numpy.newaxis, :]
+    expected_shape = (eta_array.size, len(variable_names))
+    if values.shape != expected_shape:
+        raise ValueError(
+            "CAMB scalar time evolution returned shape "
+            f"{values.shape}; expected {expected_shape}"
+        )
+    if not numpy.all(numpy.isfinite(values)):
+        raise ValueError("CAMB scalar time evolution returned non-finite data")
+    return {
+        name: numpy.asarray(values[:, index], dtype=float)
+        for index, name in enumerate(variable_names)
+    }
+
+
 def _compute_camb_background_direct(
     contract_or_params: Mapping[str, Any],
     redshifts: Sequence[float],
@@ -893,6 +953,7 @@ __all__ = [
     "build_camb_parity_reference_set",
     "compare_lcdm_reference_spectra",
     "compute_camb_background_observables",
+    "compute_camb_scalar_time_evolution",
     "compute_cmb_spectrum_from_camb_contract",
     "describe_camb_configuration",
     "load_lcdm_full_reference_fixture",

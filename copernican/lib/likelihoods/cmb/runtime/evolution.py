@@ -20,6 +20,8 @@ from ....perturbation_contract import (
     _ALLOWED_MATH_FUNCS,
     _evaluate_compiled_expression_noerr,
     _parse_safe_expression,
+    compile_perturbation_contract,
+    engine_numerical_plan_context,
     evaluate_compiled_expression,
 )
 from ..errors import ConstraintViolationError, NonFiniteEvolutionError
@@ -112,9 +114,59 @@ def _private_local_aliases(
 def _compile_declared_perturbation_contract(
     contract: Mapping[str, Any],
 ):
-    """Return the precompiled perturbation contract for generic execution."""
+    """Return the request-shaped compiled perturbation contract."""
 
     precompiled = contract.get("perturbation_data")
+    declared = contract.get("perturbations")
+    engine_numerics = contract.get("_engine_numerical_plan")
+    engine_accuracy = contract.get("_engine_accuracy_controls")
+    if (
+        precompiled is not None
+        and isinstance(declared, Mapping)
+        and isinstance(engine_numerics, Mapping)
+        and isinstance(engine_accuracy, Mapping)
+        and "numerics" not in declared
+    ):
+        diagnostics = contract.get("compile_diagnostics")
+        parameter_names = tuple(
+            str(name)
+            for name in getattr(
+                diagnostics,
+                "parameter_names",
+                getattr(precompiled, "model_parameters_used", ()),
+            )
+        )
+        background_reference_names = tuple(
+            str(name)
+            for name in getattr(
+                diagnostics,
+                "background_reference_names",
+                getattr(precompiled, "background_references_used", ()),
+            )
+        )
+        materialization_numerics = dict(engine_numerics)
+        declared_numerics = getattr(precompiled, "numerics", {}) or {}
+        if isinstance(declared_numerics, Mapping):
+            materialization_numerics["ell_max"] = max(
+                int(materialization_numerics.get("ell_max", 0)),
+                int(declared_numerics.get("ell_max", 0)),
+            )
+        with engine_numerical_plan_context(
+            materialization_numerics,
+            engine_accuracy,
+        ):
+            return compile_perturbation_contract(
+                _mutable_declared_value(declared),
+                model_name=str(
+                    contract.get(
+                        "model_name",
+                        getattr(precompiled, "model_name", "declared"),
+                    )
+                ),
+                parameter_names=parameter_names,
+                latex_names=(),
+                background_reference_names=background_reference_names,
+            )
     if precompiled is not None:
         return precompiled
     raise ValueError(
@@ -122,6 +174,20 @@ def _compile_declared_perturbation_contract(
         "Prepare the runtime through model_coder before likelihood "
         "evaluation."
     )
+
+
+def _mutable_declared_value(value: Any) -> Any:
+    """Copy frozen declaration mappings into compiler-owned containers."""
+
+    if isinstance(value, Mapping):
+        return {
+            key: _mutable_declared_value(item) for key, item in value.items()
+        }
+    if isinstance(value, tuple):
+        return [_mutable_declared_value(item) for item in value]
+    if isinstance(value, list):
+        return [_mutable_declared_value(item) for item in value]
+    return copy.deepcopy(value)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1492,7 +1558,11 @@ def prepare_runtime_assets(
             _declared_graph_execution_plan_cache_token(perturbation_data)
         )
     owner_pid = os.getpid()
-    cache_key = (owner_pid, signature)
+    cache_key = (
+        owner_pid,
+        signature,
+        _declared_graph_execution_plan_cache_token(perturbation_data),
+    )
     cached = cache.get_runtime_assets(cache_key)
     if cached is not None:
         return cached

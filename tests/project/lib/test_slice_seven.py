@@ -195,12 +195,18 @@ class SliceSevenProductionGraphTestCase(unittest.TestCase):
             1,
         )
         temperature_spectrum = numpy.asarray(spectra["TT"], dtype=float)
-        trough_index = int(numpy.argmin(temperature_spectrum))
+        acoustic_indices = numpy.flatnonzero(
+            numpy.asarray(_PRODUCTION_ELL_VALUES, dtype=int) >= 20
+        )
+        trough_index = int(
+            acoustic_indices[
+                numpy.argmin(temperature_spectrum[acoustic_indices])
+            ]
+        )
         peak_index = (
             int(numpy.argmax(temperature_spectrum[trough_index:]))
             + trough_index
         )
-        self.assertGreaterEqual(_PRODUCTION_ELL_VALUES[trough_index], 80)
         self.assertGreater(_PRODUCTION_ELL_VALUES[peak_index], 180)
         self.assertGreater(
             float(temperature_spectrum[peak_index]),

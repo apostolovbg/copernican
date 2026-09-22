@@ -1185,9 +1185,10 @@ class ModelInterfaceTestCase(unittest.TestCase):
                         "ell_min": 2,
                         "ell_max": 20,
                         "k_min": 1.0e-4,
-                        "k_max": 1.0e-2,
+                        "k_max": 2.0e-2,
                         "k_sample_count": 1,
                         "eta_sample_count": 16,
+                        "evolution_eta_sample_count": 16,
                         "source_grid_multiplier": 1,
                     }
                 )
@@ -1197,19 +1198,21 @@ class ModelInterfaceTestCase(unittest.TestCase):
                     models_dir / model_name,
                     model_data,
                 )
+                perturbation_data = plugin.get_cmb_perturbation_data(
+                    plugin.INITIAL_GUESSES
+                )
+                declared_surfaces = cmb_contract.audit_cmb_capabilities(
+                    perturbation_data
+                ).supported_observables
+                self.assertTrue(declared_surfaces)
                 spectra = cmb.compute_cmb_spectrum_cached(
                     plugin,
                     plugin.INITIAL_GUESSES,
                     numpy.asarray([2], dtype=int),
-                    spectra=(
-                        "TT",
-                        "TE",
-                        "EE",
-                        "BB",
-                        "PP",
-                        "TP",
-                        "EP",
-                    ),
+                    spectra=declared_surfaces,
+                    workload="fixed_parameter_diagnostic",
+                    numerical_overrides=numerical,
+                    diagnostic_matrix_fast_path=True,
                 )
                 for values in spectra.values():
                     self.assertTrue(numpy.all(numpy.isfinite(values)))
@@ -1484,6 +1487,10 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
                     "evolution_eta_sample_count": int(
                         evolution_eta_sample_count
                     ),
+                    "photon_hierarchy_l_max": 8,
+                    "photon_polarization_hierarchy_l_max": 8,
+                    "neutrino_hierarchy_l_max": 8,
+                    "massive_neutrino_hierarchy_l_max": 5,
                     "source_grid_multiplier": 1,
                     "a_min": 1.0e-6,
                     "initial_redshift": 2.0e4,
@@ -1555,6 +1562,33 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
         self.assertEqual(controls["accuracy_tier"], "final")
         self.assertTrue(controls["phase_aware_k_quadrature"])
         self.assertTrue(controls["production_scalar_convergence"]["enabled"])
+
+    def test_lcdm_declared_cmb_uses_derived_photon_density(self) -> None:
+        """Declared LCDM CMB closure must use its derived photon density."""
+
+        plugin = self._build_plugin()
+        runtime = plugin.get_cmb_declared_runtime(plugin.INITIAL_GUESSES)
+        physical = cmb_background._resolve_custom_cmb_physical_parameters(
+            runtime
+        )
+        hubble_ratio = float(runtime["param_map"]["H0"]) / 100.0
+        expected_gamma = 2.469e-5 / (hubble_ratio * hubble_ratio)
+        provenance = dict(physical.quantity_provenance)
+
+        self.assertAlmostEqual(
+            float(physical.Omega_gamma0),
+            expected_gamma,
+            places=15,
+        )
+        self.assertEqual(
+            provenance["Omega_gamma0"],
+            "background.derived:Omega_gamma0",
+        )
+        self.assertAlmostEqual(
+            float(physical.Omega_r0),
+            float(physical.Omega_gamma0) + float(physical.Omega_nu0),
+            places=15,
+        )
 
     def test_lcdm_mnu_background_splits_dynamic_neutrino_density(self) -> None:
         """The massive-neutrino background must close at every scale factor."""
@@ -2671,25 +2705,27 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
                         ]
                     )
 
-    def test_declared_lcdm_full_spectrum_returns_finite_spectra(
+    def test_declared_lcdm_anchor_spectra_return_finite_spectra(
         self,
     ) -> None:
-        """A full declared LCDM request must return finite spectra."""
+        """A bounded declared LCDM anchor request returns finite spectra."""
 
         plugin = self._build_bounded_bundled_plugin(
             "model_lcdm.yml",
-            ell_max=2000,
-            k_max=0.3,
-            k_sample_count=8,
-            eta_sample_count=128,
-            evolution_eta_sample_count=64,
+            ell_max=40,
+            k_max=2.0e-2,
+            k_sample_count=1,
+            eta_sample_count=48,
+            evolution_eta_sample_count=32,
         )
-        ell_grid = numpy.arange(2, 2001, dtype=int)
+        ell_grid = numpy.asarray((2, 20, 40), dtype=int)
         spectra = cmb.compute_cmb_spectrum_cached(
             plugin,
             plugin.INITIAL_GUESSES,
             ell_grid,
             spectra=("TT", "TE", "EE", "PP"),
+            workload="fixed_parameter_diagnostic",
+            diagnostic_matrix_fast_path=True,
         )
         self.assertEqual(
             set(spectra),

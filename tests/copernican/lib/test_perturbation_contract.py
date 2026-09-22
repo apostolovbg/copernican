@@ -852,7 +852,7 @@ class PerturbationContractTestCase(unittest.TestCase):
         source_names = (
             "monopole",
             "additive",
-            "additive_derivative",
+            "quadrupole_derivative",
             "doppler",
             "isw",
             "polarization",
@@ -2426,8 +2426,8 @@ class PerturbationContractTestCase(unittest.TestCase):
                     "0.0",
                     "0.0",
                 ),
-                ("0.0", "0.0", "-0.8", "0.1"),
-                ("0.0", "0.0", "0.05", "-0.25"),
+                ("0.0", "0.0", "-0.9", "0.6"),
+                ("0.0", "0.0", "0.1", "-0.4"),
             ),
         )
         self.assertIn("thomson_drag_balance", compiled.conservation_rules)
@@ -2544,10 +2544,6 @@ class PerturbationContractTestCase(unittest.TestCase):
             compiled.equations["evolve_e_gamma2"].rhs,
         )
 
-        self.assertNotIn(
-            "e_gamma1",
-            compiled.equations["evolve_e_gamma2"].rhs,
-        )
         self.assertIn(
             "0.3333333333333333 * acoustic_k * e_gamma3",
             compiled.equations["evolve_e_gamma2"].rhs,
@@ -2579,7 +2575,7 @@ class PerturbationContractTestCase(unittest.TestCase):
         )
         self.assertEqual(
             compiled.derived["polarization_moment"].expression,
-            "theta_gamma2 + e_gamma0 + e_gamma2",
+            "theta_gamma2 + 6.0 * e_gamma2",
         )
         self.assertEqual(
             compiled.derived[
@@ -2593,15 +2589,15 @@ class PerturbationContractTestCase(unittest.TestCase):
         )
         self.assertEqual(
             compiled.sources["temperature_quadrupole"].expression,
-            "0.0",
+            "0.0625 * visibility * polarization_moment",
         )
         self.assertEqual(
             compiled.sources["temperature_quadrupole_derivative"].expression,
-            "0.0",
+            "0.1875 * visibility_polarization_moment_tau_tau / acoustic_k_sq",
         )
         self.assertEqual(
             compiled.sources["polarization_source"].expression,
-            "0.75 * visibility * polarization_moment",
+            "0.1875 * visibility * polarization_moment",
         )
         self.assertEqual(
             compiled.sources["temperature_doppler"].expression,

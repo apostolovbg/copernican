@@ -314,10 +314,17 @@ def plan_cmb_numerics(
         eta_nodes = max(528, eta_nodes)
         evolution_nodes = max(264, evolution_nodes)
 
-    photon_l_max = max(10, 4 + int(math.ceil(math.sqrt(ell_max) / 4.0)))
-    polarization_l_max = max(photon_l_max, 10)
-    neutrino_l_max = max(8, photon_l_max - 2)
-    massive_l_max = max(7, neutrino_l_max - 1)
+    # The hierarchy must resolve the phase accumulated before last
+    # scattering, not just the requested angular multipole.  For the CMB
+    # visibility surface eta_* / chi_* is about 1/50, so ell / 32 is a
+    # conservative engine estimate of k eta_*; retain a closure margin for
+    # the terminal recurrence.  This keeps low-ell work bounded while
+    # growing automatically for acoustic and damping-tail requests.
+    visibility_phase = max(8, int(math.ceil(float(ell_max) / 32.0)))
+    photon_l_max = max(16, visibility_phase + 12)
+    polarization_l_max = max(photon_l_max, 16)
+    neutrino_l_max = max(12, photon_l_max - 4)
+    massive_l_max = max(12, neutrino_l_max - 1)
     hierarchy_controls = {
         "photon_temperature": int(photon_l_max),
         "photon_polarization": int(polarization_l_max),
@@ -420,6 +427,11 @@ def plan_cmb_numerics(
                 },
                 "accuracy_tier": "final",
                 "phase_aware_k_quadrature": True,
+                # A final scalar request may not silently accept the capped
+                # phase ladder.  The projection builder promotes its
+                # engine-owned node budget to the physical radial/acoustic
+                # requirement before evolving any mode.
+                "require_phase_resolution": True,
                 "minimum_k_sample_count": 64,
                 "minimum_eta_sample_count": 192,
                 "minimum_evolution_eta_sample_count": 128,

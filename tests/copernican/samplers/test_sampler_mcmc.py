@@ -32,6 +32,7 @@ from copernican.samplers.sampler_mcmc import (
     _reseed_invalid_walkers,
     _resolve_mcmc_pool_processes,
 )
+from tests.project.lib.cmb_solver_fixture import SyntheticCmbSolver
 
 
 def _build_model_plugin(
@@ -1069,10 +1070,12 @@ class TestSamplerMcmc(unittest.TestCase):
         perturbation_contract = plugin.get_cmb_perturbation_contract(initial)
         structured_contract = dict(cmb_contract)
         structured_contract["perturbations"] = perturbation_contract
+        cmb_solver = SyntheticCmbSolver()
         dl_vals = module.compute_cmb_spectrum(
             structured_contract,
             ells,
             spectra=("TT",),
+            cmb_solver=cmb_solver,
         )
         self.assertTrue(numpy.all(numpy.isfinite(dl_vals)))
         cmb_df = pandas.DataFrame({"ell": ells, "Dl_obs": dl_vals})
@@ -1087,6 +1090,7 @@ class TestSamplerMcmc(unittest.TestCase):
             n_steps=2,
             pool_size=1,
             burn_in_steps=2,
+            cmb_solver=cmb_solver,
         )
         components = result.get("chi2_components", {})
         total = sum(components.values())

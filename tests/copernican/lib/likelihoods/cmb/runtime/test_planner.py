@@ -85,6 +85,7 @@ class AutomaticCMBPlannerTestCase(unittest.TestCase):
         self.assertIsInstance(plan, CMBNumericalPlan)
         self.assertEqual(plan.accuracy_controls["accuracy_tier"], "final")
         self.assertTrue(plan.accuracy_controls["phase_aware_k_quadrature"])
+        self.assertTrue(plan.accuracy_controls["require_phase_resolution"])
         self.assertEqual(
             planner_accuracy_controls(
                 contract,
@@ -170,6 +171,28 @@ class AutomaticCMBPlannerTestCase(unittest.TestCase):
         self.assertGreaterEqual(int(collisions["operator_count"]), 1)
         self.assertTrue(initial["hidden_prefix"])
         self.assertIn("conditions", initial)
+
+    def test_hierarchy_depth_follows_visibility_phase(self) -> None:
+        """Higher ell requests receive deeper physical hierarchies."""
+
+        low = plan_cmb_numerics(
+            self._lcdm_contract(),
+            ells=range(2, 121),
+        )
+        high = plan_cmb_numerics(
+            self._lcdm_contract(),
+            ells=range(2, 2001),
+        )
+
+        low_l_max = low.hierarchy_controls["photon_temperature"]
+        high_l_max = high.hierarchy_controls["photon_temperature"]
+        self.assertGreaterEqual(low_l_max, 16)
+        self.assertGreater(high_l_max, low_l_max)
+        self.assertGreaterEqual(high_l_max, 70)
+        self.assertGreater(
+            high.hierarchy_controls["massless_neutrino"],
+            low.hierarchy_controls["massless_neutrino"],
+        )
 
     def test_plan_records_all_projection_route_axes(self) -> None:
         """Projection planning exposes sectors, kernels, and refinements."""

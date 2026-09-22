@@ -15,6 +15,7 @@ from copernican.lib import dataset_registry, result_writer, run_manifest, utils
 from copernican.lib.model_selection import build_comparison_request
 from copernican.samplers import sampler_mcmc, sampler_nested
 from tests.project.datasets.synthetic import model_plugin
+from tests.project.lib.cmb_solver_fixture import SyntheticCmbSolver
 
 # Restore ``importlib.util`` attribute removed by the frozen importlib shim.
 setattr(importlib, "util", importlib_util)
@@ -109,6 +110,7 @@ class TestSyntheticIntegration(unittest.TestCase):
                 _assert_hashes(self, dataset_frame)
 
             for sampler_module in (sampler_mcmc, sampler_nested):
+                cmb_solver = SyntheticCmbSolver()
                 if sampler_module is sampler_mcmc:
                     fit_result = sampler_module.sample_parameters(
                         sne_dataframe,
@@ -120,6 +122,7 @@ class TestSyntheticIntegration(unittest.TestCase):
                         burn_in_steps=2,
                         progress_granularity=2,
                         display_progress=False,
+                        cmb_solver=cmb_solver,
                     )
                 else:
                     fit_result = sampler_module.sample_parameters(
@@ -131,6 +134,7 @@ class TestSyntheticIntegration(unittest.TestCase):
                         max_iterations=20,
                         evidence_tolerance=1e-3,
                         display_progress=False,
+                        cmb_solver=cmb_solver,
                     )
                 self.assertTrue(fit_result["success"])
                 self.assertTrue(

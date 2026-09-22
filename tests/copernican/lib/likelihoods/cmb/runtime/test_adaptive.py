@@ -129,8 +129,8 @@ class AdaptiveControlsTestCase(unittest.TestCase):
         self.assertEqual(controls.minimum_nodes, 0)
         self.assertEqual(controls.maximum_nodes, 0)
 
-    def test_los_phase_cap_promotes_existing_history_length(self) -> None:
-        """A phase cap cannot discard an already sampled history grid."""
+    def test_los_phase_cap_preserves_configured_history_bound(self) -> None:
+        """A configured phase cap remains authoritative for dense histories."""
 
         controls = resolve_los_quadrature_controls(
             {
@@ -144,7 +144,7 @@ class AdaptiveControlsTestCase(unittest.TestCase):
         )
 
         self.assertEqual(controls.configured_maximum_nodes, 2048)
-        self.assertEqual(controls.maximum_nodes, 3000)
+        self.assertEqual(controls.maximum_nodes, 2048)
 
     def test_phase_aware_k_grid_tracks_acoustic_and_radial_phase(self) -> None:
         """The transfer grid adds physical phase nodes within its bounds."""

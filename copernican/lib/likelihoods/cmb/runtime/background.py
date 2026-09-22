@@ -2777,11 +2777,15 @@ def _resolve_custom_cmb_numerics(
     ell_max = max(ell_min, _read_int("ell_max", defaults.ell_max))
     k_min = _read_float("k_min", defaults.k_min)
     k_max = _read_float("k_max", defaults.k_max)
+    diagnostic_matrix_fast_path = bool(
+        contract.get("_diagnostic_matrix_fast_path", False)
+    )
     k_sample_count = max(
-        8, _read_int("k_sample_count", defaults.k_sample_count)
+        1 if diagnostic_matrix_fast_path else 8,
+        _read_int("k_sample_count", defaults.k_sample_count),
     )
     eta_sample_count = max(
-        32,
+        16 if diagnostic_matrix_fast_path else 32,
         _read_int("eta_sample_count", defaults.eta_sample_count),
     )
     raw_evolution_eta_sample_count = raw.get(
@@ -2801,7 +2805,7 @@ def _resolve_custom_cmb_numerics(
                 "cmb.numerical.evolution_eta_sample_count must be positive"
             )
         evolution_eta_sample_count = max(
-            32,
+            16 if diagnostic_matrix_fast_path else 32,
             numeric_evolution_eta_sample_count,
         )
     evolution_phase_step = _read_float(
@@ -3084,6 +3088,26 @@ def _resolve_custom_cmb_physical_parameters(
     ) -> tuple[float, str] | None:
         """Return one resolved physical quantity and its source."""
 
+        # A model may expose a legacy ``Omega_gamma`` parameter for its
+        # distance/BAO equations while the declared CMB background derives
+        # ``Omega_gamma0`` from the CMB temperature and Hubble parameter.
+        # The latter is the CMB graph's canonical radiation quantity.  Do not
+        # let an unrelated model parameter replace it unless the CMB
+        # ``param_map`` explicitly binds the photon density itself.
+        if quantity_name == "Omega_gamma0":
+            param_map = prepared_contract.get("param_map", {}) or {}
+            aliases = _physical_quantity_names(quantity_name)
+            if isinstance(param_map, Mapping) and not any(
+                name in param_map for name in aliases
+            ):
+                if "Omega_gamma0" in background_scalar_context:
+                    return (
+                        _coerce_numeric_scalar(
+                            background_scalar_context["Omega_gamma0"],
+                            name="background.derived.Omega_gamma0",
+                        ),
+                        "background.derived:Omega_gamma0",
+                    )
         return _lookup_declared_background_scalar_with_source(
             prepared_contract,
             background_scalar_context,
@@ -3500,17 +3524,29 @@ def _build_custom_cmb_background_impl(
     # Allocate the budget across the three physical regions before merging so
     # visibility features remain represented without tripling every ODE and
     # source evaluation.
-    eta_budget = max(64, int(numerics.eta_sample_count))
+    diagnostic_matrix_fast_path = bool(
+        contract.get("_diagnostic_matrix_fast_path", False)
+    )
+    eta_budget = max(
+        16 if diagnostic_matrix_fast_path else 64,
+        int(numerics.eta_sample_count),
+    )
     # Keep the global logarithmic scaffold responsive even for bounded
     # diagnostics.  A fixed floor in the recombination/reionization windows
     # must not make distinct requested eta budgets collapse to one grid.
-    global_count = max(32, int(round(0.25 * eta_budget)))
+    global_count = max(
+        8 if diagnostic_matrix_fast_path else 32,
+        int(round(0.25 * eta_budget)),
+    )
     # Recombination is the stiffest background feature.  Give it a stable
     # floor so increasing the nominal total budget cannot leave the coarse
     # and refined histories under-resolving the visibility transition.
-    recombination_count = max(512, int(round(0.82 * eta_budget)))
+    recombination_count = max(
+        64 if diagnostic_matrix_fast_path else 512,
+        int(round(0.82 * eta_budget)),
+    )
     reionization_count = max(
-        256,
+        32 if diagnostic_matrix_fast_path else 256,
         eta_budget - global_count - recombination_count,
     )
     log_a = numpy.geomspace(a_min, 1.0, global_count)

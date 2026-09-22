@@ -117,12 +117,14 @@ _DECLARED_PROJECTION_SPECS = {
             "doppler",
             "isw",
             "monopole",
+            "quadrupole_derivative",
         ),
         source_kernels=(
             ("monopole", "spherical_bessel_window"),
             ("doppler", "spherical_bessel_derivative_window"),
             ("isw", "spherical_bessel_window"),
             ("additive", "spherical_bessel_window"),
+            ("quadrupole_derivative", "spherical_bessel_window"),
             (
                 "additive_derivative",
                 "spherical_bessel_second_derivative_window",

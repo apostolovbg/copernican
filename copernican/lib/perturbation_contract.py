@@ -1568,6 +1568,10 @@ def _materialize_declared_scalar_hierarchy_contract(
                 "wrt": "tau",
                 "order": 1,
             },
+            # Scalar E polarization has no physical monopole or dipole.
+            # Keep these grammar-visible slots algebraically zero so the
+            # declared state remains explicit without inventing modes that
+            # are absent from the Boltzmann hierarchy.
             "rhs": "0.0",
             "role": "polarization",
         },
@@ -1682,7 +1686,7 @@ def _materialize_declared_scalar_hierarchy_contract(
                     },
                     "rhs": (
                         f"{4.0 / 15.0:.16g} * theta_nu "
-                        f"- {3.0 / 5.0:.16g} * acoustic_k * "
+                        f"- {3.0 / 10.0:.16g} * acoustic_k * "
                         f"{_scalar_neutrino_name(3)} "
                         f"+ {neutrino_quadrupole_metric_drive}"
                     ),
@@ -1825,6 +1829,7 @@ def _materialize_declared_scalar_hierarchy_contract(
                     moment=moment,
                     previous_name=previous_name,
                     next_name=next_name,
+                    previous_coefficient=(6.0 / 7.0 if moment == 3 else None),
                     use_physical_terminal_closure=(
                         _uses_scalar_terminal_closure("massless_neutrino")
                     ),
@@ -2041,10 +2046,10 @@ def _materialize_declared_scalar_hierarchy_contract(
     total_shear_source_expression = f"({ ' + '.join(shear_terms) }) / (a * a)"
     derived_entries: dict[str, Any] = {
         "polarization_moment": {
-            "expression": "theta_gamma2 + e_gamma0 + e_gamma2",
+            "expression": "theta_gamma2 + 6.0 * e_gamma2",
             "description": (
-                "Scalar polarization source moment Pi = Theta_gamma,2 + "
-                "E_gamma,0 + E_gamma,2 in the declared scalar hierarchy."
+                "Declared scalar polarization source combination; CAMB "
+                "polter is 0.4 times this combination."
             ),
             "units": _DIMENSIONLESS_UNITS,
         },
@@ -2747,8 +2752,8 @@ def _materialize_declared_scalar_hierarchy_contract(
                     "0.0",
                     "0.0",
                 ],
-                ["0.0", "0.0", "-0.8", "0.1"],
-                ["0.0", "0.0", "0.05", "-0.25"],
+                ["0.0", "0.0", "-0.9", "0.6"],
+                ["0.0", "0.0", "0.1", "-0.4"],
             ],
             "damping_targets": [
                 {"kind": "photon_temperature_octopole"},
@@ -2834,34 +2839,37 @@ def _materialize_declared_scalar_hierarchy_contract(
     }
     generated_sources = {
         "temperature_monopole": {
-            "expression": (
-                "visibility * (observable_theta_gamma0 + Psi "
-                "+ 0.25 * polarization_moment)"
-            ),
+            "expression": "visibility * (observable_theta_gamma0 + Psi)",
             "role": "monopole",
-            "description": "Visibility-weighted temperature monopole source.",
+            "description": (
+                "CAMB scalar temperature monopole source without the "
+                "integrated polarization quadrupole term."
+            ),
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
             "notes": (
-                "Uses Delta_gamma / 4 + Psi + Pi / 4 on the visibility "
-                "surface."
+                "Uses Delta_gamma / 4 + Psi on the visibility surface; "
+                "the polarization quadrupole is carried by explicit "
+                "ordinary and second-derivative Bessel terms."
             ),
         },
         "temperature_quadrupole": {
-            "expression": "0.0",
+            "expression": "0.0625 * visibility * polarization_moment",
             "role": "additive",
             "description": (
-                "Deprecated split temperature quadrupole term; the scalar "
-                "polarization contribution is included in the monopole "
-                "line-of-sight source as Pi / 4."
+                "CAMB scalar polarization quadrupole source carried by the "
+                "ordinary spherical-Bessel kernel."
             ),
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
         "temperature_quadrupole_derivative": {
-            "expression": "0.0",
-            "role": "additive_derivative",
+            "expression": (
+                "0.1875 * visibility_polarization_moment_tau_tau / "
+                "acoustic_k_sq"
+            ),
+            "role": "quadrupole_derivative",
             "description": (
-                "Deprecated second-derivative temperature source retained "
-                "as an explicit zero for contract compatibility."
+                "CAMB scalar polarization quadrupole source carried by the "
+                "second-derivative spherical-Bessel kernel."
             ),
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
@@ -2886,9 +2894,11 @@ def _materialize_declared_scalar_hierarchy_contract(
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
         "polarization_source": {
-            "expression": "0.75 * visibility * polarization_moment",
+            "expression": "0.1875 * visibility * polarization_moment",
             "role": "polarization",
-            "description": ("Standard scalar visibility-weighted E source."),
+            "description": (
+                "CAMB-normalized scalar visibility-weighted E source."
+            ),
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
         "polarization_b_source": {
@@ -2912,6 +2922,8 @@ def _materialize_declared_scalar_hierarchy_contract(
             "projection": "line_of_sight_temperature",
             "source_terms": {
                 "monopole": "temperature_monopole",
+                "additive": "temperature_quadrupole",
+                "quadrupole_derivative": "temperature_quadrupole_derivative",
                 "doppler": "temperature_doppler",
                 "isw": "temperature_isw",
             },
@@ -7064,7 +7076,7 @@ def validate_generated_scalar_source_graph(contract: Any) -> None:
     required_roles = {
         "monopole",
         "additive",
-        "additive_derivative",
+        "quadrupole_derivative",
         "doppler",
         "isw",
         "polarization",

@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-19
+**Last Updated:** 2026-09-22
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -231,6 +231,18 @@ fixture, while numerical tests request only the grid and observables needed
 for their assertions. Timing artifacts identify every expensive test and
 request so a slow run cannot appear idle or be diagnosed from a single
 aggregate command timer.
+
+The complete test command remains the development contract: every test runs
+on every run, with no skipped fast or production tier. Recurring likelihood
+and parity tests use deterministic synthetic SNe, BAO, and CMB observations
+plus the frozen CAMB anchor fixture, so they exercise the same assembly and
+comparison contracts without solving a full observational covariance at every
+proposal. Real-data parser and hash tests remain real-data tests. Full
+production data and freshly generated full-resolution CAMB artifacts are
+explicit scientific acceptance work, not recurring test inputs. The complete
+development command has a 15-minute target; any test that exceeds its budget
+must retain timing evidence and be reduced to the smallest input that still
+proves its behavior.
 
 Performance benchmarks are evidence, not physics acceptance thresholds. A
 fixed Planck-like cold request, a low-ell cold request, a warm compatible
@@ -599,7 +611,7 @@ This slice recovered the normal public production graph path. The previous
 bounded plumbing and synthetic parity evidence was not sufficient, so closure
 required one real LCDM production solve and the artifact produced from its
 canonical arrays. Absolute CAMB parity is deliberately not claimed here; it
-is the next slice's scientific gate.
+is owned by the subsequent scientific parity slices.
 
 The closed recovery acceptance is:
 
@@ -620,59 +632,139 @@ TT/TE/EE arrays are finite and smooth, auto spectra are nonnegative, TE
 changes sign, TT retains a trough followed by a substantially higher peak,
 and the plotter retains a hashed PNG artifact. The exact repeat returns
 identical arrays as an exact cache hit. CAMB comparison remains explicitly
-open for Slice Eight because the current CCMBS/CAMB arrays are not yet
-parity-aligned.
+open for the subsequent parity slices because the current CCMBS/CAMB arrays
+are not yet parity-aligned.
 
-### [planned] Slice Eight — CAMB parity and end-to-end solver closure
+### [closed] Slice Eight — production phase integrity and diagnostic closure
 
-Slice Seven production graph recovery is complete. This slice owns the
-remaining scientific closure and must not convert unresolved production
-numerics into end-to-end green status.
+This slice closes the production-integrity work that was previously bundled
+with unresolved CAMB parity and end-to-end closure work. It establishes that
+final generated requests cannot silently project an under-resolved radial or
+acoustic phase grid, and that bounded diagnostics expose the evidence needed
+to repair the remaining physical mismatch.
 
-Build or complete an independent CAMB comparison harness using matched
-physical conventions, not a CAMB runtime fallback. Compare the canonical
-CCMBS arrays against independently generated CAMB arrays on the same ell grid,
-first at the fixed LCDM point and then for massive-neutrino LCDM, the Planck
-reference, wCDM, and w0wa over every applicable surface and production range.
-Record raw arrays, all error metrics, peak positions, phases, damping tails,
-signs, convergence evidence, and artifact hashes. Do not mark parity green
-from fixtures or synthetic arrays.
+The implementation aligns the declared CMB photon-density provenance with
+its derived background, preserves the generated Newtonian-gauge
+photon-continuity convention, and corrects the generated massless-neutrino
+F2/F3 closure. It restores generated scalar-polarization streaming and the
+exact Thomson block, applies CAMB's scalar ``polter`` normalization, and
+samples the physical conformal-Hubble relation at early Runge--Kutta stages.
+Generated scalar requests retain a common physical evolution mesh with a
+dense early prefix. The generated scalar polarization source is represented
+by explicit ordinary-Bessel and second-time-derivative histories, while
+user-declared source graphs retain their reviewed kernel contract.
 
-Run the normal GUI/CLI graph path and the Planck likelihood only after the
-fixed-point parity report passes. The graph path must display an explicit
-typed failure instead of silently omitting a theory when any genuinely
-invalid request fails.
+The diagnostic path exposes an explicitly requested set of raw scalar state
+and source histories, including native evolution and source eta grids,
+without entering transfer or spectrum caches. The generated scalar source
+graph uses CAMB's `polter = (Theta_gamma,2 + 6 E_gamma,2) / 10` normalization:
+the ordinary and integrated temperature quadrupole terms are `1/16` and
+`3/16`, and the E source is `3/16`. The planner derives hierarchy depth from
+visibility-era phase with a closure margin, rather than an arbitrary
+square-root-of-ell floor. These are physical corrections, not numerical
+tuning.
 
-Exercise the normal runner, model adapter, likelihood assembly, sampler, CSV
-and plot exporters, GUI/CLI, cache reuse, and failure reporting against all
-bundled models and representative novel declarations. Confirm that BAO uses
-only the independent drag background boundary and that CMB failures never
-corrupt SNe/BAO results.
+Slice Eight closure evidence is focused runtime and contract evidence: final
+planner requests require physical phase resolution, the projection builder
+rejects an under-resolved strict grid, bounded diagnostic requests retain
+their raw under-resolution status, source/state histories preserve native
+grids and provenance, and the affected focused tests and DevCovenant
+verification pass. CAMB parity is deliberately not part of this slice's
+closure claim and is carried by the slices below.
+
+### [in progress] Slice Nine — source and transfer wave recovery
+
+Use the retained raw scalar histories to locate the first disagreement against
+an independently generated CAMB time-evolution reference. Build or complete
+that comparison harness with matched physical conventions, never a CAMB
+runtime fallback. Produce bounded source and transfer wave artifacts that
+show finite, phase-coherent acoustic oscillations, visibility localization,
+and the expected damping behavior on the same eta and k domains.
+
+Acceptance requires a reproducible independent-history comparison, sensible
+wave artifacts for the fixed LCDM point, explicit residual and phase metrics,
+and focused tests proving that source-history and transfer diagnostics do not
+enter production or spectrum caches. Resolve the physical source or
+evolution defect exposed by those measurements before moving to spectrum
+parity.
+
+Slice Nine implementation amendments make the recurring evidence bounded and
+repeatable without weakening the numerical contract. A generated scalar
+history now evolves on one earliest-background mesh independent of the
+line-of-sight start, and a k refinement carries the base quadrature anchors
+forward instead of relocating them. Likelihood plumbing uses three-point
+synthetic observations and a deterministic solver double; dataset parser
+coverage remains separate and real. Broad finite-spectrum coverage uses
+small ell anchors, while the retained CAMB fixture supplies fixed parity
+anchors. These changes remove the accidental Planck solve and repeated
+full-spectrum work from ordinary test discovery; they do not claim source or
+spectrum parity.
+
+### [planned] Slice Ten — phase-resolution performance architecture
+
+Separate projection quadrature resolution from source-history evolution work.
+The phase-aware k ladder must be refined with nested nodes, while compatible
+source histories, transfer kernels, and background products are reused. A
+high-ell projection must not create one full expensive evolution solve for
+every phase quadrature node when the source history can be interpolated or
+reused with a declared error bound. Record the physical interpolation error,
+new-node work, cache reuse, and per-phase timing; never cap the ladder and
+silently accept aliasing.
+
+Acceptance requires scalar equivalence before batching, nested k evidence,
+finite wave and transfer residuals, and a complete test command within the
+15-minute development budget on the managed environment. Every test still
+runs; the budget is met by bounded deterministic inputs and shared work, not
+by selecting a subset of tests.
+
+### [planned] Slice Eleven — bounded CAMB spectrum parity
+
+Compare canonical CCMBS spectra against independently generated CAMB spectra
+on identical ell grids, beginning with fixed LCDM and then massive-neutrino
+LCDM, the Planck reference, wCDM, and w0wa. Cover every applicable scalar,
+tensor, unlensed, lensed, auto, and cross surface at bounded production
+resolution. Record raw arrays, error metrics, peak positions, acoustic phases,
+damping tails, signs, convergence evidence, planner evidence, and artifact
+hashes. Do not accept fixtures, synthetic arrays, or a posterior fit as parity
+evidence.
+
+Acceptance requires quantitative TT/TE/EE parity at the fixed LCDM point
+before expanding the model matrix, followed by bounded parity rows for every
+physically comparable model and surface. Each row identifies the exact
+contract, ell grid, numerical plan, raw-array digest, and independent CAMB
+artifact used for comparison.
+
+### [planned] Slice Twelve — end-to-end corpus and workflow closure
+
+After bounded parity passes, exercise the normal runner, model adapter,
+likelihood assembly, sampler, CSV and plot exporters, GUI/CLI graph path,
+cache reuse, and typed failure reporting against all bundled models and
+representative novel declarations. Confirm that BAO uses only the independent
+drag-background boundary and that CMB failures cannot corrupt SNe or BAO
+results. The graph path must display an explicit typed failure instead of
+silently omitting a theory when a genuinely invalid request fails.
+
+Acceptance requires finite, physically sensible graphs for all ten bundled
+models, complete declared observables, cache reuse without raw-array changes,
+and explicit mathematical diagnostics for every intentionally invalid
+declaration.
+
+### [planned] Slice Thirteen — reproducible production closure
 
 Run orchestration, failure-path, likelihood, graph, parity, and fixed-seed
-posterior regressions through the same test command. The final run must
-demonstrate that warm caches, exact repeats, and shared artifacts reduce work
-without changing any accepted raw array. Any intentionally expensive test is
-named in the workflow timing artifact and states the behavior it proves.
+posterior regressions through the same test command. Run repeated short
+posterior regressions only after production graphs and raw parity reports
+pass, and verify that the posterior does not repair bad CMB spectra by
+driving `H_0`, matter, baryon, or `N_eff` to absurd values. Sampler timeout
+telemetry must retain the typed timeout, elapsed time, request identity, and
+phase rather than treating a timeout as an ordinary posterior exclusion.
 
-Run repeated fixed-seed short posterior regressions only after the production
-graphs and raw parity reports pass. Verify that the posterior does not repair
-bad CMB spectra by driving `H_0`, matter, baryon, or `N_eff` to absurd values.
 Publish the final corpus matrix, complete observable artifacts, parity rows,
-planner evidence, graph hashes, and a reproducible closure manifest.
-
-Sampler timeout behavior is part of this closure. A CMB evaluation timeout
-must remain distinguishable from an invalid physical point and must not be
-silently treated as an ordinary posterior exclusion. Worker telemetry must
-retain the typed timeout, elapsed time, request identity, and phase so a
-posterior run can be aborted or diagnosed instead of silently biasing the
-chain.
-
-Acceptance requires the full declared test suite, all slice acceptance tests,
-green DevCovenant verification, finite and physically sensible graphs for all
-ten bundled models, complete declared observables, CAMB parity wherever
-applicable, and explicit mathematical diagnostics for every intentionally
-invalid declaration.
+planner evidence, graph hashes, timing/work accounting, cache evidence, and a
+reproducible closure manifest. The final gate must demonstrate that warm
+caches, exact repeats, and shared artifacts reduce work without changing any
+accepted raw array, and that every intentionally expensive test states the
+behavior it proves.
 
 ## Completion Standard
 

@@ -11,11 +11,63 @@ from unittest import mock
 import numpy
 import pandas
 
-import copernican.lib.dataset_registry as dataset_registry
 import copernican.lib.likelihoods as likelihoods
 import copernican.lib.model_adapter as model_plugin_validation
 import copernican.lib.model_coder as model_coder
 import copernican.lib.model_spec_validator as model_spec_validator
+from copernican.lib.likelihoods.cmb.contracts import CMBResult
+
+
+class _SyntheticCmbSolver:
+    """Provide deterministic spectra without launching the CCMBS runtime."""
+
+    solver_id = "synthetic_likelihood_test"
+    solver_label = "Synthetic likelihood test solver"
+
+    def capabilities(self):
+        """Return the minimal solver manifest used by CMBLike."""
+
+        return {"implementation": "test_double", "accuracy_tiers": ()}
+
+    def prepare(self, contract):
+        """Keep the declared contract available to the test double."""
+
+        return contract
+
+    def evaluate(self, prepared, ells, *, spectra, workload):
+        """Return finite deterministic spectra on the requested ell grid."""
+
+        del prepared, workload
+        ell_values = numpy.asarray(tuple(ells), dtype=float)
+        return CMBResult(
+            spectra={
+                str(name): 1200.0 - 1.25 * (ell_values - 20.0)
+                for name in spectra
+            },
+            requested_ells=tuple(int(value) for value in ell_values),
+            requested_spectra=tuple(str(name) for name in spectra),
+            diagnostics={"synthetic": True},
+            solver_id=self.solver_id,
+            solver_label=self.solver_label,
+        )
+
+    def evaluate_batch(self, prepared, ells, *, spectra, workload):
+        """Evaluate each prepared contract in input order."""
+
+        return tuple(
+            self.evaluate(
+                item,
+                ells,
+                spectra=spectra,
+                workload=workload,
+            )
+            for item in prepared
+        )
+
+    def cleanup(self):
+        """Release no resources because the solver is entirely in memory."""
+
+        return None
 
 
 class TestImportModule(unittest.TestCase):
@@ -50,13 +102,20 @@ class LikelihoodTestCase(unittest.TestCase):
         model_plugin_validation.validate_plugin(cls.plugin)
 
     def _prepare_sne(self):
-        sne_df = dataset_registry.load_sne_data("jla_2014").head(3).copy()
-        if sne_df.attrs.get("covariance_matrix_inv") is not None:
-            attrs = sne_df.attrs
-            cov = attrs["covariance_matrix_inv"]
-            attrs["covariance_matrix_inv"] = cov[:3, :3]
-            diag = attrs["diag_errors_for_plot"]
-            attrs["diag_errors_for_plot"] = diag[:3]
+        z_values = numpy.array([0.1, 0.2, 0.3], dtype=float)
+        sne_df = pandas.DataFrame(
+            {
+                "zcmb": z_values,
+                "mu_obs": numpy.array([38.315, 39.957, 40.957]),
+                "e_mu_obs": numpy.array([0.12, 0.13, 0.14]),
+            }
+        )
+        sne_df.attrs["covariance_matrix_inv"] = numpy.diag(
+            1.0 / numpy.square(sne_df["e_mu_obs"].to_numpy())
+        )
+        sne_df.attrs["diag_errors_for_plot"] = sne_df["e_mu_obs"].to_numpy(
+            copy=True
+        )
         return sne_df
 
     @staticmethod
@@ -97,11 +156,38 @@ class LikelihoodTestCase(unittest.TestCase):
         return observations_df
 
     def _prepare_bao(self):
-        bao_df = dataset_registry.load_bao_data("boss_dr12_bao").head(3).copy()
-        cov_inv = bao_df.attrs.get("covariance_matrix_inv")
-        if cov_inv is not None:
-            bao_df.attrs["covariance_matrix_inv"] = cov_inv[:3, :3]
+        bao_df = pandas.DataFrame(
+            {
+                "redshift": [0.38, 0.38, 0.38],
+                "observable_type": [
+                    "DM_over_rs",
+                    "DH_over_rs",
+                    "DV_over_rs",
+                ],
+                "value": [10.234, 24.981, 9.981],
+                "error": [0.17, 0.73, 0.11],
+            }
+        )
+        bao_df.attrs["covariance_matrix_inv"] = numpy.diag(
+            1.0 / numpy.square(bao_df["error"].to_numpy())
+        )
         return bao_df
+
+    @staticmethod
+    def _prepare_cmb():
+        """Return a tiny TT anchor frame for likelihood plumbing tests."""
+
+        cmb_df = pandas.DataFrame(
+            {
+                "ell": [20, 30, 40],
+                "Dl_obs": [1200.0, 1180.0, 1175.0],
+                "Dl_err": [5.0, 5.5, 6.0],
+            }
+        )
+        cmb_df.attrs["covariance_matrix_inv"] = numpy.diag(
+            1.0 / numpy.square(cmb_df["Dl_err"].to_numpy())
+        )
+        return cmb_df
 
     def test_joint_like_prepares_enabled_worker_runtime(self):
         """Worker preparation should run once for each enabled component."""
@@ -151,8 +237,12 @@ class LikelihoodTestCase(unittest.TestCase):
         self.assertTrue(numpy.isfinite(bao_like.loglike(params)))
         self.assertTrue(numpy.isfinite(bao_like.state["chi2"]))
 
-        cmb_df = dataset_registry.load_cmb_data("planck_2018_lite")
-        cmb_like = likelihoods.CMBLike(cmb_df, self.plugin)
+        cmb_df = self._prepare_cmb()
+        cmb_like = likelihoods.CMBLike(
+            cmb_df,
+            self.plugin,
+            cmb_solver=_SyntheticCmbSolver(),
+        )
         self.assertTrue(numpy.isfinite(cmb_like.loglike(params)))
         self.assertTrue(numpy.isfinite(cmb_like.state["chi2"]))
 
@@ -318,8 +408,9 @@ class LikelihoodTestCase(unittest.TestCase):
             rs_override=rs_value,
         )
         cmb_like = likelihoods.CMBLike(
-            dataset_registry.load_cmb_data("planck_2018_lite"),
+            self._prepare_cmb(),
             self.plugin,
+            cmb_solver=_SyntheticCmbSolver(),
         )
 
         joint = likelihoods.JointLike(
@@ -445,14 +536,22 @@ class LikelihoodTestCase(unittest.TestCase):
             bao_baseline,
         )
 
-        cmb_df = dataset_registry.load_cmb_data("planck_2018_lite").copy()
-        cmb_like = likelihoods.CMBLike(cmb_df, self.plugin)
+        cmb_df = self._prepare_cmb()
+        cmb_like = likelihoods.CMBLike(
+            cmb_df,
+            self.plugin,
+            cmb_solver=_SyntheticCmbSolver(),
+        )
         cmb_baseline = cmb_like.loglike(params)
         cmb_df.loc[:, "Dl_obs"] = 0.0
         self.assertAlmostEqual(cmb_like.loglike(params), cmb_baseline)
-        cmb_mutated = dataset_registry.load_cmb_data("planck_2018_lite").copy()
+        cmb_mutated = self._prepare_cmb()
         cmb_mutated.loc[:, "Dl_obs"] += 5.0
-        cmb_like_mutated = likelihoods.CMBLike(cmb_mutated, self.plugin)
+        cmb_like_mutated = likelihoods.CMBLike(
+            cmb_mutated,
+            self.plugin,
+            cmb_solver=_SyntheticCmbSolver(),
+        )
         self.assertNotAlmostEqual(
             cmb_like_mutated.loglike(params),
             cmb_baseline,

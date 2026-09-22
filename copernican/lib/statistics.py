@@ -11,7 +11,7 @@ implementations used by all samplers.
 from __future__ import annotations
 
 import logging
-from typing import Mapping, Sequence
+from typing import Any, Mapping, Sequence
 
 import numpy
 
@@ -85,10 +85,21 @@ def chi_squared_cmb(
     cmb_data_df,
     plugin,
     extra_params: Mapping[str, float] | None = None,
+    *,
+    cmb_solver: Any | str | None = None,
 ) -> float:
-    """Return the χ² value for CMB spectra."""
+    """Return the χ² value for CMB spectra.
 
-    like = CMBLike(cmb_data_df, plugin, extra_params=extra_params or {})
+    ``cmb_solver`` keeps solver selection explicit for callers that need a
+    deterministic backend, while production callers retain the CCMBS default.
+    """
+
+    like = CMBLike(
+        cmb_data_df,
+        plugin,
+        extra_params=extra_params or {},
+        cmb_solver=cmb_solver,
+    )
     loglike = like.loglike(model_params)
     chi2 = float(like.state.get("chi2", float("inf")))
     if not numpy.isfinite(loglike):

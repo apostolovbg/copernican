@@ -25,6 +25,7 @@ import copernican.samplers.sampler_mcmc as sampler
 from copernican.lib.run_pipeline import extract_model_param_vector
 from tests.project import filesystem_helpers
 from tests.project.lib import camb_reference
+from tests.project.lib.cmb_solver_fixture import SyntheticCmbSolver
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 os.environ.setdefault("VIRTUAL_ENV", str(REPO_ROOT / ".venv"))
@@ -103,15 +104,23 @@ class FunctionalTestCase(unittest.TestCase):
         self.assertTrue(numpy.isfinite(chi2_bao))
 
         declared_contract = self.plugin.get_cmb_declared_runtime(params)
-        chi2_cmb = sampler.chi_squared_cmb(params, cmb_df, self.plugin)
+        cmb_solver = SyntheticCmbSolver()
+        chi2_cmb = sampler.chi_squared_cmb(
+            params,
+            cmb_df,
+            self.plugin,
+            cmb_solver=cmb_solver,
+        )
         spec = sampler.compute_cmb_spectrum(
             declared_contract,
             cmb_df["ell"].values,
             spectra=("TT",),
+            cmb_solver=cmb_solver,
         )
         self.assertTrue(numpy.isfinite(chi2_cmb))
         self.assertTrue(numpy.all(numpy.isfinite(spec)))
         self.assertEqual(len(spec), len(cmb_df))
+        self.assertEqual(cmb_solver.evaluate_calls, 2)
 
     def test_mcmc_fit_returns_expected_fields(self):
         """Return posterior diagnostics and χ² totals.
@@ -157,8 +166,15 @@ class FunctionalTestCase(unittest.TestCase):
         """Verify that the Planck 2018 lite dataset yields finite χ²."""
         cmb_df = dataset_registry.load_cmb_data("planck_2018_lite")
         params = self.plugin.INITIAL_GUESSES
-        chi2 = sampler.chi_squared_cmb(params, cmb_df, self.plugin)
+        cmb_solver = SyntheticCmbSolver()
+        chi2 = sampler.chi_squared_cmb(
+            params,
+            cmb_df,
+            self.plugin,
+            cmb_solver=cmb_solver,
+        )
         self.assertTrue(numpy.isfinite(chi2))
+        self.assertEqual(cmb_solver.evaluate_calls, 1)
 
     def test_chi_squared_sne_invalid_data(self):
         """chi_squared_sne should return inf when data is invalid."""
