@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-22
+**Last Updated:** 2026-09-23
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,83 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-09-23:
+  Change: Updated the Slice Nine release record and documentation freshness.
+  Why: Recorded today's verification session and synchronized touched files.
+  Impact: Kept the open Slice Nine gate traceable and ready for verification.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/cmb_projection_contract.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/statistics.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_cmb_projection_contract.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/samplers/test_sampler_mcmc.py
+  tests/project/datasets/synthetic/test_synthetic_integration.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/cmb_solver_fixture.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_core.py
+  tests/project/lib/test_slice_seven.py
+
+- 2026-09-22:
+  Change: Added bounded independent scalar-history wave comparisons and
+  isolated diagnostic cache writes.
+  Why: Preserved source and transfer evidence with reproducible phase and
+  residual metrics without contaminating production result caches.
+  Impact: Slice Nine closes with finite native-grid artifacts, CAMB-domain
+  validation, cache-isolation coverage, and explicit remaining parity scope.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/cmb_projection_contract.py
+  copernican/lib/likelihoods/cmb/cmb.py
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/statistics.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_cmb_projection_contract.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/samplers/test_sampler_mcmc.py
+  tests/project/datasets/synthetic/test_synthetic_integration.py
+  tests/project/lib/cmb_solver_fixture.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_core.py
+  tests/project/lib/test_slice_seven.py
 
 - 2026-09-22:
   Change: Updated release documentation and refreshed the change record.

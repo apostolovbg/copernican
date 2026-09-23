@@ -2913,6 +2913,15 @@ def _compute_custom_cmb_spectrum_data_impl(
         requested_spectrum_names = {
             canonical_cmb_spectrum_name(name) for name in requested_spectra
         }
+    raw_stage_diagnostic = contract_or_params.get("_stage_diagnostic")
+    stage_diagnostic_requested = bool(
+        isinstance(raw_stage_diagnostic, Mapping)
+        and raw_stage_diagnostic.get("k_values") is not None
+        and len(raw_stage_diagnostic.get("k_values")) > 0
+    )
+    diagnostic_request = bool(
+        diagnostic_source_audit or stage_diagnostic_requested
+    )
     cache_key = _custom_cmb_spectrum_cache_key(
         contract_or_params,
         ells,
@@ -2920,7 +2929,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         requested_spectra=requested_spectrum_names,
     )
     cached_spectrum = (
-        None if diagnostic_source_audit else cache.get_cmb_spectrum(cache_key)
+        None if diagnostic_request else cache.get_cmb_spectrum(cache_key)
     )
     if cached_spectrum is not None:
         performance_timer.mark_cache_state("exact_cache_hit")
@@ -9156,8 +9165,10 @@ def _compute_custom_cmb_spectrum_data_impl(
             runtime_envelope=FrozenMapping(runtime_envelope),
             spectrum_availability=FrozenMapping(spectrum_availability),
         )
-        cache.set_cmb_spectrum(cache_key, spectrum_data)
-        return _get_cached_custom_cmb_spectrum_data(cache_key)
+        if not diagnostic_request:
+            cache.set_cmb_spectrum(cache_key, spectrum_data)
+            return _get_cached_custom_cmb_spectrum_data(cache_key)
+        return spectrum_data
 
     log_k_values = numpy.log(k_values)
     projection_ell_batch_size = 512 if use_streaming_projection else 128
@@ -11455,8 +11466,10 @@ def _compute_custom_cmb_spectrum_data_impl(
         runtime_envelope=FrozenMapping(runtime_envelope),
         spectrum_availability=FrozenMapping(spectrum_availability),
     )
-    cache.set_cmb_spectrum(cache_key, spectrum_data)
-    return _get_cached_custom_cmb_spectrum_data(cache_key)
+    if not diagnostic_request:
+        cache.set_cmb_spectrum(cache_key, spectrum_data)
+        return _get_cached_custom_cmb_spectrum_data(cache_key)
+    return spectrum_data
 
 
 def _runtime_telemetry_context(
@@ -11507,6 +11520,16 @@ def _compute_custom_cmb_spectrum_data(
         spectra=requested or (),
     )
     try:
+        raw_stage_diagnostic = contract_or_params.get("_stage_diagnostic")
+        stage_diagnostic_requested = bool(
+            isinstance(raw_stage_diagnostic, Mapping)
+            and raw_stage_diagnostic.get("k_values") is not None
+            and len(raw_stage_diagnostic.get("k_values")) > 0
+        )
+        diagnostic_request = bool(
+            workload.startswith("fixed_parameter_diagnostic")
+            or stage_diagnostic_requested
+        )
         production_controls = resolve_production_scalar_convergence(
             contract_or_params
         )
@@ -11625,7 +11648,8 @@ def _compute_custom_cmb_spectrum_data(
                 background_provider,
                 requested_spectra=effective_requested_spectra,
             )
-            cache.set_cmb_spectrum(cache_key, result)
+            if not diagnostic_request:
+                cache.set_cmb_spectrum(cache_key, result)
         if (
             production_enforced
             and production_record is not None

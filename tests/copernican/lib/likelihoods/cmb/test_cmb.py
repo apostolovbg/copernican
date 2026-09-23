@@ -4509,14 +4509,29 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "Phi",
                 "theta_gamma0",
                 "theta_gamma1",
+                "theta_gamma2",
+                "e_gamma2",
                 "temperature_monopole",
             ),
         }
         cache.clear_cmb_result_caches()
+        cache_before = cache.cmb_cache_stats()
         spectrum_data = _raw_declared_spectrum_data(
             contract,
             numpy.asarray((20, 30), dtype=int),
         )
+        cache_after = cache.cmb_cache_stats()
+        for cache_name in (
+            "declared_spectrum",
+            "declared_transfer",
+            "source_history",
+            "initial_state",
+        ):
+            self.assertEqual(
+                cache_after[cache_name]["entries"],
+                cache_before[cache_name]["entries"],
+                cache_name,
+            )
 
         diagnostic = spectrum_data.runtime_envelope["stage_diagnostic"]
         self.assertEqual(diagnostic["schema_version"], 1)
@@ -4545,6 +4560,88 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             self.assertIsNotNone(values, field)
             self.assertEqual(len(values), expected_size)
             self.assertTrue(numpy.all(numpy.isfinite(values)))
+        for values in artifact["source_histories"].values():
+            source_values = numpy.asarray(values, dtype=float)
+            self.assertEqual(source_values.size, source_eta.size)
+            self.assertTrue(numpy.all(numpy.isfinite(source_values)))
+        k_grid = numpy.asarray(spectrum_data.k_grid, dtype=float)
+        self.assertGreaterEqual(k_grid.size, 2)
+        self.assertTrue(numpy.all(numpy.diff(k_grid) > 0.0))
+        self.assertGreaterEqual(len(spectrum_data.transfer_components), 1)
+        for transfer_values in spectrum_data.transfer_components.values():
+            transfer_array = numpy.asarray(transfer_values, dtype=float)
+            self.assertEqual(transfer_array.shape[1], k_grid.size)
+            self.assertTrue(numpy.all(numpy.isfinite(transfer_array)))
+
+        evolution_histories = {
+            name: numpy.asarray(values, dtype=float)
+            for name, values in artifact["evolution_histories"].items()
+        }
+        overlap = (evolution_eta >= 0.1) & (evolution_eta <= 14000.0)
+        overlap_eta = evolution_eta[overlap]
+        self.assertGreaterEqual(overlap_eta.size, 3)
+        camb_contract = copy.deepcopy(
+            camb_reference.FIXED_LCDM_REFERENCE_CONTRACT
+        )
+        camb_contract["param_map"] = {
+            "H0": 67.4,
+            "ombh2": 0.02237,
+            "omch2": 0.12,
+            "tau": 0.054,
+            "As": 2.1e-9,
+            "ns": 0.965,
+            "Neff": 3.046,
+            "YHe": 0.245,
+        }
+        camb_histories = camb_reference.compute_camb_scalar_time_evolution(
+            camb_contract,
+            float(artifact["selected_k"]),
+            overlap_eta,
+            variables=("pi_photon", "E_2"),
+        )
+        wave_report = camb_reference.compare_scalar_history_waves(
+            {
+                "theta_gamma2": evolution_histories["theta_gamma2"][overlap],
+                "e_gamma2": evolution_histories["e_gamma2"][overlap],
+            },
+            {
+                "pi_photon": camb_histories["pi_photon"],
+                "E_2": camb_histories["E_2"],
+            },
+            overlap_eta,
+            variable_map={
+                "theta_gamma2": "pi_photon",
+                "e_gamma2": "E_2",
+            },
+            k_value=float(artifact["selected_k"]),
+        )
+        self.assertTrue(wave_report["available"])
+        self.assertTrue(wave_report["finite"])
+        self.assertGreater(wave_report["wave_count"], 0)
+        for metric in wave_report["variables"].values():
+            self.assertTrue(numpy.isfinite(metric["phase_correlation"]))
+            self.assertTrue(numpy.isfinite(metric["normalized_rms_residual"]))
+        self.assertEqual(
+            wave_report["eta_sha256"],
+            camb_reference.compare_scalar_history_waves(
+                {
+                    "theta_gamma2": evolution_histories["theta_gamma2"][
+                        overlap
+                    ],
+                    "e_gamma2": evolution_histories["e_gamma2"][overlap],
+                },
+                {
+                    "pi_photon": camb_histories["pi_photon"],
+                    "E_2": camb_histories["E_2"],
+                },
+                overlap_eta,
+                variable_map={
+                    "theta_gamma2": "pi_photon",
+                    "e_gamma2": "E_2",
+                },
+                k_value=float(artifact["selected_k"]),
+            )["eta_sha256"],
+        )
 
     def test_declared_los_simpson_weights_integrate_nonuniform_quadratic(
         self,

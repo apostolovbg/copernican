@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-09-22
+**Last Updated:** 2026-09-23
 **Project Version:** 12.0.26
 
 ## Overview
@@ -272,10 +272,12 @@ deterministic SHA-256 value. Explicit model graphs report a typed
 For scientific debugging, an internal `_stage_diagnostic` request may select
 specific wave numbers and named state/source fields. The runtime then retains
 the native evolution and source eta grids together with the selected raw
-histories and bypasses transfer and spectrum caches for that request. This
-record is intended for first-divergence comparisons with an independent CAMB
-time-evolution reference; it is not production parity evidence and does not
-alter numerical acceptance.
+histories and raw transfer components, and bypasses spectrum, transfer,
+source-history, and initial-state result caches for that request. Test-owned
+wave metrics compare the bounded histories with an independent CAMB
+time-evolution reference on the same eta and k domains. This record is
+intended for first-divergence comparisons; it is not production parity
+evidence and does not alter numerical acceptance.
 
 Generated scalar contracts are validated at compilation. CCMBS requires
 explicit `Phi_tau`, `Psi_tau`, and evolved-history `Phi_history_tau` metadata,

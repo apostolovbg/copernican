@@ -365,6 +365,14 @@ def compute_camb_scalar_time_evolution(
         raise ValueError("l_accuracy_boost must be positive")
     params = _make_camb_params(contract_or_params, lmax=32)
     results = camb.get_results(params)
+    conformal_age = _coerce_numeric_scalar(
+        results.conformal_time(0.0), name="CAMB conformal_age"
+    )
+    if numpy.any(eta_array <= 0.0) or numpy.any(eta_array > conformal_age):
+        raise ValueError(
+            "eta_values must lie in the open CAMB conformal-time domain "
+            f"(0, {conformal_age:.12g}]"
+        )
     values = numpy.asarray(
         results.get_time_evolution(
             k_scalar,
@@ -389,6 +397,137 @@ def compute_camb_scalar_time_evolution(
         name: numpy.asarray(values[:, index], dtype=float)
         for index, name in enumerate(variable_names)
     }
+
+
+def compare_scalar_history_waves(
+    actual: Mapping[str, Any],
+    reference: Mapping[str, Any],
+    eta_values: Sequence[float] | numpy.ndarray,
+    *,
+    variable_map: Mapping[str, str] | None = None,
+    k_value: float | None = None,
+) -> dict[str, Any]:
+    """Compare same-grid scalar histories without changing their units.
+
+    The report deliberately separates structural wave evidence from parity.
+    It records zero crossings, centered correlation, best-fit amplitude, and
+    a sample-grid phase lag so a later solver slice can locate the first
+    physical disagreement without turning this diagnostic into a fallback.
+    """
+
+    eta_array = _coerce_numeric_array(eta_values, name="eta_values")
+    if eta_array.size < 3 or numpy.any(numpy.diff(eta_array) <= 0.0):
+        raise ValueError(
+            "eta_values must contain at least three increasing points"
+        )
+    if variable_map is None:
+        variable_map = {str(name): str(name) for name in actual}
+    if not variable_map:
+        raise ValueError("variable_map must not be empty")
+
+    def _zero_crossings(values: numpy.ndarray) -> int:
+        signs = numpy.signbit(values)
+        exact_zero = values == 0.0
+        return int(numpy.count_nonzero(signs[1:] != signs[:-1])) + int(
+            numpy.count_nonzero(exact_zero)
+        )
+
+    eta_step = float(numpy.median(numpy.diff(eta_array)))
+    variables: dict[str, dict[str, Any]] = {}
+    for actual_name, reference_name in variable_map.items():
+        if actual_name not in actual:
+            raise KeyError(f"Missing actual history '{actual_name}'")
+        if reference_name not in reference:
+            raise KeyError(f"Missing reference history '{reference_name}'")
+        actual_values = _coerce_numeric_array(
+            actual[actual_name], name=f"actual.{actual_name}"
+        )
+        reference_values = _coerce_numeric_array(
+            reference[reference_name], name=f"reference.{reference_name}"
+        )
+        if actual_values.shape != eta_array.shape:
+            raise ValueError(
+                f"Actual history '{actual_name}' shape does not match eta"
+            )
+        if reference_values.shape != eta_array.shape:
+            raise ValueError(
+                f"Reference history '{reference_name}' shape does not "
+                "match eta"
+            )
+        actual_centered = actual_values - numpy.mean(actual_values)
+        reference_centered = reference_values - numpy.mean(reference_values)
+        actual_norm = float(numpy.linalg.norm(actual_centered))
+        reference_norm = float(numpy.linalg.norm(reference_centered))
+        if actual_norm <= 1.0e-30 or reference_norm <= 1.0e-30:
+            raise ValueError(
+                f"History '{actual_name}' must contain a non-constant wave"
+            )
+        scale = float(
+            numpy.dot(actual_centered, reference_centered)
+            / numpy.dot(reference_centered, reference_centered)
+        )
+        residual = actual_centered - scale * reference_centered
+        correlation = float(
+            numpy.dot(actual_centered, reference_centered)
+            / (actual_norm * reference_norm)
+        )
+        cross_correlation = numpy.correlate(
+            actual_centered / actual_norm,
+            reference_centered / reference_norm,
+            mode="full",
+        )
+        peak_index = int(numpy.argmax(cross_correlation))
+        lag_samples = peak_index - (eta_array.size - 1)
+        variables[str(actual_name)] = {
+            "reference_variable": str(reference_name),
+            "finite": True,
+            "actual_amplitude": float(numpy.ptp(actual_values)),
+            "reference_amplitude": float(numpy.ptp(reference_values)),
+            "actual_zero_crossings": _zero_crossings(actual_centered),
+            "reference_zero_crossings": _zero_crossings(reference_centered),
+            "best_fit_scale": scale,
+            "normalized_rms_residual": float(
+                numpy.linalg.norm(residual) / actual_norm
+            ),
+            "max_normalized_residual": float(
+                numpy.max(numpy.abs(residual)) / max(actual_norm, 1.0e-30)
+            ),
+            "phase_correlation": correlation,
+            "phase_lag_samples": int(lag_samples),
+            "phase_lag_eta": float(lag_samples * eta_step),
+        }
+
+    report: dict[str, Any] = {
+        "schema_version": 1,
+        "available": True,
+        "finite": True,
+        "reference_identity": CAMB_REFERENCE_IDENTITY,
+        "k_value": (
+            None
+            if k_value is None
+            else _coerce_numeric_scalar(k_value, name="k_value")
+        ),
+        "eta_count": int(eta_array.size),
+        "eta_start": float(eta_array[0]),
+        "eta_end": float(eta_array[-1]),
+        "eta_sha256": hashlib.sha256(
+            numpy.asarray(eta_array, dtype="<f8").tobytes()
+        ).hexdigest(),
+        "variables": variables,
+        "wave_count": int(
+            sum(
+                metric["actual_zero_crossings"] > 0
+                for metric in variables.values()
+            )
+        ),
+        "phase_coherent": bool(
+            all(
+                abs(metric["phase_correlation"]) >= 0.5
+                for metric in variables.values()
+            )
+        ),
+    }
+    return report
 
 
 def _compute_camb_background_direct(
@@ -952,6 +1091,7 @@ __all__ = [
     "build_camb_full_reference_fixture",
     "build_camb_parity_reference_set",
     "compare_lcdm_reference_spectra",
+    "compare_scalar_history_waves",
     "compute_camb_background_observables",
     "compute_camb_scalar_time_evolution",
     "compute_cmb_spectrum_from_camb_contract",

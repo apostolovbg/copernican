@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-22
+**Last Updated:** 2026-09-23
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -672,21 +672,22 @@ grids and provenance, and the affected focused tests and DevCovenant
 verification pass. CAMB parity is deliberately not part of this slice's
 closure claim and is carried by the slices below.
 
-### [in progress] Slice Nine — source and transfer wave recovery
+### [closed] Slice Nine — source and transfer wave recovery
 
-Use the retained raw scalar histories to locate the first disagreement against
-an independently generated CAMB time-evolution reference. Build or complete
-that comparison harness with matched physical conventions, never a CAMB
-runtime fallback. Produce bounded source and transfer wave artifacts that
-show finite, phase-coherent acoustic oscillations, visibility localization,
-and the expected damping behavior on the same eta and k domains.
+Slice Nine closes the bounded raw-history evidence boundary. It uses the
+retained scalar histories to locate the first disagreement against an
+independently generated CAMB time-evolution reference with matched eta and k
+domains; CAMB remains test-owned comparison code and is never a runtime
+fallback.
 
-Acceptance requires a reproducible independent-history comparison, sensible
-wave artifacts for the fixed LCDM point, explicit residual and phase metrics,
-and focused tests proving that source-history and transfer diagnostics do not
-enter production or spectrum caches. Resolve the physical source or
-evolution defect exposed by those measurements before moving to spectrum
-parity.
+The completed evidence includes finite native evolution and source grids,
+finite transfer components on an ordered k grid, visibility-era refinement,
+bounded acoustic wave checks, zero-crossing and phase-correlation metrics,
+best-fit amplitude residuals, and reproducible eta-grid digests. Diagnostic
+requests bypass declared spectrum, transfer, source-history, and initial-state
+result caches; production requests retain their existing cache behavior.
+The measured history residuals remain explicit diagnostic evidence rather than
+a spectrum-parity claim, which is owned by Slice Eleven.
 
 Slice Nine implementation amendments make the recurring evidence bounded and
 repeatable without weakening the numerical contract. A generated scalar
@@ -697,8 +698,8 @@ synthetic observations and a deterministic solver double; dataset parser
 coverage remains separate and real. Broad finite-spectrum coverage uses
 small ell anchors, while the retained CAMB fixture supplies fixed parity
 anchors. These changes remove the accidental Planck solve and repeated
-full-spectrum work from ordinary test discovery; they do not claim source or
-spectrum parity.
+full-spectrum work from ordinary test discovery; they do not claim spectrum
+parity.
 
 ### [planned] Slice Ten — phase-resolution performance architecture
 

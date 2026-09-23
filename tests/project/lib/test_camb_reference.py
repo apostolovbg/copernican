@@ -59,6 +59,7 @@ class CambReferenceModuleTestCase(unittest.TestCase):
             "build_camb_parity_reference_set", camb_reference.__all__
         )
         self.assertIn("compare_lcdm_reference_spectra", camb_reference.__all__)
+        self.assertIn("compare_scalar_history_waves", camb_reference.__all__)
         self.assertIn(
             "load_lcdm_full_reference_fixture", camb_reference.__all__
         )
@@ -82,6 +83,43 @@ class CambReferenceModuleTestCase(unittest.TestCase):
         for values in histories.values():
             self.assertEqual(values.shape, eta_values.shape)
             self.assertTrue(numpy.all(numpy.isfinite(values)))
+
+    def test_scalar_history_wave_comparator_records_phase_evidence(self):
+        """Wave comparison retains finite phase and residual diagnostics."""
+
+        eta_values = numpy.linspace(0.0, 40.0, 401)
+        reference = {"reference_wave": numpy.sin(eta_values)}
+        actual = {"declared_wave": 2.5 * numpy.sin(eta_values + 0.1) + 3.0}
+        report = camb_reference.compare_scalar_history_waves(
+            actual,
+            reference,
+            eta_values,
+            variable_map={"declared_wave": "reference_wave"},
+            k_value=0.02,
+        )
+
+        self.assertTrue(report["available"])
+        self.assertTrue(report["finite"])
+        self.assertTrue(report["phase_coherent"])
+        self.assertEqual(report["wave_count"], 1)
+        metric = report["variables"]["declared_wave"]
+        self.assertGreater(metric["actual_zero_crossings"], 0)
+        self.assertGreater(metric["reference_zero_crossings"], 0)
+        self.assertGreater(metric["phase_correlation"], 0.9)
+        self.assertLess(metric["normalized_rms_residual"], 0.1)
+        self.assertEqual(len(report["eta_sha256"]), 64)
+
+    def test_scalar_history_wave_comparator_rejects_unaligned_grids(self):
+        """Wave comparison must not interpolate silently between grids."""
+
+        eta_values = numpy.linspace(1.0, 4.0, 16)
+        with self.assertRaises(ValueError):
+            camb_reference.compare_scalar_history_waves(
+                {"actual": numpy.sin(eta_values[:-1])},
+                {"reference": numpy.sin(eta_values)},
+                eta_values,
+                variable_map={"actual": "reference"},
+            )
 
     def test_fixed_lcdm_fixture_is_self_describing(self):
         """The frozen fixture records arrays, conventions, and its digest."""

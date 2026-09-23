@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-09-22
+**Last Updated:** 2026-09-23
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -57,6 +57,12 @@ source, transfer, and line-of-sight refinements retain their raw arrays and
 reuse evidence.  Scalar, vector, and tensor routes therefore share one
 validated projection contract without model-name dispatch or fabricated
 zero-valued sources.
+
+Explicit stage diagnostics retain native state and source eta grids plus raw
+transfer components. They compare bounded waves with an independent
+test-owned reference and bypass spectrum, transfer, source-history, and
+initial-state result caches, so diagnostic evidence cannot alter production
+results.
 
 Normal public requests, including explicit ell arrays, use the engine's final
 production accuracy envelope and request-shaped grids. Reduced grids are
