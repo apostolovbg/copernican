@@ -179,18 +179,13 @@ metrics and deterministic artifact hashes. Cache evidence records cold, warm,
 exact-repeat, cross-request, and spectrum-equality states. Graph artifacts
 retain typed CMB execution and missing-surface failures instead of omitting a
 failed theory.
-Slice Eleven closes the final evidence boundary. The
-`audit_cmb_repository_integrity()` helper checks production CCMBS sources for
-reference-solver imports, surrogates, delayed acceptance, hidden backend
-aliases, wall-clock decisions, local paths, plot-only acceptance, and omitted
-declared spectra while re-running contract and source-graph audits.
-`build_final_cmb_certification_report()` retains the full-observable matrix,
-integrity record, and independently captured BAO baseline/isolation evidence
-in one deterministic digest.
-`run_final_cmb_certification()` executes that boundary from a clean fixed-point
-request, rehydrates the matrix's lossless raw reports, applies the repository
-and BAO-isolation checks, and can write the resulting JSON artifact. It does
-not run sampling and cannot replace missing raw evidence with a graph.
+Slice Eleven closes the bounded external CAMB evidence boundary. The
+test-owned reference builder executes CAMB directly on one exact ell grid for
+the five comparable bundled cosmologies and retains raw `C_ell`/`D_ell`
+surfaces, contract and numerical-plan digests, and artifact hashes. The
+fail-closed comparator rejects a changed raw surface. Canonical
+CCMBS-versus-CAMB acceptance at the production envelope remains assigned to
+Slice Twelve; CAMB-only rows are never reported as canonical parity.
 
 The runtime keeps source-history caching separate from complete-spectrum
 caching. A history is reusable only when its static contract, dynamic
@@ -243,6 +238,14 @@ Phase status records both the uncapped physical node requirement and the
 largest radial and acoustic phase gaps. A grid is resolved only when its node
 count and every phase gap satisfy the declared bound; a dense count with one
 large gap is therefore still rejected.
+
+Adaptive transfer refinement keeps this phase work separate from evolution.
+The base k modes are evolved once, and a nested projection ladder preserves
+those modes while adding only projection nodes. Source histories and
+background products are reused; strict refinement interpolates compatible
+source histories and computes only the projection kernels required by the
+new nodes. Runtime envelopes retain the base/refined node counts, phase
+status, interpolation and refinement timing, work units, and reuse flags.
 
 Each fixed-point runtime envelope also stores compact raw source-history
 samples at deterministic eta anchors. `audit_source_history_residuals()`

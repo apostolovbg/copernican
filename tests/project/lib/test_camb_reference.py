@@ -1,10 +1,12 @@
 """Focused tests for the independent CAMB reference helper."""
 
 import unittest
+from copy import deepcopy
 from pathlib import Path
 
 import numpy
 
+from copernican.lib.likelihoods.cmb import diagnostics as cmb_diagnostics
 from tests.project.lib import camb_reference
 
 
@@ -276,6 +278,143 @@ class CambReferenceModuleTestCase(unittest.TestCase):
                     for values in fixture["spectra"].values()
                 )
             )
+
+    def test_bounded_parity_rows_retain_request_and_raw_array_hashes(self):
+        """Bounded CAMB rows retain independent, auditable parity evidence."""
+
+        plan = {
+            "ell_min": 2,
+            "ell_max": 200,
+            "k_sample_count": 64,
+            "eta_sample_count": 192,
+            "evolution_eta_sample_count": 128,
+            "source_grid_multiplier": 2,
+        }
+        massive = deepcopy(camb_reference.FIXED_LCDM_REFERENCE_CONTRACT)
+        massive["param_map"].update(
+            {
+                "omch2": 0.18 - 0.25 / 93.14,
+                "sum_mnu": 0.25,
+                "num_massive_neutrinos": 3,
+            }
+        )
+        planck = deepcopy(camb_reference.FIXED_LCDM_REFERENCE_CONTRACT)
+        planck["param_map"] = {
+            "H0": 67.66,
+            "ombh2": 0.04897 * (67.66 / 100.0) ** 2,
+            "omch2": (
+                (0.3111 - 0.04897) * (67.66 / 100.0) ** 2 - 0.06 / 93.14
+            ),
+            "omnuh2": 0.06 / 93.14,
+            "tau": 0.054,
+            "As": 2.1e-9,
+            "ns": 0.965,
+            "Neff": 3.044,
+            "num_massive_neutrinos": 3,
+            "sum_mnu": 0.06,
+            "YHe": 0.245,
+        }
+        dynamic = deepcopy(massive)
+        dynamic["param_map"].update(
+            {
+                "omch2": 0.18 - 0.06 / 93.14,
+                "sum_mnu": 0.06,
+            }
+        )
+        wcdm = deepcopy(dynamic)
+        wcdm["param_map"]["omk"] = 0.0
+        wcdm["calls"] = [{"method": "set_dark_energy", "kwargs": {"w": -1.0}}]
+        w0wa = deepcopy(wcdm)
+        w0wa["calls"] = [
+            {
+                "method": "set_dark_energy",
+                "kwargs": {"w": -1.0, "wa": 0.0},
+            }
+        ]
+        report = camb_reference.build_camb_parity_reference_set(
+            {
+                "model_lcdm.yml": camb_reference.FIXED_LCDM_REFERENCE_CONTRACT,
+                "model_lcdm_mnu.yml": massive,
+                "model_ref_planck2018.yml": planck,
+                "model_wcdm.yml": wcdm,
+                "model_w0wa.yml": w0wa,
+            },
+            ells=(2, 20, 100, 200),
+            spectra=camb_reference.FIXED_LCDM_FULL_REFERENCE_SPECTRA,
+            numerical_plan=plan,
+        )
+
+        self.assertEqual(report["schema_version"], 2)
+        self.assertEqual(report["numerical_plan"], plan)
+        self.assertEqual(
+            set(report["models"]),
+            {
+                "model_lcdm.yml",
+                "model_lcdm_mnu.yml",
+                "model_ref_planck2018.yml",
+                "model_wcdm.yml",
+                "model_w0wa.yml",
+            },
+        )
+        for model_rows in report["models"].values():
+            for fixture in model_rows.values():
+                row = fixture["parity_row"]
+                self.assertEqual(tuple(row["ell_values"]), (2, 20, 100, 200))
+                self.assertEqual(row["numerical_plan"], plan)
+                self.assertEqual(
+                    tuple(row["spectra"]),
+                    camb_reference.FIXED_LCDM_FULL_REFERENCE_SPECTRA,
+                )
+                self.assertEqual(
+                    set(row["surface_sha256"]),
+                    set(fixture["spectra"]),
+                )
+                self.assertTrue(
+                    all(
+                        len(value) == 64
+                        for value in row["surface_sha256"].values()
+                    )
+                )
+                self.assertEqual(
+                    row["raw_artifact_sha256"],
+                    camb_reference.reference_fixture_sha256(
+                        fixture["spectra"]
+                    ),
+                )
+
+    def test_bounded_reference_report_rejects_changed_raw_surface(self):
+        """A changed array cannot pass the raw CAMB parity comparator."""
+
+        fixture = camb_reference.build_lcdm_full_reference_fixture(
+            (2, 20, 100, 200)
+        )
+        actual = {
+            "sector": "scalar",
+            "ell_values": fixture["ell_values"],
+            "spectra": {
+                name: {
+                    "C_ell": values["C_ell"],
+                    "D_ell": list(values["D_ell"]),
+                }
+                for name, values in fixture["spectra"].items()
+            },
+        }
+        actual["spectra"]["TT"]["D_ell"][2] *= 1.01
+        report = cmb_diagnostics.compare_full_cmb_observable_parity(
+            actual,
+            fixture,
+            refinement={"converged": True},
+            relative_tolerances={"TT": 1.0e-6},
+            fixture_digest=fixture["fixture_sha256"],
+            require_fixture_digest=True,
+        )
+
+        self.assertFalse(report["accepted"])
+        tt_row = next(
+            row for row in report["rows"] if row["row"] == "scalar:TT"
+        )
+        self.assertFalse(tt_row["metric"]["converged"])
+        self.assertIn("raw-array parity tolerance failed", tt_row["issues"])
 
 
 if __name__ == "__main__":  # pragma: no cover

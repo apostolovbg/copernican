@@ -543,6 +543,88 @@ def phase_aware_k_grid(
     return resolved
 
 
+def nested_phase_aware_k_grid(
+    base_k_values: numpy.ndarray,
+    *,
+    maximum_nodes: int,
+    phase_points_per_cycle: float,
+    eta_distance: float,
+    sound_horizon: float,
+    require_phase_resolution: bool = False,
+) -> numpy.ndarray:
+    """Add phase nodes while preserving every node in a base k ladder.
+
+    This is the projection-only refinement surface.  Its returned ladder is
+    nested by construction, so source histories and transfer products at the
+    base nodes remain reusable while new nodes are explicitly attributable to
+    interpolation work.  A caller that cannot afford the required physical
+    node count receives an unresolved ladder or a hard error when resolution
+    is required; it never receives a silently thinned replacement ladder.
+    """
+
+    base = numpy.asarray(base_k_values, dtype=float)
+    if (
+        base.ndim != 1
+        or base.size < 2
+        or not numpy.all(numpy.isfinite(base))
+        or numpy.any(numpy.diff(base) <= 0.0)
+        or numpy.any(base <= 0.0)
+    ):
+        raise ValueError("base_k_values must be finite, positive, and ordered")
+    maximum = _positive_int(
+        maximum_nodes,
+        name="maximum_nodes",
+        minimum=int(base.size),
+    )
+    phase_points = _positive_float(
+        phase_points_per_cycle,
+        name="phase_points_per_cycle",
+    )
+    distance = _positive_float(eta_distance, name="eta_distance")
+    acoustic_distance = _positive_float(
+        sound_horizon,
+        name="sound_horizon",
+    )
+    requirements = phase_aware_k_grid_requirements(
+        float(base[0]),
+        float(base[-1]),
+        phase_points_per_cycle=phase_points,
+        eta_distance=distance,
+        sound_horizon=acoustic_distance,
+    )
+    required_nodes = int(requirements["required_nodes"])
+    if require_phase_resolution and required_nodes > maximum:
+        raise ValueError(
+            "Nested phase-aware k quadrature cannot satisfy its node cap: "
+            f"required_nodes={required_nodes}, maximum_nodes={maximum}"
+        )
+    target = min(maximum, max(int(base.size), required_nodes))
+    result = base.copy()
+    while result.size < target:
+        phase_gaps = numpy.maximum(
+            numpy.diff(result) * distance,
+            numpy.diff(result) * acoustic_distance,
+        )
+        gap_index = int(numpy.argmax(phase_gaps))
+        midpoint = 0.5 * (result[gap_index] + result[gap_index + 1])
+        if not numpy.isfinite(midpoint) or midpoint <= result[gap_index]:
+            raise ValueError("Nested phase-aware k quadrature stalled")
+        result = numpy.insert(result, gap_index + 1, midpoint)
+    if require_phase_resolution:
+        status = phase_aware_k_grid_status(
+            result,
+            phase_points_per_cycle=phase_points,
+            eta_distance=distance,
+            sound_horizon=acoustic_distance,
+        )
+        if not bool(status["resolved"]):
+            raise ValueError(
+                "Nested phase-aware k quadrature is under-resolved: "
+                f"actual_nodes={result.size}, required_nodes={required_nodes}"
+            )
+    return result
+
+
 def phase_aware_k_grid_status(
     k_values: numpy.ndarray,
     *,

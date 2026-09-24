@@ -42,6 +42,7 @@ from .adaptive import (
     ConvergenceEstimate,
     estimate_convergence,
     estimate_history_convergence,
+    nested_phase_aware_k_grid,
     phase_aware_eta_grid,
     phase_aware_k_grid,
     phase_aware_k_grid_requirements,
@@ -3408,15 +3409,12 @@ def _compute_custom_cmb_spectrum_data_impl(
                 "_k_grid_refinement_anchors"
             ),
         )
+        adaptive_transfer_k_values: numpy.ndarray | None = None
+        adaptive_transfer_phase_status: dict[str, Any] | None = None
         if adaptive_controls.transfer_enabled:
             eta_rec_distance = max(
                 float(background.eta0) - float(background.eta_rec),
                 1.0,
-            )
-            adaptive_anchors = tuple(
-                float(value)
-                for value in k_values
-                if float(k_values[0]) <= float(value) <= float(k_values[-1])
             )
             configured_transfer_maximum = int(
                 adaptive_controls.transfer_maximum_nodes
@@ -3431,25 +3429,47 @@ def _compute_custom_cmb_spectrum_data_impl(
                 # minimum remains authoritative; this engine-owned floor is
                 # applied only to the strict high-resolution tier.
                 transfer_maximum_nodes = max(configured_transfer_maximum, 256)
-            k_values = phase_aware_k_grid(
-                float(k_values[0]),
-                float(k_values[-1]),
-                minimum_nodes=max(
-                    int(adaptive_controls.transfer_minimum_nodes),
+            base_evolution_maximum = min(
+                configured_transfer_maximum,
+                max(
                     int(k_values.size),
+                    2 * int(adaptive_controls.transfer_minimum_nodes),
                 ),
+            )
+            if base_evolution_maximum > int(k_values.size):
+                k_values = nested_phase_aware_k_grid(
+                    k_values,
+                    maximum_nodes=base_evolution_maximum,
+                    phase_points_per_cycle=(
+                        adaptive_controls.phase_points_per_cycle
+                    ),
+                    eta_distance=eta_rec_distance,
+                    sound_horizon=max(
+                        float(background.sound_horizon_mpc),
+                        1.0,
+                    ),
+                )
+            adaptive_transfer_k_values = nested_phase_aware_k_grid(
+                k_values,
                 maximum_nodes=transfer_maximum_nodes,
                 phase_points_per_cycle=(
                     adaptive_controls.phase_points_per_cycle
                 ),
                 eta_distance=eta_rec_distance,
                 sound_horizon=max(float(background.sound_horizon_mpc), 1.0),
-                anchors=adaptive_anchors,
                 require_phase_resolution=bool(
                     declared_accuracy_controls.get(
                         "require_phase_resolution", False
                     )
                 ),
+            )
+            adaptive_transfer_phase_status = phase_aware_k_grid_status(
+                adaptive_transfer_k_values,
+                phase_points_per_cycle=(
+                    adaptive_controls.phase_points_per_cycle
+                ),
+                eta_distance=eta_rec_distance,
+                sound_horizon=max(float(background.sound_horizon_mpc), 1.0),
             )
 
     phase_setting = declared_accuracy_controls.get("phase_aware_k_quadrature")
@@ -4495,6 +4515,18 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["adaptive_projection_refinement_levels"] = 0
     runtime_envelope["adaptive_evolution_refinement_levels"] = 0
     runtime_envelope["adaptive_transfer_relative_error"] = 0.0
+    runtime_envelope["adaptive_transfer_interpolation_seconds"] = 0.0
+    runtime_envelope["adaptive_transfer_refinement_seconds"] = 0.0
+    runtime_envelope["adaptive_transfer_base_node_count"] = 0
+    runtime_envelope["adaptive_transfer_refined_node_count"] = 0
+    runtime_envelope["adaptive_transfer_new_node_count"] = 0
+    runtime_envelope["adaptive_transfer_new_node_work_units"] = 0
+    runtime_envelope["adaptive_transfer_new_kernel_work_units"] = 0
+    runtime_envelope["adaptive_transfer_nested"] = False
+    runtime_envelope["adaptive_transfer_source_history_reused"] = False
+    runtime_envelope["adaptive_transfer_background_reused"] = False
+    runtime_envelope["adaptive_transfer_kernel_reused"] = False
+    runtime_envelope["adaptive_transfer_phase_status"] = None
     runtime_envelope["adaptive_source_relative_error"] = 0.0
     runtime_envelope["adaptive_projection_relative_error"] = 0.0
     runtime_envelope["adaptive_evolution_relative_error"] = 0.0
@@ -9765,6 +9797,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                         for name, values in source_arrays.items()
                     },
                 )
+        batched_mode_source_arrays[int(k_index)] = source_arrays
         bound_source_histories = {
             str(component_name): _bind_declared_source_histories(
                 component_name=str(component_name),
@@ -10189,97 +10222,310 @@ def _compute_custom_cmb_spectrum_data_impl(
             k_values=k_values,
             log_k_values=log_k_values,
         )
+    spectrum_k_values = k_values
+    spectrum_transfer_components = transfer_components
 
-    if adaptive_controls.transfer_enabled and k_values.size >= 5:
-        # Compare two independent quadratures over the same phase-resolved
-        # nodes.  Dropping every other irregular phase node aliases the
-        # high-curvature lensing surface.  A shape-preserving cubic quadrature
-        # retains the physical anchors while independently resolving its
-        # rapidly varying transfer integrand.
-        coarse_k_indices = numpy.arange(int(k_values.size), dtype=int)
-        transfer_estimates = []
+    if (
+        adaptive_controls.transfer_enabled
+        and adaptive_transfer_k_values is not None
+    ):
+        """Refine projection quadrature from reusable base products."""
+
+        interpolation_started = perf_counter()
+        base_k_values = numpy.asarray(k_values, dtype=float)
+        refined_k_values = numpy.asarray(
+            adaptive_transfer_k_values,
+            dtype=float,
+        )
+        base_log_k_values = numpy.log(base_k_values)
+        refined_log_k_values = numpy.log(refined_k_values)
+        source_interpolation_started = perf_counter()
+        source_names = tuple(
+            sorted(
+                {
+                    str(name)
+                    for source_arrays in batched_mode_source_arrays.values()
+                    for name in source_arrays
+                }
+            )
+        )
+        if not source_names or len(batched_mode_source_arrays) != int(
+            base_k_values.size
+        ):
+            raise RuntimeError(
+                "Adaptive transfer refinement requires every base source "
+                "history for projection-only interpolation"
+            )
+        refined_source_arrays: dict[str, numpy.ndarray] = {}
+        for source_name in source_names:
+            source_matrix = numpy.vstack(
+                [
+                    numpy.asarray(
+                        batched_mode_source_arrays[index][source_name],
+                        dtype=float,
+                    )
+                    for index in range(int(base_k_values.size))
+                ]
+            )
+            if base_k_values.size >= 4:
+                interpolated = CubicSpline(
+                    base_log_k_values,
+                    source_matrix,
+                    axis=0,
+                    extrapolate=False,
+                )(refined_log_k_values)
+            else:
+                interpolated = numpy.vstack(
+                    [
+                        numpy.interp(
+                            refined_log_k_values,
+                            base_log_k_values,
+                            source_matrix[:, eta_index],
+                        )
+                        for eta_index in range(source_matrix.shape[1])
+                    ]
+                ).T
+            if not numpy.all(numpy.isfinite(interpolated)):
+                raise ValueError(
+                    "Adaptive source-history interpolation produced "
+                    f"non-finite values: {source_name}"
+                )
+            refined_source_arrays[source_name] = numpy.asarray(
+                interpolated,
+                dtype=float,
+            )
+        source_interpolation_elapsed = perf_counter() - (
+            source_interpolation_started
+        )
+
+        refined_transfer_components = {
+            str(component_name): numpy.zeros(
+                (int(ell_arr.size), int(refined_k_values.size)),
+                dtype=float,
+            )
+            for component_name in transfer_component_observables
+        }
+        refined_kernel_work_units = 0
+        refined_projection_started = perf_counter()
+        for refined_index, refined_k_value in enumerate(refined_k_values):
+            x_values = numpy.asarray(
+                refined_k_value * (eta0 - source_grids["eta"]),
+                dtype=float,
+            )
+            x_signature = hashlib.sha256(x_values.tobytes()).hexdigest()
+            cache.store_bessel_inputs(x_signature, x_values.copy())
+            mode_ell_limit = _projection_ell_limit_for_mode(
+                ell_values=ell_arr,
+                x_values=x_values,
+            )
+            mode_ell_indices = numpy.flatnonzero(ell_arr <= mode_ell_limit)
+            if mode_ell_indices.size == 0:
+                continue
+            source_arrays = {
+                source_name: refined_source_values[refined_index]
+                for source_name, refined_source_values in (
+                    refined_source_arrays.items()
+                )
+            }
+            for ell_start in range(
+                0,
+                int(ell_arr.size),
+                projection_ell_batch_size,
+            ):
+                ell_stop = min(
+                    ell_start + projection_ell_batch_size,
+                    int(ell_arr.size),
+                )
+                batch_indices = mode_ell_indices[
+                    (mode_ell_indices >= ell_start)
+                    & (mode_ell_indices < ell_stop)
+                ]
+                if batch_indices.size == 0:
+                    continue
+                ell_signature = tuple(
+                    int(ell_value) for ell_value in ell_arr[batch_indices]
+                )
+                kernel_batch = _get_cached_declared_projection_kernel_batch(
+                    ell_signature,
+                    x_signature,
+                    x_values=x_values,
+                    required_sectors=streaming_projection_sectors,
+                )
+                refined_kernel_work_units += int(batch_indices.size)
+                for (
+                    component_name,
+                    component_entry,
+                ) in transfer_component_observables.items():
+                    source_histories = _bind_declared_source_histories(
+                        component_name=str(component_name),
+                        component_entry=component_entry,
+                        source_arrays=source_arrays,
+                    )
+                    refined_transfer_components[component_name][
+                        batch_indices, refined_index
+                    ] = _declared_graph_projection(
+                        projection=str(component_entry.projection or ""),
+                        kernel=(
+                            None
+                            if component_entry.kernel is None
+                            else str(component_entry.kernel)
+                        ),
+                        sector=(
+                            None
+                            if component_entry.sector is None
+                            else str(component_entry.sector)
+                        ),
+                        kernel_batch=kernel_batch,
+                        k_value=float(refined_k_value),
+                        eta_weights=eta_integration_weights,
+                        chi_grid=source_grids["chi"],
+                        source_chi=source_chi,
+                        source_histories=source_histories,
+                    )
+        refined_projection_elapsed = (
+            perf_counter() - refined_projection_started
+        )
+
+        if adaptive_controls.transfer_relative_tolerance > 1.0e-2:
+            # Broad diagnostic tolerances retain the legacy transfer-product
+            # comparison.  Strict production tolerances use projection-only
+            # source-history interpolation above so oscillatory surfaces do
+            # not pass merely because the final transfer product was
+            # smoothed.
+            refined_transfer_components = {}
+            for (
+                component_name,
+                component_values,
+            ) in transfer_components.items():
+                matrix = numpy.asarray(component_values, dtype=float)
+                if base_k_values.size >= 4:
+                    interpolated = CubicSpline(
+                        base_log_k_values,
+                        matrix,
+                        axis=1,
+                        extrapolate=False,
+                    )(refined_log_k_values)
+                else:
+                    interpolated = numpy.vstack(
+                        [
+                            numpy.interp(
+                                refined_log_k_values,
+                                base_log_k_values,
+                                row,
+                            )
+                            for row in matrix
+                        ]
+                    )
+                if not numpy.all(numpy.isfinite(interpolated)):
+                    raise ValueError(
+                        "Adaptive transfer interpolation produced non-finite "
+                        f"values: {component_name}"
+                    )
+                refined_transfer_components[component_name] = numpy.asarray(
+                    interpolated,
+                    dtype=float,
+                )
+            refined_kernel_work_units = 0
+
+        refined_spectrum_started = perf_counter()
+        refined_spectra: dict[str, numpy.ndarray] = {}
         for (
             observable_name,
             observable_entry,
         ) in power_spectrum_observables.items():
-            primary = numpy.asarray(
-                transfer_components[str(observable_entry.primary)][
-                    :, coarse_k_indices
+            primordial_grid = _primordial_power_grid_for_observable(
+                physical_params=physical_params,
+                perturbation_data=perturbation_data,
+                observable_entry=observable_entry,
+                k_values=refined_k_values,
+            )
+            refined_spectra[str(observable_name)] = _integrate_power_spectrum(
+                primordial_grid=primordial_grid,
+                log_k_values=refined_log_k_values,
+                primary=refined_transfer_components[
+                    str(observable_entry.primary)
                 ],
-                dtype=numpy.longdouble,
-            )
-            secondary = numpy.asarray(
-                transfer_components[str(observable_entry.secondary)][
-                    :, coarse_k_indices
+                secondary=refined_transfer_components[
+                    str(observable_entry.secondary)
                 ],
-                dtype=numpy.longdouble,
-            )
-            weighted = (
-                numpy.asarray(
-                    _primordial_power_grid_for_observable(
-                        physical_params=physical_params,
-                        perturbation_data=perturbation_data,
-                        observable_entry=observable_entry,
-                        k_values=k_values[coarse_k_indices],
-                    ),
-                    dtype=numpy.longdouble,
-                )[numpy.newaxis, :]
-                * primary
-                * secondary
-            )
-            spline = CubicSpline(
-                log_k_values[coarse_k_indices],
-                weighted,
-                axis=1,
-                extrapolate=False,
-            )
-            coarse_integral = spline.integrate(
-                float(log_k_values[0]),
-                float(log_k_values[-1]),
-            )
-            coarse_spectrum = (
-                4.0
-                * numpy.longdouble(math.pi)
-                * numpy.asarray(
-                    coarse_integral,
-                    dtype=numpy.longdouble,
-                )
-            )
-            full_spectrum = numpy.asarray(
-                spectra_results[str(observable_name)],
-                dtype=float,
-            )
-            transfer_estimates.append(
-                estimate_convergence(
-                    coarse_spectrum,
-                    full_spectrum,
-                    relative_tolerance=(
-                        adaptive_controls.transfer_relative_tolerance
-                    ),
-                    absolute_tolerance=(
-                        adaptive_controls.transfer_absolute_tolerance
-                    ),
-                )
-            )
-        if transfer_estimates:
-            transfer_estimate = max(
-                transfer_estimates,
-                key=lambda estimate: estimate.relative_error,
-            )
-            runtime_envelope["adaptive_transfer_relative_error"] = float(
-                transfer_estimate.relative_error
-            )
-            runtime_envelope["adaptive_transfer_absolute_error"] = float(
-                transfer_estimate.absolute_error
-            )
-            runtime_envelope["adaptive_transfer_refinement_levels"] = 1
-            require_convergence(
-                transfer_estimate,
-                label="transfer",
-                fail_on_nonconvergence=(
-                    adaptive_controls.fail_on_nonconvergence
+                auto_spectrum=(
+                    str(observable_entry.primary)
+                    == str(observable_entry.secondary)
                 ),
             )
+        refined_spectrum_elapsed = perf_counter() - refined_spectrum_started
+
+        transfer_estimates = [
+            estimate_convergence(
+                numpy.asarray(spectra_results[name], dtype=float),
+                numpy.asarray(refined_spectra[name], dtype=float),
+                relative_tolerance=(
+                    adaptive_controls.transfer_relative_tolerance
+                ),
+                absolute_tolerance=(
+                    adaptive_controls.transfer_absolute_tolerance
+                ),
+            )
+            for name in refined_spectra
+        ]
+        transfer_estimate = max(
+            transfer_estimates,
+            key=lambda estimate: estimate.relative_error,
+            default=ConvergenceEstimate(0.0, 0.0, True),
+        )
+        spectra_results = refined_spectra
+        spectrum_k_values = refined_k_values
+        spectrum_transfer_components = refined_transfer_components
+        runtime_envelope["k_grid_actual_count"] = int(refined_k_values.size)
+        interpolation_elapsed = perf_counter() - interpolation_started
+        performance_timer.add("projection", refined_projection_elapsed)
+        performance_timer.add("power_spectrum", refined_spectrum_elapsed)
+        runtime_envelope["adaptive_transfer_relative_error"] = float(
+            transfer_estimate.relative_error
+        )
+        runtime_envelope["adaptive_transfer_absolute_error"] = float(
+            transfer_estimate.absolute_error
+        )
+        runtime_envelope["adaptive_transfer_refinement_levels"] = 1
+        runtime_envelope["adaptive_transfer_interpolation_seconds"] = float(
+            source_interpolation_elapsed
+        )
+        runtime_envelope["adaptive_transfer_refinement_seconds"] = float(
+            interpolation_elapsed
+        )
+        runtime_envelope["adaptive_transfer_base_node_count"] = int(
+            base_k_values.size
+        )
+        runtime_envelope["adaptive_transfer_refined_node_count"] = int(
+            refined_k_values.size
+        )
+        runtime_envelope["adaptive_transfer_new_node_count"] = int(
+            max(0, refined_k_values.size - base_k_values.size)
+        )
+        runtime_envelope["adaptive_transfer_new_node_work_units"] = int(
+            max(0, refined_k_values.size - base_k_values.size)
+            * max(1, int(ell_arr.size))
+            * max(1, len(transfer_components))
+        )
+        runtime_envelope["adaptive_transfer_new_kernel_work_units"] = int(
+            refined_kernel_work_units * max(1, len(transfer_components))
+        )
+        runtime_envelope["adaptive_transfer_nested"] = bool(
+            numpy.all(numpy.isin(base_k_values, refined_k_values))
+        )
+        runtime_envelope["adaptive_transfer_source_history_reused"] = True
+        runtime_envelope["adaptive_transfer_background_reused"] = True
+        runtime_envelope["adaptive_transfer_kernel_reused"] = True
+        runtime_envelope["adaptive_transfer_phase_status"] = (
+            None
+            if adaptive_transfer_phase_status is None
+            else dict(adaptive_transfer_phase_status)
+        )
+        require_convergence(
+            transfer_estimate,
+            label="transfer interpolation",
+            fail_on_nonconvergence=adaptive_controls.fail_on_nonconvergence,
+        )
     if adaptive_controls.source_enabled:
         runtime_envelope["adaptive_source_relative_error"] = float(
             source_error
@@ -11451,16 +11697,19 @@ def _compute_custom_cmb_spectrum_data_impl(
             transfer_cache_key,
             CustomCMBTransferData(
                 ell_grid=ell_arr,
-                k_grid=k_values,
-                transfer_components=transfer_components,
+                k_grid=spectrum_k_values,
+                transfer_components=spectrum_transfer_components,
                 runtime_envelope=runtime_envelope,
             ),
         )
     spectrum_data = CustomCMBSpectrumData(
         ell_grid=ell_arr,
-        k_grid=k_values,
+        k_grid=spectrum_k_values,
         transfer_components=FrozenMapping(
-            {name: matrix for name, matrix in transfer_components.items()}
+            {
+                name: matrix
+                for name, matrix in spectrum_transfer_components.items()
+            }
         ),
         spectra=FrozenMapping(spectra_results),
         runtime_envelope=FrozenMapping(runtime_envelope),

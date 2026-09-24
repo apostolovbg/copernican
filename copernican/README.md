@@ -119,6 +119,15 @@ phase-aware line-of-sight grid. Its runtime envelope records the effective
 eta-node count and spacing, so raw projection resolution is inspectable rather
 than hidden by plotting.
 
+Transfer phase refinement is projection-only and nested. The engine evolves a
+bounded base k ladder once, then preserves those modes while adding phase
+quadrature nodes for the projection surface. Compatible source histories,
+background products, and base transfer products are reused; strict refinement
+interpolates source histories and computes only the projection kernels needed
+for new nodes. Runtime evidence records the physical phase status, base and
+refined node counts, interpolation and refinement timing, work units, and
+reuse flags.
+
 Evolved scalar Einstein residuals use the sum of absolute declared equation
 terms as their dimensionless normalization. Copernican records the maximum
 location and physical regime, tolerance and normalization provenance, and
@@ -332,14 +341,13 @@ raw `C_ell`/`D_ell` surfaces, fixed-point metadata, physical-shape evidence,
 and artifact hashes; cache reports retain request-state and cross-request
 reuse evidence. CMB graphs display typed execution or surface failures when a
 theory cannot produce a valid curve.
-Slice Eleven closes the final evidence boundary. The
-`audit_cmb_repository_integrity()` helper checks the production CCMBS tree
-for reference-solver imports, surrogates,
-delayed acceptance, hidden backend aliases, wall-clock decisions, local paths,
-plot-only acceptance, and omitted declared spectra while re-running contract
-and source-graph audits. `build_final_cmb_certification_report()` can retain
-the full-observable matrix, repository-integrity record, and independently
-captured BAO baseline/isolation comparison in one deterministic digest.
+Slice Eleven closes the bounded external CAMB evidence boundary. The
+test-owned reference builder executes CAMB directly on one exact ell grid for
+the five comparable bundled cosmologies and retains raw `C_ell`/`D_ell`
+surfaces, contract and numerical-plan digests, and artifact hashes. The
+fail-closed comparator rejects a changed raw surface. Canonical
+CCMBS-versus-CAMB acceptance at the production envelope remains assigned to
+Slice Twelve; CAMB-only rows are never reported as canonical parity.
 The final LambdaCDM declaration keeps one fixed phase-aware production
 surface for k, eta, and evolution. CCMBS keeps the generated hierarchy
 history at the declared LOS phase resolution so

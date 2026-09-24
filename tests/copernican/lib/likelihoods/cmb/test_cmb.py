@@ -6603,6 +6603,31 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertGreater(
             int(envelope["adaptive_transfer_refinement_levels"]), 0
         )
+        base_transfer_nodes = int(
+            envelope["adaptive_transfer_base_node_count"]
+        )
+        refined_transfer_nodes = int(
+            envelope["adaptive_transfer_refined_node_count"]
+        )
+        self.assertGreater(refined_transfer_nodes, base_transfer_nodes)
+        self.assertEqual(
+            int(envelope["adaptive_transfer_new_node_count"]),
+            refined_transfer_nodes - base_transfer_nodes,
+        )
+        self.assertTrue(bool(envelope["adaptive_transfer_nested"]))
+        self.assertTrue(
+            bool(envelope["adaptive_transfer_source_history_reused"])
+        )
+        self.assertTrue(bool(envelope["adaptive_transfer_background_reused"]))
+        self.assertTrue(bool(envelope["adaptive_transfer_kernel_reused"]))
+        self.assertGreaterEqual(
+            float(envelope["adaptive_transfer_interpolation_seconds"]),
+            0.0,
+        )
+        self.assertGreaterEqual(
+            int(envelope["adaptive_transfer_new_kernel_work_units"]),
+            0,
+        )
         self.assertGreater(
             int(envelope["adaptive_source_refinement_levels"]), 0
         )
@@ -6984,6 +7009,30 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             {"TT", "TE", "EE", "PP"},
         )
         envelope = spectrum_data.runtime_envelope
+        self.assertEqual(
+            int(envelope["adaptive_transfer_base_node_count"]),
+            int(envelope["dynamic_mode_count"]),
+        )
+        self.assertGreater(
+            int(envelope["adaptive_transfer_refined_node_count"]),
+            int(envelope["adaptive_transfer_base_node_count"]),
+        )
+        self.assertEqual(
+            int(spectrum_data.k_grid.size),
+            int(envelope["adaptive_transfer_refined_node_count"]),
+        )
+        self.assertEqual(
+            int(envelope["evolution_modes_evolved"])
+            + int(envelope["evolution_cached_mode_count"]),
+            int(envelope["adaptive_transfer_base_node_count"]),
+        )
+        self.assertTrue(
+            bool(envelope["adaptive_transfer_source_history_reused"])
+        )
+        self.assertGreater(
+            int(envelope["adaptive_transfer_new_kernel_work_units"]),
+            0,
+        )
         for surface in ("transfer", "source", "projection"):
             self.assertLessEqual(
                 float(envelope[f"adaptive_{surface}_relative_error"]),

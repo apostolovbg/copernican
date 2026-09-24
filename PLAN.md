@@ -701,49 +701,55 @@ anchors. These changes remove the accidental Planck solve and repeated
 full-spectrum work from ordinary test discovery; they do not claim spectrum
 parity.
 
-### [planned] Slice Ten — phase-resolution performance architecture
+### [closed] Slice Ten — phase-resolution performance architecture
 
-Separate projection quadrature resolution from source-history evolution work.
-The phase-aware k ladder must be refined with nested nodes, while compatible
-source histories, transfer kernels, and background products are reused. A
-high-ell projection must not create one full expensive evolution solve for
-every phase quadrature node when the source history can be interpolated or
-reused with a declared error bound. Record the physical interpolation error,
-new-node work, cache reuse, and per-phase timing; never cap the ladder and
-silently accept aliasing.
+Slice Ten separates projection quadrature from source-history evolution. The
+adaptive transfer ladder is nested: its base evolution ladder preserves the
+declared modes, while phase nodes are added only for projection refinement.
+Base source histories, backgrounds, and transfer products remain reusable;
+strict transfer refinement interpolates source histories and recomputes only
+the projection kernels needed for new nodes. Broad diagnostic tolerances keep
+the legacy transfer-product comparison for bounded evidence.
 
-Acceptance requires scalar equivalence before batching, nested k evidence,
-finite wave and transfer residuals, and a complete test command within the
-15-minute development budget on the managed environment. Every test still
-runs; the budget is met by bounded deterministic inputs and shared work, not
-by selecting a subset of tests.
+The runtime envelope now records base, refined, and new-node counts, nested
+membership, physical phase status, interpolation and refinement timing,
+new-node and kernel work units, and source-history/background/kernel reuse.
+An explicitly required phase resolution rejects an impossible node cap;
+bounded diagnostics retain an explicit under-resolved status rather than
+silently accepting a capped ladder. Focused adaptive, scalar wave, and
+independent k/source refinement tests pass, including finite transfer
+residuals and reuse evidence. The bounded external CAMB evidence boundary is
+Slice Eleven; canonical CCMBS-versus-CAMB acceptance remains in Slice Twelve.
 
-### [planned] Slice Eleven — bounded CAMB spectrum parity
+### [closed] Slice Eleven — bounded CAMB spectrum parity evidence
 
-Compare canonical CCMBS spectra against independently generated CAMB spectra
-on identical ell grids, beginning with fixed LCDM and then massive-neutrino
-LCDM, the Planck reference, wCDM, and w0wa. Cover every applicable scalar,
-tensor, unlensed, lensed, auto, and cross surface at bounded production
-resolution. Record raw arrays, error metrics, peak positions, acoustic phases,
-damping tails, signs, convergence evidence, planner evidence, and artifact
-hashes. Do not accept fixtures, synthetic arrays, or a posterior fit as parity
-evidence.
+Build independent CAMB reference rows on one exact bounded ell grid for fixed
+LCDM, massive-neutrino LCDM, the Planck reference, wCDM, and w0wa. The
+test-owned builder executes CAMB directly and retains every requested scalar
+surface in both raw C_ell and native D_ell form, together with the contract
+digest, numerical plan, surface digests, and complete artifact digest. It
+does not import or call the production CCMBS solver and never turns a fixture,
+synthetic array, or posterior fit into parity evidence.
 
-Acceptance requires quantitative TT/TE/EE parity at the fixed LCDM point
-before expanding the model matrix, followed by bounded parity rows for every
-physically comparable model and surface. Each row identifies the exact
-contract, ell grid, numerical plan, raw-array digest, and independent CAMB
-artifact used for comparison.
+The fail-closed parity comparator is exercised against an independently
+generated CAMB row and rejects a changed raw surface even when all other
+surfaces are valid. Each row identifies the exact contract, ell grid,
+numerical plan, raw-array digest, and CAMB artifact used for a later canonical
+CCMBS comparison. This slice closes the external evidence and artifact
+boundary; canonical CCMBS-versus-CAMB acceptance at the production envelope
+is assigned to Slice Twelve so it cannot be claimed from CAMB-only rows.
 
-### [planned] Slice Twelve — end-to-end corpus and workflow closure
+### [planned] Slice Twelve — canonical parity and end-to-end corpus closure
 
-After bounded parity passes, exercise the normal runner, model adapter,
+Using Slice Eleven's independently generated rows, compare canonical CCMBS
+spectra on identical grids and the production numerical envelope. Start with
+quantitative TT/TE/EE fixed-LCDM parity, then cover every applicable surface
+and comparable model before exercising the normal runner, model adapter,
 likelihood assembly, sampler, CSV and plot exporters, GUI/CLI graph path,
-cache reuse, and typed failure reporting against all bundled models and
-representative novel declarations. Confirm that BAO uses only the independent
-drag-background boundary and that CMB failures cannot corrupt SNe or BAO
-results. The graph path must display an explicit typed failure instead of
-silently omitting a theory when a genuinely invalid request fails.
+cache reuse, and typed failure reporting. Confirm that BAO uses only the
+independent drag-background boundary and that CMB failures cannot corrupt
+SNe or BAO results. The graph path must display an explicit typed failure
+instead of silently omitting a theory when a genuinely invalid request fails.
 
 Acceptance requires finite, physically sensible graphs for all ten bundled
 models, complete declared observables, cache reuse without raw-array changes,

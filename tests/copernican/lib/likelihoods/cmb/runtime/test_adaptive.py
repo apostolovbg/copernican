@@ -13,6 +13,7 @@ from copernican.lib.likelihoods.cmb.runtime.adaptive import (
     LOSQuadratureControls,
     estimate_convergence,
     estimate_history_convergence,
+    nested_phase_aware_k_grid,
     phase_aware_eta_grid,
     phase_aware_k_grid,
     phase_aware_k_grid_requirements,
@@ -34,6 +35,7 @@ class AdaptiveControlsTestCase(unittest.TestCase):
         self.assertTrue(callable(phase_aware_k_grid))
         self.assertTrue(callable(phase_aware_k_grid_requirements))
         self.assertTrue(callable(phase_aware_k_grid_status))
+        self.assertTrue(callable(nested_phase_aware_k_grid))
         self.assertTrue(callable(require_convergence))
         self.assertTrue(callable(resolve_adaptive_controls))
         self.assertEqual(
@@ -186,6 +188,39 @@ class AdaptiveControlsTestCase(unittest.TestCase):
         self.assertTrue(numpy.all(numpy.diff(grid) > 0.0))
         self.assertAlmostEqual(float(grid[0]), 1.0e-5)
         self.assertAlmostEqual(float(grid[-1]), 0.30)
+
+    def test_nested_phase_grid_preserves_base_nodes(self) -> None:
+        """Projection refinement must reuse every evolved base mode."""
+
+        base = numpy.asarray((0.01, 0.05, 0.10, 0.25), dtype=float)
+        refined = nested_phase_aware_k_grid(
+            base,
+            maximum_nodes=12,
+            phase_points_per_cycle=8.0,
+            eta_distance=5.0,
+            sound_horizon=2.5,
+            require_phase_resolution=True,
+        )
+
+        self.assertGreater(refined.size, base.size)
+        self.assertLessEqual(refined.size, 12)
+        self.assertTrue(numpy.all(numpy.diff(refined) > 0.0))
+        for value in base:
+            self.assertTrue(numpy.any(numpy.isclose(refined, value)))
+
+    def test_nested_phase_grid_rejects_an_impossible_cap(self) -> None:
+        """A physical phase requirement must not be silently truncated."""
+
+        base = numpy.asarray((0.01, 0.10, 0.25), dtype=float)
+        with self.assertRaisesRegex(ValueError, "node cap"):
+            nested_phase_aware_k_grid(
+                base,
+                maximum_nodes=5,
+                phase_points_per_cycle=8.0,
+                eta_distance=10.0,
+                sound_horizon=5.0,
+                require_phase_resolution=True,
+            )
 
     def test_phase_requirements_report_uncapped_physical_resolution(
         self,

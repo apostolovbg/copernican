@@ -838,15 +838,35 @@ def build_camb_parity_reference_set(
     *,
     ells: Iterable[int] = CAMB_PARITY_ELL_VALUES,
     spectra: Sequence[str] = CAMB_PARITY_SPECTRA,
+    numerical_plan: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build multi-model, multi-point CAMB evidence without shared solves.
 
     ``model_contracts`` is keyed by model filename.  Each value is either one
     fixed contract or a mapping of fixed-point labels to contracts.  This
     keeps massive-neutrino masses and response points explicit in the report.
+
+    The optional ``numerical_plan`` is evidence metadata for the corresponding
+    declared CCMBS request.  It is retained beside every raw CAMB row so a
+    parity report cannot lose the exact bounded request that produced it.
     """
 
     ell_values = tuple(int(value) for value in ells)
+    if (
+        not ell_values
+        or any(value < 2 for value in ell_values)
+        or tuple(sorted(set(ell_values))) != ell_values
+    ):
+        raise ValueError("ells must be sorted, unique, and at least 2")
+    selected_spectra = tuple(str(value) for value in spectra)
+    if not selected_spectra or len(set(selected_spectra)) != len(
+        selected_spectra
+    ):
+        raise ValueError("spectra must be non-empty and unique")
+    plan = {
+        str(key): _reference_jsonable(value)
+        for key, value in (numerical_plan or {}).items()
+    }
     models: dict[str, Any] = {}
     for filename, contracts in model_contracts.items():
         if not isinstance(contracts, Mapping):
@@ -857,21 +877,47 @@ def build_camb_parity_reference_set(
             fixed_points = {"initial": contracts}
         else:
             fixed_points = dict(contracts)
-        models[str(filename)] = {
-            str(label): build_camb_full_reference_fixture(
+        model_rows: dict[str, Any] = {}
+        for label, contract in fixed_points.items():
+            fixture = build_camb_full_reference_fixture(
                 contract,
                 ell_values,
                 model_name=str(filename),
                 fixed_point=str(label),
-                spectra=spectra,
+                spectra=selected_spectra,
             )
-            for label, contract in fixed_points.items()
-        }
+            surface_hashes = {
+                str(name): reference_fixture_sha256(
+                    {
+                        "C_ell": values["C_ell"],
+                        "D_ell": values["D_ell"],
+                    }
+                )
+                for name, values in fixture["spectra"].items()
+            }
+            fixture["parity_row"] = {
+                "model_filename": str(filename),
+                "fixed_point": str(label),
+                "reference_identity": CAMB_REFERENCE_IDENTITY,
+                "ell_values": ell_values,
+                "spectra": selected_spectra,
+                "numerical_plan": plan,
+                "contract_sha256": reference_fixture_sha256(
+                    {"contract": contract}
+                ),
+                "surface_sha256": surface_hashes,
+                "raw_artifact_sha256": reference_fixture_sha256(
+                    fixture["spectra"]
+                ),
+            }
+            model_rows[str(label)] = fixture
+        models[str(filename)] = model_rows
     report: dict[str, Any] = {
-        "schema_version": 1,
+        "schema_version": 2,
         "reference_identity": CAMB_REFERENCE_IDENTITY,
         "ell_values": ell_values,
-        "spectra": tuple(str(value) for value in spectra),
+        "spectra": selected_spectra,
+        "numerical_plan": plan,
         "models": models,
     }
     report["report_sha256"] = reference_fixture_sha256(report)
