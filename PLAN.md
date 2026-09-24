@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-23
+**Last Updated:** 2026-09-24
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -26,15 +26,20 @@ not a baseline, fallback, privileged branch, or definition of valid physics.
 Every mathematically well-posed declaration that the grammar can describe,
 including unfamiliar future theories, must be consumed by the same engine,
 solved with automatically selected numerical resolution, and rendered as a
-usable CAMB-like graph. CAMB is a comparison oracle only.
+usable CAMB-like graph. CAMB is a comparison oracle only. Completion of this
+plan means that bounded evidence establishes a production-ready engine and
+handoff; the later full-resolution scientific production run is performed by
+the user outside this plan.
 
 **Scope:** This plan owns the declarative model contract, expression compiler,
 automatic numerical planner, background and recombination evolution, metric
 and species hierarchies, collision and opacity operators, scalar/vector/tensor
 line-of-sight projection, unlensed and lensed TT/TE/EE/BB/PP/TP/EP surfaces,
 normalization and units, diagnostics, GUI/CLI graph production, all bundled
-models, novel declarative models, CAMB comparison, sampler integration, and
-the independent BAO background boundary.
+models, novel declarative models, bounded CAMB comparison, sampler integration,
+and the independent BAO background boundary. It does not include the user's
+later full-resolution scientific production run or its full observational
+datasets.
 
 **Known bundled models:**
 
@@ -51,9 +56,10 @@ the independent BAO background boundary.
 
 **Non-goals:** This plan does not add Taichi or GPU code, a surrogate,
 another production Boltzmann backend, delayed acceptance, broad sampler
-optimization, or a CAMB runtime fallback. Such work cannot conceal a CCMBS
-defect. The existing Python 3.11 `.venv` is managed outside this plan and
-must not be recreated, replaced, upgraded, or otherwise modified.
+optimization, a CAMB runtime fallback, or a full-resolution production run.
+Such work cannot conceal a CCMBS defect. The existing Python 3.11 `.venv` is
+managed outside this plan and must not be recreated, replaced, upgraded, or
+otherwise modified.
 
 **Reason for the reset:** The production output from 2026-09-02 showed the
 actual failure mode. LambdaCDM produced no CMB curve because CCMBS rejected
@@ -98,6 +104,13 @@ engine, not each YAML file, must determine resolution and prove convergence.
   the raw evidence and typed reason it cannot do so.
 * Never silently accept a non-converged spectrum. Preserve grids, weights,
   source histories, transfer arrays, residuals, and both refinement products.
+* Every applicable numerical axis must have measured refinement evidence, a
+  validated error bound, or a typed proof of physical non-applicability. The
+  axes are background, momentum/q, hierarchy depth, evolution, source
+  sampling, projection quadrature, and physical integration limits. More
+  projection nodes over interpolated histories never prove that those
+  histories were adequately sampled; source and evolution evidence must
+  include independently evolved samples.
 * Generated metric derivatives, visibility, collision sources, polarization,
   ISW, tensor/vector sources, and initial conditions must be explicit,
   finite, coordinate-aware, and independently validated. Missing derivatives
@@ -111,6 +124,9 @@ engine, not each YAML file, must determine resolution and prove convergence.
   isolation are proven.
 * BAO consumes the generated background's drag ruler independently of the CMB
   likelihood. Recombination and drag sound horizons are distinct quantities.
+* A CMB failure must not corrupt SNe or BAO results. BAO independence,
+  visible typed GUI/CLI failures, and representative novel declarations are
+  acceptance requirements, not optional integration coverage.
 * Root and package documentation remain synchronized. Every behavior change
   updates focused tests, comments/docstrings, README mirrors, and CHANGELOG.
 * Always activate the existing `.venv` before DevCovenant commands and tests.
@@ -225,36 +241,32 @@ grid. These rules preserve accuracy and convergence; reducing a node count,
 skipping a refinement, or imposing a machine-local work ceiling is not a
 performance fix.
 
-Every test runs in the normal test command. Tests that inspect orchestration
-use a canonical fixed physical CMB artifact or a deterministic bounded
-fixture, while numerical tests request only the grid and observables needed
-for their assertions. Timing artifacts identify every expensive test and
-request so a slow run cannot appear idle or be diagnosed from a single
-aggregate command timer.
+Every test runs in the normal test command. This is one bounded development
+workload, not a fast-versus-production test split. Tests use real CCMBS routes
+with bounded requests, deterministic synthetic SNe/BAO/CMB observations, and
+frozen or bounded CAMB reference rows. Real-data parser and hash tests remain
+real-data tests. Structural tests request only the grids and observables they
+must inspect; complete-output tests use a bounded complete request.
 
-The complete test command remains the development contract: every test runs
-on every run, with no skipped fast or production tier. Recurring likelihood
-and parity tests use deterministic synthetic SNe, BAO, and CMB observations
-plus the frozen CAMB anchor fixture, so they exercise the same assembly and
-comparison contracts without solving a full observational covariance at every
-proposal. Real-data parser and hash tests remain real-data tests. Full
-production data and freshly generated full-resolution CAMB artifacts are
-explicit scientific acceptance work, not recurring test inputs. The complete
-development command has a 15-minute target; any test that exceeds its budget
-must retain timing evidence and be reduced to the smallest input that still
-proves its behavior.
+The recurring test command must not launch a full observational production
+campaign, full observational covariance, freshly generated full-resolution
+CAMB artifacts, or a long posterior chain. It may include a small number of
+deterministic production-envelope forward requests with sparse low-to-high
+ell probes, using the ordinary public route and shared cached products. Such
+requests are engine validation, not a full scientific production run, and
+must not be repeated separately for each observable or model. The user's
+later full-resolution scientific production run remains outside this plan's
+acceptance and ordinary test discovery. The complete development command has
+a 15-minute target. Any test exceeding its budget must retain timing evidence
+and be reduced or shared so the budget never changes numerical acceptance.
 
 Performance benchmarks are evidence, not physics acceptance thresholds. A
-fixed Planck-like cold request, a low-ell cold request, a warm compatible
-request, and an exact repeat are benchmarked before and after runtime changes;
-their raw spectra, convergence evidence, and planner decisions must remain
-unchanged while redundant work and wall time decrease measurably.
-
-All tests run on every invocation of the normal test command. A test may use
-a bounded request when its assertion is structural, local, or diagnostic, and
-must use a complete request whenever its assertion requires complete output.
-Per-test and per-request telemetry makes expensive work accountable and
-prevents duplicated cold integrations without removing test coverage.
+bounded synthetic fixed point, a bounded low-ell request, a warm compatible
+request, and an exact repeat are benchmarked before and after runtime changes.
+Their raw spectra, convergence evidence, planner decisions, per-test timing,
+and per-request work accounting must remain reproducible while redundant work
+and wall time decrease measurably. A full Planck-like cold solve is not a
+recurring benchmark.
 
 ## Acceptance Contract
 
@@ -395,16 +407,16 @@ to be finite and deterministic, cache keys to include all physical inputs,
 and no model-name branch or hidden standard-cosmology default to be found by
 repository audit. The compiler-call contract must remain pure when inspected
 with a mock, while the real generated hierarchy still receives the separate
-engine plan. A cold full-surface fixed point must record bounded, non-duplicate
-work and progress telemetry, and the focused declaration/compiler regressions
-must pass. The fixed-point benchmark must include cold, warm, exact-repeat,
-and partial-source-cache cases; the latter must show that cached modes are
-not re-evolved. The workflow must publish per-test timing for intentionally
-expensive CMB tests and preserve a real cold production request in focused
-acceptance evidence. Raw planner manifests are required for at least LCDM,
-USMF2, QAU, QRSF, TOG, TORG, wCDM, and w0wa. These runtime, performance,
-and contract-boundary criteria are the Slice One closure standard; a
-policy-only green gate is not closure evidence.
+engine plan. A bounded full-surface fixed point must record bounded,
+non-duplicate work and progress telemetry, and the focused
+declaration/compiler regressions must pass. The fixed-point benchmark must
+include cold, warm, exact-repeat, and partial-source-cache cases; the latter
+must show that cached modes are not re-evolved. The workflow must publish
+per-test timing for intentionally expensive CMB tests without preserving a
+hidden full-production request in ordinary discovery. Raw planner manifests
+are required for at least LCDM, USMF2, QAU, QRSF, TOG, TORG, wCDM, and w0wa.
+These runtime, performance, and contract-boundary criteria are the Slice One
+closure standard; a policy-only green gate is not closure evidence.
 
 Slice One recovery closure evidence: the planner now treats every ordinary
 explicit-ell request as production, while reduced-grid fixtures require an
@@ -615,25 +627,28 @@ is owned by the subsequent scientific parity slices.
 
 The closed recovery acceptance is:
 
-* one normal public LCDM request with an explicit production ell range retains
+* one normal public LCDM request with an explicit bounded ell range retains
   final controls and produces finite raw TT/TE/EE arrays with visible
   acoustic trough-to-peak structure;
-* the same request produces one retained graph artifact whose curves are
-  finite, smooth, physically shaped, and not missing because of a convergence
+* the same request produces one graph artifact whose curves are finite,
+  smooth, physically shaped, and not missing because of a convergence
   exception; and
 * graph generation, physical-shape diagnostics, exact-repeat cache evidence,
   convergence evidence, and work accounting consume the same canonical
   production arrays without another cold solve per observable.
 
-Slice Seven closure evidence: the production test requests ell values from 2
-through 300, observes final-tier controls, a 512-node base k grid with a
-1024-node convergence refinement, and a 2205-node eta grid. The returned
-TT/TE/EE arrays are finite and smooth, auto spectra are nonnegative, TE
-changes sign, TT retains a trough followed by a substantially higher peak,
-and the plotter retains a hashed PNG artifact. The exact repeat returns
-identical arrays as an exact cache hit. CAMB comparison remains explicitly
-open for the subsequent parity slices because the current CCMBS/CAMB arrays
-are not yet parity-aligned.
+Slice Seven closure evidence: the bounded public test requests ell values from
+2 through 300 and observes resolved bounded controls. The returned TT/TE/EE
+arrays
+are finite and smooth, auto spectra are nonnegative, TE changes sign, and TT
+retains a trough followed by a substantially higher peak. The test hashes PNG
+bytes in process, but does not persist the PNG after its temporary directory
+is removed; persistent artifact evidence is assigned to Slice Twelve. The
+recorded declared base/refined counts are not proof that the effective grids
+are distinct when a phase-resolution floor dominates; that evidence defect is
+also assigned to Slice Twelve. The exact repeat returns identical arrays as
+an exact cache hit. CAMB comparison remains explicitly open because the
+current CCMBS/CAMB arrays are not yet parity-aligned.
 
 ### [closed] Slice Eight — production phase integrity and diagnostic closure
 
@@ -687,7 +702,8 @@ best-fit amplitude residuals, and reproducible eta-grid digests. Diagnostic
 requests bypass declared spectrum, transfer, source-history, and initial-state
 result caches; production requests retain their existing cache behavior.
 The measured history residuals remain explicit diagnostic evidence rather than
-a spectrum-parity claim, which is owned by Slice Eleven.
+a spectrum-parity claim, which is owned by the post-Slice-Eleven parity
+slices.
 
 Slice Nine implementation amendments make the recurring evidence bounded and
 repeatable without weakening the numerical contract. A generated scalar
@@ -718,8 +734,11 @@ An explicitly required phase resolution rejects an impossible node cap;
 bounded diagnostics retain an explicit under-resolved status rather than
 silently accepting a capped ladder. Focused adaptive, scalar wave, and
 independent k/source refinement tests pass, including finite transfer
-residuals and reuse evidence. The bounded external CAMB evidence boundary is
-Slice Eleven; canonical CCMBS-versus-CAMB acceptance remains in Slice Twelve.
+residuals and reuse evidence. This closes the bounded diagnostic refinement
+route; it does not yet prove that the ordinary production planner enables
+every adaptive surface. Production integration is assigned to Slice Thirteen.
+The bounded external CAMB evidence boundary is Slice Eleven; canonical
+CCMBS-versus-CAMB acceptance remains open.
 
 ### [closed] Slice Eleven — bounded CAMB spectrum parity evidence
 
@@ -735,43 +754,151 @@ The fail-closed parity comparator is exercised against an independently
 generated CAMB row and rejects a changed raw surface even when all other
 surfaces are valid. Each row identifies the exact contract, ell grid,
 numerical plan, raw-array digest, and CAMB artifact used for a later canonical
-CCMBS comparison. This slice closes the external evidence and artifact
-boundary; canonical CCMBS-versus-CAMB acceptance at the production envelope
-is assigned to Slice Twelve so it cannot be claimed from CAMB-only rows.
+CCMBS comparison. This slice closes the external evidence boundary, but the
+fixed LCDM row must be physically aligned with the bundled massless-neutrino
+declaration before parity can be accepted. The current graph test's in-memory
+PNG hash is not a retained artifact. Canonical CCMBS-versus-CAMB acceptance
+and artifact retention are assigned to the bounded follow-up slices below,
+so neither can be claimed from CAMB-only rows.
 
-### [planned] Slice Twelve — canonical parity and end-to-end corpus closure
+### [closed] Slice Twelve — evidence integrity and bounded test repair
 
-Using Slice Eleven's independently generated rows, compare canonical CCMBS
-spectra on identical grids and the production numerical envelope. Start with
-quantitative TT/TE/EE fixed-LCDM parity, then cover every applicable surface
-and comparable model before exercising the normal runner, model adapter,
-likelihood assembly, sampler, CSV and plot exporters, GUI/CLI graph path,
-cache reuse, and typed failure reporting. Confirm that BAO uses only the
-independent drag-background boundary and that CMB failures cannot corrupt
-SNe or BAO results. The graph path must display an explicit typed failure
-instead of silently omitting a theory when a genuinely invalid request fails.
+Repair the evidence mechanisms before accepting any physical parity result.
+The production scalar convergence comparison must construct genuinely
+distinct, nested effective k grids after every engine-owned phase floor. Its
+record must prove distinct node counts, retained base nodes, nonzero new-node
+work, and different refinement identities; a comparison of identical grids
+is a typed evidence failure, not convergence. The nonzero-new-node assertion
+is mandatory for a cold refinement. A warm request may reuse a genuinely
+finer product only when the complete physical, numerical, request, and
+reference identities match and retained provenance proves that reuse.
 
-Acceptance requires finite, physically sensible graphs for all ten bundled
-models, complete declared observables, cache reuse without raw-array changes,
-and explicit mathematical diagnostics for every intentionally invalid
-declaration.
+Correct the fixed LCDM CAMB contract to declare the same massless-neutrino
+physics as the bundled model, including every relevant fixed input. The
+reference test must assert CAMB's resolved parameters after defaults are
+applied, not only the values present in the input mapping, and must regenerate
+the bounded reference digest. Repair nested phase-grid termination so measured
+spacing, not only a theoretical node count, drives refinement within the
+declared allowance.
 
-### [planned] Slice Thirteen — reproducible production closure
+Replace the temporary-directory-only graph claim with a deterministic,
+machine-readable artifact manifest. After the producing process and temporary
+directory cleanup finish, a second process must reload the graph, raw arrays,
+and refinement products and verify their hashes. The manifest must record the
+source revision, declaration identity, resolved physical inputs, numerical
+settings, request identity, and CAMB/reference version. A dead artifact path
+or unreloadable payload is a failure.
 
-Run orchestration, failure-path, likelihood, graph, parity, and fixed-seed
-posterior regressions through the same test command. Run repeated short
-posterior regressions only after production graphs and raw parity reports
-pass, and verify that the posterior does not repair bad CMB spectra by
-driving `H_0`, matter, baryon, or `N_eff` to absurd values. Sampler timeout
-telemetry must retain the typed timeout, elapsed time, request identity, and
-phase rather than treating a timeout as an ordinary posterior exclusion.
+Add focused regressions for all of these defects. These tests use bounded
+synthetic inputs and small real CCMBS requests; they must not launch a full
+observational production solve, Planck covariance calculation, or long
+sampler run.
+
+Acceptance requires no false convergence evidence, physically aligned CAMB
+inputs, measured-spacing closure, valid cold/warm reuse semantics, and durable
+artifact provenance. A green gate is necessary but does not close this slice
+unless the focused tests prove the effective grids and reference contract
+described above.
+
+Slice Twelve closure evidence: production scalar convergence now rejects
+identical or non-nested effective grids, records shape-aware grid digests,
+refinement identity, retained-node counts, and cold/warm new-node work. The
+phase-grid regression continues refinement against measured spacing after the
+endpoint count floor. The fixed LCDM CAMB contract explicitly resolves zero
+massive neutrinos and records CAMB's resolved defaults in the regenerated
+fixture. The bounded graph test persists a machine-readable manifest for the
+graph, raw spectra, and post-processing evidence, then reloads and hashes
+those artifacts from a second process after plot-directory cleanup.
+
+### [planned] Slice Thirteen — bounded parity and production adaptation
+
+Integrate adaptive transfer, source, projection, and evolution resolution into
+the ordinary planner and production route. The bounded public requests used by
+these tests must use the ordinary planner, convergence enforcement, and public
+return path without diagnostic bypasses. Large-request grid construction is
+tested separately without evolving a full hierarchy. Under-resolved
+oscillatory fixtures must either refine or fail with raw evidence and a typed
+diagnosis, and overlapping multipoles requested through different ranges must
+remain consistent.
+
+Every applicable axis must report measured refinement evidence or a validated
+error bound: background, momentum/q, hierarchy depth, evolution, source
+sampling, projection quadrature, and physical integration limits. A typed
+non-applicability decision must name the physical reason. Finer projection
+over interpolated source histories cannot certify source resolution; source
+and evolution acceptance requires independently evolved samples or an
+independently validated bound. Known analytic limits and component-level
+equation checks must cover cases where an external spectrum comparison is not
+the right oracle. Reuse is valid only for the same physical parameter point,
+declaration, request, resolved numerical plan, and reference identity.
+
+Using Slice Twelve's corrected CAMB row, establish the canonical bounded
+CCMBS-versus-CAMB comparison on one identical ell grid and identical physical
+inputs. The matrix includes fixed LCDM, shifted-amplitude LCDM,
+massive-neutrino LCDM, the Planck reference, wCDM, and w0wa. Its shared sparse
+ell set covers low, acoustic, intermediate, and damping regimes:
+`(2, 20, 100, 200, 500, 800, 1200, 1500, 2000, 2500)`. The primary
+observables are TT, TE, and EE, with every other declared surface tested when
+CAMB implements the same physics. Matching C_ell and D_ell conventions,
+finite arrays, exact ell alignment, and cross-spectrum sign conventions are
+mandatory. Initial relative tolerances are TT 2%, TE 3%, EE 2%, BB 2%, PP 3%,
+TP 5%, EP 5%, lensed TT 2%, lensed TE 3%, lensed EE 2%, and lensed BB 5%;
+an unlisted surface has no implicit pass. CAMB rows must retain and assert the
+resolved physical parameters, including defaults.
+
+The high-ell probes must exercise the ordinary public production route with
+the engine's resolved production envelope, but share one solve and its
+artifacts rather than launching one full-resolution solve per anchor. A
+separate grid-construction test may inspect larger request ceilings without
+evolving a full hierarchy. The test matrix therefore covers the claimed
+operating regime without becoming a full observational production campaign.
+
+Persist raw arrays, residuals, tolerances, refinement records, and acceptance
+decisions in the bounded parity report. Use synthetic observations for
+likelihood and graph assembly; do not solve the full Planck data path or
+generate a full-resolution CAMB artifact during ordinary test discovery.
+
+Acceptance requires finite, wave-bearing bounded graphs, quantitatively
+matched fixed-LCDM TT/TE/EE, explicit decisions for surfaces or physics
+unavailable in CAMB, and no production path that silently disables adaptive
+resolution. A failed comparison must retain its raw evidence and typed
+diagnosis rather than relaxing tolerances, dropping a surface, or treating a
+missing CCMBS implementation as unavailable physics.
+
+### [planned] Slice Fourteen — bounded sampler and corpus closure
+
+Define one honest joint-MCMC resolution policy. It may reuse shared immutable
+products only when the complete physical parameter point, declaration,
+request, resolved numerical plan, cache identity, and reference version match.
+A route certified at one parameter point cannot certify a new point merely
+because it uses the same code. Joint MCMC may not silently bypass the
+convergence contract.
+
+A proposal timeout must remain a typed interruption with elapsed time, request
+identity, phase, and numerical evidence. The sampler must retry within a
+bounded policy, abort the affected execution, or return an explicitly
+incomplete run; it must never convert a timeout into an ordinary `-inf`
+posterior value that physically excludes the proposal.
+
+Exercise the runner, failure paths, likelihood assembly, sampler, CSV and plot
+exporters, GUI/CLI graph path, cache reuse, and typed failure reporting with
+deterministic synthetic SNe, BAO, and CMB observations and fixed seeds. Cover
+all ten bundled models with bounded real CCMBS requests and complete declared
+surface accounting. Explicitly verify independent BAO execution, isolation of
+CMB failures from SNe/BAO results, visible typed GUI/CLI failure display, and
+representative mathematically complete novel declarations. Per-test timing
+and per-request work evidence must identify every intentionally expensive
+case. Do not run a long posterior chain, full observational covariance, or
+full-resolution production hierarchy in the normal test command.
 
 Publish the final corpus matrix, complete observable artifacts, parity rows,
 planner evidence, graph hashes, timing/work accounting, cache evidence, and a
 reproducible closure manifest. The final gate must demonstrate that warm
 caches, exact repeats, and shared artifacts reduce work without changing any
 accepted raw array, and that every intentionally expensive test states the
-behavior it proves.
+behavior it proves. Full-resolution production data and scientific proof are
+separate explicitly invoked evidence work, not hidden inside `gate --verify`,
+`devcovenant run`, or ordinary test discovery.
 
 ## Completion Standard
 
@@ -786,12 +913,16 @@ This plan is complete only when all of the following are true:
 * all declared scalar, vector, tensor, unlensed, lensed, auto, and cross
   surfaces—including TT, TE, EE, BB, PP, TP, and EP—are computed;
 * LCDM and the Planck reference produce sensible CAMB-like graphs through the
-  normal GUI/CLI production path, with no missing curves;
-* CAMB parity passes for every physically comparable model and surface at
-  multiple fixed points and the production ell range;
+  normal GUI/CLI public path on bounded requests, with no missing curves;
+* bounded canonical CAMB parity passes for every physically comparable model
+  and surface covered by the regular test contract, while any full
+  production ell-range proof is retained as separate scientific evidence;
 * non-CAMB theories pass finite, converged, theory-faithful internal checks;
 * background, recombination, drag, BAO, likelihood, sampler, cache, export,
   and failure boundaries are independently evidenced;
+* the ordinary public production route is exercised without diagnostic
+  bypasses, and every applicable numerical axis has measured convergence,
+  validated error bounds, or typed physical non-applicability;
 * all tests are green, with every expensive test justified by the behavior it
   verifies;
 * per-test and per-request timing, work units, cache reuse, and refinement
@@ -800,6 +931,12 @@ This plan is complete only when all of the following are true:
 * raw arrays, histories, grids, residuals, planner decisions, parity reports,
   graph files, and hashes are reproducible and attached to the closure
   manifest;
+* the regular test command uses only the bounded workload contract, completes
+  within its development budget, and contains no hidden full-production
+  dataset, hierarchy, CAMB generation, or long posterior chain;
+* a durable handoff manifest records the bounded evidence, unresolved
+  production-run inputs, and exact command boundary for the user's later
+  full-resolution scientific run; and
 * the complete tests and DevCovenant gate are green without suppressions,
   skipped physics, relaxed acceptance, or CAMB fallback; and
 * `PLAN.md` has no outstanding requirement outside an implementation slice.

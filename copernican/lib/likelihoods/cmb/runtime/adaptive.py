@@ -600,7 +600,11 @@ def nested_phase_aware_k_grid(
         )
     target = min(maximum, max(int(base.size), required_nodes))
     result = base.copy()
-    while result.size < target:
+
+    def _insert_largest_phase_gap() -> None:
+        """Bisect the currently worst-resolved physical phase interval."""
+
+        nonlocal result
         phase_gaps = numpy.maximum(
             numpy.diff(result) * distance,
             numpy.diff(result) * acoustic_distance,
@@ -610,13 +614,30 @@ def nested_phase_aware_k_grid(
         if not numpy.isfinite(midpoint) or midpoint <= result[gap_index]:
             raise ValueError("Nested phase-aware k quadrature stalled")
         result = numpy.insert(result, gap_index + 1, midpoint)
-    if require_phase_resolution:
+
+    while result.size < target:
+        _insert_largest_phase_gap()
+
+    # The endpoint-derived count is only a lower bound.  A nonuniform base
+    # ladder can contain a large unresolved gap even after it reaches that
+    # count, so continue measuring the actual spacing while budget remains.
+    # This preserves every base node and avoids rejecting a feasible ladder
+    # merely because its initial distribution was clustered.
+    status = phase_aware_k_grid_status(
+        result,
+        phase_points_per_cycle=phase_points,
+        eta_distance=distance,
+        sound_horizon=acoustic_distance,
+    )
+    while not bool(status["spacing_resolved"]) and result.size < maximum:
+        _insert_largest_phase_gap()
         status = phase_aware_k_grid_status(
             result,
             phase_points_per_cycle=phase_points,
             eta_distance=distance,
             sound_horizon=acoustic_distance,
         )
+    if require_phase_resolution:
         if not bool(status["resolved"]):
             raise ValueError(
                 "Nested phase-aware k quadrature is under-resolved: "

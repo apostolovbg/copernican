@@ -35,6 +35,8 @@ FIXED_LCDM_REFERENCE_CONTRACT = {
         "As": 2.1e-9,
         "ns": 0.965,
         "Neff": 3.0,
+        "mnu": 0.0,
+        "num_massive_neutrinos": 0,
         "YHe": 0.245,
     },
     "grids": {},
@@ -202,6 +204,8 @@ def _make_camb_params(
         model_kwargs["mnu"] = float(numpy.sum(masses))
         consumed_keys.update(ordered)
     if "sum_mnu" in param_map:
+        if "mnu" in param_map:
+            consumed_keys.add("mnu")
         model_kwargs["mnu"] = _use_scalar("sum_mnu")
     elif "mnu" in param_map:
         model_kwargs["mnu"] = _use_scalar("mnu")
@@ -295,6 +299,27 @@ def _make_camb_params(
         )
 
     return params
+
+
+def resolve_camb_parameters(
+    contract_or_params: Mapping[str, Any],
+) -> dict[str, float | int]:
+    """Return CAMB's resolved physical parameters after defaults apply."""
+
+    params = _make_camb_params(contract_or_params)
+    return {
+        "H0": float(params.H0),
+        "ombh2": float(params.ombh2),
+        "omch2": float(params.omch2),
+        "omk": float(params.omk),
+        "YHe": float(params.YHe),
+        "tau": float(params.Reion.optical_depth),
+        "As": float(params.InitPower.As),
+        "ns": float(params.InitPower.ns),
+        "num_nu_massless": float(params.num_nu_massless),
+        "num_nu_massive": int(params.num_nu_massive),
+        "omnuh2": float(params.omnuh2),
+    }
 
 
 def _compute_cmb_spectrum_direct(
@@ -705,6 +730,9 @@ def build_lcdm_reference_fixture(
             for name in requested_spectra
         },
         "contract": FIXED_LCDM_REFERENCE_CONTRACT,
+        "resolved_parameters": resolve_camb_parameters(
+            FIXED_LCDM_REFERENCE_CONTRACT
+        ),
         "tolerances": {
             name: float(FIXED_LCDM_REFERENCE_TOLERANCES[name])
             for name in requested_spectra
@@ -1031,6 +1059,9 @@ def build_lcdm_full_reference_fixture(
             "source": "CAMB get_*_cls raw_cl and native D_ell outputs",
         },
         "contract": FIXED_LCDM_REFERENCE_CONTRACT,
+        "resolved_parameters": resolve_camb_parameters(
+            FIXED_LCDM_REFERENCE_CONTRACT
+        ),
         "tolerances": {
             name: float(FIXED_LCDM_FULL_REFERENCE_TOLERANCES[name])
             for name in requested
@@ -1144,5 +1175,6 @@ __all__ = [
     "describe_camb_configuration",
     "load_lcdm_full_reference_fixture",
     "reference_fixture_sha256",
+    "resolve_camb_parameters",
     "write_lcdm_full_reference_fixture",
 ]

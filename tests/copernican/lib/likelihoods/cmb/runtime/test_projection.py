@@ -8,7 +8,6 @@ from unittest import mock
 
 import numpy
 
-from copernican.lib.likelihoods.cmb.errors import ConvergenceError
 from copernican.lib.likelihoods.cmb.runtime import projection
 
 
@@ -160,7 +159,7 @@ class ProjectionModuleTestCase(unittest.TestCase):
             ),
             mock.patch.object(projection.cache, "set_cmb_spectrum"),
         ):
-            with self.assertRaises(ConvergenceError):
+            with self.assertRaisesRegex(ValueError, "invalid k-grid evidence"):
                 projection._compute_custom_cmb_spectrum_data(
                     contract,
                     (2, 3),
@@ -200,7 +199,11 @@ class ProjectionModuleTestCase(unittest.TestCase):
             }
             return projection.CustomCMBSpectrumData(
                 ell_grid=numpy.array([2, 3]),
-                k_grid=numpy.array([0.1, 0.2]),
+                k_grid=(
+                    numpy.array([0.1, 0.15, 0.2])
+                    if request.get("_numerical_overrides")
+                    else numpy.array([0.1, 0.2])
+                ),
                 transfer_components={},
                 spectra={
                     name: value * scale for name, value in values.items()
@@ -224,10 +227,64 @@ class ProjectionModuleTestCase(unittest.TestCase):
         record = result.runtime_envelope["production_scalar_k_convergence"]
         self.assertTrue(record["converged"])
         self.assertEqual(record["base_count"], 2)
-        self.assertEqual(record["refined_count"], 2)
+        self.assertEqual(record["refined_count"], 3)
+        self.assertTrue(record["distinct"])
+        self.assertTrue(record["nested"])
+        self.assertEqual(record["new_node_count"], 1)
+        self.assertGreater(record["new_node_work_units"], 0)
+        self.assertNotEqual(
+            record["base_grid_sha256"], record["refined_grid_sha256"]
+        )
+        self.assertEqual(len(record["refinement_identity"]), 64)
         self.assertEqual(record["declared_base_count"], 8)
         self.assertEqual(record["declared_refined_count"], 16)
         self.assertEqual(set(record["metrics"]), {"TT", "TE", "EE"})
+
+    def test_production_grid_floor_keeps_refinement_nested_and_distinct(self):
+        """A phase floor must not collapse the doubled production grid."""
+
+        background = SimpleNamespace(
+            eta0=1000.0,
+            eta_rec=100.0,
+            sound_horizon_mpc=10.0,
+        )
+        perturbation_data = SimpleNamespace(
+            accuracy_controls={
+                "accuracy_tier": "final",
+                "phase_aware_k_quadrature": True,
+                "require_phase_resolution": True,
+            },
+            manifest_summary={"generated_scalar_hierarchy": True},
+        )
+        base_numerics = SimpleNamespace(
+            ell_min=2,
+            ell_max=20,
+            k_min=0.01,
+            k_max=0.3,
+            k_sample_count=8,
+            k_grid_refinement_factor=1,
+        )
+        base = projection._build_projection_k_grid(
+            ell_arr=numpy.asarray((2, 20)),
+            background=background,
+            numerics=base_numerics,
+            perturbation_data=perturbation_data,
+            retain_declared_surface=True,
+        )
+        refined_numerics = SimpleNamespace(
+            **{**vars(base_numerics), "k_grid_refinement_factor": 2}
+        )
+        refined = projection._build_projection_k_grid(
+            ell_arr=numpy.asarray((2, 20)),
+            background=background,
+            numerics=refined_numerics,
+            perturbation_data=perturbation_data,
+            retain_declared_surface=True,
+            refinement_anchors=base,
+        )
+
+        self.assertGreater(refined.size, base.size)
+        self.assertTrue(numpy.all(numpy.isin(base, refined)))
 
     def test_projection_source_does_not_import_camb(self):
         """The declared projection module should remain CAMB-free."""

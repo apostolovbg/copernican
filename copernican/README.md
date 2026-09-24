@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-09-23
+**Last Updated:** 2026-09-24
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,13 @@ the final grid and convergence evidence in the runtime envelope. The
 diagnostics API replans prepared contracts from its requested ell range before
 applying diagnostic overrides, so reduced diagnostic requests cannot inherit a
 stale production-sized grid.
+
+The adaptive runtime closes phase resolution against measured spacing, not
+only against a theoretical node-count floor. Production k-grid convergence
+retains distinct nested grids, new-node work, cache state, and shape-aware
+digests, so an identical or non-nested refinement cannot be reported as
+evidence. Bounded graph tests persist raw arrays, refinement records, and a
+manifest, then reload and hash them from a fresh process after plot cleanup.
 
 Corpus admission and execution keep theory labels separate from physical
 identity. Renaming a complete declaration preserves its route, compiled

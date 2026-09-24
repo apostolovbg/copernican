@@ -225,6 +225,29 @@ _EVOLUTION_WORK_CELL_BUDGET = 16_000_000
 _WORK_ESTIMATE_VERSION = 1
 
 
+def _projection_array_digest(values: Any) -> str:
+    """Return a shape-aware digest for one finite projection array."""
+
+    array = numpy.ascontiguousarray(numpy.asarray(values, dtype=numpy.float64))
+    if (
+        array.ndim != 1
+        or array.size == 0
+        or not numpy.all(numpy.isfinite(array))
+    ):
+        raise ValueError(
+            "Projection grid evidence must be finite and nonempty"
+        )
+    header = json.dumps(
+        {
+            "dtype": str(array.dtype),
+            "shape": tuple(int(value) for value in array.shape),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(header + array.tobytes()).hexdigest()
+
+
 def _can_batch_declared_evolution(
     *,
     generated_scalar_hierarchy: bool,
@@ -1265,7 +1288,10 @@ def _build_projection_k_grid(
         # actually measure a refinement.  The 4x floor keeps the base and
         # doubled ladders distinct without making every public request pay
         # for an unnecessary 2048-mode refinement.
-        sample_count = max(sample_count * refinement_factor * 4, 512)
+        sample_count = max(
+            sample_count * refinement_factor * 4,
+            512 * refinement_factor,
+        )
     production_probe = accuracy_controls.get(
         "production_scalar_convergence",
         {},
@@ -1329,10 +1355,14 @@ def _build_projection_k_grid(
             eta_distance=eta_rec_distance,
             sound_horizon=max(float(background.sound_horizon_mpc), 1.0),
         )
-        sample_count = max(
-            int(sample_count),
-            int(phase_requirements["required_nodes"]),
-        )
+        # The physical phase floor is a lower bound for the base ladder.  A
+        # refined production ladder must remain independently finer even when
+        # that floor dominates the declared sample count; otherwise the two
+        # convergence products are identical and provide no evidence.
+        phase_floor = int(phase_requirements["required_nodes"])
+        if refinement_factor > 1:
+            phase_floor *= refinement_factor
+        sample_count = max(int(sample_count), phase_floor)
     # Keep the physical anchor set independent of the requested node count.
     # Otherwise a 64-node and a 96-node refinement choose different ell
     # anchors before refinement even begins, measuring an anchor relocation
@@ -4296,6 +4326,11 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["configured_numerical_controls"] = dict(
         numerical_envelope.numerical_controls
     )
+    runtime_envelope["resolved_physical_parameters"] = {
+        str(name): float(value)
+        for name, value in physical_runtime_scalars.items()
+        if numpy.isfinite(float(value))
+    }
     runtime_envelope["background_resolution_evidence"] = dict(
         getattr(background, "resolution_evidence", {}) or {}
     )
@@ -11849,6 +11884,23 @@ def _compute_custom_cmb_spectrum_data(
                 ),
                 performance_timer=refined_timer,
             )
+            base_k_grid = numpy.asarray(result.k_grid, dtype=numpy.float64)
+            refined_k_grid = numpy.asarray(refined.k_grid, dtype=numpy.float64)
+            base_grid_digest = _projection_array_digest(base_k_grid)
+            refined_grid_digest = _projection_array_digest(refined_k_grid)
+            nested = bool(numpy.all(numpy.isin(base_k_grid, refined_k_grid)))
+            distinct = bool(
+                base_grid_digest != refined_grid_digest
+                and not numpy.array_equal(base_k_grid, refined_k_grid)
+            )
+            new_node_count = int(
+                max(0, refined_k_grid.size - base_k_grid.size)
+            )
+            if not distinct or not nested or new_node_count <= 0:
+                raise ValueError(
+                    "Production scalar convergence produced invalid k-grid "
+                    "evidence: grids must be distinct, nested, and add nodes"
+                )
             required_for_report = tuple(
                 dict.fromkeys(
                     tuple(production_controls.required_spectra)
@@ -11863,21 +11915,42 @@ def _compute_custom_cmb_spectrum_data(
             )
             production_record = {
                 "axis": "k_sample_count",
-                "base_count": int(result.k_grid.size),
-                "refined_count": int(refined.k_grid.size),
+                "base_count": int(base_k_grid.size),
+                "refined_count": int(refined_k_grid.size),
                 "declared_base_count": base_k_count,
                 "declared_refined_count": (
                     base_k_count * production_controls.k_refinement_factor
                 ),
                 "refinement_factor": production_controls.k_refinement_factor,
                 "required_spectra": required_for_report,
+                "base_grid_sha256": base_grid_digest,
+                "refined_grid_sha256": refined_grid_digest,
+                "nested": nested,
+                "distinct": distinct,
+                "new_node_count": new_node_count,
+                "new_node_work_units": int(
+                    0
+                    if refined_timer.cache_state == "exact_cache_hit"
+                    else new_node_count
+                    * max(1, len(required_for_report))
+                    * max(1, len(request_ells))
+                ),
+                "refined_cache_state": refined_timer.cache_state,
+                "cold_refinement": bool(
+                    refined_timer.cache_state != "exact_cache_hit"
+                ),
+                "refinement_identity": hashlib.sha256(
+                    (
+                        f"{base_grid_digest}:{refined_grid_digest}:"
+                        f"{production_controls.k_refinement_factor}"
+                    ).encode("utf-8")
+                ).hexdigest(),
                 "metrics": report.to_dict()["metrics"],
                 "converged": report.converged,
                 "fail_on_nonconvergence": (
                     production_controls.fail_on_nonconvergence
                 ),
                 "elapsed_seconds": perf_counter() - refinement_started,
-                "refined_cache_state": refined_timer.cache_state,
             }
             enriched_envelope = dict(result.runtime_envelope)
             enriched_envelope["production_scalar_k_convergence"] = (

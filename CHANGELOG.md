@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-23
+**Last Updated:** 2026-09-24
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,39 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-09-24:
+  Change: Implemented Slice Twelve evidence integrity and bounded test repair.
+  Why: Prevented identical-grid convergence claims, CAMB default drift, and
+    phase-grid false failures while keeping graph evidence reloadable.
+  Impact: Added nested-grid provenance, resolved massless-neutrino reference
+    inputs, measured-spacing refinement, durable artifact checks, and bounded
+    graph execution.
+  Files:
+  PLAN.md
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/project/fixtures/camb_lcdm_reference.json
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_slice_seven.py
+
+- 2026-09-24:
+  Change: Amended the post-Slice-Eleven plan with bounded production-envelope
+    probes, physical-limit checks, and low-to-high parity coverage.
+  Why: Constrain recurring tests and prevent a full production campaign or
+    multi-hour recurring test workload.
+  Impact: Slices Twelve through Fourteen now repair evidence first, measure
+    every applicable convergence axis, and reserve the user's full scientific
+    run outside plan acceptance and ordinary test discovery.
+  Files:
+  PLAN.md
+  CHANGELOG.md
 
 - 2026-09-23:
   Change: Added bounded independent CAMB parity evidence rows.

@@ -29,6 +29,21 @@ class CambReferenceModuleTestCase(unittest.TestCase):
             f"camb:{camb_reference.camb.__version__}",
         )
 
+    def test_fixed_lcdm_resolves_massless_neutrino_physics(self):
+        """The fixed reference must not inherit CAMB's massive default."""
+
+        resolved = camb_reference.resolve_camb_parameters(
+            camb_reference.FIXED_LCDM_REFERENCE_CONTRACT
+        )
+
+        self.assertEqual(resolved["num_nu_massive"], 0)
+        self.assertEqual(resolved["num_nu_massless"], 3.0)
+        self.assertEqual(resolved["omnuh2"], 0.0)
+        self.assertEqual(
+            resolved["H0"],
+            camb_reference.FIXED_LCDM_REFERENCE_CONTRACT["param_map"]["H0"],
+        )
+
     def test_reference_helper_is_test_owned(self):
         """The CAMB builder should remain outside the production package."""
 
@@ -163,6 +178,8 @@ class CambReferenceModuleTestCase(unittest.TestCase):
             tuple(fixture["ell_values"]),
             (2, 20, 100, 200, 500, 1000, 1500, 2000),
         )
+        self.assertEqual(fixture["resolved_parameters"]["num_nu_massive"], 0)
+        self.assertEqual(fixture["resolved_parameters"]["omnuh2"], 0.0)
         self.assertEqual(fixture["applicability"]["scalar"]["omitted"], [])
         self.assertEqual(fixture["applicability"]["vector"]["included"], [])
         self.assertEqual(fixture["applicability"]["tensor"]["included"], [])

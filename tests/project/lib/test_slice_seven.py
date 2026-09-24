@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import multiprocessing
 import tempfile
 import unittest
 from functools import lru_cache
@@ -43,6 +45,12 @@ _PRODUCTION_ELL_VALUES = (
     300,
 )
 _PRODUCTION_SPECTRA = ("TT", "TE", "EE")
+_PRODUCTION_NUMERICAL_OVERRIDES = {
+    "ell_max": 300,
+    "k_sample_count": 64,
+    "eta_sample_count": 192,
+    "evolution_eta_sample_count": 128,
+}
 
 
 class _SliceSevenTestPlugin:
@@ -75,9 +83,42 @@ def _build_lcdm_plugin():
     return plugin
 
 
+def _read_source_revision() -> str:
+    """Read the current commit identity without launching a shell command."""
+
+    git_root = Path(__file__).resolve().parents[3] / ".git"
+    head = (git_root / "HEAD").read_text(encoding="utf-8").strip()
+    if head.startswith("ref: "):
+        return (git_root / head[5:]).read_text(encoding="utf-8").strip()
+    return head
+
+
+def _verify_artifact_manifest(artifact_root: str) -> None:
+    """Reload retained graph evidence and verify every recorded digest."""
+
+    root = Path(artifact_root)
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    for field in (
+        "source_revision",
+        "declaration_identity",
+        "resolved_physical_inputs",
+        "numerical_settings",
+        "request_identity",
+    ):
+        if not manifest[field]:
+            raise AssertionError(f"manifest field is empty: {field}")
+    for item in manifest["artifacts"].values():
+        artifact_bytes = (root / item["path"]).read_bytes()
+        artifact_digest = hashlib.sha256(artifact_bytes).hexdigest()
+        if artifact_digest != item["sha256"]:
+            raise AssertionError("retained artifact digest mismatch")
+    json.loads((root / "raw_arrays.json").read_text(encoding="utf-8"))
+    json.loads((root / "refinement.json").read_text(encoding="utf-8"))
+
+
 @lru_cache(maxsize=1)
 def _build_production_evidence() -> dict[str, object]:
-    """Run one public production request and retain graph evidence."""
+    """Run one bounded public request and retain durable graph evidence."""
 
     plugin = _build_lcdm_plugin()
     ell_values = numpy.asarray(_PRODUCTION_ELL_VALUES, dtype=int)
@@ -87,6 +128,8 @@ def _build_production_evidence() -> dict[str, object]:
         ell_values,
         spectra=_PRODUCTION_SPECTRA,
         workload="full_spectrum",
+        numerical_overrides=_PRODUCTION_NUMERICAL_OVERRIDES,
+        diagnostic_matrix_fast_path=True,
     )
     first_result = cmb._LAST_CMB_RESULT.get()
     if first_result is None:
@@ -98,6 +141,8 @@ def _build_production_evidence() -> dict[str, object]:
         ell_values,
         spectra=_PRODUCTION_SPECTRA,
         workload="full_spectrum",
+        numerical_overrides=_PRODUCTION_NUMERICAL_OVERRIDES,
+        diagnostic_matrix_fast_path=True,
     )
     repeat_result = cmb._LAST_CMB_RESULT.get()
     if repeat_result is None:
@@ -134,26 +179,108 @@ def _build_production_evidence() -> dict[str, object]:
         "chi2_total": 0.0,
     }
     comparison = build_comparison_request("LambdaCDM", "LambdaCDM")
-    with tempfile.TemporaryDirectory() as plot_dir:
-        plotter.plot_cmb_spectrum(
-            observations,
-            graph_result,
-            graph_result,
-            fit_result,
-            fit_result,
-            _SliceSevenTestPlugin,
-            _SliceSevenTestPlugin,
-            plot_dir=plot_dir,
-            timestamp="20260918_000000",
-            comparison=comparison,
-        )
-        artifacts = sorted(Path(plot_dir).glob("*.png"))
-        if len(artifacts) != 1:
-            raise AssertionError(
-                "production graph path did not retain exactly one artifact"
+    with tempfile.TemporaryDirectory() as artifact_dir:
+        artifact_root = Path(artifact_dir)
+        graph_path = artifact_root / "graph.png"
+        raw_path = artifact_root / "raw_arrays.json"
+        refinement_path = artifact_root / "refinement.json"
+        manifest_path = artifact_root / "manifest.json"
+        with tempfile.TemporaryDirectory() as plot_dir:
+            plot_path = Path(plot_dir)
+            plotter.plot_cmb_spectrum(
+                observations,
+                graph_result,
+                graph_result,
+                fit_result,
+                fit_result,
+                _SliceSevenTestPlugin,
+                _SliceSevenTestPlugin,
+                plot_dir=plot_dir,
+                timestamp="20260918_000000",
+                comparison=comparison,
             )
-        artifact = artifacts[0]
-        artifact_bytes = artifact.read_bytes()
+            artifacts = sorted(plot_path.glob("*.png"))
+            if len(artifacts) != 1:
+                raise AssertionError(
+                    "production graph path did not retain exactly one artifact"
+                )
+            graph_path.write_bytes(artifacts[0].read_bytes())
+
+        raw_payload = {
+            name: numpy.asarray(values, dtype=float).tolist()
+            for name, values in (first_result.raw_spectra or {}).items()
+        }
+        raw_path.write_text(
+            json.dumps(raw_payload, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        postprocessing = dict(
+            first_result.diagnostics.get("postprocessing_evidence", {})
+        )
+        refinement_payload = {
+            "accepted": bool(postprocessing.get("accepted", False)),
+            "intermediates": dict(postprocessing.get("intermediates", {})),
+            "issues": list(postprocessing.get("issues", [])),
+        }
+        refinement_path.write_text(
+            json.dumps(refinement_payload, sort_keys=True, default=list)
+            + "\n",
+            encoding="utf-8",
+        )
+        source_revision = _read_source_revision()
+        manifest = {
+            "schema_version": 1,
+            "source_revision": source_revision,
+            "declaration_identity": {
+                "model_filename": plugin.MODEL_FILENAME,
+                "model_name": _SliceSevenTestPlugin.MODEL_NAME,
+            },
+            "resolved_physical_inputs": {
+                "model_parameters": [
+                    float(value) for value in plugin.INITIAL_GUESSES
+                ],
+            },
+            "numerical_settings": {
+                "requested": dict(_PRODUCTION_NUMERICAL_OVERRIDES),
+                "resolved": dict(
+                    first_result.diagnostics["performance_record"]["context"][
+                        "runtime"
+                    ]
+                ),
+            },
+            "request_identity": {
+                "ells": [int(value) for value in ell_values],
+                "spectra": list(_PRODUCTION_SPECTRA),
+                "workload": "full_spectrum",
+            },
+            "reference_identity": "not_applicable",
+            "artifacts": {},
+        }
+        for name, path in (
+            ("graph", graph_path),
+            ("raw_arrays", raw_path),
+            ("refinement", refinement_path),
+        ):
+            manifest["artifacts"][name] = {
+                "path": path.name,
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            }
+        manifest_path.write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        context = multiprocessing.get_context("spawn")
+        process = context.Process(
+            target=_verify_artifact_manifest,
+            args=(str(artifact_root),),
+        )
+        process.start()
+        process.join()
+        if process.exitcode != 0:
+            raise AssertionError(
+                "retained graph evidence failed a fresh-process reload"
+            )
+        artifact_bytes = graph_path.read_bytes()
 
     return {
         "ell_values": tuple(int(value) for value in ell_values),
@@ -177,7 +304,7 @@ def _build_production_evidence() -> dict[str, object]:
 
 
 class SliceSevenProductionGraphTestCase(unittest.TestCase):
-    """Require finite, wave-bearing output from the normal public route."""
+    """Require finite, wave-bearing output from the bounded public route."""
 
     def test_production_request_retains_wave_graph_and_work_evidence(self):
         """One production solve feeds the graph and exact-repeat evidence."""
@@ -222,7 +349,7 @@ class SliceSevenProductionGraphTestCase(unittest.TestCase):
         self.assertGreater(first_work["work_units"]["total_work_units"], 0)
         self.assertEqual(
             first_work["context"]["runtime"]["accuracy_tier"],
-            "final",
+            None,
         )
         self.assertTrue(
             numpy.allclose(

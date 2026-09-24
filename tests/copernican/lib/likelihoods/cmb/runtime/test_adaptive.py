@@ -208,6 +208,35 @@ class AdaptiveControlsTestCase(unittest.TestCase):
         for value in base:
             self.assertTrue(numpy.any(numpy.isclose(refined, value)))
 
+    def test_nested_phase_grid_refines_measured_spacing_after_count_floor(
+        self,
+    ) -> None:
+        """A clustered base ladder must refine beyond its count estimate."""
+
+        base = numpy.concatenate(
+            (numpy.linspace(0.1, 0.2, 255), numpy.asarray((1.0,)))
+        )
+        refined = nested_phase_aware_k_grid(
+            base,
+            maximum_nodes=1024,
+            phase_points_per_cycle=8.0,
+            eta_distance=100.0,
+            sound_horizon=1.0,
+            require_phase_resolution=True,
+        )
+
+        self.assertGreater(refined.size, base.size)
+        self.assertLessEqual(refined.size, 1024)
+        self.assertTrue(numpy.all(numpy.isin(base, refined)))
+        status = phase_aware_k_grid_status(
+            refined,
+            phase_points_per_cycle=8.0,
+            eta_distance=100.0,
+            sound_horizon=1.0,
+        )
+        self.assertTrue(status["spacing_resolved"])
+        self.assertTrue(status["resolved"])
+
     def test_nested_phase_grid_rejects_an_impossible_cap(self) -> None:
         """A physical phase requirement must not be silently truncated."""
 
