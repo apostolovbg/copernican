@@ -80,6 +80,24 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-09-26:
+  Change: Added explicit ordinary-route CCMBS parity execution evidence.
+  Why: The bounded parity matrix must execute the public route and retain
+    typed failures before any comparison can be considered scientific.
+  Impact: Added one explicit runner per parity row, retained production
+    convergence evidence, and kept unresolved comparisons fail-closed.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+
+- 2026-09-26:
   Change: Added Slice Fourteen's bounded CCMBS/CAMB parity matrix evidence.
   Why: Parity comparison must retain one sparse request tier, exact surface
     accounting, and fail-closed decisions before scientific comparison.

@@ -362,6 +362,10 @@ per-surface tolerance matrix. `build_cmb_parity_matrix_report()` requires an
 exact model and declared-surface set, fixture digest, and independent
 refinement decision for every row; missing, extra, or rejected evidence is
 retained as a non-passing decision.
+The explicit `run_cmb_parity_matrix()` command executes one ordinary public
+CCMBS request per row, retains production convergence evidence, and records
+typed execution failures. It is excluded from ordinary test discovery and
+cannot report parity until the retained comparisons pass.
 Slice Thirteen now makes the ordinary production planner own transfer,
 source, projection, and evolution refinement. Independently evolved anchor
 histories and compact evidence for background, q, hierarchy, evolution,

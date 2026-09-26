@@ -190,6 +190,10 @@ The bounded parity tier uses the sparse ell grid `(2, 20, 100, 200, 500,
 800, 1200, 1500, 2000, 2500)`. `build_cmb_parity_matrix_report()` retains
 exact surface, fixture, tolerance, and refinement decisions and rejects
 missing or extra rows instead of treating them as unavailable physics.
+The explicit `run_cmb_parity_matrix()` command executes one ordinary public
+CCMBS request per row, retains production convergence evidence, and records
+typed execution failures. It is excluded from ordinary test discovery and
+cannot report parity until the retained comparisons pass.
 
 The runtime keeps source-history caching separate from complete-spectrum
 caching. A history is reusable only when its static contract, dynamic

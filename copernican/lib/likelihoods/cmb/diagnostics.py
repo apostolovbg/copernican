@@ -1217,6 +1217,7 @@ def build_cmb_parity_matrix_report(
     refinement_by_model: Mapping[str, Mapping[str, Any]] | None = None,
     fixture_digests_by_model: Mapping[str, str] | None = None,
     unavailable_models: Mapping[str, str] | None = None,
+    execution_failures_by_model: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build a fail-closed matrix of bounded CCMBS/CAMB parity decisions.
 
@@ -1251,10 +1252,13 @@ def build_cmb_parity_matrix_report(
     refinements = refinement_by_model or {}
     fixture_digests = fixture_digests_by_model or {}
     unavailable = unavailable_models or {}
+    execution_failures = execution_failures_by_model or {}
     records: dict[str, Any] = {}
     accepted: list[str] = []
     rejected: dict[str, list[str]] = {}
     unavailable_records: dict[str, str] = {}
+    execution_failure_records: dict[str, Mapping[str, Any]] = {}
+    resolved_parameter_records: dict[str, Mapping[str, Any]] = {}
 
     for model_name in model_values:
         issues: list[str] = []
@@ -1275,10 +1279,34 @@ def build_cmb_parity_matrix_report(
                 ),
             }
             continue
+        if model_name in execution_failures:
+            failure = _jsonable(execution_failures[model_name])
+            execution_failure_records[model_name] = (
+                failure if isinstance(failure, Mapping) else {}
+            )
+            records[model_name] = {
+                "model": model_name,
+                "status": "execution_failure",
+                "issues": ["ordinary CCMBS parity execution failed"],
+                "failure": failure,
+                "comparison": None,
+                "raw_evidence_sha256": _canonical_sha256(
+                    {"model": model_name, "failure": failure}
+                ),
+            }
+            continue
         if actual is None:
             issues.append("actual CCMBS parity row is missing")
         if reference is None:
             issues.append("independent CAMB parity row is missing")
+        elif not isinstance(reference.get("resolved_parameters"), Mapping):
+            issues.append(
+                "independent CAMB row lacks resolved physical parameters"
+            )
+        else:
+            resolved_parameter_records[model_name] = _jsonable(
+                reference["resolved_parameters"]
+            )
         expected_names = tuple(
             canonical_cmb_spectrum_name(name)
             for name in spectra_by_model.get(model_name, ())
@@ -1334,6 +1362,7 @@ def build_cmb_parity_matrix_report(
             "actual": _jsonable(actual),
             "reference": _jsonable(reference),
             "comparison": _jsonable(comparison),
+            "resolved_parameters": resolved_parameter_records.get(model_name),
             "issues": list(issues),
         }
         records[model_name] = {
@@ -1341,10 +1370,13 @@ def build_cmb_parity_matrix_report(
             "status": status,
             "issues": list(issues),
             "comparison": _jsonable(comparison),
+            "resolved_parameters": resolved_parameter_records.get(model_name),
             "raw_evidence_sha256": _canonical_sha256(evidence),
         }
 
     for model_name in missing_models:
+        if model_name in execution_failure_records:
+            continue
         rejected[model_name] = ["actual CCMBS parity row is missing"]
         records[model_name] = {
             "model": model_name,
@@ -1373,7 +1405,8 @@ def build_cmb_parity_matrix_report(
     decision_complete = bool(
         complete
         and all(
-            record.get("status") in {"accepted", "rejected", "unavailable"}
+            record.get("status")
+            in {"accepted", "rejected", "unavailable", "execution_failure"}
             for record in records.values()
         )
     )
@@ -1391,7 +1424,12 @@ def build_cmb_parity_matrix_report(
         },
         "complete": complete,
         "decision_complete": decision_complete,
-        "accepted": bool(complete and not rejected and not unavailable),
+        "accepted": bool(
+            complete
+            and not rejected
+            and not unavailable
+            and not execution_failure_records
+        ),
         "accepted_models": sorted(accepted),
         "rejected_models": {
             name: list(rejected[name]) for name in sorted(rejected)
@@ -1400,6 +1438,14 @@ def build_cmb_parity_matrix_report(
             name: unavailable_records[name]
             for name in sorted(unavailable_records)
         },
+        "execution_failures": {
+            name: execution_failure_records[name]
+            for name in sorted(execution_failure_records)
+        },
+        "resolved_parameters": {
+            name: resolved_parameter_records[name]
+            for name in sorted(resolved_parameter_records)
+        },
         "unexpected_actual_models": unexpected_actual,
         "unexpected_reference_models": unexpected_reference,
         "duplicate_models": duplicate_models,
@@ -1407,6 +1453,247 @@ def build_cmb_parity_matrix_report(
     }
     report["report_sha256"] = _canonical_sha256(report)
     return report
+
+
+def _ordinary_parity_payload(
+    result: Any,
+    *,
+    ell_values: Sequence[int],
+    spectra: Sequence[str],
+) -> dict[str, Any]:
+    """Materialize one ordinary-route solver result for parity comparison."""
+
+    raw_spectra = getattr(result, "raw_spectra", None)
+    public_spectra = getattr(result, "spectra", None)
+    if not isinstance(raw_spectra, Mapping):
+        raise ValueError(
+            "Ordinary CCMBS parity result did not retain raw C_ell spectra"
+        )
+    if not isinstance(public_spectra, Mapping):
+        raise ValueError(
+            "Ordinary CCMBS parity result did not return named D_ell spectra"
+        )
+    result_ells = tuple(
+        int(value) for value in getattr(result, "requested_ells", ())
+    )
+    expected_ells = tuple(int(value) for value in ell_values)
+    if result_ells != expected_ells:
+        raise ValueError(
+            "Ordinary CCMBS parity result changed the requested ell grid"
+        )
+
+    def _lookup(values: Mapping[str, Any], name: str) -> Any:
+        """Find one spectrum under its declared or canonical spelling."""
+
+        candidates = (name, canonical_cmb_spectrum_name(name), name.upper())
+        for candidate in candidates:
+            if candidate in values:
+                return values[candidate]
+        raise ValueError(f"Ordinary CCMBS result is missing '{name}'")
+
+    surfaces = {
+        str(name): {
+            "C_ell": _lookup(raw_spectra, str(name)),
+            "D_ell": _lookup(public_spectra, str(name)),
+        }
+        for name in spectra
+    }
+    diagnostics = getattr(result, "diagnostics", {}) or {}
+    return {
+        "sector": "scalar",
+        "ell_values": expected_ells,
+        "spectra": surfaces,
+        "solver_id": str(getattr(result, "solver_id", "")),
+        "solver_label": str(getattr(result, "solver_label", "")),
+        "runtime_diagnostics": _jsonable(diagnostics),
+    }
+
+
+def _ordinary_parity_refinement(result: Any) -> dict[str, Any]:
+    """Extract production convergence evidence from one solver result."""
+
+    diagnostics = getattr(result, "diagnostics", {}) or {}
+    performance = diagnostics.get("performance_record", {})
+    if not isinstance(performance, Mapping):
+        performance = {}
+    context = performance.get("context", {})
+    if not isinstance(context, Mapping):
+        context = {}
+    runtime = context.get("runtime", {})
+    if not isinstance(runtime, Mapping):
+        runtime = {}
+    evidence = runtime.get("production_scalar_k_convergence", {})
+    if isinstance(evidence, Mapping) and evidence:
+        return dict(evidence)
+    return {
+        "converged": False,
+        "status": "missing",
+        "reason": "ordinary result omitted production convergence evidence",
+    }
+
+
+def run_cmb_parity_matrix(
+    reference_by_model: Mapping[str, Mapping[str, Any]],
+    *,
+    required_models: Iterable[str] = CAMB_COMPARABLE_CMB_MODEL_FILENAMES,
+    model_directory: str | Path | None = None,
+    contract_by_model: Mapping[str, Mapping[str, Any]] | None = None,
+    ell_values: Iterable[int] = CMB_PARITY_CERTIFICATION_TIER["ells"],
+    spectra_by_model: Mapping[str, Sequence[str]] | None = None,
+    relative_tolerances_by_model: (
+        Mapping[str, Mapping[str, float]] | None
+    ) = None,
+) -> dict[str, Any]:
+    """Run one explicit ordinary-route CCMBS/CAMB parity matrix.
+
+    CAMB reference construction is supplied by the test-owned reference
+    surface.  This function only executes CCMBS through the public contract
+    API, once per physical row, and retains typed execution failures rather
+    than converting them into unavailable physics or synthetic spectra.
+    It is intentionally an explicitly invoked evidence command, not ordinary
+    test discovery.
+    """
+
+    requested_models = tuple(str(name) for name in required_models)
+    requested_ells = tuple(int(value) for value in ell_values)
+    canonical_ells = tuple(
+        int(value) for value in CMB_PARITY_CERTIFICATION_TIER["ells"]
+    )
+    if requested_ells != canonical_ells:
+        raise ValueError(
+            "Slice Fourteen parity execution requires the canonical sparse "
+            "ell grid"
+        )
+    discovery = {
+        record.model_filename: record
+        for record in discover_cmb_model_records(model_directory)
+    }
+    supplied_contracts = contract_by_model or {}
+    supplied_spectra = spectra_by_model or {}
+    supplied_tolerances = relative_tolerances_by_model or {}
+    actual_by_model: dict[str, Mapping[str, Any]] = {}
+    refinement_by_model: dict[str, Mapping[str, Any]] = {}
+    fixture_digests: dict[str, str] = {}
+    unavailable: dict[str, str] = {}
+    execution_failures: dict[str, Mapping[str, Any]] = {}
+
+    from . import cmb as cmb_api
+
+    for model_name in requested_models:
+        reference = reference_by_model.get(model_name)
+        if isinstance(reference, Mapping):
+            digest = reference.get("fixture_sha256")
+            if digest:
+                fixture_digests[model_name] = str(digest)
+        record = discovery.get(model_name)
+        if record is None:
+            execution_failures[model_name] = {
+                "error_type": "ModelDiscoveryError",
+                "message": "Required parity model was not discovered",
+            }
+            continue
+        if record.status == "unavailable":
+            unavailable[model_name] = str(
+                record.failure or "model explicitly disables CMB output"
+            )
+            continue
+        if not record.ready or record.plugin is None:
+            execution_failures[model_name] = dict(
+                record.failure
+                or {
+                    "error_type": "ModelDiscoveryError",
+                    "message": "Required parity model is not ready",
+                }
+            )
+            continue
+        plugin = record.plugin
+        requested_spectra = tuple(
+            str(name)
+            for name in supplied_spectra.get(
+                model_name,
+                declared_cmb_spectrum_names(plugin),
+            )
+        )
+        if not requested_spectra:
+            execution_failures[model_name] = {
+                "error_type": "NoDeclaredCMBObservable",
+                "message": "Required parity model declares no CMB surface",
+            }
+            continue
+        try:
+            contract = supplied_contracts.get(model_name)
+            if contract is None:
+                contract = plugin.get_cmb_declared_runtime(
+                    plugin.INITIAL_GUESSES
+                )
+            cmb_api.compute_cmb_spectrum_from_contract(
+                contract,
+                requested_ells,
+                spectra=requested_spectra,
+                workload="full_spectrum",
+            )
+            result = cmb_api._LAST_CMB_RESULT.get()
+            if result is None or not result.success:
+                failure = getattr(result, "failure", None)
+                if failure is not None and hasattr(failure, "diagnostic"):
+                    failure = failure.diagnostic()
+                raise RuntimeError(
+                    str(
+                        failure
+                        or "ordinary CCMBS request returned no successful "
+                        "result"
+                    )
+                )
+            actual_by_model[model_name] = _ordinary_parity_payload(
+                result,
+                ell_values=requested_ells,
+                spectra=requested_spectra,
+            )
+            refinement_by_model[model_name] = _ordinary_parity_refinement(
+                result
+            )
+        # DEVCOV_ALLOW_BROAD_ONCE parity execution boundary: retain every
+        # failure as typed row evidence instead of hiding a failed model.
+        except Exception as error:  # DEVCOV_ALLOW_BROAD_ONCE
+            typed = classify_exception(error)
+            execution_failures[model_name] = typed.diagnostic()
+
+    default_tolerances = dict(
+        CMB_PARITY_CERTIFICATION_TIER["relative_tolerances"]
+    )
+    tolerances = {
+        model_name: dict(
+            supplied_tolerances.get(model_name, default_tolerances)
+        )
+        for model_name in requested_models
+    }
+    declared_spectra = {
+        model_name: tuple(
+            str(name)
+            for name in supplied_spectra.get(
+                model_name,
+                (
+                    declared_cmb_spectrum_names(discovery[model_name].plugin)
+                    if model_name in discovery
+                    and discovery[model_name].plugin is not None
+                    else ()
+                ),
+            )
+        )
+        for model_name in requested_models
+    }
+    return build_cmb_parity_matrix_report(
+        actual_by_model,
+        reference_by_model,
+        required_models=requested_models,
+        ell_values=requested_ells,
+        spectra_by_model=declared_spectra,
+        relative_tolerances_by_model=tolerances,
+        refinement_by_model=refinement_by_model,
+        fixture_digests_by_model=fixture_digests,
+        unavailable_models=unavailable,
+        execution_failures_by_model=execution_failures,
+    )
 
 
 _SOURCE_RESIDUAL_DEFINITIONS = {
@@ -6283,6 +6570,7 @@ __all__ = [
     "discover_cmb_model_records",
     "discover_cmb_plugins",
     "run_bundled_cmb_matrix",
+    "run_cmb_parity_matrix",
     "run_bundled_cmb_full_matrix",
     "run_bundled_cmb_corpus_baseline",
     "run_bundled_cmb_diagnostics",

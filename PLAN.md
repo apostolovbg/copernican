@@ -884,6 +884,10 @@ retains every model row, raw arrays, residual decisions, fixture digest,
 tolerance, and independent refinement record. The matrix rejects missing or
 extra models and surfaces. Closure remains pending until actual ordinary-route
 CCMBS rows quantitatively match their physically aligned CAMB references.
+The explicit `run_cmb_parity_matrix()` evidence command now executes one
+ordinary public CCMBS request per physical row, retains production convergence
+evidence, and records typed execution failures. It is not part of ordinary
+test discovery and does not claim parity until the retained comparisons pass.
 
 ### [planned] Slice Fifteen — bounded sampler and corpus closure
 

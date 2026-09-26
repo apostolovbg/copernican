@@ -11562,6 +11562,7 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
                 "run_bundled_cmb_corpus_baseline",
                 "run_bundled_cmb_full_matrix",
                 "run_bundled_cmb_matrix",
+                "run_cmb_parity_matrix",
                 "run_bundled_cmb_diagnostics",
                 "run_cmb_model_diagnostic",
                 "run_final_cmb_certification",

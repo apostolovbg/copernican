@@ -51,6 +51,7 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     resolve_source_residual_audit_controls,
     run_bundled_cmb_corpus_baseline,
     run_cmb_model_diagnostic,
+    run_cmb_parity_matrix,
     run_final_cmb_certification,
     write_bundled_cmb_full_matrix_report,
     write_cmb_certification_report,
@@ -1346,6 +1347,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             return {
                 "sector": "scalar",
                 "ell_values": ell_values,
+                "resolved_parameters": {"H0": 75.0, "num_nu_massive": 0},
                 "spectra": surfaces,
                 "fixture_sha256": "a" * 64,
             }
@@ -1381,6 +1383,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         self.assertTrue(report["accepted"])
         self.assertEqual(set(report["accepted_models"]), set(models))
         self.assertTrue(callable(build_cmb_parity_matrix_report))
+        self.assertTrue(callable(run_cmb_parity_matrix))
         self.assertEqual(
             set(report["reports"]),
             set(models),
@@ -1426,6 +1429,112 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         self.assertFalse(incomplete["complete"])
         self.assertFalse(incomplete["accepted"])
         self.assertIn("model_w0wa.yml", incomplete["rejected_models"])
+
+        with tempfile.TemporaryDirectory() as model_directory:
+            execution = run_cmb_parity_matrix(
+                {},
+                required_models=("model_missing.yml",),
+                model_directory=model_directory,
+            )
+        self.assertFalse(execution["accepted"])
+        self.assertIn("model_missing.yml", execution["execution_failures"])
+        self.assertEqual(
+            execution["reports"]["model_missing.yml"]["status"],
+            "execution_failure",
+        )
+
+        model_name = "model_lcdm.yml"
+        ell_values = tuple(tier["ells"])
+        tt_values = numpy.linspace(1.0, 2.0, len(ell_values))
+        tt_d_values = (
+            tt_values
+            * numpy.asarray(ell_values, dtype=float)
+            * (numpy.asarray(ell_values, dtype=float) + 1.0)
+            / (2.0 * numpy.pi)
+        )
+        payload = {
+            "sector": "scalar",
+            "ell_values": ell_values,
+            "resolved_parameters": {"H0": 75.0, "num_nu_massive": 0},
+            "spectra": {
+                "TT": {
+                    "C_ell": tt_values.tolist(),
+                    "D_ell": tt_d_values.tolist(),
+                }
+            },
+            "fixture_sha256": "b" * 64,
+        }
+
+        class Plugin:
+            """Provide only the ordinary declared-runtime seam."""
+
+            INITIAL_GUESSES = (75.0,)
+
+            @staticmethod
+            def get_cmb_declared_runtime(_params):
+                """Return a minimal contract for the public-route probe."""
+
+                return {"param_map": {"H_0": 75.0}}
+
+        result = mock.Mock()
+        result.success = True
+        result.requested_ells = ell_values
+        result.raw_spectra = {"TT": tt_values}
+        result.spectra = {"TT": tt_d_values}
+        result.solver_id = "ccmbs"
+        result.solver_label = "CCMBS"
+        result.diagnostics = {
+            "performance_record": {
+                "context": {
+                    "runtime": {
+                        "production_scalar_k_convergence": {
+                            "converged": True,
+                            "relative_error": 0.0,
+                        }
+                    }
+                }
+            }
+        }
+        record = CMBModelDiscoveryRecord(
+            model_filename=model_name,
+            model_name="lcdm",
+            status="ready",
+            plugin=Plugin(),
+        )
+
+        def ordinary_route(*_args, **_kwargs):
+            """Publish the fake result through the ordinary result seam."""
+
+            cmb_api._LAST_CMB_RESULT.set(result)
+            return result.spectra
+
+        with (
+            mock.patch(
+                "copernican.lib.likelihoods.cmb.diagnostics."
+                "discover_cmb_model_records",
+                return_value=(record,),
+            ),
+            mock.patch(
+                "copernican.lib.likelihoods.cmb.diagnostics."
+                "declared_cmb_spectrum_names",
+                return_value=("TT",),
+            ),
+            mock.patch.object(
+                cmb_api,
+                "compute_cmb_spectrum_from_contract",
+                side_effect=ordinary_route,
+            ) as public_request,
+        ):
+            executed = run_cmb_parity_matrix(
+                {model_name: payload},
+                required_models=(model_name,),
+                contract_by_model={model_name: {"param_map": {}}},
+                spectra_by_model={model_name: ("TT",)},
+            )
+
+        public_request.assert_called_once()
+        self.assertTrue(executed["accepted"], executed)
+        self.assertEqual(executed["reports"][model_name]["status"], "accepted")
 
     def test_source_history_audit_recomputes_all_declared_closures(
         self,
