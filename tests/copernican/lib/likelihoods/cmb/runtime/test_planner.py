@@ -118,6 +118,48 @@ class AutomaticCMBPlannerTestCase(unittest.TestCase):
             "diagnostic",
         )
 
+    def test_production_plan_requires_all_adaptive_resolution_axes(
+        self,
+    ) -> None:
+        """Ordinary production plans own every applicable refinement axis."""
+
+        plan = plan_cmb_numerics(
+            self._lcdm_contract(),
+            ells=(2, 20, 100, 200),
+            spectra=("TT", "TE", "EE"),
+        )
+        controls = plan.accuracy_controls
+        for axis in (
+            "adaptive_transfer",
+            "adaptive_source",
+            "adaptive_projection",
+            "adaptive_evolution",
+        ):
+            with self.subTest(axis=axis):
+                self.assertTrue(bool(controls[axis]["enabled"]))
+                self.assertGreaterEqual(
+                    int(controls[axis]["maximum_nodes"]),
+                    int(controls[axis]["minimum_nodes"]),
+                )
+        self.assertEqual(
+            int(controls["adaptive_evolution"]["validation_mode_count"]),
+            3,
+        )
+        axes = plan.physical_scale_evidence["adaptive_resolution_axes"]
+        self.assertEqual(
+            set(axes),
+            {
+                "background",
+                "momentum_q",
+                "hierarchy_depth",
+                "evolution",
+                "source",
+                "projection",
+                "physical_limits",
+            },
+        )
+        self.assertEqual(axes["evolution"]["status"], "required")
+
     def test_bundled_planner_manifest_covers_reference_models(self) -> None:
         """Raw planner evidence covers every required bundled declaration."""
 

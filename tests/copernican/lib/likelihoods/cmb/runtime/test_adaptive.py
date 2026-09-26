@@ -100,6 +100,7 @@ class AdaptiveControlsTestCase(unittest.TestCase):
         self.assertTrue(controls.evolution_enabled)
         self.assertEqual(controls.evolution_minimum_nodes, 64)
         self.assertEqual(controls.evolution_maximum_nodes, 256)
+        self.assertEqual(controls.evolution_validation_mode_count, 3)
         self.assertAlmostEqual(controls.evolution_relative_tolerance, 1.0e-2)
 
     def test_los_phase_controls_resolve_explicit_bounded_grid(self) -> None:

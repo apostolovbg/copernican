@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-24
+**Last Updated:** 2026-09-26
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,61 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-09-26:
+  Change: Corrected source-history refinement accounting and telemetry.
+  Why: Source-only validation used the wrong retained base-grid size and
+    counted validation evolutions as primary mode work.
+  Impact: Source convergence compares the actual history grids and the
+    existing bounded CMB test now retains consistent evolution counts.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/project/lib/test_slice_seven.py
+
+- 2026-09-25:
+  Change: Updated Slice Thirteen gate evidence and documentation dates.
+  Why: The current gate session requires a fresh dated change record for the
+    staged implementation and synchronized documentation.
+  Impact: Preserved traceable Slice Thirteen files and current README/PLAN
+    recency without changing runtime behavior or dependencies.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/project/lib/test_slice_seven.py
+
+- 2026-09-24:
+  Change: Closed Slice Thirteen with ordinary adaptive resolution evidence.
+  Why: Production planning needed independent source/evolution checks,
+    complete axis telemetry, and a bounded public graph route.
+  Impact: Enabled engine-owned adaptive surfaces, retained measured axis
+    evidence, removed the diagnostic bypass from the bounded graph test, and
+    moved CAMB parity to the new Slice Fourteen.
+  Files:
+  PLAN.md
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/project/lib/test_slice_seven.py
 
 - 2026-09-24:
   Change: Implemented Slice Twelve evidence integrity and bounded test repair.

@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-09-24
+**Last Updated:** 2026-09-26
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -169,8 +169,9 @@ separate metadata in plots, diagnostics, and long-form CSV output. Runtime
 payloads distinguish computed, unrequested, physically zero, and unavailable
 spectra, while cache identities bind the graph, parameters, numerical grids,
 accuracy controls, requested spectra, and multipole sequence.
-The shared CMB χ² helper accepts an explicit solver selection for deterministic
-likelihood tests; normal application calls retain the CCMBS default.
+The shared CMB χ² helper accepts an explicit solver selection for
+deterministic likelihood tests; normal application calls retain the CCMBS
+default.
 The post-processing boundary records the complete dependency graph for every
 requested surface. It hashes raw transfer components, unlensed products, and
 public outputs, validates finite non-negative auto spectra, preserves cross
@@ -354,7 +355,14 @@ the five comparable bundled cosmologies and retains raw `C_ell`/`D_ell`
 surfaces, contract and numerical-plan digests, and artifact hashes. The
 fail-closed comparator rejects a changed raw surface. Canonical
 CCMBS-versus-CAMB acceptance at the production envelope remains assigned to
-Slice Twelve; CAMB-only rows are never reported as canonical parity.
+Slice Fourteen; CAMB-only rows are never reported as canonical parity.
+Slice Thirteen now makes the ordinary production planner own transfer,
+source, projection, and evolution refinement. Independently evolved anchor
+histories and compact evidence for background, q, hierarchy, evolution,
+source, projection, and physical limits are retained in the public
+performance record. The bounded production graph test uses that ordinary
+route, confirms wave-bearing TT/TE/EE output, and proves exact-repeat reuse
+without a diagnostic bypass or a second cold solve.
 The final LambdaCDM declaration keeps one fixed phase-aware production
 surface for k, eta, and evolution. CCMBS keeps the generated hierarchy
 history at the declared LOS phase resolution so

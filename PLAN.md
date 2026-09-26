@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-24
+**Last Updated:** 2026-09-26
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -810,27 +810,40 @@ fixture. The bounded graph test persists a machine-readable manifest for the
 graph, raw spectra, and post-processing evidence, then reloads and hashes
 those artifacts from a second process after plot-directory cleanup.
 
-### [planned] Slice Thirteen — bounded parity and production adaptation
+### [closed] Slice Thirteen — ordinary adaptive resolution and wave evidence
 
 Integrate adaptive transfer, source, projection, and evolution resolution into
-the ordinary planner and production route. The bounded public requests used by
-these tests must use the ordinary planner, convergence enforcement, and public
-return path without diagnostic bypasses. Large-request grid construction is
-tested separately without evolving a full hierarchy. Under-resolved
-oscillatory fixtures must either refine or fail with raw evidence and a typed
-diagnosis, and overlapping multipoles requested through different ranges must
-remain consistent.
+the ordinary planner and production route. Bounded public requests use the
+ordinary planner, convergence enforcement, and public return path without a
+diagnostic bypass. Large-request grid construction remains separately
+testable without evolving a full hierarchy.
 
-Every applicable axis must report measured refinement evidence or a validated
+Every applicable axis reports measured refinement evidence or a validated
 error bound: background, momentum/q, hierarchy depth, evolution, source
 sampling, projection quadrature, and physical integration limits. A typed
-non-applicability decision must name the physical reason. Finer projection
-over interpolated source histories cannot certify source resolution; source
-and evolution acceptance requires independently evolved samples or an
-independently validated bound. Known analytic limits and component-level
-equation checks must cover cases where an external spectrum comparison is not
-the right oracle. Reuse is valid only for the same physical parameter point,
-declaration, request, resolved numerical plan, and reference identity.
+non-applicability decision names the physical reason. Source and evolution
+acceptance uses independently evolved samples; adding projection nodes over
+interpolated histories is not source evidence. Reuse remains restricted to
+the same physical parameter point, declaration, request, resolved numerical
+plan, and reference identity.
+
+The ordinary route retains compact axis evidence in its public performance
+record. Its bounded graph regression uses a sparse low-to-high ell request,
+one cold solve, and an exact repeat, while the graph, raw arrays, refinement
+record, and work accounting remain durable. The regression exercises the
+same route used by users and does not launch a full observational campaign.
+
+Slice Thirteen closure evidence: production planner output now enables the
+four adaptive surfaces and declares all seven resolution axes. Selected
+evolution and source modes are independently evolved for acceptance, and
+projection error is normalized over the physical transfer surface rather
+than by unstable pointwise ratios at zeros. Runtime telemetry retains the
+axis evidence and adaptive errors. The bounded public graph test now uses
+the ordinary route, produces wave-bearing TT/TE/EE output, verifies the
+durable graph manifest, and proves an exact repeat without a second cold
+solve.
+
+### [planned] Slice Fourteen — bounded CCMBS/CAMB parity matrix
 
 Using Slice Twelve's corrected CAMB row, establish the canonical bounded
 CCMBS-versus-CAMB comparison on one identical ell grid and identical physical
@@ -843,15 +856,15 @@ CAMB implements the same physics. Matching C_ell and D_ell conventions,
 finite arrays, exact ell alignment, and cross-spectrum sign conventions are
 mandatory. Initial relative tolerances are TT 2%, TE 3%, EE 2%, BB 2%, PP 3%,
 TP 5%, EP 5%, lensed TT 2%, lensed TE 3%, lensed EE 2%, and lensed BB 5%;
-an unlisted surface has no implicit pass. CAMB rows must retain and assert the
+an unlisted surface has no implicit pass. CAMB rows must retain and assert
 resolved physical parameters, including defaults.
 
-The high-ell probes must exercise the ordinary public production route with
-the engine's resolved production envelope, but share one solve and its
-artifacts rather than launching one full-resolution solve per anchor. A
-separate grid-construction test may inspect larger request ceilings without
-evolving a full hierarchy. The test matrix therefore covers the claimed
-operating regime without becoming a full observational production campaign.
+High-ell probes exercise the ordinary public production route with the
+resolved production envelope, but share one solve and its artifacts rather
+than launching one full-resolution solve per anchor. A separate
+grid-construction test may inspect larger request ceilings without evolving
+a full hierarchy. The matrix therefore covers the claimed operating regime
+without becoming a full observational production campaign.
 
 Persist raw arrays, residuals, tolerances, refinement records, and acceptance
 decisions in the bounded parity report. Use synthetic observations for
@@ -861,11 +874,11 @@ generate a full-resolution CAMB artifact during ordinary test discovery.
 Acceptance requires finite, wave-bearing bounded graphs, quantitatively
 matched fixed-LCDM TT/TE/EE, explicit decisions for surfaces or physics
 unavailable in CAMB, and no production path that silently disables adaptive
-resolution. A failed comparison must retain its raw evidence and typed
-diagnosis rather than relaxing tolerances, dropping a surface, or treating a
-missing CCMBS implementation as unavailable physics.
+resolution. A failed comparison retains its raw evidence and typed diagnosis
+rather than relaxing tolerances, dropping a surface, or treating missing
+CCMBS implementation as unavailable physics.
 
-### [planned] Slice Fourteen — bounded sampler and corpus closure
+### [planned] Slice Fifteen — bounded sampler and corpus closure
 
 Define one honest joint-MCMC resolution policy. It may reuse shared immutable
 products only when the complete physical parameter point, declaration,

@@ -36,6 +36,7 @@ class AdaptiveControls:
     evolution_minimum_nodes: int = 0
     evolution_maximum_nodes: int = 0
     evolution_maximum_refinements: int = 1
+    evolution_validation_mode_count: int = 3
     phase_points_per_cycle: float = 8.0
     fail_on_nonconvergence: bool = True
 
@@ -284,6 +285,15 @@ def resolve_adaptive_controls(
                 256,
             ),
         )
+        evolution_validation_mode_count = _positive_int(
+            evolution.get("validation_mode_count", 3),
+            name=(
+                "cmb.perturbations.accuracy_controls."
+                "adaptive_evolution.validation_mode_count"
+            ),
+        )
+    else:
+        evolution_validation_mode_count = 0
     phase_points = _positive_float(
         controls.get("phase_points_per_cycle", 8.0),
         name=("cmb.perturbations.accuracy_controls.phase_points_per_cycle"),
@@ -314,6 +324,7 @@ def resolve_adaptive_controls(
         evolution_minimum_nodes=int(evolution_values[3]),
         evolution_maximum_nodes=int(evolution_values[4]),
         evolution_maximum_refinements=int(evolution_values[5]),
+        evolution_validation_mode_count=int(evolution_validation_mode_count),
         phase_points_per_cycle=phase_points,
         fail_on_nonconvergence=fail_on_nonconvergence,
     )

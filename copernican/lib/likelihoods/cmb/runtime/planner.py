@@ -408,6 +408,43 @@ def plan_cmb_numerics(
         ) or ("TT", "TE", "EE")
         accuracy_controls.update(
             {
+                # Ordinary production requests carry one engine-owned
+                # refinement policy.  The bounds scale with the resolved
+                # request, while the runtime records the actual work and
+                # fails closed when a measured surface remains unresolved.
+                "adaptive_transfer": {
+                    "enabled": True,
+                    "minimum_nodes": int(k_nodes),
+                    "maximum_nodes": int(max(2 * k_nodes, 1024)),
+                    "relative_tolerance": 2.0e-2,
+                    "absolute_tolerance": 1.0e-12,
+                    "maximum_refinements": 1,
+                },
+                "adaptive_source": {
+                    "enabled": True,
+                    "minimum_nodes": int(eta_nodes),
+                    "maximum_nodes": int(max(2 * eta_nodes, 256)),
+                    "relative_tolerance": 2.0,
+                    "absolute_tolerance": 1.0e-12,
+                    "maximum_refinements": 1,
+                },
+                "adaptive_projection": {
+                    "enabled": True,
+                    "minimum_nodes": int(eta_nodes),
+                    "maximum_nodes": int(max(8 * eta_nodes, 1024)),
+                    "relative_tolerance": 2.0e-2,
+                    "absolute_tolerance": 1.0e-12,
+                    "maximum_refinements": 1,
+                },
+                "adaptive_evolution": {
+                    "enabled": True,
+                    "minimum_nodes": int(evolution_nodes),
+                    "maximum_nodes": int(max(4 * evolution_nodes, 512)),
+                    "relative_tolerance": 2.0e-1,
+                    "absolute_tolerance": 1.0e-12,
+                    "maximum_refinements": 1,
+                    "validation_mode_count": 3,
+                },
                 # Scalar Einstein checks are engine-owned acceptance
                 # diagnostics. The model declaration supplies the equations;
                 # these tolerances and history density belong to the solver.
@@ -523,6 +560,48 @@ def plan_cmb_numerics(
             ),
         },
     }
+    if request_mode == "production":
+        physical_scale_evidence["adaptive_resolution_axes"] = {
+            "background": {
+                "method": "measured_background_refinement",
+                "status": "required",
+            },
+            "momentum_q": {
+                "method": "declared_q_support_and_quadrature_bound",
+                "status": (
+                    "required"
+                    if bool(momentum_grid_controls)
+                    else "not_applicable"
+                ),
+                "reason": (
+                    "massive-neutrino q moments are declared"
+                    if momentum_grid_controls
+                    else "no massive-neutrino momentum hierarchy is declared"
+                ),
+            },
+            "hierarchy_depth": {
+                "method": "declared_hierarchy_depth_bound",
+                "status": (
+                    "required" if hierarchy_controls else "not_applicable"
+                ),
+            },
+            "evolution": {
+                "method": "independent_anchor_history_refinement",
+                "status": "required",
+            },
+            "source": {
+                "method": "independent_source_history_refinement",
+                "status": "required",
+            },
+            "projection": {
+                "method": "independent_line_of_sight_quadrature_refinement",
+                "status": "required",
+            },
+            "physical_limits": {
+                "method": "engine_owned_k_eta_surface_bounds",
+                "status": "required",
+            },
+        }
     payload = {
         "planner_version": _ENGINE_VERSION,
         "ell_range": (ell_min, ell_max),

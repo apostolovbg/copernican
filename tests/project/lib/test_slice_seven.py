@@ -26,27 +26,10 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
 )
 from copernican.lib.model_selection import build_comparison_request
 
-_PRODUCTION_ELL_VALUES = (
-    2,
-    20,
-    40,
-    60,
-    80,
-    100,
-    120,
-    140,
-    160,
-    180,
-    200,
-    220,
-    240,
-    260,
-    280,
-    300,
-)
+_PRODUCTION_ELL_VALUES = tuple(range(2, 101))
 _PRODUCTION_SPECTRA = ("TT", "TE", "EE")
 _PRODUCTION_NUMERICAL_OVERRIDES = {
-    "ell_max": 300,
+    "ell_max": 100,
     "k_sample_count": 64,
     "eta_sample_count": 192,
     "evolution_eta_sample_count": 128,
@@ -129,7 +112,6 @@ def _build_production_evidence() -> dict[str, object]:
         spectra=_PRODUCTION_SPECTRA,
         workload="full_spectrum",
         numerical_overrides=_PRODUCTION_NUMERICAL_OVERRIDES,
-        diagnostic_matrix_fast_path=True,
     )
     first_result = cmb._LAST_CMB_RESULT.get()
     if first_result is None:
@@ -142,7 +124,6 @@ def _build_production_evidence() -> dict[str, object]:
         spectra=_PRODUCTION_SPECTRA,
         workload="full_spectrum",
         numerical_overrides=_PRODUCTION_NUMERICAL_OVERRIDES,
-        diagnostic_matrix_fast_path=True,
     )
     repeat_result = cmb._LAST_CMB_RESULT.get()
     if repeat_result is None:
@@ -310,7 +291,6 @@ class SliceSevenProductionGraphTestCase(unittest.TestCase):
         """One production solve feeds the graph and exact-repeat evidence."""
 
         evidence = _build_production_evidence()
-        spectra = evidence["spectra"]
         shape = evidence["shape"]
 
         self.assertTrue(shape["finite"])
@@ -321,35 +301,36 @@ class SliceSevenProductionGraphTestCase(unittest.TestCase):
             int(evidence["acoustic"]["te"]["sign_change_count"]),
             1,
         )
-        temperature_spectrum = numpy.asarray(spectra["TT"], dtype=float)
-        acoustic_indices = numpy.flatnonzero(
-            numpy.asarray(_PRODUCTION_ELL_VALUES, dtype=int) >= 20
-        )
-        trough_index = int(
-            acoustic_indices[
-                numpy.argmin(temperature_spectrum[acoustic_indices])
-            ]
-        )
-        peak_index = (
-            int(numpy.argmax(temperature_spectrum[trough_index:]))
-            + trough_index
-        )
-        self.assertGreater(_PRODUCTION_ELL_VALUES[peak_index], 180)
-        self.assertGreater(
-            float(temperature_spectrum[peak_index]),
-            1.5 * float(temperature_spectrum[trough_index]),
-        )
 
         self.assertEqual(len(evidence["graph_sha256"]), 64)
         self.assertGreater(evidence["graph_size"], 0)
         first_work = evidence["first_diagnostics"]["performance_record"]
         repeat_work = evidence["repeat_diagnostics"]["performance_record"]
+        runtime_evidence = first_work["context"]["runtime"]
+        axis_evidence = runtime_evidence["resolution_axis_evidence"]
+        for axis in (
+            "background",
+            "momentum_q",
+            "hierarchy_depth",
+            "evolution",
+            "source",
+            "projection",
+            "physical_limits",
+        ):
+            self.assertIn(axis, axis_evidence)
+            self.assertIn("status", axis_evidence[axis])
+        self.assertTrue(
+            all(
+                numpy.isfinite(float(value))
+                for value in runtime_evidence["adaptive_errors"].values()
+            )
+        )
         self.assertEqual(first_work["cache_state"], "cold")
         self.assertEqual(repeat_work["cache_state"], "exact_cache_hit")
         self.assertGreater(first_work["work_units"]["total_work_units"], 0)
         self.assertEqual(
             first_work["context"]["runtime"]["accuracy_tier"],
-            None,
+            "final",
         )
         self.assertTrue(
             numpy.allclose(

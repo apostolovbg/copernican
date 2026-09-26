@@ -279,14 +279,7 @@ def _can_batch_declared_evolution(
         and int(mode_count) > 1
     ):
         return False
-    if (
-        has_end_boundaries
-        or adaptive_evolution_enabled
-        or adaptive_source_enabled
-        or adaptive_transfer_enabled
-        or adaptive_projection_enabled
-        or continuous_collision_solver
-    ):
+    if has_end_boundaries or continuous_collision_solver:
         return False
     if any(
         str(getattr(slot, "wrt", ""))
@@ -3202,6 +3195,17 @@ def _compute_custom_cmb_spectrum_data_impl(
         )
         los_phase_quadrature_applied = True
     if adaptive_controls.source_enabled:
+        source_minimum_nodes = int(adaptive_controls.source_minimum_nodes)
+        source_maximum_nodes = int(adaptive_controls.source_maximum_nodes)
+        if adaptive_controls.projection_enabled:
+            source_minimum_nodes = max(
+                source_minimum_nodes,
+                int(adaptive_controls.projection_minimum_nodes),
+            )
+            source_maximum_nodes = max(
+                source_maximum_nodes,
+                int(adaptive_controls.projection_maximum_nodes),
+            )
         eta_los_grid = phase_aware_eta_grid(
             eta_los_grid,
             visibility=numpy.asarray(
@@ -3209,8 +3213,8 @@ def _compute_custom_cmb_spectrum_data_impl(
                 dtype=float,
             ),
             k_max=float(numerics.k_max),
-            minimum_nodes=int(adaptive_controls.source_minimum_nodes),
-            maximum_nodes=int(adaptive_controls.source_maximum_nodes),
+            minimum_nodes=source_minimum_nodes,
+            maximum_nodes=source_maximum_nodes,
             phase_points_per_cycle=(adaptive_controls.phase_points_per_cycle),
         )
     if (
@@ -4566,6 +4570,10 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["adaptive_projection_relative_error"] = 0.0
     runtime_envelope["adaptive_evolution_relative_error"] = 0.0
     runtime_envelope["adaptive_evolution_absolute_error"] = 0.0
+    runtime_envelope["adaptive_evolution_validation_mode_count"] = 0
+    runtime_envelope["adaptive_evolution_validation_mode_indices"] = ()
+    runtime_envelope["adaptive_source_independent_mode_count"] = 0
+    runtime_envelope["adaptive_source_independent_mode_indices"] = ()
     runtime_envelope["declared_source_history_roles"] = (
         declared_source_history_roles
     )
@@ -6764,6 +6772,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         evolution_sample_count_override: int | None = None,
         history_sink: dict[str, Any] | None = None,
         collect_diagnostics: bool = True,
+        count_as_primary_evolution: bool = True,
     ) -> tuple[dict[str, numpy.ndarray], dict[str, numpy.ndarray]]:
         """Integrate one Fourier mode through the declared graph."""
 
@@ -6774,7 +6783,10 @@ def _compute_custom_cmb_spectrum_data_impl(
         nonlocal scalar_background_context_cache
         nonlocal active_k_value
 
-        if "evolution_modes_evolved" in runtime_envelope:
+        if (
+            count_as_primary_evolution
+            and "evolution_modes_evolved" in runtime_envelope
+        ):
             runtime_envelope["evolution_modes_evolved"] = (
                 int(runtime_envelope["evolution_modes_evolved"]) + 1
             )
@@ -9249,6 +9261,7 @@ def _compute_custom_cmb_spectrum_data_impl(
     source_history_refinement_mode_count = 0
     projection_error = 0.0
     projection_absolute_error = 0.0
+    projection_surface_scale = numpy.finfo(float).tiny
     evolution_anchor_errors: dict[str, float] = {
         "early": 0.0,
         "recombination": 0.0,
@@ -9279,6 +9292,22 @@ def _compute_custom_cmb_spectrum_data_impl(
     evolution_fine_sample_count = 0
     evolution_intermediate_sample_count = 0
     evolution_coarse_sample_count = 0
+    validation_mode_count = min(
+        int(k_values.size),
+        max(1, int(adaptive_controls.evolution_validation_mode_count)),
+    )
+    validation_mode_indices = set(
+        int(index)
+        for index in numpy.linspace(
+            0,
+            max(0, int(k_values.size) - 1),
+            num=validation_mode_count,
+            dtype=int,
+        )
+    )
+    source_validation_mode_indices = (
+        validation_mode_indices if adaptive_controls.source_enabled else set()
+    )
     source_stride = 1 if adaptive_controls.source_minimum_nodes >= 1000 else 2
     source_eta_indices = numpy.arange(
         0,
@@ -9832,6 +9861,21 @@ def _compute_custom_cmb_spectrum_data_impl(
                         for name, values in source_arrays.items()
                     },
                 )
+        if (
+            base_history_sink is not None
+            and (
+                adaptive_controls.source_enabled
+                or adaptive_controls.evolution_enabled
+            )
+            and k_index in validation_mode_indices
+            and "source_histories" not in base_history_sink
+        ):
+            _evolve_declared_mode(
+                float(k_value),
+                history_sink=base_history_sink,
+                collect_diagnostics=False,
+                count_as_primary_evolution=False,
+            )
         batched_mode_source_arrays[int(k_index)] = source_arrays
         bound_source_histories = {
             str(component_name): _bind_declared_source_histories(
@@ -9858,51 +9902,64 @@ def _compute_custom_cmb_spectrum_data_impl(
                     raise RuntimeError(
                         "Source refinement requires a source-history sink"
                     )
-                coarse_source_arrays = _evaluate_source_histories(
-                    float(k_value),
-                    {
-                        name: numpy.asarray(history, dtype=float)
-                        for name, history in base_history_sink[
-                            "source_histories"
-                        ].items()
-                    },
-                    collect_diagnostics=False,
-                    source_grid_indices=source_eta_indices,
-                    required_source_names=required_source_names,
-                )
-                coarse_eta = source_grids["eta"][source_eta_indices]
-                for source_name, fine_values in source_arrays.items():
-                    coarse_values = coarse_source_arrays[source_name]
-                    interpolated_values = numpy.interp(
-                        source_grids["eta"],
-                        coarse_eta,
-                        coarse_values,
+                if k_index in source_validation_mode_indices:
+                    base_evolution_samples = int(
+                        numpy.asarray(
+                            base_history_sink["source_eta"],
+                            dtype=float,
+                        ).size
                     )
-                    estimate = estimate_convergence(
-                        interpolated_values,
-                        fine_values,
+                    if adaptive_controls.evolution_enabled:
+                        source_validation_samples = max(
+                            base_evolution_samples + 1,
+                            int(adaptive_controls.evolution_maximum_nodes),
+                        )
+                    else:
+                        source_validation_samples = max(
+                            32,
+                            base_evolution_samples - 1,
+                        )
+                    if source_validation_samples >= base_evolution_samples:
+                        source_validation_samples = max(
+                            16,
+                            base_evolution_samples - 1,
+                        )
+                    independent_source_sink: dict[str, Any] = {}
+                    _evolve_declared_mode(
+                        float(k_value),
+                        evolution_sample_count_override=(
+                            source_validation_samples
+                        ),
+                        history_sink=independent_source_sink,
+                        collect_diagnostics=False,
+                        count_as_primary_evolution=False,
+                    )
+                    source_estimate = estimate_history_convergence(
+                        independent_source_sink["source_eta"],
+                        independent_source_sink["source_histories"],
+                        base_history_sink["source_eta"],
+                        base_history_sink["source_histories"],
                         relative_tolerance=(
                             adaptive_controls.source_relative_tolerance
                         ),
                         absolute_tolerance=max(
                             adaptive_controls.source_absolute_tolerance,
-                            # Tiny source histories are dominated by
-                            # interpolation/round-off noise; retain their
-                            # diagnostics but compare them against a
-                            # physically negligible absolute floor.
                             1.0e-10,
                         ),
                     )
                     source_history_error = max(
                         source_history_error,
-                        estimate.relative_error,
+                        source_estimate.relative_error,
                     )
                     source_history_absolute_error = max(
                         source_history_absolute_error,
-                        estimate.absolute_error,
+                        source_estimate.absolute_error,
                     )
-                source_history_refinement_mode_count += 1
-            if adaptive_controls.evolution_enabled:
+                    source_history_refinement_mode_count += 1
+            if (
+                adaptive_controls.evolution_enabled
+                and k_index in validation_mode_indices
+            ):
                 fine_sample_count = int(numerics.evolution_eta_sample_count)
                 if not (
                     adaptive_controls.evolution_minimum_nodes
@@ -9930,12 +9987,14 @@ def _compute_custom_cmb_spectrum_data_impl(
                     evolution_sample_count_override=coarse_sample_count,
                     history_sink=coarse_history_sink,
                     collect_diagnostics=False,
+                    count_as_primary_evolution=False,
                 )
                 _evolve_declared_mode(
                     float(k_value),
                     evolution_sample_count_override=intermediate_sample_count,
                     history_sink=intermediate_history_sink,
                     collect_diagnostics=False,
+                    count_as_primary_evolution=False,
                 )
 
                 def _estimate_evolution_pair(
@@ -10193,21 +10252,25 @@ def _compute_custom_cmb_spectrum_data_impl(
                         source_chi=source_chi,
                         source_histories=coarse_histories,
                     )
-                    estimate = estimate_convergence(
-                        coarse_values,
-                        projected_values,
-                        relative_tolerance=(
-                            adaptive_controls.source_relative_tolerance
-                        ),
-                        absolute_tolerance=(
-                            adaptive_controls.source_absolute_tolerance
-                        ),
-                    )
-                    source_error = max(source_error, estimate.relative_error)
-                    source_absolute_error = max(
-                        source_absolute_error,
-                        estimate.absolute_error,
-                    )
+                    if not adaptive_controls.source_enabled:
+                        estimate = estimate_convergence(
+                            coarse_values,
+                            projected_values,
+                            relative_tolerance=(
+                                adaptive_controls.source_relative_tolerance
+                            ),
+                            absolute_tolerance=(
+                                adaptive_controls.source_absolute_tolerance
+                            ),
+                        )
+                        source_error = max(
+                            source_error,
+                            estimate.relative_error,
+                        )
+                        source_absolute_error = max(
+                            source_absolute_error,
+                            estimate.absolute_error,
+                        )
                 if projection_coarse_weights is not None:
                     if coarse_values is None:
                         raise RuntimeError(
@@ -10230,6 +10293,21 @@ def _compute_custom_cmb_spectrum_data_impl(
                     projection_absolute_error = max(
                         projection_absolute_error,
                         estimate.absolute_error,
+                    )
+                    projection_surface_scale = max(
+                        projection_surface_scale,
+                        float(
+                            numpy.max(
+                                numpy.abs(coarse_values),
+                                initial=0.0,
+                            )
+                        ),
+                        float(
+                            numpy.max(
+                                numpy.abs(projected_values),
+                                initial=0.0,
+                            )
+                        ),
                     )
         performance_timer.add(
             "projection",
@@ -10563,19 +10641,26 @@ def _compute_custom_cmb_spectrum_data_impl(
         )
     if adaptive_controls.source_enabled:
         runtime_envelope["adaptive_source_relative_error"] = float(
-            source_error
+            source_history_error
         )
         runtime_envelope["adaptive_source_absolute_error"] = float(
-            source_absolute_error
+            source_history_absolute_error
         )
         runtime_envelope["adaptive_source_refinement_levels"] = 1
+        runtime_envelope["adaptive_source_independent_mode_count"] = int(
+            source_history_refinement_mode_count
+        )
+        runtime_envelope["adaptive_source_independent_mode_indices"] = tuple(
+            sorted(source_validation_mode_indices)
+        )
         source_estimate = ConvergenceEstimate(
-            absolute_error=source_absolute_error,
-            relative_error=source_error,
+            absolute_error=source_history_absolute_error,
+            relative_error=source_history_error,
             converged=(
-                source_absolute_error
+                source_history_absolute_error
                 <= adaptive_controls.source_absolute_tolerance
-                or source_error <= adaptive_controls.source_relative_tolerance
+                or source_history_error
+                <= adaptive_controls.source_relative_tolerance
             ),
         )
         require_convergence(
@@ -10584,6 +10669,10 @@ def _compute_custom_cmb_spectrum_data_impl(
             fail_on_nonconvergence=adaptive_controls.fail_on_nonconvergence,
         )
     if adaptive_controls.projection_enabled:
+        projection_error = projection_absolute_error / max(
+            projection_surface_scale,
+            numpy.finfo(float).tiny,
+        )
         runtime_envelope["adaptive_projection_relative_error"] = float(
             projection_error
         )
@@ -10615,6 +10704,12 @@ def _compute_custom_cmb_spectrum_data_impl(
             evolution_absolute_error
         )
         runtime_envelope["adaptive_evolution_refinement_levels"] = 2
+        runtime_envelope["adaptive_evolution_validation_mode_count"] = int(
+            evolution_mode_count
+        )
+        runtime_envelope["adaptive_evolution_validation_mode_indices"] = tuple(
+            sorted(validation_mode_indices)
+        )
         evolution_refinement_evidence = {
             "same_model": True,
             "tiers": {
@@ -10701,6 +10796,100 @@ def _compute_custom_cmb_spectrum_data_impl(
             label="scalar evolution history",
             fail_on_nonconvergence=adaptive_controls.fail_on_nonconvergence,
         )
+
+    background_refinement = dict(
+        runtime_envelope.get("background_resolution_evidence", {}).get(
+            "refinement", {}
+        )
+        or {}
+    )
+    hierarchy_controls = dict(numerical_envelope.hierarchy_controls)
+    momentum_controls = {
+        str(name): dict(values)
+        for name, values in numerical_envelope.momentum_grid_controls.items()
+    }
+    runtime_envelope["resolution_axis_evidence"] = {
+        "background": {
+            "method": "measured_background_refinement",
+            "status": (
+                "measured"
+                if bool(background_refinement.get("converged", False))
+                else "unresolved"
+            ),
+            "evidence": background_refinement,
+        },
+        "momentum_q": {
+            "method": "declared_q_support_and_quadrature_bound",
+            "status": (
+                "validated_bound" if momentum_controls else "not_applicable"
+            ),
+            "reason": (
+                "thermal-tail support and quadrature order are enforced by "
+                "the final numerical envelope"
+                if momentum_controls
+                else "no massive-neutrino momentum hierarchy is declared"
+            ),
+            "controls": momentum_controls,
+            "relative_tolerance": float(
+                numerical_envelope.q_grid_relative_tolerance
+            ),
+        },
+        "hierarchy_depth": {
+            "method": "declared_hierarchy_depth_bound",
+            "status": (
+                "validated_bound" if hierarchy_controls else "not_applicable"
+            ),
+            "reason": (
+                "active hierarchy families meet the engine final-depth floor"
+                if hierarchy_controls
+                else "no declared hierarchy family is active"
+            ),
+            "controls": hierarchy_controls,
+            "relative_tolerance": float(
+                numerical_envelope.hierarchy_relative_tolerance
+            ),
+        },
+        "evolution": {
+            "method": "independent_anchor_history_refinement",
+            "status": (
+                "measured"
+                if adaptive_controls.evolution_enabled
+                else "not_applicable"
+            ),
+            "mode_count": int(evolution_mode_count),
+            "mode_indices": tuple(sorted(validation_mode_indices)),
+            "relative_error": float(evolution_error),
+            "absolute_error": float(evolution_absolute_error),
+        },
+        "source": {
+            "method": "independent_source_history_refinement",
+            "status": (
+                "measured"
+                if adaptive_controls.source_enabled
+                else "not_applicable"
+            ),
+            "mode_count": int(source_history_refinement_mode_count),
+            "mode_indices": tuple(sorted(source_validation_mode_indices)),
+            "relative_error": float(source_history_error),
+            "absolute_error": float(source_history_absolute_error),
+        },
+        "projection": {
+            "method": "independent_line_of_sight_quadrature_refinement",
+            "status": (
+                "measured"
+                if adaptive_controls.projection_enabled
+                else "not_applicable"
+            ),
+            "relative_error": float(projection_error),
+            "absolute_error": float(projection_absolute_error),
+        },
+        "physical_limits": {
+            "method": "engine_owned_k_eta_surface_bounds",
+            "status": "measured",
+            "k_grid": dict(runtime_envelope.get("phase_grid_status", {})),
+            "eta_nodes": int(source_grids["eta"].size),
+        },
+    }
 
     if (
         adaptive_k_enabled
@@ -11518,6 +11707,10 @@ def _compute_custom_cmb_spectrum_data_impl(
         "coarse_sample_count": int(source_eta_indices.size),
         "mode_count": int(source_history_mode_count),
         "refinement_mode_count": int(source_history_refinement_mode_count),
+        "independently_evolved": bool(adaptive_controls.source_enabled),
+        "independent_mode_indices": tuple(
+            sorted(source_validation_mode_indices)
+        ),
         "roles": declared_source_history_roles,
         "finite": True,
         "relative_error": float(source_history_error),
@@ -11538,6 +11731,10 @@ def _compute_custom_cmb_spectrum_data_impl(
     ).hexdigest()
     source_history_refinement = {
         "axis": "eta",
+        "independently_evolved": bool(adaptive_controls.source_enabled),
+        "independent_mode_indices": tuple(
+            sorted(source_validation_mode_indices)
+        ),
         "coarse_indices": tuple(int(index) for index in source_eta_indices),
         "coarse_eta": tuple(float(value) for value in coarse_eta_values),
         "fine_eta": tuple(
@@ -11776,7 +11973,44 @@ def _runtime_telemetry_context(
             envelope.get("phase_aware_k_enabled", False)
         ),
         "cache_state": envelope.get("cache_state"),
+        "resolution_axis_evidence": dict(
+            envelope.get("resolution_axis_evidence", {}) or {}
+        ),
+        "adaptive_errors": {
+            name: float(envelope.get(name, 0.0))
+            for name in (
+                "adaptive_transfer_relative_error",
+                "adaptive_source_relative_error",
+                "adaptive_projection_relative_error",
+                "adaptive_evolution_relative_error",
+            )
+        },
+        "production_scalar_k_convergence": dict(
+            envelope.get("production_scalar_k_convergence", {}) or {}
+        ),
     }
+
+
+def _refined_adaptive_transfer_controls(
+    contract: Mapping[str, Any],
+    *,
+    factor: int,
+) -> dict[str, Any] | None:
+    """Scale the engine transfer ladder for an independent k refinement."""
+
+    raw_controls = contract.get("_engine_accuracy_controls")
+    if not isinstance(raw_controls, Mapping):
+        return None
+    controls = dict(raw_controls)
+    raw_transfer = controls.get("adaptive_transfer")
+    if not isinstance(raw_transfer, Mapping):
+        return controls
+    transfer = dict(raw_transfer)
+    for name in ("minimum_nodes", "maximum_nodes"):
+        if name in transfer:
+            transfer[name] = int(transfer[name]) * int(factor)
+    controls["adaptive_transfer"] = transfer
+    return controls
 
 
 def _compute_custom_cmb_spectrum_data(
@@ -11863,6 +12097,14 @@ def _compute_custom_cmb_spectrum_data(
             refined_contract["_k_grid_refinement_factor"] = int(
                 production_controls.k_refinement_factor
             )
+            refined_accuracy_controls = _refined_adaptive_transfer_controls(
+                refined_contract,
+                factor=production_controls.k_refinement_factor,
+            )
+            if refined_accuracy_controls is not None:
+                refined_contract["_engine_accuracy_controls"] = (
+                    refined_accuracy_controls
+                )
             refined_contract["_numerical_overrides"] = {
                 # The grid builder applies the declared refinement factor.
                 # Keep the base count here so the safety floor and the
