@@ -2952,6 +2952,14 @@ def _compute_custom_cmb_spectrum_data_impl(
         background_provider,
         requested_spectra=requested_spectrum_names,
     )
+    # Diagnostic requests deliberately bypass result storage so the report
+    # owns the base/refined comparison.  Publish their semantic request
+    # identity nevertheless, allowing retained evidence to identify both
+    # products without pretending that either product was cached.  Normal
+    # requests must publish only through cache get/set so a changed request
+    # cannot overwrite the previous identity before warm-state classification.
+    if diagnostic_request:
+        cache.remember_cmb_request_identity(cache_key)
     cached_spectrum = (
         None if diagnostic_request else cache.get_cmb_spectrum(cache_key)
     )

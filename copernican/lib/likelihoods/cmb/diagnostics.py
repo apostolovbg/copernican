@@ -93,6 +93,41 @@ CMB_CERTIFICATION_TIER = {
     "numerical_overrides": {"k_sample_count": 1024},
 }
 
+# Slice Fourteen uses one sparse grid that samples the low, acoustic,
+# intermediate, and damping regimes.  This is deliberately separate from
+# the ten-model full-observable certification tier: a parity row must retain
+# its exact CAMB identity and cannot inherit that tier's request shape.
+CMB_PARITY_CERTIFICATION_TIER = {
+    "id": "ccmbs-camb-bounded-parity-v1",
+    "ells": (2, 20, 100, 200, 500, 800, 1200, 1500, 2000, 2500),
+    "spectra": (
+        "TT",
+        "TE",
+        "EE",
+        "BB",
+        "PP",
+        "TP",
+        "EP",
+        "lensed_TT",
+        "lensed_TE",
+        "lensed_EE",
+        "lensed_BB",
+    ),
+    "relative_tolerances": {
+        "TT": 0.02,
+        "TE": 0.03,
+        "EE": 0.02,
+        "BB": 0.02,
+        "PP": 0.03,
+        "TP": 0.05,
+        "EP": 0.05,
+        "lensed_TT": 0.02,
+        "lensed_TE": 0.03,
+        "lensed_EE": 0.02,
+        "lensed_BB": 0.05,
+    },
+}
+
 _FINAL_CERTIFICATION_INTEGRITY_KEYS = (
     "no_camb_fallback",
     "no_surrogate_spectra",
@@ -1165,6 +1200,211 @@ def build_cmb_parity_report(
         report["accepted"] and report["response_points_converged"]
     )
     report["converged"] = report["accepted"]
+    report["report_sha256"] = _canonical_sha256(report)
+    return report
+
+
+def build_cmb_parity_matrix_report(
+    actual_by_model: Mapping[str, Mapping[str, Any]],
+    reference_by_model: Mapping[str, Mapping[str, Any]],
+    *,
+    required_models: Iterable[str],
+    ell_values: Iterable[int],
+    spectra_by_model: Mapping[str, Sequence[str]],
+    relative_tolerances_by_model: (
+        Mapping[str, Mapping[str, float]] | None
+    ) = None,
+    refinement_by_model: Mapping[str, Mapping[str, Any]] | None = None,
+    fixture_digests_by_model: Mapping[str, str] | None = None,
+    unavailable_models: Mapping[str, str] | None = None,
+) -> dict[str, Any]:
+    """Build a fail-closed matrix of bounded CCMBS/CAMB parity decisions.
+
+    The function is backend-neutral: CAMB reference construction remains in
+    the test-owned reference module, while this report owns exact model,
+    ell-grid, surface, tolerance, refinement, and fixture identity checks.
+    Missing data is retained as a rejection or an explicit unavailable
+    decision; it is never treated as an implicit pass.
+    """
+
+    model_values = tuple(str(name) for name in required_models)
+    duplicate_models = sorted(
+        name for name in set(model_values) if model_values.count(name) > 1
+    )
+    expected_models = set(model_values)
+    actual_models = {str(name) for name in actual_by_model}
+    reference_models = {str(name) for name in reference_by_model}
+    missing_models = sorted(expected_models - actual_models)
+    missing_references = sorted(expected_models - reference_models)
+    unexpected_actual = sorted(actual_models - expected_models)
+    unexpected_reference = sorted(reference_models - expected_models)
+    ell_tuple = tuple(int(value) for value in ell_values)
+    tier_ells = numpy.asarray(ell_tuple, dtype=int)
+    if (
+        not ell_tuple
+        or numpy.any(tier_ells < 2)
+        or numpy.any(numpy.diff(tier_ells) <= 0)
+    ):
+        raise ValueError("Parity matrix ell_values must be sorted and unique")
+
+    tolerances = relative_tolerances_by_model or {}
+    refinements = refinement_by_model or {}
+    fixture_digests = fixture_digests_by_model or {}
+    unavailable = unavailable_models or {}
+    records: dict[str, Any] = {}
+    accepted: list[str] = []
+    rejected: dict[str, list[str]] = {}
+    unavailable_records: dict[str, str] = {}
+
+    for model_name in model_values:
+        issues: list[str] = []
+        actual = actual_by_model.get(model_name)
+        reference = reference_by_model.get(model_name)
+        if model_name in unavailable:
+            reason = str(unavailable[model_name]).strip()
+            if not reason:
+                reason = "no explicit unavailability reason"
+            unavailable_records[model_name] = reason
+            records[model_name] = {
+                "model": model_name,
+                "status": "unavailable",
+                "reason": reason,
+                "comparison": None,
+                "raw_evidence_sha256": _canonical_sha256(
+                    {"model": model_name, "reason": reason}
+                ),
+            }
+            continue
+        if actual is None:
+            issues.append("actual CCMBS parity row is missing")
+        if reference is None:
+            issues.append("independent CAMB parity row is missing")
+        expected_names = tuple(
+            canonical_cmb_spectrum_name(name)
+            for name in spectra_by_model.get(model_name, ())
+        )
+        if not expected_names:
+            issues.append("expected parity surface list is empty")
+        comparison: Mapping[str, Any] | None = None
+        if actual is not None and reference is not None:
+            try:
+                actual_rows = set(_flatten_parity_surfaces(actual))
+                reference_rows = set(_flatten_parity_surfaces(reference))
+                expected_rows = {
+                    _canonical_parity_surface("scalar", name)
+                    for name in expected_names
+                }
+                if actual_rows != expected_rows:
+                    issues.append(
+                        "actual parity surfaces do not match the declared "
+                        "matrix"
+                    )
+                if reference_rows != expected_rows:
+                    issues.append(
+                        "reference parity surfaces do not match the "
+                        "declared matrix"
+                    )
+                digest = str(
+                    fixture_digests.get(
+                        model_name,
+                        reference.get("fixture_sha256", ""),
+                    )
+                )
+                comparison = compare_full_cmb_observable_parity(
+                    actual,
+                    reference,
+                    ell_values=ell_tuple,
+                    representation="D_ell",
+                    relative_tolerances=tolerances.get(model_name),
+                    refinement=refinements.get(model_name),
+                    fixture_digest=digest,
+                    require_fixture_digest=True,
+                )
+                if not bool(comparison.get("accepted", False)):
+                    issues.append("one or more parity rows were rejected")
+            except (TypeError, ValueError) as error:
+                issues.append(f"parity comparison failed: {error}")
+        status = "accepted" if not issues else "rejected"
+        if status == "accepted":
+            accepted.append(model_name)
+        else:
+            rejected[model_name] = list(issues)
+        evidence = {
+            "model": model_name,
+            "actual": _jsonable(actual),
+            "reference": _jsonable(reference),
+            "comparison": _jsonable(comparison),
+            "issues": list(issues),
+        }
+        records[model_name] = {
+            "model": model_name,
+            "status": status,
+            "issues": list(issues),
+            "comparison": _jsonable(comparison),
+            "raw_evidence_sha256": _canonical_sha256(evidence),
+        }
+
+    for model_name in missing_models:
+        rejected[model_name] = ["actual CCMBS parity row is missing"]
+        records[model_name] = {
+            "model": model_name,
+            "status": "rejected",
+            "issues": list(rejected[model_name]),
+            "comparison": None,
+            "raw_evidence_sha256": _canonical_sha256(
+                {"model": model_name, "issues": rejected[model_name]}
+            ),
+        }
+    for model_name in missing_references:
+        if model_name in unavailable:
+            continue
+        rejected.setdefault(model_name, []).append(
+            "independent CAMB parity row is missing"
+        )
+    complete = bool(
+        not duplicate_models
+        and not missing_models
+        and not missing_references
+        and not unexpected_actual
+        and not unexpected_reference
+        and actual_models == expected_models
+        and reference_models == expected_models
+    )
+    decision_complete = bool(
+        complete
+        and all(
+            record.get("status") in {"accepted", "rejected", "unavailable"}
+            for record in records.values()
+        )
+    )
+    report: dict[str, Any] = {
+        "schema_version": 1,
+        "kind": "ccmbs_camb_bounded_parity_matrix",
+        "required_models": list(model_values),
+        "ell_values": list(ell_tuple),
+        "spectra_by_model": {
+            name: [
+                canonical_cmb_spectrum_name(surface)
+                for surface in spectra_by_model.get(name, ())
+            ]
+            for name in model_values
+        },
+        "complete": complete,
+        "decision_complete": decision_complete,
+        "accepted": bool(complete and not rejected and not unavailable),
+        "accepted_models": sorted(accepted),
+        "rejected_models": {
+            name: list(rejected[name]) for name in sorted(rejected)
+        },
+        "unavailable_models": {
+            name: unavailable_records[name]
+            for name in sorted(unavailable_records)
+        },
+        "unexpected_actual_models": unexpected_actual,
+        "unexpected_reference_models": unexpected_reference,
+        "duplicate_models": duplicate_models,
+        "reports": {name: records[name] for name in sorted(records)},
+    }
     report["report_sha256"] = _canonical_sha256(report)
     return report
 
@@ -6019,6 +6259,7 @@ __all__ = [
     "BUNDLED_CMB_MODEL_FILENAMES",
     "CAMB_COMPARABLE_CMB_MODEL_FILENAMES",
     "CMB_CERTIFICATION_TIER",
+    "CMB_PARITY_CERTIFICATION_TIER",
     "CMB_CORPUS_BASELINE_REQUEST",
     "CMB_USMF2_BASELINE_TIERS",
     "CMBCorpusBaselineRow",
@@ -6033,6 +6274,7 @@ __all__ = [
     "build_bundled_cmb_full_matrix_report",
     "build_cmb_corpus_baseline_report",
     "build_cmb_certification_report",
+    "build_cmb_parity_matrix_report",
     "build_cmb_parity_report",
     "build_final_cmb_certification_report",
     "audit_cmb_repository_integrity",

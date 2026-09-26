@@ -23,6 +23,7 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     CAMB_COMPARABLE_CMB_MODEL_FILENAMES,
     CMB_CERTIFICATION_TIER,
     CMB_CORPUS_BASELINE_REQUEST,
+    CMB_PARITY_CERTIFICATION_TIER,
     CMB_USMF2_BASELINE_TIERS,
     CMBCorpusBaselineRow,
     CMBModelDiagnostic,
@@ -39,6 +40,7 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     build_bundled_cmb_matrix_report,
     build_cmb_certification_report,
     build_cmb_corpus_baseline_report,
+    build_cmb_parity_matrix_report,
     build_cmb_parity_report,
     build_final_cmb_certification_report,
     compare_cmb_spectra_to_reference,
@@ -1296,6 +1298,134 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
 
         self.assertFalse(comparison["converged"])
         self.assertFalse(comparison["metrics"]["TT"]["converged"])
+
+    def test_bounded_parity_matrix_is_exact_and_fail_closed(self) -> None:
+        """The bounded parity matrix retains every model and surface row."""
+
+        tier = CMB_PARITY_CERTIFICATION_TIER
+        ell_values = tuple(tier["ells"])
+        spectra = tuple(tier["spectra"])
+        models = (
+            "model_lcdm.yml",
+            "model_lcdm_mnu.yml",
+            "model_ref_planck2018.yml",
+            "model_wcdm.yml",
+            "model_w0wa.yml",
+        )
+
+        def _payload() -> dict[str, object]:
+            ell = numpy.asarray(ell_values, dtype=float)
+            surfaces: dict[str, object] = {}
+            for index, name in enumerate(spectra, start=1):
+                base_name = name.removeprefix("lensed_")
+                if base_name in {"TT", "EE", "BB", "PP"}:
+                    c_values = numpy.asarray(
+                        numpy.linspace(
+                            1.0 + index,
+                            3.0 + index,
+                            len(ell_values),
+                        ),
+                        dtype=float,
+                    )
+                else:
+                    c_values = numpy.asarray(
+                        numpy.linspace(-1.0, 1.0, len(ell_values)) * index,
+                        dtype=float,
+                    )
+                ell_product = ell * (ell + 1.0)
+                if base_name == "PP":
+                    factor = ell_product**2 / (2.0 * numpy.pi)
+                elif base_name in {"TP", "EP"}:
+                    factor = ell_product**1.5 / (2.0 * numpy.pi)
+                else:
+                    factor = ell_product / (2.0 * numpy.pi)
+                surfaces[name] = {
+                    "C_ell": c_values.tolist(),
+                    "D_ell": (c_values * factor).tolist(),
+                }
+            return {
+                "sector": "scalar",
+                "ell_values": ell_values,
+                "spectra": surfaces,
+                "fixture_sha256": "a" * 64,
+            }
+
+        actual = {name: _payload() for name in models}
+        reference = copy.deepcopy(actual)
+        expected_spectra = {name: spectra for name in models}
+        tolerances = {
+            name: dict(tier["relative_tolerances"]) for name in models
+        }
+        refinement = {
+            name: {"converged": True, "relative_error": 0.0} for name in models
+        }
+        digests = {name: "a" * 64 for name in models}
+
+        report = build_cmb_parity_matrix_report(
+            actual,
+            reference,
+            required_models=models,
+            ell_values=ell_values,
+            spectra_by_model=expected_spectra,
+            relative_tolerances_by_model=tolerances,
+            refinement_by_model=refinement,
+            fixture_digests_by_model=digests,
+        )
+
+        self.assertEqual(
+            tuple(report["ell_values"]),
+            (2, 20, 100, 200, 500, 800, 1200, 1500, 2000, 2500),
+        )
+        self.assertTrue(report["complete"])
+        self.assertTrue(report["decision_complete"])
+        self.assertTrue(report["accepted"])
+        self.assertEqual(set(report["accepted_models"]), set(models))
+        self.assertTrue(callable(build_cmb_parity_matrix_report))
+        self.assertEqual(
+            set(report["reports"]),
+            set(models),
+        )
+        self.assertTrue(
+            all(
+                len(row["raw_evidence_sha256"]) == 64
+                for row in report["reports"].values()
+            )
+        )
+
+        changed = copy.deepcopy(actual)
+        changed["model_lcdm.yml"]["spectra"]["TT"]["D_ell"][1] *= 1.5
+        rejected = build_cmb_parity_matrix_report(
+            changed,
+            reference,
+            required_models=models,
+            ell_values=ell_values,
+            spectra_by_model=expected_spectra,
+            relative_tolerances_by_model=tolerances,
+            refinement_by_model=refinement,
+            fixture_digests_by_model=digests,
+        )
+        self.assertFalse(rejected["accepted"])
+        self.assertIn("model_lcdm.yml", rejected["rejected_models"])
+        self.assertIn(
+            "one or more parity rows were rejected",
+            rejected["rejected_models"]["model_lcdm.yml"],
+        )
+
+        missing = dict(actual)
+        missing.pop("model_w0wa.yml")
+        incomplete = build_cmb_parity_matrix_report(
+            missing,
+            reference,
+            required_models=models,
+            ell_values=ell_values,
+            spectra_by_model=expected_spectra,
+            relative_tolerances_by_model=tolerances,
+            refinement_by_model=refinement,
+            fixture_digests_by_model=digests,
+        )
+        self.assertFalse(incomplete["complete"])
+        self.assertFalse(incomplete["accepted"])
+        self.assertIn("model_w0wa.yml", incomplete["rejected_models"])
 
     def test_source_history_audit_recomputes_all_declared_closures(
         self,

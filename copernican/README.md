@@ -356,6 +356,12 @@ surfaces, contract and numerical-plan digests, and artifact hashes. The
 fail-closed comparator rejects a changed raw surface. Canonical
 CCMBS-versus-CAMB acceptance at the production envelope remains assigned to
 Slice Fourteen; CAMB-only rows are never reported as canonical parity.
+Slice Fourteen fixes the bounded parity request to the sparse ell grid
+`(2, 20, 100, 200, 500, 800, 1200, 1500, 2000, 2500)` and records the
+per-surface tolerance matrix. `build_cmb_parity_matrix_report()` requires an
+exact model and declared-surface set, fixture digest, and independent
+refinement decision for every row; missing, extra, or rejected evidence is
+retained as a non-passing decision.
 Slice Thirteen now makes the ordinary production planner own transfer,
 source, projection, and evolution refinement. Independently evolved anchor
 histories and compact evidence for background, q, hierarchy, evolution,

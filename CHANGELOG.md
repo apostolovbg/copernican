@@ -80,6 +80,27 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-09-26:
+  Change: Added Slice Fourteen's bounded CCMBS/CAMB parity matrix evidence.
+  Why: Parity comparison must retain one sparse request tier, exact surface
+    accounting, and fail-closed decisions before scientific comparison.
+  Impact: Exposed the matrix report and parity tier, published diagnostic
+    cache identities without changing warm-state classification, and retained
+    bounded model-row evidence without claiming unresolved ordinary parity.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/project/lib/camb_reference.py
+
+- 2026-09-26:
   Change: Corrected source-history refinement accounting and telemetry.
   Why: Source-only validation used the wrong retained base-grid size and
     counted validation evolutions as primary mode work.

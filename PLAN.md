@@ -843,7 +843,7 @@ the ordinary route, produces wave-bearing TT/TE/EE output, verifies the
 durable graph manifest, and proves an exact repeat without a second cold
 solve.
 
-### [planned] Slice Fourteen — bounded CCMBS/CAMB parity matrix
+### [active] Slice Fourteen — bounded CCMBS/CAMB parity matrix
 
 Using Slice Twelve's corrected CAMB row, establish the canonical bounded
 CCMBS-versus-CAMB comparison on one identical ell grid and identical physical
@@ -877,6 +877,13 @@ unavailable in CAMB, and no production path that silently disables adaptive
 resolution. A failed comparison retains its raw evidence and typed diagnosis
 rather than relaxing tolerances, dropping a surface, or treating missing
 CCMBS implementation as unavailable physics.
+
+Slice Fourteen implementation evidence: the public diagnostic package now
+defines the exact sparse parity tier and a fail-closed matrix report that
+retains every model row, raw arrays, residual decisions, fixture digest,
+tolerance, and independent refinement record. The matrix rejects missing or
+extra models and surfaces. Closure remains pending until actual ordinary-route
+CCMBS rows quantitatively match their physically aligned CAMB references.
 
 ### [planned] Slice Fifteen — bounded sampler and corpus closure
 

@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-09-23
+**Last Updated:** 2026-09-26
 **Project Version:** 12.0.26
 
 ## Overview
@@ -185,7 +185,11 @@ the five comparable bundled cosmologies and retains raw `C_ell`/`D_ell`
 surfaces, contract and numerical-plan digests, and artifact hashes. The
 fail-closed comparator rejects a changed raw surface. Canonical
 CCMBS-versus-CAMB acceptance at the production envelope remains assigned to
-Slice Twelve; CAMB-only rows are never reported as canonical parity.
+Slice Fourteen; CAMB-only rows are never reported as canonical parity.
+The bounded parity tier uses the sparse ell grid `(2, 20, 100, 200, 500,
+800, 1200, 1500, 2000, 2500)`. `build_cmb_parity_matrix_report()` retains
+exact surface, fixture, tolerance, and refinement decisions and rejects
+missing or extra rows instead of treating them as unavailable physics.
 
 The runtime keeps source-history caching separate from complete-spectrum
 caching. A history is reusable only when its static contract, dynamic
