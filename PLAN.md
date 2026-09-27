@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-26
+**Last Updated:** 2026-09-27
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -37,9 +37,9 @@ and species hierarchies, collision and opacity operators, scalar/vector/tensor
 line-of-sight projection, unlensed and lensed TT/TE/EE/BB/PP/TP/EP surfaces,
 normalization and units, diagnostics, GUI/CLI graph production, all bundled
 models, novel declarative models, bounded CAMB comparison, sampler integration,
-and the independent BAO background boundary. It does not include the user's
-later full-resolution scientific production run or its full observational
-datasets.
+the independent BAO background boundary, and the portable numerical-kernel
+backend boundary. It does not include the user's later full-resolution
+scientific production run or its full observational datasets.
 
 **Known bundled models:**
 
@@ -54,10 +54,12 @@ datasets.
 * `model_w0wa.yml`; and
 * `model_wcdm.yml`.
 
-**Non-goals:** This plan does not add Taichi or GPU code, a surrogate,
-another production Boltzmann backend, delayed acceptance, broad sampler
-optimization, a CAMB runtime fallback, or a full-resolution production run.
-Such work cannot conceal a CCMBS defect. The existing Python 3.11 `.venv` is
+**Non-goals:** This plan does not add a surrogate, another production
+Boltzmann backend, delayed acceptance, broad sampler optimization, a CAMB
+runtime fallback, or a full-resolution production run. Optional compiled
+numerical kernels and an accelerator backend are now included only as the
+performance path owned by Slices Fifteen and Sixteen; they cannot replace the
+CPU reference or conceal a CCMBS defect. The existing Python 3.11 `.venv` is
 managed outside this plan and must not be recreated, replaced, upgraded, or
 otherwise modified.
 
@@ -69,6 +71,17 @@ repository accumulated model-specific numerical recipes while attempting to
 repair shared projection and evolution defects. Those recipes are not theory
 and cannot be the scientific contract. This reset removes that approach. The
 engine, not each YAML file, must determine resolution and prove convergence.
+
+**Reason for the 2026-09-27 rebaseline:** Slice Fourteen now has the
+fail-closed parity contract, independent CAMB rows, durable reports, and the
+ordinary-route evidence command, but no actual CCMBS row has completed a
+quantitative CAMB comparison. The ordinary route spends most of its time in
+per-mode hierarchy and exact collision updates; a prior 1,207-mode request
+spent roughly 5,528 seconds in evolution. Continuing to demand parity before
+isolating that kernel would make the plan operationally unfinishable. The
+remaining parity requirement is therefore moved into a finite performance,
+backend, and parity sequence below without weakening any scientific
+tolerance or replacing the CPU correctness route.
 
 ## Global Constraints
 
@@ -122,6 +135,16 @@ engine, not each YAML file, must determine resolution and prove convergence.
 * Scalar execution is the reference. Ordered batching and caching are valid
   only after scalar equivalence, input ordering, failure semantics, and cache
   isolation are proven.
+* The CPU numerical route remains the correctness authority. Compiled or GPU
+  kernels must match its raw histories, transfer products, projections,
+  failure semantics, and convergence decisions within explicit numerical
+  bounds before they can execute parity evidence.
+* Accelerator availability is not a correctness prerequisite. Metal, Vulkan,
+  or another device route must report typed non-applicability when unavailable
+  and may never silently substitute a different physical calculation.
+* Performance work must reduce measured kernel cost or duplicate work; it may
+  not lower resolution, relax tolerances, omit modes, or add a wall-clock
+  acceptance rule.
 * BAO consumes the generated background's drag ruler independently of the CMB
   likelihood. Recombination and drag sound horizons are distinct quantities.
 * A CMB failure must not corrupt SNe or BAO results. BAO independence,
@@ -843,7 +866,7 @@ the ordinary route, produces wave-bearing TT/TE/EE output, verifies the
 durable graph manifest, and proves an exact repeat without a second cold
 solve.
 
-### [active] Slice Fourteen — bounded CCMBS/CAMB parity matrix
+### [closed] Slice Fourteen — bounded CCMBS/CAMB parity contract
 
 Using Slice Twelve's corrected CAMB row, establish the canonical bounded
 CCMBS-versus-CAMB comparison on one identical ell grid and identical physical
@@ -871,25 +894,110 @@ decisions in the bounded parity report. Use synthetic observations for
 likelihood and graph assembly; do not solve the full Planck data path or
 generate a full-resolution CAMB artifact during ordinary test discovery.
 
-Acceptance requires finite, wave-bearing bounded graphs, quantitatively
-matched fixed-LCDM TT/TE/EE, explicit decisions for surfaces or physics
+Acceptance requires finite, wave-bearing bounded graphs, an exact
+fail-closed parity contract, explicit decisions for surfaces or physics
 unavailable in CAMB, and no production path that silently disables adaptive
 resolution. A failed comparison retains its raw evidence and typed diagnosis
 rather than relaxing tolerances, dropping a surface, or treating missing
-CCMBS implementation as unavailable physics.
+CCMBS implementation as unavailable physics. Quantitative CCMBS/CAMB
+acceptance is intentionally owned by Slice Seventeen after the numerical
+core is made affordable; this slice makes no parity claim.
 
-Slice Fourteen implementation evidence: the public diagnostic package now
+Slice Fourteen closure evidence: the public diagnostic package now
 defines the exact sparse parity tier and a fail-closed matrix report that
 retains every model row, raw arrays, residual decisions, fixture digest,
 tolerance, and independent refinement record. The matrix rejects missing or
-extra models and surfaces. Closure remains pending until actual ordinary-route
-CCMBS rows quantitatively match their physically aligned CAMB references.
+extra models and surfaces. The ordinary background prerequisite continues
+through a bounded, engine-owned measured eta-refinement ladder when the first
+doubled grid is under-resolved, retaining every attempt and failing only after
+that bound.
 The explicit `run_cmb_parity_matrix()` evidence command now executes one
 ordinary public CCMBS request per physical row, retains production convergence
 evidence, and records typed execution failures. It is not part of ordinary
 test discovery and does not claim parity until the retained comparisons pass.
+`write_cmb_parity_matrix_report()` persists the complete report, including raw
+arrays and its integrity digest, so a separate process can reload and verify
+the evidence after the producing workspace is gone.
+The runner also accepts named fixed-point contracts and independent CAMB rows,
+including shifted-amplitude response points, and requires every such point to
+produce its own ordinary-route result and parity decision.
 
-### [planned] Slice Fifteen — bounded sampler and corpus closure
+The report, runner, independent reference boundary, persistence checks, and
+typed failure behavior are complete. No accepted CCMBS/CAMB numerical row is
+claimed here; Slice Seventeen owns that remaining scientific comparison.
+
+### [closed] Slice Fifteen — batched CPU collision-kernel baseline
+
+Make the first numerical-core optimization finite and measurable: retain the
+Python planner, contracts, cache identities, diagnostics, and public failure
+types, while making the declared exact collision action an explicit batched
+CPU kernel boundary. The scalar exact action remains the correctness
+reference. This slice does not claim to extract or optimize the entire
+evolution, source-history, or projection stack.
+
+Repeated dense collision matrices are grouped by their raw matrix identity.
+One well-conditioned eigensystem is reused across the group and across
+compatible evolution batches. Existing analytic one- and two-state block
+updates remain the first path; structured blocks and ill-conditioned systems
+retain the scalar exact fallback. Kernel timing, mode counts, result-array
+allocation events, cache counts, and shape-aware raw input/output digests are
+retained in the runtime envelope.
+
+Acceptance requires scalar/batched equality on both structured and dense
+collision fixtures, evidence that repeated dense rows perform one matrix
+decomposition, and a CPU-only focused test path. No physical input,
+tolerance, requested surface, effective grid, convergence rule, or parity
+decision may change. This slice is a performance refactor, not a parity
+waiver.
+
+Slice Fifteen closure evidence: `_exact_batched_linear_collision_step()` now
+groups unstructured rows, reuses the declared eigensystem cache, and keeps a
+scalar exact fallback for structured or numerically unsafe rows. The focused
+collision tests compare the dense batched result with the scalar matrix
+exponential and assert one cached decomposition for repeated rows. Production
+runtime envelopes retain `collision_kernel_metrics` with elapsed kernel time,
+mode and fallback counts, allocation events, cache evidence, and raw-array
+digests. No GPU or dependency change is required.
+
+### [planned] Slice Sixteen — optional portable accelerator backend
+
+Implement an optional compiled accelerator route for the validated numerical
+kernels. Taichi is the initial candidate because Metal can serve Apple
+Silicon and Vulkan can serve cross-platform devices such as the RX480. The
+backend is selected explicitly and retains the CPU route as the deterministic
+fallback and correctness authority; hardware absence is typed
+non-applicability, never a silent CPU/GPU result substitution.
+
+Port only fixed-shape, data-oriented kernels after Slice Fifteen proves their
+CPU equivalence. Keep adaptive planning, cache identity, persistence,
+diagnostics, and typed failure handling in the shared Python orchestration
+layer. Compare CPU and accelerator raw histories, spectra, residuals,
+convergence decisions, and wave-shape evidence at bounded physical points.
+
+Acceptance requires deterministic backend identity in every artifact, explicit
+device capability reporting, CPU/accelerator agreement within declared
+floating-point bounds, and a CPU-only test path that remains green. No GPU
+route may relax a convergence decision or become necessary for ordinary test
+discovery.
+
+### [planned] Slice Seventeen — bounded quantitative CCMBS/CAMB parity closure
+
+Resume Slice Fourteen's canonical sparse matrix only after the CPU baseline
+and optional accelerator boundary are validated. Execute one actual fixed
+LCDM TT/TE/EE row through the ordinary public route, retaining raw C_ell and
+D_ell arrays, independently resolved CAMB inputs, source and evolution
+evidence, residuals, convergence records, and durable hashes. Use that row to
+locate any physical discrepancy before expanding to shifted amplitude,
+massive-neutrino LCDM, Planck, wCDM, and w0wa.
+
+Expand to the remaining comparable models and declared surfaces only after
+the fixed row passes. Shared artifacts may be reused only for identical
+physical points, requests, numerical plans, and reference identities. The
+bounded matrix must pass without mocks, CAMB fallback, dropped surfaces,
+relaxed tolerances, or diagnostic bypasses. Full-resolution production remains
+the user's separate scientific run.
+
+### [planned] Slice Eighteen — bounded sampler and corpus closure
 
 Define one honest joint-MCMC resolution policy. It may reuse shared immutable
 products only when the complete physical parameter point, declaration,
@@ -956,7 +1064,8 @@ This plan is complete only when all of the following are true:
   graph files, and hashes are reproducible and attached to the closure
   manifest;
 * the regular test command uses only the bounded workload contract, completes
-  within its development budget, and contains no hidden full-production
+  within one hour on the supported development configuration, and contains no
+  hidden full-production
   dataset, hierarchy, CAMB generation, or long posterior chain;
 * a durable handoff manifest records the bounded evidence, unresolved
   production-run inputs, and exact command boundary for the user's later

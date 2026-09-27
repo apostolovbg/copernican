@@ -1842,6 +1842,79 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
                     "remaining_optical_depth_unity",
                 )
 
+    def test_engine_background_continues_measured_refinement_ladder(self):
+        """Unresolved first refinements continue until the bound is met."""
+
+        def fake_background(_contract, _physical, numerics, **_kwargs):
+            """Return a history whose error decreases with node count."""
+
+            node_count = float(numerics.eta_sample_count)
+            value = 1.0 + 1.0 / node_count
+
+            def history(eta):
+                """Return one node-count-dependent constant history."""
+
+                return numpy.full_like(eta, value, dtype=float)
+
+            return SimpleNamespace(
+                a_grid=numpy.asarray([1.0e-8, 1.0]),
+                eta_of_a=lambda values: numpy.asarray(values, dtype=float),
+                eta0=value,
+                sound_horizon_mpc=value,
+                drag_sound_horizon_mpc=value,
+                drag_redshift=value,
+                visibility_of_eta=history,
+                x_e_of_eta=history,
+                resolution_evidence={},
+            )
+
+        contract = {
+            "perturbations": {
+                "accuracy_controls": {
+                    "accuracy_tier": "final",
+                    "background_refinement_factor": 2,
+                    "background_refinement_tolerance": 1.0e-2,
+                    "background_refinement_max_attempts": 4,
+                }
+            }
+        }
+        numerics = cmb_background._CustomCMBNumerics(
+            eta_sample_count=8,
+            evolution_eta_sample_count=8,
+        )
+        cached_backgrounds = []
+        with mock.patch.object(
+            cmb_background,
+            "_build_custom_cmb_background_impl",
+            side_effect=fake_background,
+        ), mock.patch.object(
+            cmb_background.cache,
+            "set_cmb_background",
+            side_effect=lambda _key, value: cached_backgrounds.append(value),
+        ), mock.patch.object(
+            cmb_background,
+            "_get_cached_custom_cmb_background",
+            side_effect=lambda _key: cached_backgrounds[-1],
+        ), mock.patch.object(
+            cmb_background,
+            "_custom_cmb_background_cache_key",
+            return_value="test-background",
+        ):
+            resolved = cmb_background._build_custom_cmb_background(
+                contract,
+                SimpleNamespace(),
+                numerics,
+            )
+
+        refinement = resolved.resolution_evidence["refinement"]
+        self.assertTrue(refinement["converged"])
+        self.assertEqual(refinement["attempt_count"], 4)
+        self.assertEqual(refinement["fine_eta_nodes"], 128)
+        self.assertEqual(
+            [attempt["fine_eta_nodes"] for attempt in refinement["attempts"]],
+            [16, 32, 64, 128],
+        )
+
     def test_massive_background_retains_q_density_and_pressure_histories(self):
         """Massive background products retain the perturbation q moments."""
 

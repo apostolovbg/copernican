@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-09-26
+**Last Updated:** 2026-09-27
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -366,6 +366,10 @@ The explicit `run_cmb_parity_matrix()` command executes one ordinary public
 CCMBS request per row, retains production convergence evidence, and records
 typed execution failures. It is excluded from ordinary test discovery and
 cannot report parity until the retained comparisons pass.
+`write_cmb_parity_matrix_report()` persists the complete report, including raw
+arrays and its integrity digest, for reload verification in another process.
+Named fixed-point contracts and CAMB rows are supported for response points;
+each point receives its own ordinary-route execution and parity decision.
 Slice Thirteen now makes the ordinary production planner own transfer,
 source, projection, and evolution refinement. Independently evolved anchor
 histories and compact evidence for background, q, hierarchy, evolution,
@@ -401,9 +405,12 @@ below three massive species cannot overcount the early radiation.
 The engine-owned background planner allocates its physical scale-factor
 budget across the radiation scaffold, recombination visibility feature, and
 late reionization interval, then performs an independent doubled-grid
-refinement. Each production background records the refinement errors,
-visibility normalization, drag-transition index, and the canonical BAO
-drag ruler. Massive-neutrino density and pressure histories are retained
+refinement. If that measured comparison remains outside its bound, the
+engine continues through a bounded refinement ladder instead of treating a
+single theoretical node count as convergence. Each production background
+records every attempted refinement, the selected bound, visibility
+normalization, drag-transition index, and the canonical BAO drag ruler.
+Massive-neutrino density and pressure histories are retained
 from the same q quadrature used by perturbation evolution, including the
 continuous zero-mass limit.
 The wCDM and w0waCDM CMB declarations use that same density closure while
@@ -493,6 +500,14 @@ records phase timings, cache states, and work units without imposing a
 wall-clock limit on valid solver evaluations. Large fixed-point requests use
 deterministic ordered mode and projection chunks, and their engine-planned
 numerical controls remain visible in the runtime envelope.
+
+Batched exact collision updates group repeated dense operator matrices and
+reuse one well-conditioned eigensystem while preserving analytic small-block
+updates and the scalar exact fallback. The runtime envelope records the
+kernel elapsed time, mode and fallback counts, result-array allocation
+events, cache evidence, and shape-aware raw input/output digests. This CPU
+baseline is deterministic and remains the correctness authority for any
+future accelerator backend.
 
 Ensemble fit results also retain an `ensemble_performance` record with total
 and per-stage timings, requested and effective worker counts, the CPU-derived

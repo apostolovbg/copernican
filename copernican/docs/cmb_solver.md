@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-09-26
+**Last Updated:** 2026-09-27
 **Project Version:** 12.0.26
 
 ## Overview
@@ -194,12 +194,20 @@ The explicit `run_cmb_parity_matrix()` command executes one ordinary public
 CCMBS request per row, retains production convergence evidence, and records
 typed execution failures. It is excluded from ordinary test discovery and
 cannot report parity until the retained comparisons pass.
+`write_cmb_parity_matrix_report()` persists the complete report, including raw
+arrays and its integrity digest, for reload verification in another process.
+Named fixed-point contracts and CAMB rows are supported for response points;
+each point receives its own ordinary-route execution and parity decision.
 
 The runtime keeps source-history caching separate from complete-spectrum
 caching. A history is reusable only when its static contract, dynamic
 parameters, CCMBS identity, source eta grid, and source-role set all match;
 the runtime envelope records the hit and miss counts. Phase-aware k ladders
 also retain their uncapped physical node requirement in `phase_grid_status`.
+Background eta refinement likewise continues through a bounded measured
+ladder when its first independent comparison remains unresolved. Every
+attempt and its selected bound are retained in the runtime evidence; a
+theoretical node count alone is never reported as convergence.
 Contracts that set `require_phase_resolution` reject a capped ladder before
 evolution, while bounded diagnostic fixtures may retain the explicit
 under-resolved status for evidence.
@@ -1127,6 +1135,14 @@ explicit Runge-Kutta term.
 Outside the scalar tight-coupling regime, the scalar operator falls back to
 its ordinary declared expression in the explicit RHS; the tensor photon
 block remains exact over its full collision history.
+
+The batched CPU collision path groups repeated dense operator matrices by
+their raw identity and reuses one well-conditioned eigensystem. Analytic
+one- and two-state blocks remain the first path, while structured or unsafe
+matrices retain the scalar exact action. Runtime envelopes record kernel
+timings, mode and fallback counts, result-array allocation events, cache
+evidence, and shape-aware raw input/output digests. This optimization changes
+neither the declared operator nor the scalar CPU correctness reference.
 
 Other declared operators may remain `explicit`, or they may opt into one
 compiled split block with `integration_strategy: exact` and a declared

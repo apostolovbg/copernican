@@ -65,6 +65,7 @@ from .diagnostics import (
     write_bundled_cmb_matrix_report,
     write_cmb_certification_report,
     write_cmb_corpus_baseline_report,
+    write_cmb_parity_matrix_report,
     write_final_cmb_certification_report,
 )
 from .errors import (
@@ -152,5 +153,6 @@ __all__ = [
     "write_bundled_cmb_matrix_report",
     "write_cmb_certification_report",
     "write_cmb_corpus_baseline_report",
+    "write_cmb_parity_matrix_report",
     "write_final_cmb_certification_report",
 ]

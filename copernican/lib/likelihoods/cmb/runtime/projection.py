@@ -1643,13 +1643,23 @@ def _exact_batched_linear_collision_step(
     target_states: numpy.ndarray,
     operator_scales: numpy.ndarray,
     assume_block_diagonal: bool = False,
+    eigendecomposition_cache: (
+        dict[
+            tuple[tuple[int, ...], bytes],
+            tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray] | None,
+        ]
+        | None
+    ) = None,
+    kernel_metrics: dict[str, Any] | None = None,
 ) -> numpy.ndarray:
     """Return exact collision updates for compatible mode-row matrices.
 
     The declared scalar hierarchy uses independent one- and two-state
     collision blocks.  Evaluate those blocks together so a shared Fourier
     batch does not repeat a small eigensystem decomposition for every row.
-    Unstructured declarations retain the scalar exact operator per row.
+    Unstructured declarations use grouped matrix actions and a reusable
+    eigensystem cache before retaining the scalar exact operator as a
+    numerically safe fallback.
     """
 
     matrices = numpy.asarray(operator_matrices, dtype=float)
@@ -1668,8 +1678,52 @@ def _exact_batched_linear_collision_step(
         and numpy.all(numpy.isfinite(scales))
     ):
         raise ValueError("Batched collision inputs must be finite")
+
+    kernel_started = perf_counter()
+
+    def _update_digest(hasher: Any, values: numpy.ndarray) -> None:
+        """Append one shape-aware raw array payload to a kernel digest."""
+
+        array = numpy.ascontiguousarray(numpy.asarray(values, dtype=float))
+        hasher.update(repr(array.shape).encode("ascii"))
+        hasher.update(array.tobytes())
+
+    def _finish(result: numpy.ndarray, *, vectorized: bool) -> numpy.ndarray:
+        """Record bounded kernel evidence and return a finite array."""
+
+        normalized = numpy.asarray(result, dtype=float)
+        if kernel_metrics is not None:
+            kernel_metrics["exact_vectorized_calls"] += int(vectorized)
+            kernel_metrics["exact_scalar_fallback_calls"] += int(
+                not vectorized
+            )
+            kernel_metrics["result_array_allocations"] += 1
+            kernel_metrics["elapsed_seconds"] += (
+                perf_counter() - kernel_started
+            )
+            input_digest = kernel_metrics.get("input_digest")
+            output_digest = kernel_metrics.get("output_digest")
+            digest_sample_count = int(
+                kernel_metrics.get("digest_sample_count", 0)
+            )
+            digest_sample_limit = int(
+                kernel_metrics.get("digest_sample_limit", 0)
+            )
+            if digest_sample_count < digest_sample_limit:
+                if input_digest is not None:
+                    _update_digest(input_digest, matrices)
+                    _update_digest(input_digest, states)
+                    _update_digest(input_digest, scales)
+                if output_digest is not None:
+                    _update_digest(output_digest, normalized)
+                kernel_metrics["digest_sample_count"] = digest_sample_count + 1
+        return normalized
+
+    if kernel_metrics is not None:
+        kernel_metrics["exact_batch_calls"] += 1
+        kernel_metrics["exact_batch_mode_rows"] += int(mode_count)
     if float(dt) == 0.0 or state_count == 0:
-        return states.copy()
+        return _finish(states.copy(), vectorized=True)
 
     scaled_matrices = matrices * scales[:, numpy.newaxis, numpy.newaxis]
     scaled_matrices *= float(dt)
@@ -1687,7 +1741,10 @@ def _exact_batched_linear_collision_step(
                 states[:, 2:],
             )
             if leading is not None and trailing is not None:
-                return numpy.concatenate((leading, trailing), axis=1)
+                return _finish(
+                    numpy.concatenate((leading, trailing), axis=1),
+                    vectorized=True,
+                )
 
     def _apply_two_state_blocks(
         blocks: numpy.ndarray,
@@ -1771,20 +1828,85 @@ def _exact_batched_linear_collision_step(
     if batched_result is not None and numpy.all(
         numpy.isfinite(batched_result)
     ):
-        return numpy.asarray(batched_result, dtype=float)
+        return _finish(batched_result, vectorized=True)
 
-    return numpy.asarray(
-        [
-            _exact_linear_collision_step(
-                operator_matrix=matrix,
-                dt=float(dt),
-                target_state=state,
-                operator_scale=float(scale),
+    fallback_result = numpy.empty_like(states, dtype=float)
+    matrix_groups: dict[tuple[tuple[int, ...], bytes], list[int]] = {}
+    for row_index, matrix in enumerate(matrices):
+        matrix_key = (
+            tuple(int(size) for size in matrix.shape),
+            matrix.tobytes(),
+        )
+        matrix_groups.setdefault(matrix_key, []).append(int(row_index))
+    if kernel_metrics is not None:
+        kernel_metrics["fallback_matrix_groups"] += int(len(matrix_groups))
+
+    scalar_fallback_rows = 0
+    for row_indices in matrix_groups.values():
+        indices = numpy.asarray(row_indices, dtype=int)
+        matrix = matrices[int(indices[0])]
+        components = _structured_collision_components(matrix)
+        decomposition = None
+        if components is None:
+            if kernel_metrics is not None:
+                kernel_metrics["eigendecomposition_lookups"] += 1
+            cache_key = (
+                tuple(int(size) for size in matrix.shape),
+                matrix.tobytes(),
             )
-            for matrix, state, scale in zip(matrices, states, scales)
-        ],
-        dtype=float,
-    )
+            cache_was_populated = bool(
+                eigendecomposition_cache is not None
+                and cache_key in eigendecomposition_cache
+            )
+            if eigendecomposition_cache is not None:
+                decomposition = _cached_collision_eigendecomposition(
+                    matrix,
+                    eigendecomposition_cache,
+                )
+                if kernel_metrics is not None:
+                    kernel_metrics["eigendecomposition_cache_entries"] = len(
+                        eigendecomposition_cache
+                    )
+                    kernel_metrics["eigendecomposition_cache_hits"] += int(
+                        cache_was_populated
+                    )
+            if decomposition is not None:
+                eigenvalues, eigenvectors, eigenvector_inverse = decomposition
+                scaled_eigenvalues = (
+                    eigenvalues[numpy.newaxis, :]
+                    * scales[indices, numpy.newaxis]
+                    * float(dt)
+                )
+                modal_states = states[indices] @ eigenvector_inverse.T
+                evolved = (modal_states * numpy.exp(scaled_eigenvalues)) @ (
+                    eigenvectors.T
+                )
+                real_evolved = numpy.real_if_close(evolved, tol=1000)
+                if not numpy.iscomplexobj(real_evolved) and numpy.all(
+                    numpy.isfinite(real_evolved)
+                ):
+                    fallback_result[indices] = numpy.asarray(
+                        real_evolved,
+                        dtype=float,
+                    )
+                    continue
+            scalar_fallback_rows += len(row_indices)
+        else:
+            scalar_fallback_rows += len(row_indices)
+
+        for row_index in row_indices:
+            fallback_result[int(row_index)] = _exact_linear_collision_step(
+                operator_matrix=matrices[int(row_index)],
+                dt=float(dt),
+                target_state=states[int(row_index)],
+                eigendecomposition=decomposition,
+                operator_scale=float(scales[int(row_index)]),
+            )
+    if kernel_metrics is not None:
+        kernel_metrics["exact_scalar_fallback_rows"] += int(
+            scalar_fallback_rows
+        )
+    return _finish(fallback_result, vectorized=False)
 
 
 def _structured_collision_action(
@@ -4308,6 +4430,24 @@ def _compute_custom_cmb_spectrum_data_impl(
         ),
         evolution_multiplier=(3 if adaptive_controls.evolution_enabled else 1),
     )
+    collision_kernel_metrics: dict[str, Any] = {
+        "schema_version": 1,
+        "exact_batch_calls": 0,
+        "exact_batch_mode_rows": 0,
+        "exact_vectorized_calls": 0,
+        "exact_scalar_fallback_calls": 0,
+        "exact_scalar_fallback_rows": 0,
+        "fallback_matrix_groups": 0,
+        "eigendecomposition_lookups": 0,
+        "eigendecomposition_cache_hits": 0,
+        "eigendecomposition_cache_entries": 0,
+        "result_array_allocations": 0,
+        "elapsed_seconds": 0.0,
+        "digest_sample_count": 0,
+        "digest_sample_limit": 8,
+        "input_digest": hashlib.sha256(),
+        "output_digest": hashlib.sha256(),
+    }
     planner_evidence = contract_or_params.get("_engine_planner_evidence")
     if isinstance(planner_evidence, Mapping):
         runtime_envelope["numerical_planner"] = dict(planner_evidence)
@@ -7981,6 +8121,10 @@ def _compute_custom_cmb_spectrum_data_impl(
         # each row's exact required schedule; the bound limits, rather than
         # hides, any additional stages imposed by the group maximum.
         grouped_modes: list[dict[str, Any]] = []
+        batched_collision_eigendecomposition_cache: dict[
+            tuple[tuple[int, ...], bytes],
+            tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray] | None,
+        ] = {}
         schedule_group_width = 256
         force_small_generated_batch = bool(
             generated_scalar_hierarchy and k_values_batch.size <= 32
@@ -8496,6 +8640,10 @@ def _compute_custom_cmb_spectrum_data_impl(
                                     matrices[nonzero_rows, 2:, :2] == 0.0
                                 )
                             ),
+                            eigendecomposition_cache=(
+                                batched_collision_eigendecomposition_cache
+                            ),
+                            kernel_metrics=collision_kernel_metrics,
                         )
                     elif runtime.integration_strategy == "implicit":
                         operator = (
@@ -9208,6 +9356,7 @@ def _compute_custom_cmb_spectrum_data_impl(
             "phase_resolution_status",
             "phase_grid_status",
             "projection_kernel_cache_keys",
+            "collision_kernel_metrics",
         ):
             if key in cached_transfer.runtime_envelope:
                 runtime_envelope[key] = cached_transfer.runtime_envelope[key]
@@ -11906,6 +12055,24 @@ def _compute_custom_cmb_spectrum_data_impl(
         for ell_signature in kernel_batches
         if int(k_index) in mode_projection_metadata
     )
+    runtime_envelope["collision_kernel_metrics"] = {
+        key: (
+            value.hexdigest()
+            if key in {"input_digest", "output_digest"}
+            else value
+        )
+        for key, value in collision_kernel_metrics.items()
+        if key not in {"input_digest", "output_digest"}
+        or hasattr(value, "hexdigest")
+    }
+    runtime_envelope["collision_kernel_metrics"]["input_sha256"] = (
+        collision_kernel_metrics["input_digest"].hexdigest()
+    )
+    runtime_envelope["collision_kernel_metrics"]["output_sha256"] = (
+        collision_kernel_metrics["output_digest"].hexdigest()
+    )
+    runtime_envelope["collision_kernel_metrics"].pop("input_digest", None)
+    runtime_envelope["collision_kernel_metrics"].pop("output_digest", None)
     runtime_envelope["projection_bessel_batch_count"] = int(bessel_batch_count)
     runtime_envelope["projection_bessel_mode_count"] = int(bessel_mode_count)
     runtime_envelope["projection_chunk_count"] = int(bessel_batch_count)

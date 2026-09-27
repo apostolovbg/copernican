@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import copy
+import hashlib
 import inspect
 import re
 import unittest
@@ -7953,6 +7954,79 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
 
         numpy.testing.assert_allclose(batched, expected, rtol=1.0e-12)
 
+    def test_batched_dense_collision_reuses_one_eigensystem(self) -> None:
+        """Dense repeated collision matrices share one exact eigensystem."""
+
+        matrix = numpy.asarray(
+            (
+                (-1.0, 0.2, 0.1),
+                (0.2, -0.5, 0.3),
+                (0.1, 0.3, -0.7),
+            ),
+            dtype=float,
+        )
+        matrices = numpy.repeat(matrix[numpy.newaxis, :, :], 4, axis=0)
+        states = numpy.asarray(
+            (
+                (0.2, -0.4, 0.1),
+                (-0.3, 0.6, -0.5),
+                (0.7, -0.1, 0.4),
+                (-0.8, 0.2, 0.9),
+            ),
+            dtype=float,
+        )
+        scales = numpy.asarray((0.75, 1.25, 0.5, 1.5), dtype=float)
+        cache: dict[tuple[tuple[int, ...], bytes], tuple | None] = {}
+        metrics = {
+            "exact_batch_calls": 0,
+            "exact_batch_mode_rows": 0,
+            "exact_vectorized_calls": 0,
+            "exact_scalar_fallback_calls": 0,
+            "exact_scalar_fallback_rows": 0,
+            "fallback_matrix_groups": 0,
+            "eigendecomposition_lookups": 0,
+            "eigendecomposition_cache_hits": 0,
+            "eigendecomposition_cache_entries": 0,
+            "result_array_allocations": 0,
+            "elapsed_seconds": 0.0,
+            "digest_sample_count": 0,
+            "digest_sample_limit": 8,
+            "input_digest": hashlib.sha256(),
+            "output_digest": hashlib.sha256(),
+        }
+        actual = cmb_projection._exact_batched_linear_collision_step(
+            operator_matrices=matrices,
+            dt=0.125,
+            target_states=states,
+            operator_scales=scales,
+            eigendecomposition_cache=cache,
+            kernel_metrics=metrics,
+        )
+        expected = numpy.asarray(
+            [
+                cmb_projection._exact_linear_collision_step(
+                    operator_matrix=matrix_row,
+                    dt=0.125,
+                    target_state=state,
+                    operator_scale=scale,
+                )
+                for matrix_row, state, scale in zip(
+                    matrices,
+                    states,
+                    scales,
+                )
+            ],
+            dtype=float,
+        )
+
+        numpy.testing.assert_allclose(actual, expected, rtol=1.0e-12)
+        self.assertEqual(len(cache), 1)
+        self.assertEqual(metrics["eigendecomposition_lookups"], 1)
+        self.assertEqual(metrics["eigendecomposition_cache_entries"], 1)
+        self.assertEqual(metrics["exact_scalar_fallback_rows"], 0)
+        self.assertNotEqual(metrics["input_digest"].hexdigest(), "")
+        self.assertNotEqual(metrics["output_digest"].hexdigest(), "")
+
     def test_compiled_equation_program_is_a_reusable_executor(self) -> None:
         """Compiled equation plans must run without per-stage exec dispatch."""
 
@@ -11570,6 +11644,7 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
                 "write_bundled_cmb_matrix_report",
                 "write_cmb_corpus_baseline_report",
                 "write_cmb_certification_report",
+                "write_cmb_parity_matrix_report",
                 "write_final_cmb_certification_report",
             },
         )

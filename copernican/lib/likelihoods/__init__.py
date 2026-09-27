@@ -56,6 +56,7 @@ from .cmb import (
     solver_provenance,
     write_bundled_cmb_full_matrix_report,
     write_bundled_cmb_matrix_report,
+    write_cmb_parity_matrix_report,
     write_final_cmb_certification_report,
 )
 from .likelihoods import JointLike, LikelihoodProtocol, LikelihoodState
@@ -107,5 +108,6 @@ __all__ = [
     "solver_provenance",
     "write_bundled_cmb_full_matrix_report",
     "write_bundled_cmb_matrix_report",
+    "write_cmb_parity_matrix_report",
     "write_final_cmb_certification_report",
 ]

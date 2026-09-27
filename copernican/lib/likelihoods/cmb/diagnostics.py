@@ -1218,6 +1218,9 @@ def build_cmb_parity_matrix_report(
     fixture_digests_by_model: Mapping[str, str] | None = None,
     unavailable_models: Mapping[str, str] | None = None,
     execution_failures_by_model: Mapping[str, Mapping[str, Any]] | None = None,
+    parameter_points_by_model: (
+        Mapping[str, Mapping[str, Mapping[str, Any]]] | None
+    ) = None,
 ) -> dict[str, Any]:
     """Build a fail-closed matrix of bounded CCMBS/CAMB parity decisions.
 
@@ -1253,6 +1256,7 @@ def build_cmb_parity_matrix_report(
     fixture_digests = fixture_digests_by_model or {}
     unavailable = unavailable_models or {}
     execution_failures = execution_failures_by_model or {}
+    parameter_points = parameter_points_by_model or {}
     records: dict[str, Any] = {}
     accepted: list[str] = []
     rejected: dict[str, list[str]] = {}
@@ -1264,6 +1268,7 @@ def build_cmb_parity_matrix_report(
         issues: list[str] = []
         actual = actual_by_model.get(model_name)
         reference = reference_by_model.get(model_name)
+        point_specs = parameter_points.get(model_name, {})
         if model_name in unavailable:
             reason = str(unavailable[model_name]).strip()
             if not reason:
@@ -1307,6 +1312,9 @@ def build_cmb_parity_matrix_report(
             resolved_parameter_records[model_name] = _jsonable(
                 reference["resolved_parameters"]
             )
+        if not isinstance(point_specs, Mapping):
+            issues.append("parameter-point evidence is not a mapping")
+            point_specs = {}
         expected_names = tuple(
             canonical_cmb_spectrum_name(name)
             for name in spectra_by_model.get(model_name, ())
@@ -1350,6 +1358,73 @@ def build_cmb_parity_matrix_report(
                 )
                 if not bool(comparison.get("accepted", False)):
                     issues.append("one or more parity rows were rejected")
+                point_comparisons: dict[str, Mapping[str, Any]] = {}
+                for point_label, point in sorted(
+                    point_specs.items(), key=lambda item: str(item[0])
+                ):
+                    label = str(point_label)
+                    if not isinstance(point, Mapping):
+                        issues.append(
+                            f"parameter point '{label}' is not a mapping"
+                        )
+                        continue
+                    point_actual = point.get("actual")
+                    point_reference = point.get("reference")
+                    if not isinstance(point_actual, Mapping):
+                        issues.append(
+                            f"parameter point '{label}' lacks actual data"
+                        )
+                        continue
+                    if not isinstance(point_reference, Mapping):
+                        issues.append(
+                            f"parameter point '{label}' lacks reference data"
+                        )
+                        continue
+                    if not isinstance(
+                        point_reference.get("resolved_parameters"), Mapping
+                    ):
+                        issues.append(
+                            f"parameter point '{label}' lacks resolved "
+                            "physical parameters"
+                        )
+                    point_comparison = compare_full_cmb_observable_parity(
+                        point_actual,
+                        point_reference,
+                        ell_values=ell_tuple,
+                        representation="D_ell",
+                        relative_tolerances=point.get(
+                            "relative_tolerances",
+                            tolerances.get(model_name),
+                        ),
+                        refinement=point.get("refinement"),
+                        fixture_digest=point.get("fixture_digest"),
+                        require_fixture_digest=True,
+                    )
+                    point_comparisons[label] = point_comparison
+                    if not bool(point_comparison.get("accepted", False)):
+                        issues.append(
+                            f"parameter point '{label}' was rejected"
+                        )
+                if point_specs:
+                    comparison = dict(comparison)
+                    comparison["parameter_points"] = _jsonable(
+                        point_comparisons
+                    )
+                    comparison["parameter_point_count"] = (
+                        len(point_comparisons) + 1
+                    )
+                    comparison["response_points_converged"] = bool(
+                        point_comparisons
+                        and all(
+                            bool(item.get("accepted", False))
+                            for item in point_comparisons.values()
+                        )
+                    )
+                    comparison["accepted"] = bool(
+                        comparison.get("accepted", False)
+                        and comparison["response_points_converged"]
+                    )
+                    comparison["converged"] = comparison["accepted"]
             except (TypeError, ValueError) as error:
                 issues.append(f"parity comparison failed: {error}")
         status = "accepted" if not issues else "rejected"
@@ -1363,6 +1438,7 @@ def build_cmb_parity_matrix_report(
             "reference": _jsonable(reference),
             "comparison": _jsonable(comparison),
             "resolved_parameters": resolved_parameter_records.get(model_name),
+            "parameter_points": _jsonable(point_specs),
             "issues": list(issues),
         }
         records[model_name] = {
@@ -1371,6 +1447,7 @@ def build_cmb_parity_matrix_report(
             "issues": list(issues),
             "comparison": _jsonable(comparison),
             "resolved_parameters": resolved_parameter_records.get(model_name),
+            "parameter_points": _jsonable(point_specs),
             "raw_evidence_sha256": _canonical_sha256(evidence),
         }
 
@@ -1455,6 +1532,29 @@ def build_cmb_parity_matrix_report(
     return report
 
 
+def write_cmb_parity_matrix_report(
+    report: Mapping[str, Any],
+    destination: str | Path,
+) -> dict[str, Any]:
+    """Persist one parity matrix with a reloadable integrity digest."""
+
+    if not isinstance(report, Mapping):
+        raise TypeError("Parity matrix report must be a mapping")
+    record = dict(_jsonable(report))
+    supplied_digest = str(record.pop("report_sha256", ""))
+    computed_digest = _canonical_sha256(record)
+    if supplied_digest and supplied_digest != computed_digest:
+        raise ValueError("Parity matrix report digest is invalid")
+    record["report_sha256"] = supplied_digest or computed_digest
+    path = Path(destination)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(record, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return record
+
+
 def _ordinary_parity_payload(
     result: Any,
     *,
@@ -1533,11 +1633,11 @@ def _ordinary_parity_refinement(result: Any) -> dict[str, Any]:
 
 
 def run_cmb_parity_matrix(
-    reference_by_model: Mapping[str, Mapping[str, Any]],
+    reference_by_model: Mapping[str, Any],
     *,
     required_models: Iterable[str] = CAMB_COMPARABLE_CMB_MODEL_FILENAMES,
     model_directory: str | Path | None = None,
-    contract_by_model: Mapping[str, Mapping[str, Any]] | None = None,
+    contract_by_model: Mapping[str, Any] | None = None,
     ell_values: Iterable[int] = CMB_PARITY_CERTIFICATION_TIER["ells"],
     spectra_by_model: Mapping[str, Sequence[str]] | None = None,
     relative_tolerances_by_model: (
@@ -1576,15 +1676,46 @@ def run_cmb_parity_matrix(
     fixture_digests: dict[str, str] = {}
     unavailable: dict[str, str] = {}
     execution_failures: dict[str, Mapping[str, Any]] = {}
+    normalized_references: dict[str, Mapping[str, Any]] = {}
+    parameter_points: dict[str, dict[str, Mapping[str, Any]]] = {}
+
+    def _normalize_points(
+        value: Any,
+        *,
+        direct_marker: str,
+        label: str,
+    ) -> dict[str, Mapping[str, Any]]:
+        """Normalize one direct row or named fixed-point collection."""
+
+        if value is None:
+            return {}
+        if not isinstance(value, Mapping):
+            raise TypeError(f"{label} must be a mapping")
+        if direct_marker in value:
+            return {"initial": value}
+        points: dict[str, Mapping[str, Any]] = {}
+        for point_label, point in value.items():
+            if not isinstance(point, Mapping):
+                raise TypeError(
+                    f"{label} point '{point_label}' must be a mapping"
+                )
+            points[str(point_label)] = point
+        return points
 
     from . import cmb as cmb_api
 
     for model_name in requested_models:
-        reference = reference_by_model.get(model_name)
-        if isinstance(reference, Mapping):
-            digest = reference.get("fixture_sha256")
-            if digest:
-                fixture_digests[model_name] = str(digest)
+        raw_reference = reference_by_model.get(model_name)
+        try:
+            reference_points = _normalize_points(
+                raw_reference,
+                direct_marker="spectra",
+                label=f"reference for {model_name}",
+            )
+        except (TypeError, ValueError) as error:
+            typed = classify_exception(error)
+            execution_failures[model_name] = typed.diagnostic()
+            reference_points = {}
         record = discovery.get(model_name)
         if record is None:
             execution_failures[model_name] = {
@@ -1621,37 +1752,105 @@ def run_cmb_parity_matrix(
             }
             continue
         try:
-            contract = supplied_contracts.get(model_name)
-            if contract is None:
-                contract = plugin.get_cmb_declared_runtime(
-                    plugin.INITIAL_GUESSES
-                )
-            cmb_api.compute_cmb_spectrum_from_contract(
-                contract,
-                requested_ells,
-                spectra=requested_spectra,
-                workload="full_spectrum",
-            )
-            result = cmb_api._LAST_CMB_RESULT.get()
-            if result is None or not result.success:
-                failure = getattr(result, "failure", None)
-                if failure is not None and hasattr(failure, "diagnostic"):
-                    failure = failure.diagnostic()
-                raise RuntimeError(
-                    str(
-                        failure
-                        or "ordinary CCMBS request returned no successful "
-                        "result"
+            supplied_contract = supplied_contracts.get(model_name)
+            if supplied_contract is None:
+                contract_points = {
+                    "initial": plugin.get_cmb_declared_runtime(
+                        plugin.INITIAL_GUESSES
                     )
+                }
+            else:
+                contract_points = _normalize_points(
+                    supplied_contract,
+                    direct_marker="param_map",
+                    label=f"contract for {model_name}",
                 )
-            actual_by_model[model_name] = _ordinary_parity_payload(
-                result,
-                ell_values=requested_ells,
-                spectra=requested_spectra,
+            if not contract_points:
+                raise ValueError(
+                    f"contract for {model_name} declares no fixed point"
+                )
+            if "initial" in contract_points:
+                base_label = "initial"
+            else:
+                shared_labels = tuple(
+                    label
+                    for label in contract_points
+                    if label in reference_points
+                )
+                base_label = (
+                    shared_labels[0]
+                    if shared_labels
+                    else next(iter(contract_points))
+                )
+            base_reference = reference_points.get(base_label)
+            if isinstance(base_reference, Mapping):
+                normalized_references[model_name] = base_reference
+                digest = base_reference.get("fixture_sha256")
+                if digest:
+                    fixture_digests[model_name] = str(digest)
+
+            def _execute_contract(
+                contract: Mapping[str, Any],
+            ) -> tuple[dict[str, Any], dict[str, Any]]:
+                """Execute one named physical point on the public route."""
+
+                cmb_api.compute_cmb_spectrum_from_contract(
+                    contract,
+                    requested_ells,
+                    spectra=requested_spectra,
+                    workload="full_spectrum",
+                )
+                result = cmb_api._LAST_CMB_RESULT.get()
+                if result is None or not result.success:
+                    failure = getattr(result, "failure", None)
+                    if failure is not None and hasattr(failure, "diagnostic"):
+                        failure = failure.diagnostic()
+                    raise RuntimeError(
+                        str(
+                            failure
+                            or "ordinary CCMBS request returned no "
+                            "successful result"
+                        )
+                    )
+                return (
+                    _ordinary_parity_payload(
+                        result,
+                        ell_values=requested_ells,
+                        spectra=requested_spectra,
+                    ),
+                    _ordinary_parity_refinement(result),
+                )
+
+            base_actual, base_refinement = _execute_contract(
+                contract_points[base_label]
             )
-            refinement_by_model[model_name] = _ordinary_parity_refinement(
-                result
-            )
+            actual_by_model[model_name] = base_actual
+            refinement_by_model[model_name] = base_refinement
+            point_records: dict[str, Mapping[str, Any]] = {}
+            for point_label, contract in contract_points.items():
+                if point_label == base_label:
+                    continue
+                point_record: dict[str, Any] = {}
+                point_reference = reference_points.get(point_label)
+                if point_reference is not None:
+                    point_record["reference"] = point_reference
+                    if isinstance(point_reference, Mapping):
+                        digest = point_reference.get("fixture_sha256")
+                        if digest:
+                            point_record["fixture_digest"] = str(digest)
+                try:
+                    point_actual, point_refinement = _execute_contract(
+                        contract
+                    )
+                    point_record["actual"] = point_actual
+                    point_record["refinement"] = point_refinement
+                except Exception as error:  # DEVCOV_ALLOW_BROAD_ONCE
+                    point_record["failure"] = classify_exception(
+                        error
+                    ).diagnostic()
+                point_records[point_label] = point_record
+            if point_records:
+                parameter_points[model_name] = point_records
         # DEVCOV_ALLOW_BROAD_ONCE parity execution boundary: retain every
         # failure as typed row evidence instead of hiding a failed model.
         except Exception as error:  # DEVCOV_ALLOW_BROAD_ONCE
@@ -1684,7 +1883,7 @@ def run_cmb_parity_matrix(
     }
     return build_cmb_parity_matrix_report(
         actual_by_model,
-        reference_by_model,
+        normalized_references,
         required_models=requested_models,
         ell_values=requested_ells,
         spectra_by_model=declared_spectra,
@@ -1693,6 +1892,7 @@ def run_cmb_parity_matrix(
         fixture_digests_by_model=fixture_digests,
         unavailable_models=unavailable,
         execution_failures_by_model=execution_failures,
+        parameter_points_by_model=parameter_points,
     )
 
 
@@ -6578,6 +6778,7 @@ __all__ = [
     "declared_cmb_spectrum_names",
     "write_bundled_cmb_full_matrix_report",
     "write_bundled_cmb_matrix_report",
+    "write_cmb_parity_matrix_report",
     "write_cmb_corpus_baseline_report",
     "write_cmb_certification_report",
     "write_final_cmb_certification_report",

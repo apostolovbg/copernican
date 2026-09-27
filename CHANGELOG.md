@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-26
+**Last Updated:** 2026-09-27
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,88 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-09-27:
+  Change: Implemented the bounded batched CPU collision-kernel baseline.
+  Why: Reduced repeated dense eigendecomposition work without changing the
+    declared physics, grids, tolerances, or parity decisions.
+  Impact: Recorded kernel timing, cache, allocation, and raw-array evidence
+    while preserving analytic blocks and scalar numerical fallbacks.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+
+- 2026-09-27:
+  Change: Revised the plan around the measured CCMBS performance blocker.
+  Why: Separate numerical-kernel optimization and optional acceleration from
+    the still-unproven quantitative CAMB parity requirement.
+  Impact: Added finite CPU, accelerator, parity-closure, and sampler slices
+    without weakening tolerances or making GPU hardware mandatory.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+
+- 2026-09-26:
+  Change: Extended background refinement with a measured retry ladder.
+  Why: Corrected stiff visibility histories that could fail after one nominal
+    doubling even when a bounded finer grid would resolve the comparison.
+  Impact: Production backgrounds now retain every refinement attempt and
+    fail only after the engine-owned maximum, with focused regression proof.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  PLAN.md
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+
+- 2026-09-26:
+  Change: Added durable parity-matrix report persistence and verification.
+  Why: Bounded parity evidence must survive the producing process and retain
+    an integrity digest for independent reload checks.
+  Impact: Persisted raw arrays, resolved parameters, decisions, and hashes in
+    a deterministic JSON report without changing ordinary test discovery.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
 
 - 2026-09-26:
   Change: Added explicit ordinary-route CCMBS parity execution evidence.

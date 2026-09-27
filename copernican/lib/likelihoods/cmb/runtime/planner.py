@@ -480,6 +480,10 @@ def plan_cmb_numerics(
                 "minimum_lensing_sampling_factor": 1.4,
                 "background_refinement_factor": 2,
                 "background_refinement_tolerance": 1.0e-2,
+                # A bounded measured-spacing ladder may continue after the
+                # first doubled grid when a stiff visibility feature remains
+                # unresolved.  This is engine policy, not model input.
+                "background_refinement_max_attempts": 4,
                 "production_scalar_convergence": {
                     "enabled": True,
                     "k_refinement_factor": 2,

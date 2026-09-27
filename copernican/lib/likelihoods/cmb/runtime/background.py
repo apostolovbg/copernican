@@ -5063,12 +5063,13 @@ def _build_custom_cmb_background(
 ) -> _CustomCMBBackgroundData:
     """Build a background and prove its physical-grid refinement.
 
-    Production plans perform one independent eta refinement of the complete
-    background/recombination solution.  The refined product is retained in
-    the returned evidence while the coarser product remains cache-addressed
-    under its own numerical identity.  Diagnostic requests carrying legacy
-    controls intentionally use the implementation directly so focused tests
-    can inspect their requested grids without paying for production work.
+    Production plans perform independent eta refinements of the complete
+    background/recombination solution.  Refinement is allowed to continue
+    through a bounded engine-owned ladder when the first comparison remains
+    unresolved; a theoretical node count is not itself evidence of closure.
+    Diagnostic requests carrying legacy controls intentionally use the
+    implementation directly so focused tests can inspect their requested
+    grids without paying for production work.
     """
 
     base = _build_custom_cmb_background_impl(
@@ -5089,42 +5090,39 @@ def _build_custom_cmb_background(
     refinement_factor = int(controls.get("background_refinement_factor", 2))
     if refinement_factor < 2:
         raise ValueError("Background refinement factor must be at least two")
-    refined_eta_count = max(
-        int(numerics.eta_sample_count) * refinement_factor,
-        int(numerics.eta_sample_count) + 1,
+    tolerance = float(controls.get("background_refinement_tolerance", 1.0e-2))
+    maximum_attempts = int(
+        controls.get("background_refinement_max_attempts", 4)
     )
-    refined_numerics = replace(
-        numerics,
-        eta_sample_count=refined_eta_count,
-        evolution_eta_sample_count=(
-            None
-            if numerics.evolution_eta_sample_count is None
-            else max(
-                int(numerics.evolution_eta_sample_count) * refinement_factor,
-                int(numerics.evolution_eta_sample_count) + 1,
-            )
-        ),
-    )
-    refined = _build_custom_cmb_background_impl(
-        contract,
-        physical_params,
-        refined_numerics,
-        background_provider=background_provider,
-    )
-    common_a = numpy.geomspace(
-        max(float(base.a_grid[0]), float(refined.a_grid[0]), 1.0e-8),
-        1.0,
-        128,
-    )
+    if maximum_attempts < 1:
+        raise ValueError(
+            "Background refinement maximum attempts must be positive"
+        )
 
-    def _relative_error(coarse: Any, fine: Any) -> float:
+    def _relative_error(
+        coarse_background: Any,
+        fine_background: Any,
+        coarse_history: Any,
+        fine_history: Any,
+    ) -> float:
         """Return a finite relative max error on one common a-grid."""
 
+        common_a = numpy.geomspace(
+            max(
+                float(coarse_background.a_grid[0]),
+                float(fine_background.a_grid[0]),
+                1.0e-8,
+            ),
+            1.0,
+            128,
+        )
         coarse_values = numpy.asarray(
-            coarse(base.eta_of_a(common_a)), dtype=float
+            coarse_history(coarse_background.eta_of_a(common_a)),
+            dtype=float,
         )
         fine_values = numpy.asarray(
-            fine(refined.eta_of_a(common_a)), dtype=float
+            fine_history(fine_background.eta_of_a(common_a)),
+            dtype=float,
         )
         # Relative error is ill-conditioned in the exponentially suppressed
         # tails of visibility/ionization histories.  Normalize those tails
@@ -5139,34 +5137,101 @@ def _build_custom_cmb_background(
             raise ValueError("Background refinement produced non-finite error")
         return float(error)
 
-    errors = {
-        "eta0": abs(float(base.eta0) - float(refined.eta0))
-        / max(abs(float(refined.eta0)), 1.0e-300),
-        "sound_horizon_mpc": abs(
-            float(base.sound_horizon_mpc) - float(refined.sound_horizon_mpc)
+    def _errors(
+        coarse_background: Any,
+        fine_background: Any,
+    ) -> dict[str, float]:
+        """Measure all scalar and history differences for one refinement."""
+
+        errors = {
+            "eta0": abs(
+                float(coarse_background.eta0) - float(fine_background.eta0)
+            )
+            / max(abs(float(fine_background.eta0)), 1.0e-300),
+            "sound_horizon_mpc": abs(
+                float(coarse_background.sound_horizon_mpc)
+                - float(fine_background.sound_horizon_mpc)
+            )
+            / max(abs(float(fine_background.sound_horizon_mpc)), 1.0e-300),
+            "drag_sound_horizon_mpc": abs(
+                float(coarse_background.drag_sound_horizon_mpc)
+                - float(fine_background.drag_sound_horizon_mpc)
+            )
+            / max(
+                abs(float(fine_background.drag_sound_horizon_mpc)), 1.0e-300
+            ),
+            "drag_redshift": abs(
+                float(coarse_background.drag_redshift)
+                - float(fine_background.drag_redshift)
+            )
+            / max(abs(float(fine_background.drag_redshift)), 1.0),
+            "visibility": _relative_error(
+                coarse_background,
+                fine_background,
+                coarse_background.visibility_of_eta,
+                fine_background.visibility_of_eta,
+            ),
+            "electron_fraction": _relative_error(
+                coarse_background,
+                fine_background,
+                coarse_background.x_e_of_eta,
+                fine_background.x_e_of_eta,
+            ),
+        }
+        if not all(numpy.isfinite(value) for value in errors.values()):
+            raise ValueError(
+                "Background refinement produced non-finite evidence"
+            )
+        return errors
+
+    original_coarse = base
+    coarse = base
+    coarse_numerics = numerics
+    attempts: list[dict[str, Any]] = []
+    refined = base
+    refined_numerics = numerics
+    errors: dict[str, float] = {}
+    converged = False
+    for attempt_index in range(maximum_attempts):
+        refined_eta_count = max(
+            int(coarse_numerics.eta_sample_count) * refinement_factor,
+            int(coarse_numerics.eta_sample_count) + 1,
         )
-        / max(abs(float(refined.sound_horizon_mpc)), 1.0e-300),
-        "drag_sound_horizon_mpc": abs(
-            float(base.drag_sound_horizon_mpc)
-            - float(refined.drag_sound_horizon_mpc)
+        refined_numerics = replace(
+            coarse_numerics,
+            eta_sample_count=refined_eta_count,
+            evolution_eta_sample_count=(
+                None
+                if coarse_numerics.evolution_eta_sample_count is None
+                else max(
+                    int(coarse_numerics.evolution_eta_sample_count)
+                    * refinement_factor,
+                    int(coarse_numerics.evolution_eta_sample_count) + 1,
+                )
+            ),
         )
-        / max(abs(float(refined.drag_sound_horizon_mpc)), 1.0e-300),
-        "drag_redshift": abs(
-            float(base.drag_redshift) - float(refined.drag_redshift)
+        refined = _build_custom_cmb_background_impl(
+            contract,
+            physical_params,
+            refined_numerics,
+            background_provider=background_provider,
         )
-        / max(abs(float(refined.drag_redshift)), 1.0),
-        "visibility": _relative_error(
-            base.visibility_of_eta,
-            refined.visibility_of_eta,
-        ),
-        "electron_fraction": _relative_error(
-            base.x_e_of_eta,
-            refined.x_e_of_eta,
-        ),
-    }
-    if not all(numpy.isfinite(value) for value in errors.values()):
-        raise ValueError("Background refinement produced non-finite evidence")
-    tolerance = float(controls.get("background_refinement_tolerance", 1.0e-2))
+        errors = _errors(coarse, refined)
+        converged = bool(max(errors.values()) <= tolerance)
+        attempts.append(
+            {
+                "attempt": attempt_index + 1,
+                "coarse_eta_nodes": int(coarse_numerics.eta_sample_count),
+                "fine_eta_nodes": int(refined_numerics.eta_sample_count),
+                "relative_errors": errors,
+                "converged": converged,
+            }
+        )
+        if converged:
+            break
+        coarse = refined
+        coarse_numerics = refined_numerics
+
     evidence = dict(base.resolution_evidence)
     evidence.update(
         {
@@ -5175,24 +5240,27 @@ def _build_custom_cmb_background(
                 "fine_eta_nodes": int(refined_numerics.eta_sample_count),
                 "relative_errors": errors,
                 "tolerance": tolerance,
-                "converged": bool(max(errors.values()) <= tolerance),
+                "converged": converged,
+                "attempts": attempts,
+                "attempt_count": len(attempts),
+                "maximum_attempts": maximum_attempts,
             },
             "selected_eta_nodes": int(refined_numerics.eta_sample_count),
         }
     )
-    if max(errors.values()) > tolerance:
+    if not converged:
         raise ValueError(
             "Automatic background refinement did not converge: "
             + ", ".join(
                 f"{name}={value:.6g}" for name, value in errors.items()
             )
         )
-    base.resolution_evidence = evidence
+    original_coarse.resolution_evidence = evidence
     cache_key = _custom_cmb_background_cache_key(
         contract,
         physical_params,
         numerics,
         background_provider,
     )
-    cache.set_cmb_background(cache_key, base)
+    cache.set_cmb_background(cache_key, original_coarse)
     return _get_cached_custom_cmb_background(cache_key)

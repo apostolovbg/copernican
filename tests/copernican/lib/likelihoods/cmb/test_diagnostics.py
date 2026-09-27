@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -56,6 +57,7 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     write_bundled_cmb_full_matrix_report,
     write_cmb_certification_report,
     write_cmb_corpus_baseline_report,
+    write_cmb_parity_matrix_report,
     write_final_cmb_certification_report,
 )
 from copernican.lib.likelihoods.cmb.results import CMBBatchResult
@@ -1384,6 +1386,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         self.assertEqual(set(report["accepted_models"]), set(models))
         self.assertTrue(callable(build_cmb_parity_matrix_report))
         self.assertTrue(callable(run_cmb_parity_matrix))
+        self.assertTrue(callable(write_cmb_parity_matrix_report))
         self.assertEqual(
             set(report["reports"]),
             set(models),
@@ -1464,6 +1467,8 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             },
             "fixture_sha256": "b" * 64,
         }
+        shifted_payload = copy.deepcopy(payload)
+        shifted_payload["fixture_sha256"] = "c" * 64
 
         class Plugin:
             """Provide only the ordinary declared-runtime seam."""
@@ -1526,15 +1531,42 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             ) as public_request,
         ):
             executed = run_cmb_parity_matrix(
-                {model_name: payload},
+                {
+                    model_name: {
+                        "initial": payload,
+                        "shifted_amplitude": shifted_payload,
+                    }
+                },
                 required_models=(model_name,),
-                contract_by_model={model_name: {"param_map": {}}},
+                contract_by_model={
+                    model_name: {
+                        "initial": {"param_map": {}},
+                        "shifted_amplitude": {"param_map": {"As": 2.2e-9}},
+                    }
+                },
                 spectra_by_model={model_name: ("TT",)},
             )
 
-        public_request.assert_called_once()
+        self.assertEqual(public_request.call_count, 2)
         self.assertTrue(executed["accepted"], executed)
         self.assertEqual(executed["reports"][model_name]["status"], "accepted")
+        self.assertEqual(
+            executed["reports"][model_name]["comparison"][
+                "parameter_point_count"
+            ],
+            2,
+        )
+        with tempfile.TemporaryDirectory() as output_directory:
+            destination = Path(output_directory) / "parity.json"
+            persisted = write_cmb_parity_matrix_report(
+                executed,
+                destination,
+            )
+            self.assertEqual(
+                json.loads(destination.read_text(encoding="utf-8")),
+                persisted,
+            )
+        self.assertEqual(persisted["report_sha256"], executed["report_sha256"])
 
     def test_source_history_audit_recomputes_all_declared_closures(
         self,
