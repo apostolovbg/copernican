@@ -80,6 +80,44 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-09-27:
+  Change: Corrected the public CMB symbol coverage expectation.
+  Why: Included the fixed LCDM parity runner in the exported API contract.
+  Impact: Restored full-discovery coverage for the Slice Seventeen helper.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  tests/copernican/lib/likelihoods/cmb/orchestrators/test_ccmbs.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+
+- 2026-09-27:
+  Change: Added the fixed LCDM parity evidence command and raw runtime
+    evidence retention.
+  Why: Added an explicit ordinary-route boundary for physically aligned
+    CCMBS/CAMB inputs and independently evolved source and history evidence.
+  Impact: Enforced fail-closed runtime evidence, durable hashes, and persisted
+    fixed-row provenance without adding the comparison to ordinary tests.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  tests/copernican/lib/likelihoods/cmb/orchestrators/test_ccmbs.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+
+- 2026-09-27:
   Change: Added the explicit optional Taichi accelerator boundary.
   Why: Expose portable fixed-shape device work without importing Taichi or
     making accelerator hardware necessary for the CPU test path.

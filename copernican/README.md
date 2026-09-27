@@ -355,7 +355,7 @@ the five comparable bundled cosmologies and retains raw `C_ell`/`D_ell`
 surfaces, contract and numerical-plan digests, and artifact hashes. The
 fail-closed comparator rejects a changed raw surface. Canonical
 CCMBS-versus-CAMB acceptance at the production envelope remains assigned to
-Slice Fourteen; CAMB-only rows are never reported as canonical parity.
+Slice Seventeen; CAMB-only rows are never reported as canonical parity.
 Slice Fourteen fixes the bounded parity request to the sparse ell grid
 `(2, 20, 100, 200, 500, 800, 1200, 1500, 2000, 2500)` and records the
 per-surface tolerance matrix. `build_cmb_parity_matrix_report()` requires an
@@ -370,6 +370,12 @@ cannot report parity until the retained comparisons pass.
 arrays and its integrity digest, for reload verification in another process.
 Named fixed-point contracts and CAMB rows are supported for response points;
 each point receives its own ordinary-route execution and parity decision.
+`run_fixed_lcdm_cmb_parity()` narrows that command to the first scientific
+row: fixed massless-neutrino LCDM with TT/TE/EE on the canonical sparse grid.
+It rejects mismatched CCMBS/CAMB physical inputs, requires CAMB's resolved
+defaults, retains raw source and evolution evidence with the spectra, and can
+persist the complete report for a later-process hash check. This explicit
+evidence command is not ordinary test discovery.
 Slice Thirteen now makes the ordinary production planner own transfer,
 source, projection, and evolution refinement. Independently evolved anchor
 histories and compact evidence for background, q, hierarchy, evolution,

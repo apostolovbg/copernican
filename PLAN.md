@@ -989,7 +989,7 @@ capability provenance, path-free probes, typed full-route non-applicability,
 and typed missing-runtime behavior. No dependency or GPU hardware is added
 to the ordinary installation or test path.
 
-### [planned] Slice Seventeen — bounded quantitative CCMBS/CAMB parity closure
+### [active] Slice Seventeen — bounded quantitative CCMBS/CAMB parity closure
 
 Resume Slice Fourteen's canonical sparse matrix only after the CPU baseline
 and optional accelerator boundary are validated. Execute one actual fixed
@@ -1005,6 +1005,16 @@ physical points, requests, numerical plans, and reference identities. The
 bounded matrix must pass without mocks, CAMB fallback, dropped surfaces,
 relaxed tolerances, or diagnostic bypasses. Full-resolution production remains
 the user's separate scientific run.
+
+Slice Seventeen implementation evidence now provides the explicit
+`run_fixed_lcdm_cmb_parity()` command. It rejects mismatched declared and CAMB
+physical inputs, requires CAMB's resolved defaults, retains raw source and
+evolution evidence beside the spectra and residuals, and persists a reloadable
+hash-checked report. Its fixed-row execution is intentionally outside ordinary
+test discovery because it is the first expensive scientific comparison. The
+slice remains active until that explicit ordinary-route row is actually
+executed and its quantitative decision is retained; a green development gate
+does not claim parity.
 
 ### [planned] Slice Eighteen — bounded sampler and corpus closure
 

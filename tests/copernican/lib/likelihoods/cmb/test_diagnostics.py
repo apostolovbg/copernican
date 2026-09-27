@@ -54,6 +54,7 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     run_cmb_model_diagnostic,
     run_cmb_parity_matrix,
     run_final_cmb_certification,
+    run_fixed_lcdm_cmb_parity,
     write_bundled_cmb_full_matrix_report,
     write_cmb_certification_report,
     write_cmb_corpus_baseline_report,
@@ -1346,12 +1347,30 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
                     "C_ell": c_values.tolist(),
                     "D_ell": (c_values * factor).tolist(),
                 }
+            runtime_evidence = {
+                "production_scalar_k_convergence": {
+                    "converged": True,
+                },
+                "resolution_axis_evidence": {
+                    "evolution": {"status": "measured"},
+                    "source": {"status": "measured"},
+                },
+                "scalar_evolution_convergence": {"converged": True},
+                "source_history_refinement": {"independently_evolved": True},
+                "declared_source_history_convergence": {"finite": True},
+                "source_history_residual_samples_by_k": {
+                    "0.1": {"finite": True}
+                },
+                "independent_source_residual_audit": {"converged": True},
+                "source_history_bundle_digest": {"sha256": "b" * 64},
+            }
             return {
                 "sector": "scalar",
                 "ell_values": ell_values,
                 "resolved_parameters": {"H0": 75.0, "num_nu_massive": 0},
                 "spectra": surfaces,
                 "fixture_sha256": "a" * 64,
+                "runtime_evidence": runtime_evidence,
             }
 
         actual = {name: _payload() for name in models}
@@ -1374,6 +1393,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             relative_tolerances_by_model=tolerances,
             refinement_by_model=refinement,
             fixture_digests_by_model=digests,
+            require_runtime_evidence=True,
         )
 
         self.assertEqual(
@@ -1383,13 +1403,33 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         self.assertTrue(report["complete"])
         self.assertTrue(report["decision_complete"])
         self.assertTrue(report["accepted"])
+        self.assertTrue(report["runtime_evidence_required"])
         self.assertEqual(set(report["accepted_models"]), set(models))
         self.assertTrue(callable(build_cmb_parity_matrix_report))
         self.assertTrue(callable(run_cmb_parity_matrix))
+        self.assertTrue(callable(run_fixed_lcdm_cmb_parity))
         self.assertTrue(callable(write_cmb_parity_matrix_report))
         self.assertEqual(
             set(report["reports"]),
             set(models),
+        )
+        missing_runtime = copy.deepcopy(actual)
+        missing_runtime["model_lcdm.yml"].pop("runtime_evidence")
+        rejected_runtime = build_cmb_parity_matrix_report(
+            missing_runtime,
+            reference,
+            required_models=models,
+            ell_values=ell_values,
+            spectra_by_model=expected_spectra,
+            relative_tolerances_by_model=tolerances,
+            refinement_by_model=refinement,
+            fixture_digests_by_model=digests,
+            require_runtime_evidence=True,
+        )
+        self.assertFalse(rejected_runtime["accepted"])
+        self.assertIn(
+            "ordinary result omitted raw runtime evidence",
+            rejected_runtime["rejected_models"]["model_lcdm.yml"],
         )
         self.assertTrue(
             all(
@@ -1567,6 +1607,87 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
                 persisted,
             )
         self.assertEqual(persisted["report_sha256"], executed["report_sha256"])
+
+    def test_fixed_lcdm_parity_rejects_mismatched_physical_inputs(self):
+        """The first parity row cannot compare different cosmologies."""
+
+        reference_param_map = {
+            "H0": 75.0,
+            "ombh2": 0.0309375,
+            "omch2": 0.18,
+            "tau": 0.054,
+            "As": 2.1e-9,
+            "ns": 0.965,
+            "Neff": 3.0,
+            "YHe": 0.245,
+            "mnu": 0.0,
+            "num_massive_neutrinos": 0,
+        }
+        reference = {
+            "contract": {"param_map": reference_param_map},
+            "resolved_parameters": {
+                name: 0.0
+                for name in (
+                    "H0",
+                    "ombh2",
+                    "omch2",
+                    "omk",
+                    "YHe",
+                    "tau",
+                    "As",
+                    "ns",
+                    "num_nu_massless",
+                    "num_nu_massive",
+                    "omnuh2",
+                )
+            },
+        }
+        declared = {
+            "param_map": {**reference_param_map, "H0": 76.0},
+        }
+        with self.assertRaisesRegex(ValueError, "H0"):
+            run_fixed_lcdm_cmb_parity(reference, declared)
+
+    def test_fixed_lcdm_parity_rejects_massive_camb_defaults(self):
+        """The fixed LCDM row cannot inherit a massive CAMB default."""
+
+        reference_param_map = {
+            "H0": 75.0,
+            "ombh2": 0.0309375,
+            "omch2": 0.18,
+            "tau": 0.054,
+            "As": 2.1e-9,
+            "ns": 0.965,
+            "Neff": 3.0,
+            "YHe": 0.245,
+            "mnu": 0.0,
+            "num_massive_neutrinos": 0,
+        }
+        resolved = {
+            name: 0.0
+            for name in (
+                "H0",
+                "ombh2",
+                "omch2",
+                "omk",
+                "YHe",
+                "tau",
+                "As",
+                "ns",
+                "num_nu_massless",
+                "num_nu_massive",
+                "omnuh2",
+            )
+        }
+        resolved["num_nu_massive"] = 1
+        reference = {
+            "reference_identity": "camb:test",
+            "contract": {"param_map": reference_param_map},
+            "resolved_parameters": resolved,
+        }
+        declared = {"param_map": dict(reference_param_map)}
+        with self.assertRaisesRegex(ValueError, "massless neutrinos"):
+            run_fixed_lcdm_cmb_parity(reference, declared)
 
     def test_source_history_audit_recomputes_all_declared_closures(
         self,

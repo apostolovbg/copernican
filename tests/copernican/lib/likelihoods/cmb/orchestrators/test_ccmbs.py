@@ -46,6 +46,7 @@ class CopernicanCmbSolverModuleTestCase(unittest.TestCase):
         self.assertTrue(
             callable(cmb_solver.last_declared_postprocessing_evidence)
         )
+        self.assertTrue(callable(cmb_solver.last_declared_runtime_evidence))
 
     def test_lensed_assembly_uses_declared_unlensed_and_pp_surfaces(self):
         """Lensed output must be assembled from declared surfaces."""

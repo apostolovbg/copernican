@@ -55,6 +55,13 @@ _LAST_DECLARED_POSTPROCESSING_EVIDENCE: ContextVar[
     default=None,
 )
 
+_LAST_DECLARED_RUNTIME_EVIDENCE: ContextVar[Mapping[str, Any] | None] = (
+    ContextVar(
+        "last_declared_runtime_evidence",
+        default=None,
+    )
+)
+
 
 def last_declared_raw_spectra() -> Mapping[str, numpy.ndarray] | None:
     """Return raw unscaled spectra from the most recent declared solve."""
@@ -66,6 +73,12 @@ def last_declared_postprocessing_evidence() -> Mapping[str, Any] | None:
     """Return post-processing evidence from the most recent declared solve."""
 
     return _LAST_DECLARED_POSTPROCESSING_EVIDENCE.get()
+
+
+def last_declared_runtime_evidence() -> Mapping[str, Any] | None:
+    """Return raw runtime evidence from the most recent declared solve."""
+
+    return _LAST_DECLARED_RUNTIME_EVIDENCE.get()
 
 
 def _safe_float_output(values: numpy.ndarray) -> numpy.ndarray:
@@ -442,6 +455,7 @@ def _compute_declared_perturbation_spectrum_impl(
         raise ContractError("ells must not be empty")
     requested_spectra = tuple(str(name) for name in spectra)
     _LAST_DECLARED_POSTPROCESSING_EVIDENCE.set(None)
+    _LAST_DECLARED_RUNTIME_EVIDENCE.set(None)
     if not requested_spectra:
         raise ContractError("Requested CMB spectra must not be empty")
     canonical_requested_spectra = tuple(
@@ -526,6 +540,7 @@ def _compute_declared_perturbation_spectrum_impl(
         requested_spectra=base_requested_spectra,
         workload=workload,
     )
+    _LAST_DECLARED_RUNTIME_EVIDENCE.set(custom_data.runtime_envelope)
     _LAST_DECLARED_RAW_SPECTRA.set(
         {
             str(name): numpy.asarray(values, dtype=numpy.longdouble).copy()
