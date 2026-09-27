@@ -21,6 +21,14 @@ provenance, phase timings, solver identity, and a typed failure when
 evaluation cannot complete. A future `ccmbs_taichi` backend can register
 beside CCMBS without changing samplers or likelihood callers.
 
+Slice Sixteen provides that optional boundary without adding Taichi to the
+ordinary runtime. `ccmbs_taichi` reports path-free Metal, Vulkan, or CUDA
+candidate evidence and exposes a fixed-shape exact two-state collision pilot.
+It is selected explicitly; the full declared graph currently returns a typed
+engine-capability result and never falls back to `ccmbs_numpy`. Device
+initialization and the optional import occur only inside the explicit pilot
+call, so CPU-only tests remain deterministic.
+
 The scalar, vector, and tensor sectors follow this contract. Implementations
 must preserve the meaning of states, source terms, gauge labels, and public
 spectra defined here. A model may mark CMB output unavailable only when its

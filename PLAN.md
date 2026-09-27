@@ -959,26 +959,35 @@ runtime envelopes retain `collision_kernel_metrics` with elapsed kernel time,
 mode and fallback counts, allocation events, cache evidence, and raw-array
 digests. No GPU or dependency change is required.
 
-### [planned] Slice Sixteen — optional portable accelerator backend
+### [closed] Slice Sixteen — optional portable accelerator boundary
 
-Implement an optional compiled accelerator route for the validated numerical
-kernels. Taichi is the initial candidate because Metal can serve Apple
-Silicon and Vulkan can serve cross-platform devices such as the RX480. The
-backend is selected explicitly and retains the CPU route as the deterministic
-fallback and correctness authority; hardware absence is typed
+Establish the explicit optional accelerator boundary for validated fixed-shape
+numerical kernels. Taichi is the initial candidate because Metal can serve
+Apple Silicon and Vulkan can serve cross-platform devices such as the RX480.
+The backend is selected explicitly; hardware or package absence is typed
 non-applicability, never a silent CPU/GPU result substitution.
 
-Port only fixed-shape, data-oriented kernels after Slice Fifteen proves their
-CPU equivalence. Keep adaptive planning, cache identity, persistence,
-diagnostics, and typed failure handling in the shared Python orchestration
-layer. Compare CPU and accelerator raw histories, spectra, residuals,
-convergence decisions, and wave-shape evidence at bounded physical points.
+The new `ccmbs_taichi` adapter is import-safe without Taichi, reports
+path-free device capability evidence, and exposes a fixed-shape exact
+two-state collision pilot. The shared Python orchestration layer retains
+adaptive planning, cache identity, persistence, diagnostics, and typed
+failure handling. Selecting the adapter for the full declared graph returns a
+typed engine-capability result rather than delegating to CCMBSNumpySolver.
 
-Acceptance requires deterministic backend identity in every artifact, explicit
-device capability reporting, CPU/accelerator agreement within declared
-floating-point bounds, and a CPU-only test path that remains green. No GPU
-route may relax a convergence decision or become necessary for ordinary test
+Acceptance requires deterministic accelerator identity, explicit candidate
+device reporting, typed failure on unavailable hardware, and a CPU-only test
+path that remains green. The pilot's numerical route has no CPU fallback and
+does not relax convergence or parity decisions. Full-graph accelerator
+execution remains a later optimization and is not needed by ordinary test
 discovery.
+
+Slice Sixteen closure evidence: `ccmbs_taichi` is registered lazily beside
+`ccmbs_numpy`; importing the solver registry does not import Taichi. The
+fixed-shape pilot uses Taichi only after explicit selection and preserves
+exact real two-state exponential structure. Focused tests verify registration,
+capability provenance, path-free probes, typed full-route non-applicability,
+and typed missing-runtime behavior. No dependency or GPU hardware is added
+to the ordinary installation or test path.
 
 ### [planned] Slice Seventeen — bounded quantitative CCMBS/CAMB parity closure
 

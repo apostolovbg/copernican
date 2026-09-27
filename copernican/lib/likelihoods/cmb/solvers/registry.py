@@ -35,8 +35,10 @@ def _ensure_defaults() -> None:
     if CMB_SOLVER_REGISTRY:
         return
     from .ccmbs_numpy import CCMBSNumpySolver
+    from .ccmbs_taichi import CCMBSTaichiSolver
 
     register_cmb_solver(CCMBSNumpySolver())
+    register_cmb_solver(CCMBSTaichiSolver())
 
 
 def available_cmb_solvers() -> tuple[str, ...]:

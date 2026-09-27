@@ -509,6 +509,14 @@ events, cache evidence, and shape-aware raw input/output digests. This CPU
 baseline is deterministic and remains the correctness authority for any
 future accelerator backend.
 
+The optional `ccmbs_taichi` backend is registered without importing Taichi or
+requiring accelerator hardware. Explicit selection reports deterministic,
+path-free device capability evidence and exposes a fixed-shape exact
+two-state collision pilot. Selecting it for the full declared graph returns a
+typed engine-capability result; it never silently delegates to the CPU
+solver. Ordinary installation, diagnostics, and test discovery remain
+CPU-only.
+
 Ensemble fit results also retain an `ensemble_performance` record with total
 and per-stage timings, requested and effective worker counts, the CPU-derived
 worker limit, nominal proposal evaluations, and failed-request counts. The

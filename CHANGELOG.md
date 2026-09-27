@@ -80,6 +80,23 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-09-27:
+  Change: Added the explicit optional Taichi accelerator boundary.
+  Why: Expose portable fixed-shape device work without importing Taichi or
+    making accelerator hardware necessary for the CPU test path.
+  Impact: Added typed capability and non-applicability evidence and removed
+    silent full-route CPU substitution.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/solvers/__init__.py
+  copernican/lib/likelihoods/cmb/solvers/ccmbs_taichi.py
+  copernican/lib/likelihoods/cmb/solvers/registry.py
+  tests/copernican/lib/likelihoods/cmb/solvers/test_ccmbs_taichi.py
+
+- 2026-09-27:
   Change: Implemented the bounded batched CPU collision-kernel baseline.
   Why: Reduced repeated dense eigendecomposition work without changing the
     declared physics, grids, tolerances, or parity decisions.
