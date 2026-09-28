@@ -961,7 +961,7 @@ runtime envelopes retain `collision_kernel_metrics` with elapsed kernel time,
 mode and fallback counts, allocation events, cache evidence, and raw-array
 digests. No GPU or dependency change is required.
 
-### [active] Slice Sixteen — one CCMBS engine with optional hardware execution
+### [closed] Slice Sixteen — one CCMBS engine with optional hardware execution
 
 Correct the accelerator boundary so CCMBS is one engine in implementation as
 well as in public identity. Remove the separate `ccmbs_numpy` and
@@ -1008,11 +1008,16 @@ accelerated path. The source tree and tests must contain no standalone
 the public CCMBS route, optional-runtime absence, device selection, fallback,
 and numerical equivalence without importing separate backend classes.
 
-Slice Sixteen is reopened because the previous closure only removed public
-labels while retaining the split implementation and standalone tests. It is
-not closed until the implementation is consolidated, the optional dependency
-and license boundary is explicit, and the focused evidence proves that CCMBS
-alone owns execution choice and provenance.
+Slice Sixteen closure evidence: `ccmbs.py` is now the only CCMBS engine
+implementation and public execution identity. The former `ccmbs_numpy` and
+`ccmbs_taichi` modules, classes, and standalone test files are removed. CPU
+correctness and the validated fixed-shape optional-device pilot are private
+execution details of CCMBS; device selection, fallback, and provenance do not
+form a second solver contract. Missing optional hardware is typed and remains
+safe for ordinary CPU execution. The focused solver discovery ran six tests
+and passed. No Taichi dependency was introduced; any future optional
+dependency remains subject to the declared lock, hash, and license evidence
+boundary above.
 
 ### [planned] Slice Seventeen — bounded quantitative CCMBS/CAMB parity evidence
 

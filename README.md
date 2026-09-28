@@ -152,6 +152,13 @@ and CLASS are
 independent scientific reference tools used by tests, not production spectrum
 solvers.
 
+CCMBS owns hardware selection internally. Its portable CPU path is the
+correctness baseline, while an optional accelerator may run only validated
+fixed-shape kernels and must match the CPU result before use. Ordinary
+installation and tests do not require Taichi or any other accelerator runtime;
+unavailable hardware falls back inside the same CCMBS engine rather than
+creating a second solver identity.
+
 A default package installation has no CAMB or CLASS dependency. The repository
 workspace lock includes CAMB only for independent scientific-reference tests;
 the packaged runtime lock and installed license inventory contain declared

@@ -80,6 +80,25 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-09-28:
+  Change: Consolidated CCMBS execution and removed standalone CPU and
+    accelerator solver surfaces.
+  Why: Slice Sixteen still retained separate implementation and test modules
+    after removing the public backend identities.
+  Impact: CCMBS now owns the CPU correctness path and private optional-device
+    pilot without adding a Taichi dependency.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/solvers/ccmbs.py
+  copernican/lib/likelihoods/cmb/solvers/ccmbs_numpy.py
+  copernican/lib/likelihoods/cmb/solvers/ccmbs_taichi.py
+  tests/copernican/lib/likelihoods/cmb/solvers/test_ccmbs.py
+  tests/copernican/lib/likelihoods/cmb/solvers/test_ccmbs_numpy.py
+  tests/copernican/lib/likelihoods/cmb/solvers/test_ccmbs_taichi.py
+
+- 2026-09-28:
   Change: Reopened Slice Sixteen for complete CCMBS engine consolidation and
     optional-accelerator license accounting.
   Why: The previous slice removed public backend identities but retained
