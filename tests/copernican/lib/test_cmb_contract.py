@@ -109,7 +109,7 @@ class TestCMBContractExports(unittest.TestCase):
         self.assertEqual(audit.unsupported_observables, ())
         self.assertEqual(
             audit.execution_solver_id,
-            "ccmbs_numpy",
+            "ccmbs",
         )
         self.assertEqual(
             audit.execution_runtime_module,

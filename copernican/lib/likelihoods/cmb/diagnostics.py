@@ -1565,6 +1565,30 @@ def write_cmb_parity_matrix_report(
     return record
 
 
+def read_cmb_parity_matrix_report(
+    source: str | Path,
+) -> dict[str, Any]:
+    """Reload one persisted parity matrix and verify its integrity digest."""
+
+    path = Path(source)
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(
+            f"Unable to read parity matrix report from {path}"
+        ) from exc
+    if not isinstance(record, Mapping):
+        raise ValueError("Persisted parity matrix report must be a mapping")
+    supplied_digest = str(record.get("report_sha256", ""))
+    if not supplied_digest:
+        raise ValueError("Persisted parity matrix report lacks report_sha256")
+    payload = dict(record)
+    payload.pop("report_sha256", None)
+    if supplied_digest != _canonical_sha256(payload):
+        raise ValueError("Persisted parity matrix report digest is invalid")
+    return dict(record)
+
+
 def _ordinary_parity_payload(
     result: Any,
     *,
@@ -6987,6 +7011,7 @@ __all__ = [
     "discover_cmb_model_records",
     "discover_cmb_plugins",
     "run_fixed_lcdm_cmb_parity",
+    "read_cmb_parity_matrix_report",
     "run_bundled_cmb_matrix",
     "run_cmb_parity_matrix",
     "run_bundled_cmb_full_matrix",

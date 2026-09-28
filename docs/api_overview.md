@@ -126,7 +126,7 @@ compiled declared-graph evolution plan; `runtime/projection.py` owns the
 line-of-sight transfer and spectrum assembly; and `runtime/cache.py` owns
  bounded cache state plus reset and diagnostics helpers.
 `copernican.lib.cmb_identity` exposes the stable production identity
-`ccmbs_numpy`. CLI and GUI callers select model roles and
+`ccmbs`. CLI and GUI callers select model roles and
 a sampler; they do not select a CMB solver.
 `model_adapter.py` hands the precompiled declared runtime into that package
 directly, so repeated calls avoid rebuilding static graph structure

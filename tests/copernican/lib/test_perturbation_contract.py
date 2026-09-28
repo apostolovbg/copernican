@@ -1380,7 +1380,7 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertEqual(
             contract_data.manifest_summary["execution_route"],
             {
-                "solver_id": "ccmbs_numpy",
+                "solver_id": "ccmbs",
                 "solver_label": (
                     "CCMBS — Copernican Cosmic Microwave Background Solver"
                 ),

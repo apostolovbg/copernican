@@ -77,8 +77,8 @@ class TestCMBSolverContract(unittest.TestCase):
         """The registry exposes CCMBS as the stable default backend."""
 
         solver = resolve_cmb_solver()
-        self.assertEqual(solver.solver_id, "ccmbs_numpy")
-        self.assertIn("ccmbs_numpy", available_cmb_solvers())
+        self.assertEqual(solver.solver_id, "ccmbs")
+        self.assertIn("ccmbs", available_cmb_solvers())
         self.assertEqual(solver.capabilities()["execution_backend"], "cpu")
 
     def test_contract_symbols_expose_the_solver_lifecycle(self):

@@ -1,33 +1,30 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-09-27
+**Last Updated:** 2026-09-28
 **Project Version:** 12.0.26
 
 ## Overview
 This document is the canonical physical convention for Copernican's declared
 CMB solver path. Every bundled production CMB model uses one route-neutral
-declared graph selected through the CMB solver registry. CCMBS is the default
-reference backend; solver selection never adds a backend fallback.
+declared graph selected through the CMB solver registry. CCMBS is the single
+public solver; hardware selection is internal to that engine.
 
-The production execution identity is
-`ccmbs_numpy`, displayed as CCMBS — Copernican Cosmic Microwave Background
-Solver. CLI and GUI workflows select control and test model contracts, a
-sampler, and the registered CMB solver. The default manifest selection is
-`selection.cmb_solver.id: ccmbs_numpy`.
+The production execution identity is `ccmbs`, displayed as CCMBS — Copernican
+Cosmic Microwave Background Solver. CLI and GUI workflows select control and
+test model contracts and a sampler; the default manifest selection is
+`selection.cmb_solver.id: ccmbs`.
 
 The public solver boundary is implemented by `CMBSolverProtocol`. It
 separates immutable contract preparation from scalar and ordered batch
 evaluation, and every `CMBResult` carries requested order, diagnostics, cache
 provenance, phase timings, solver identity, and a typed failure when
-evaluation cannot complete. A future `ccmbs_taichi` backend can register
-beside CCMBS without changing samplers or likelihood callers.
+evaluation cannot complete. Internal CPU and accelerator backends are chosen
+by CCMBS without changing samplers or likelihood callers.
 
 Slice Sixteen provides that optional boundary without adding Taichi to the
-ordinary runtime. `ccmbs_taichi` reports path-free Metal, Vulkan, or CUDA
-candidate evidence and exposes a fixed-shape exact two-state collision pilot.
-It is selected explicitly; the full declared graph currently returns a typed
-engine-capability result and never falls back to `ccmbs_numpy`. Device
-initialization and the optional import occur only inside the explicit pilot
-call, so CPU-only tests remain deterministic.
+ordinary runtime. CCMBS records path-free Metal, Vulkan, or CUDA candidate
+evidence and uses a fixed-shape exact two-state collision pilot only after
+CPU-equivalence validation. Unsupported full-graph work falls back inside
+CCMBS to the CPU path, so CPU-only tests remain deterministic.
 
 The scalar, vector, and tensor sectors follow this contract. Implementations
 must preserve the meaning of states, source terms, gauge labels, and public
@@ -206,12 +203,14 @@ cannot report parity until the retained comparisons pass.
 arrays and its integrity digest, for reload verification in another process.
 Named fixed-point contracts and CAMB rows are supported for response points;
 each point receives its own ordinary-route execution and parity decision.
-`run_fixed_lcdm_cmb_parity()` is the Slice Seventeen first-row command. It
-executes only fixed massless-neutrino LCDM TT/TE/EE on the canonical sparse
-grid, rejects mismatched declared and resolved CAMB inputs, and retains raw
-source/evolution histories, residuals, convergence records, and hashes. Its
-optional persisted report is intended for a later-process integrity check;
-the command is never part of ordinary test discovery.
+`run_fixed_lcdm_cmb_parity()` is the Slice Seventeen evidence-boundary
+command. It defines fixed massless-neutrino LCDM TT/TE/EE on the canonical
+sparse grid, rejects mismatched declared and resolved CAMB inputs, and retains
+raw source/evolution histories, residuals, convergence records, and hashes.
+Its optional persisted report is verified by
+`read_cmb_parity_matrix_report()` in a later process. Slice Eighteen owns the
+quantitative row execution; neither command is part of ordinary test
+discovery.
 
 The runtime keeps source-history caching separate from complete-spectrum
 caching. A history is reusable only when its static contract, dynamic

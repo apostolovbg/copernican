@@ -1,6 +1,6 @@
-"""NumPy/SciPy reference implementation of the CCMBS solver contract.
+"""Internal NumPy/SciPy execution backend for the CCMBS engine.
 
-This adapter preserves the established declared-graph numerical path while
+This backend preserves the established declared-graph numerical path while
 adding protocol-level preparation, typed results, cache provenance, and
 phase timing for callers that do not need implementation details.
 """
@@ -54,8 +54,8 @@ def _result_provenance(
     return diagnostics, phases
 
 
-class CCMBSNumpySolver:
-    """Adapt the exact declared-graph executor to the CCMBS protocol."""
+class CCMBSCPUBackend:
+    """Run the declared graph on the portable CPU correctness path."""
 
     solver_id = CCMBS_ID
     solver_label = CCMBS_LABEL
@@ -256,4 +256,4 @@ class CCMBSNumpySolver:
         """Release reference-backend resources; caches remain process-owned."""
 
 
-__all__ = ["CCMBSNumpySolver"]
+__all__ = ["CCMBSCPUBackend"]

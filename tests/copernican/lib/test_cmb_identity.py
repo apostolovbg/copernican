@@ -13,7 +13,7 @@ class CMBIdentityTestCase(unittest.TestCase):
 
         self.assertEqual(
             cmb_identity.CCMBS_ID,
-            "ccmbs_numpy",
+            "ccmbs",
         )
         self.assertEqual(
             cmb_identity.CCMBS_LABEL,

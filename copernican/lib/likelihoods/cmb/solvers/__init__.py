@@ -1,6 +1,5 @@
-"""Selectable CMB solver backends and registry infrastructure.
+"""The CCMBS engine and its internal execution-backend infrastructure.
 
-Solver adapters implement one stable protocol so sampler code can select a
-reference CPU implementation or an optional Taichi device boundary without
-importing backend-specific numerical kernels.
+The public registry exposes one CCMBS identity. CPU and optional accelerator
+implementations remain internal execution paths selected by that engine.
 """

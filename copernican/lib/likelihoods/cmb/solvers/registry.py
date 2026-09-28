@@ -1,4 +1,4 @@
-"""Registry and selection helpers for pluggable CMB solver backends."""
+"""Registry and selection helpers for the public CCMBS solver."""
 
 from __future__ import annotations
 
@@ -30,15 +30,13 @@ def register_cmb_solver(
 
 
 def _ensure_defaults() -> None:
-    """Register the reference CCMBS backend lazily to avoid import cycles."""
+    """Register the single public CCMBS engine lazily."""
 
     if CMB_SOLVER_REGISTRY:
         return
-    from .ccmbs_numpy import CCMBSNumpySolver
-    from .ccmbs_taichi import CCMBSTaichiSolver
+    from .ccmbs import CCMBS
 
-    register_cmb_solver(CCMBSNumpySolver())
-    register_cmb_solver(CCMBSTaichiSolver())
+    register_cmb_solver(CCMBS())
 
 
 def available_cmb_solvers() -> tuple[str, ...]:
@@ -62,12 +60,24 @@ def resolve_cmb_solver(
             )
         return solver
     if isinstance(selection, Mapping):
+        forbidden = {
+            str(key)
+            for key in selection
+            if str(key) in {"backend", "execution_backend"}
+        }
+        if forbidden:
+            names = ", ".join(sorted(forbidden))
+            raise UnsupportedCapabilityError(
+                "CCMBS execution backends are selected internally; remove "
+                f"public backend field(s): {names}",
+                context={"forbidden_fields": tuple(sorted(forbidden))},
+            )
         solver_id = selection.get("id") or selection.get("solver_id")
     elif selection is None:
         solver_id = None
     else:
         solver_id = selection
-    normalized_id = str(solver_id or "ccmbs_numpy").strip()
+    normalized_id = str(solver_id or "ccmbs").strip()
     registered = CMB_SOLVER_REGISTRY.get(normalized_id)
     if registered is None:
         available = ", ".join(available_cmb_solvers()) or "none"

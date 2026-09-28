@@ -41,8 +41,8 @@ if you do not need the curated prompts. Additional switches include `--gui`,
 that manifest, and `--output-dir` to override where run directories are
 created. CMB-capable models default to the Copernican declared-graph
 CCMBS solver. The manifest records an independent `selection.cmb_solver`
-choice; `ccmbs_numpy` is selected unless another registered backend is
-requested.
+ choice; `ccmbs` is selected, and CCMBS chooses its internal execution
+ backend from available capabilities.
 ## Interactive CLI Workflow
 The CLI mirrors the Run Builder pages and the shared comparison request:
 1. **Seed selection** – Accept the default seed (`0`), supply your own value,

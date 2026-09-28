@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-27
+**Last Updated:** 2026-09-28
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,146 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-09-28:
+  Change: Reopened Slice Sixteen for complete CCMBS engine consolidation and
+    optional-accelerator license accounting.
+  Why: The previous slice removed public backend identities but retained
+    separate NumPy and Taichi implementation and test surfaces.
+  Impact: Slice Sixteen now requires one implementation-owned CCMBS route and
+    explicit dependency, lock, hash, and license evidence for any Taichi use.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/api_overview.md
+  copernican/docs/cli_guide.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/lib/cmb_identity.py
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/solvers/__init__.py
+  copernican/lib/likelihoods/cmb/solvers/ccmbs.py
+  copernican/lib/likelihoods/cmb/solvers/ccmbs_numpy.py
+  copernican/lib/likelihoods/cmb/solvers/ccmbs_taichi.py
+  copernican/lib/likelihoods/cmb/solvers/registry.py
+  copernican/samplers/sampler_mcmc.py
+  docs/api_overview.md
+  docs/cli_guide.md
+  docs/design_overview.md
+  tests/copernican/lib/likelihoods/cmb/solvers/test_ccmbs.py
+  tests/copernican/lib/likelihoods/cmb/solvers/test_ccmbs_numpy.py
+  tests/copernican/lib/likelihoods/cmb/solvers/test_ccmbs_taichi.py
+  tests/copernican/lib/likelihoods/cmb/solvers/test_registry.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_results.py
+  tests/copernican/lib/test_cmb_contract.py
+  tests/copernican/lib/test_cmb_identity.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/test_result_writer.py
+  tests/copernican/lib/test_run_config.py
+  tests/copernican/lib/test_run_manifest.py
+  tests/copernican/samplers/test_sampler_mcmc.py
+
+- 2026-09-27:
+  Change: Implemented the single public CCMBS engine boundary.
+  Why: Removed CPU and Taichi solver identities from public selection while
+    preserving internal backend capability and fallback evidence.
+  Impact: CCMBS now owns execution choice, provenance, and CPU-equivalent
+    accelerator-pilot validation for the next parity slice.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/api_overview.md
+  copernican/docs/cli_guide.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/lib/cmb_identity.py
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/solvers/__init__.py
+  copernican/lib/likelihoods/cmb/solvers/ccmbs.py
+  copernican/lib/likelihoods/cmb/solvers/ccmbs_numpy.py
+  copernican/lib/likelihoods/cmb/solvers/ccmbs_taichi.py
+  copernican/lib/likelihoods/cmb/solvers/registry.py
+  copernican/samplers/sampler_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/solvers/test_ccmbs.py
+  docs/api_overview.md
+  docs/cli_guide.md
+  docs/design_overview.md
+  tests/copernican/lib/likelihoods/cmb/solvers/test_ccmbs_numpy.py
+  tests/copernican/lib/likelihoods/cmb/solvers/test_ccmbs_taichi.py
+  tests/copernican/lib/likelihoods/cmb/solvers/test_registry.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_results.py
+  tests/copernican/lib/test_cmb_contract.py
+  tests/copernican/lib/test_cmb_identity.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/test_result_writer.py
+  tests/copernican/lib/test_run_config.py
+  tests/copernican/lib/test_run_manifest.py
+  tests/copernican/samplers/test_sampler_mcmc.py
+
+- 2026-09-27:
+  Change: Revised Slice Sixteen around one CCMBS engine with internal
+    hardware execution backends.
+  Why: Removed the public split between CPU and Taichi solver identities and
+    assigned backend selection to CCMBS capability policy.
+  Impact: Subsequent parity and cache work now records backend provenance
+    without treating hardware execution as a second solver.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/samplers/sampler_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/samplers/test_sampler_mcmc.py
+
+- 2026-09-27:
+  Change: Added durable parity reload verification and typed sampler timeout
+    handling.
+  Why: Preserve parity report integrity and prevent timeout-driven posterior
+    bias while beginning Slice Eighteen's bounded closure work.
+  Impact: Persisted reports are hash-checked after reload and timed-out MCMC
+    proposals now return explicit incomplete evidence.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/__init__.py
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/samplers/sampler_mcmc.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/samplers/test_sampler_mcmc.py
+
+- 2026-09-27:
+  Change: Closed Slice Seventeen at its explicit parity-evidence boundary.
+  Why: Separated implementation closure from the later expensive fixed-row
+    scientific decision without claiming CAMB parity prematurely.
+  Impact: Assigned fixed-row execution and matrix expansion to Slice Eighteen.
+  Files:
+  CHANGELOG.md
+  PLAN.md
 
 - 2026-09-27:
   Change: Corrected the public CMB symbol coverage expectation.

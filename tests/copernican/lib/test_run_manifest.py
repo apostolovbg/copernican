@@ -243,10 +243,8 @@ class TestRunManifest(unittest.TestCase):
                 ["DummyModel", "DummyModel"],
             )
             self.assertEqual(loaded["selection"]["sampler"]["name"], "sampler")
-            self.assertEqual(
-                loaded["selection"]["cmb_solver"]["id"], "ccmbs_numpy"
-            )
-            self.assertEqual(loaded["cmb_solver"]["solver_id"], "ccmbs_numpy")
+            self.assertEqual(loaded["selection"]["cmb_solver"]["id"], "ccmbs")
+            self.assertEqual(loaded["cmb_solver"]["solver_id"], "ccmbs")
             self.assertEqual(
                 loaded["cmb_solver"]["capabilities"]["execution_backend"],
                 "cpu",

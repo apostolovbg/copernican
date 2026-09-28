@@ -2872,7 +2872,7 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
         self.assertEqual(
             route,
             {
-                "solver_id": "ccmbs_numpy",
+                "solver_id": "ccmbs",
                 "solver_label": (
                     "CCMBS — Copernican Cosmic Microwave Background Solver"
                 ),
@@ -11638,6 +11638,7 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
                 "run_bundled_cmb_matrix",
                 "run_cmb_parity_matrix",
                 "run_fixed_lcdm_cmb_parity",
+                "read_cmb_parity_matrix_report",
                 "run_bundled_cmb_diagnostics",
                 "run_cmb_model_diagnostic",
                 "run_final_cmb_certification",

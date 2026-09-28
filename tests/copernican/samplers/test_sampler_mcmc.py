@@ -257,7 +257,7 @@ class TestSamplerMcmc(unittest.TestCase):
         self.assertIn("elapsed=", output)
 
     def test_worker_proposal_watchdog_rejects_slow_proposal(self) -> None:
-        """A worker timeout returns ``-inf`` and records a clear reason."""
+        """A worker timeout raises typed incomplete-execution evidence."""
 
         class _SlowProposal:
             def __call__(self, _position):
@@ -272,17 +272,65 @@ class TestSamplerMcmc(unittest.TestCase):
         module._WORKER_EVALUATION_TIMEOUT_SECONDS = 0.01
         try:
             with self.assertLogs(level="ERROR") as captured:
-                value = module._worker_log_probability(numpy.asarray((1.0,)))
+                with self.assertRaises(module.MCMCProposalTimeout) as caught:
+                    module._worker_log_probability(numpy.asarray((1.0,)))
         finally:
             module._WORKER_LOG_PROBABILITY = previous_adapter
             module._WORKER_PHASE = previous_phase
             module._WORKER_EVALUATION_TIMEOUT_SECONDS = previous_timeout
 
-        self.assertTrue(numpy.isneginf(value))
+        self.assertEqual(caught.exception.phase, "burn_in")
+        self.assertEqual(caught.exception.timeout_seconds, 0.01)
+        self.assertTrue(callable(caught.exception.diagnostic))
         output = "\n".join(captured.output)
         self.assertIn("MCMC proposal timeout", output)
         self.assertIn("phase=burn_in", output)
-        self.assertIn("outcome=rejected", output)
+        self.assertIn("outcome=incomplete", output)
+
+    def test_sampler_timeout_returns_explicit_incomplete_result(self) -> None:
+        """A timeout cannot become an ordinary posterior rejection."""
+
+        plugin = _build_short_chain_plugin()
+        sne_df = pandas.DataFrame(
+            {"zcmb": [0.01], "mu_obs": [40.0], "e_mu_obs": [0.1]}
+        )
+        timeout = module.MCMCProposalTimeout(
+            "burn_in",
+            0.25,
+            0.1,
+            "[0.3,0.7]",
+        )
+        with (
+            mock.patch.object(
+                module,
+                "_resolve_mcmc_pool_processes",
+                return_value=None,
+            ),
+            mock.patch.object(
+                module,
+                "_run_stage_with_progress",
+                side_effect=timeout,
+            ),
+        ):
+            result = module.sample_parameters(
+                sne_df,
+                plugin,
+                n_walkers=4,
+                n_steps=1,
+                pool_size=1,
+                burn_in_steps=1,
+                display_progress=False,
+            )
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["completion_state"], "incomplete")
+        failure = result["failure"]
+        self.assertEqual(failure["outcome"], "incomplete")
+        self.assertEqual(
+            failure["request_identity"],
+            "mcmc:ShortChainModel:burn_in",
+        )
+        self.assertEqual(failure["numerical_evidence"]["timeout_seconds"], 0.1)
 
     def test_active_log_probability_evaluates_batch_in_order(self) -> None:
         """Batch adapter preserves full-vector assembly and result order."""

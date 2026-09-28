@@ -1,9 +1,8 @@
-"""Optional Taichi accelerator boundary for fixed-shape CMB kernels.
+"""Internal optional Taichi execution backend for fixed-shape kernels.
 
 The module is import-safe when Taichi is not installed.  The default CCMBS
-route never imports or initializes a device runtime; callers must select this
-backend explicitly and receive a typed capability failure when its optional
-runtime or full declared-graph route is unavailable.
+route never imports or initializes a device runtime unless a supported kernel
+is selected by CCMBS capability policy.
 """
 
 from __future__ import annotations
@@ -15,12 +14,12 @@ import sys
 from typing import Any, Mapping, Sequence
 
 import numpy
+from scipy.linalg import expm
 
 from ..contracts import CMBResult, CMBSolverCapabilities
 from ..errors import EngineCapabilityError
 
-TAICHI_CMB_SOLVER_ID = "ccmbs_taichi"
-TAICHI_CMB_SOLVER_LABEL = "CCMBS — optional Taichi accelerator boundary"
+CCMBS_ACCELERATOR_BACKEND = "taichi"
 _ACCELERATOR_ARCHITECTURES = ("metal", "vulkan", "cuda")
 
 
@@ -111,6 +110,29 @@ def _load_taichi(*, architecture: str | None = None) -> tuple[Any, str]:
             "requested_architecture": requested or None,
             "initialization_error": locals().get("last_error"),
         },
+    )
+
+
+def _cpu_two_state_collision(
+    operator_matrices: numpy.ndarray,
+    target_states: numpy.ndarray,
+    operator_scales: numpy.ndarray,
+    dt: float,
+) -> numpy.ndarray:
+    """Return the scalar CPU reference for the accelerator pilot."""
+
+    return numpy.asarray(
+        tuple(
+            expm(
+                numpy.asarray(matrix, dtype=float) * float(scale) * float(dt)
+            ).dot(numpy.asarray(state, dtype=float))
+            for matrix, state, scale in zip(
+                operator_matrices,
+                target_states,
+                operator_scales,
+            )
+        ),
+        dtype=float,
     )
 
 
@@ -222,14 +244,37 @@ def apply_taichi_two_state_collision(
                 "mode_count": mode_count,
             },
         ) from exc
-    return numpy.asarray(output_field.to_numpy(), dtype=float)
+    result = numpy.asarray(output_field.to_numpy(), dtype=float)
+    reference = _cpu_two_state_collision(
+        matrices,
+        states,
+        scales,
+        dt,
+    )
+    if not numpy.allclose(result, reference, rtol=2.0e-5, atol=2.0e-6):
+        delta = numpy.abs(result - reference)
+        raise _unavailable_error(
+            "Taichi collision pilot failed CPU equivalence validation",
+            context={
+                "architecture": selected_architecture,
+                "max_absolute_error": float(numpy.max(delta, initial=0.0)),
+                "max_relative_error": float(
+                    numpy.max(
+                        delta / numpy.maximum(numpy.abs(reference), 1.0e-30),
+                        initial=0.0,
+                    )
+                ),
+            },
+        )
+    return result
 
 
-class CCMBSTaichiSolver:
-    """Expose explicit accelerator capability without a hidden CPU fallback."""
+class CCMBSAcceleratorBackend:
+    """Expose optional fixed-shape acceleration inside CCMBS."""
 
-    solver_id = TAICHI_CMB_SOLVER_ID
-    solver_label = TAICHI_CMB_SOLVER_LABEL
+    backend_id = CCMBS_ACCELERATOR_BACKEND
+    solver_id = "ccmbs"
+    solver_label = "CCMBS — Copernican Cosmic Microwave Background Solver"
 
     def capabilities(
         self,
@@ -317,9 +362,8 @@ class CCMBSTaichiSolver:
 
 
 __all__ = [
-    "CCMBSTaichiSolver",
-    "TAICHI_CMB_SOLVER_ID",
-    "TAICHI_CMB_SOLVER_LABEL",
+    "CCMBSAcceleratorBackend",
+    "CCMBS_ACCELERATOR_BACKEND",
     "apply_taichi_two_state_collision",
     "taichi_device_probe",
 ]

@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-09-27
+**Last Updated:** 2026-09-28
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -146,8 +146,9 @@ nearly equal metric potentials do not create a floating-point-only breach.
 
 All bundled CMB-capable models execute through the Copernican declared
 declared-graph CMB solver. The manifest selects the solver independently from
-the sampler; `ccmbs_numpy` is the default CCMBS reference backend, and its
-identity and capabilities are persisted in provenance. CAMB and CLASS are
+the sampler; `ccmbs` is the single public CCMBS solver identity, while its
+selected execution backend and capabilities are persisted in provenance. CAMB
+and CLASS are
 independent scientific reference tools used by tests, not production spectrum
 solvers.
 
@@ -355,7 +356,7 @@ the five comparable bundled cosmologies and retains raw `C_ell`/`D_ell`
 surfaces, contract and numerical-plan digests, and artifact hashes. The
 fail-closed comparator rejects a changed raw surface. Canonical
 CCMBS-versus-CAMB acceptance at the production envelope remains assigned to
-Slice Seventeen; CAMB-only rows are never reported as canonical parity.
+Slice Eighteen; CAMB-only rows are never reported as canonical parity.
 Slice Fourteen fixes the bounded parity request to the sparse ell grid
 `(2, 20, 100, 200, 500, 800, 1200, 1500, 2000, 2500)` and records the
 per-surface tolerance matrix. `build_cmb_parity_matrix_report()` requires an
@@ -370,12 +371,13 @@ cannot report parity until the retained comparisons pass.
 arrays and its integrity digest, for reload verification in another process.
 Named fixed-point contracts and CAMB rows are supported for response points;
 each point receives its own ordinary-route execution and parity decision.
-`run_fixed_lcdm_cmb_parity()` narrows that command to the first scientific
-row: fixed massless-neutrino LCDM with TT/TE/EE on the canonical sparse grid.
-It rejects mismatched CCMBS/CAMB physical inputs, requires CAMB's resolved
+`run_fixed_lcdm_cmb_parity()` defines the first scientific evidence boundary:
+fixed massless-neutrino LCDM with TT/TE/EE on the canonical sparse grid. It
+rejects mismatched CCMBS/CAMB physical inputs, requires CAMB's resolved
 defaults, retains raw source and evolution evidence with the spectra, and can
-persist the complete report for a later-process hash check. This explicit
-evidence command is not ordinary test discovery.
+persist the complete report for a later-process hash check. The corresponding
+quantitative execution is owned by Slice Eighteen and is not ordinary test
+discovery. `read_cmb_parity_matrix_report()` verifies the persisted digest.
 Slice Thirteen now makes the ordinary production planner own transfer,
 source, projection, and evolution refinement. Independently evolved anchor
 histories and compact evidence for background, q, hierarchy, evolution,
@@ -493,7 +495,8 @@ from posterior evaluation. Each CMB proposal logs its parameter vector,
 elapsed time, cache state, effective ell/k/eta grids, phase timings, and work
 units. Worker processes emit a heartbeat every 30 seconds and enforce the
 configurable `cmb_evaluation_timeout_seconds` watchdog (default 300 seconds),
-returning a rejected proposal instead of blocking an ensemble step forever.
+returning typed incomplete execution evidence instead of blocking an ensemble
+step or converting a timeout into a rejected posterior proposal.
 Primordial-only parameter rebounds reuse bounded transfer products and rerun
 only primordial power integration; changed cosmological parameters retain
 separate transfer identities, and adaptive refinement keeps its full path.
@@ -515,13 +518,12 @@ events, cache evidence, and shape-aware raw input/output digests. This CPU
 baseline is deterministic and remains the correctness authority for any
 future accelerator backend.
 
-The optional `ccmbs_taichi` backend is registered without importing Taichi or
-requiring accelerator hardware. Explicit selection reports deterministic,
-path-free device capability evidence and exposes a fixed-shape exact
-two-state collision pilot. Selecting it for the full declared graph returns a
-typed engine-capability result; it never silently delegates to the CPU
-solver. Ordinary installation, diagnostics, and test discovery remain
-CPU-only.
+CCMBS may select an internal Taichi execution backend when its validated
+fixed-shape kernels and an available device support the work. Unsupported
+work, unavailable packages, and unsuitable devices fall back inside CCMBS to
+the NumPy CPU correctness path. Backend and fallback evidence is deterministic
+and path-free; callers cannot select CPU or Taichi as separate solvers, and no
+Taichi dependency is required for ordinary installation or test discovery.
 
 Ensemble fit results also retain an `ensemble_performance` record with total
 and per-stage timings, requested and effective worker counts, the CPU-derived

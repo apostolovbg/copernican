@@ -289,6 +289,51 @@ class _MCMCProposalTimeout(BaseException):
     """Signal raised when one worker proposal exceeds its wall-time budget."""
 
 
+class MCMCProposalTimeout(RuntimeError):
+    """Typed incomplete execution for one proposal wall-time timeout."""
+
+    def __init__(
+        self,
+        phase: str,
+        elapsed_seconds: float,
+        timeout_seconds: float,
+        position: str,
+    ) -> None:
+        """Record the timeout evidence needed for an incomplete run."""
+
+        self.phase = str(phase)
+        self.elapsed_seconds = float(elapsed_seconds)
+        self.timeout_seconds = float(timeout_seconds)
+        self.position = str(position)
+        super().__init__(
+            self.phase,
+            self.elapsed_seconds,
+            self.timeout_seconds,
+            self.position,
+        )
+
+    def __str__(self) -> str:
+        """Return a stable diagnostic message for logs and manifests."""
+
+        return (
+            "MCMC proposal exceeded its wall-time budget: "
+            f"phase={self.phase}; elapsed={self.elapsed_seconds:.3f}s; "
+            f"timeout={self.timeout_seconds:.3f}s; position={self.position}"
+        )
+
+    def diagnostic(self) -> dict[str, object]:
+        """Return serialisable timeout evidence without a posterior value."""
+
+        return {
+            "type": type(self).__name__,
+            "phase": self.phase,
+            "elapsed_seconds": self.elapsed_seconds,
+            "timeout_seconds": self.timeout_seconds,
+            "position": self.position,
+            "outcome": "incomplete",
+        }
+
+
 def _proposal_position_text(position: numpy.ndarray) -> str:
     """Return a compact, deterministic proposal vector for run logs."""
 
@@ -471,15 +516,21 @@ def _worker_log_probability(position: numpy.ndarray) -> float:
         value = float(_WORKER_LOG_PROBABILITY(position))
     except _MCMCProposalTimeout:
         elapsed = max(perf_counter() - started, 0.0)
-        logger.error(
-            "MCMC proposal timeout: phase=%s; elapsed=%.3fs; "
-            "timeout=%.3fs; position=%s; outcome=rejected",
+        timeout = MCMCProposalTimeout(
             phase,
             elapsed,
             _WORKER_EVALUATION_TIMEOUT_SECONDS,
             position_text,
         )
-        return float("-inf")
+        logger.error(
+            "MCMC proposal timeout: phase=%s; elapsed=%.3fs; "
+            "timeout=%.3fs; position=%s; outcome=incomplete",
+            phase,
+            elapsed,
+            _WORKER_EVALUATION_TIMEOUT_SECONDS,
+            position_text,
+        )
+        raise timeout
     # DEVCOV_ALLOW_BROAD_ONCE worker proposal telemetry boundary.
     except Exception as exc:
         logger.error(
@@ -1238,12 +1289,16 @@ def sample_parameters(
         *,
         pool_workers: int = 0,
         burn_steps: int = 0,
+        incomplete_failure: MCMCProposalTimeout | None = None,
     ) -> dict[str, object]:
         """Return a failure payload with the same resource provenance."""
 
-        return {
+        result: dict[str, object] = {
             "success": False,
             "samples": None,
+            "completion_state": (
+                "incomplete" if incomplete_failure is not None else "failed"
+            ),
             "cmb_solver": solver_provenance(selected_cmb_solver),
             "ensemble_performance": _ensemble_performance_envelope(
                 started=ensemble_started,
@@ -1260,6 +1315,24 @@ def sample_parameters(
                 ),
             ),
         }
+        if incomplete_failure is not None:
+            failure = incomplete_failure.diagnostic()
+            failure.update(
+                {
+                    "model": getattr(model_plugin, "MODEL_NAME", "Unknown"),
+                    "request_identity": (
+                        "mcmc:"
+                        f"{getattr(model_plugin, 'MODEL_NAME', 'Unknown')}:"
+                        f"{incomplete_failure.phase}"
+                    ),
+                    "numerical_evidence": {
+                        "timeout_seconds": incomplete_failure.timeout_seconds,
+                        "position": incomplete_failure.position,
+                    },
+                }
+            )
+            result["failure"] = failure
+        return result
 
     model_plugin_validation.validate_plugin(model_plugin)
     selected_cmb_solver = resolve_cmb_solver(cmb_solver)
@@ -1571,6 +1644,20 @@ def sample_parameters(
                 },
             )
             phase_seconds["production"] = perf_counter() - production_started
+        except MCMCProposalTimeout as exc:
+            logger.error(
+                "MCMC execution incomplete: model=%s; phase=%s; "
+                "request_identity=mcmc:%s:%s",
+                getattr(model_plugin, "MODEL_NAME", "Unknown"),
+                exc.phase,
+                getattr(model_plugin, "MODEL_NAME", "Unknown"),
+                exc.phase,
+            )
+            return _failure_result(
+                pool_workers=int(pool_processes or 0),
+                burn_steps=burn_in,
+                incomplete_failure=exc,
+            )
         finally:
             if pool is not None:
                 pool.close()
@@ -1876,6 +1963,7 @@ __all__ = [
     "chi_squared_sne",
     "compute_cmb_spectrum",
     "compute_cmb_spectrum_from_contract",
+    "MCMCProposalTimeout",
     "sample_parameters",
 ]
 

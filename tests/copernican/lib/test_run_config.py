@@ -65,7 +65,7 @@ class TestRunConfig(unittest.TestCase):
         self.assertEqual(config.control_model, "ReferenceModel")
         self.assertEqual(config.test_model, "CandidateModel")
         self.assertIsInstance(config.cmb_solver, CMBSolverDescriptor)
-        self.assertEqual(config.cmb_solver.solver_id, "ccmbs_numpy")
+        self.assertEqual(config.cmb_solver.solver_id, "ccmbs")
         self.assertEqual(len(config.datasets), 1)
         descriptor = config.datasets[0]
         self.assertIsInstance(descriptor, DatasetDescriptor)

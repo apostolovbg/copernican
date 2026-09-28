@@ -7,26 +7,21 @@ import numpy
 
 from copernican.lib.likelihoods.cmb.errors import EngineCapabilityError
 from copernican.lib.likelihoods.cmb.solvers.ccmbs_taichi import (
-    CCMBSTaichiSolver,
+    CCMBSAcceleratorBackend,
     apply_taichi_two_state_collision,
     taichi_device_probe,
-)
-from copernican.lib.likelihoods.cmb.solvers.registry import (
-    available_cmb_solvers,
-    resolve_cmb_solver,
 )
 
 
 class TestCCMBSTaichiBoundary(unittest.TestCase):
     """Check explicit device identity and fail-closed optional behavior."""
 
-    def test_registry_exposes_optional_backend_without_importing_taichi(self):
-        """The optional solver is discoverable without eager device import."""
+    def test_internal_backend_is_not_a_public_solver(self):
+        """The accelerator is an internal CCMBS execution backend."""
 
-        self.assertIn("ccmbs_taichi", available_cmb_solvers())
-        solver = resolve_cmb_solver("ccmbs_taichi")
-        self.assertIsInstance(solver, CCMBSTaichiSolver)
+        solver = CCMBSAcceleratorBackend()
         capabilities = solver.capabilities()
+        self.assertEqual(capabilities["solver_id"], "ccmbs")
         self.assertEqual(capabilities["execution_backend"], "accelerator")
         self.assertEqual(
             capabilities["implementation"],
@@ -37,7 +32,7 @@ class TestCCMBSTaichiBoundary(unittest.TestCase):
     def test_selected_backend_reports_typed_full_route_gap(self):
         """Explicit accelerator selection cannot silently use the CPU path."""
 
-        solver = CCMBSTaichiSolver()
+        solver = CCMBSAcceleratorBackend()
         self.assertTrue(callable(solver.prepare))
         self.assertTrue(callable(solver.evaluate))
         self.assertTrue(callable(solver.evaluate_batch))
@@ -50,7 +45,7 @@ class TestCCMBSTaichiBoundary(unittest.TestCase):
             workload="test",
         )
         self.assertIsInstance(result.failure, EngineCapabilityError)
-        self.assertEqual(result.solver_id, "ccmbs_taichi")
+        self.assertEqual(result.solver_id, "ccmbs")
         self.assertFalse(result.success)
         batch = solver.evaluate_batch(
             ({"model_name": "fixture"},),

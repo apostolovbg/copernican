@@ -49,6 +49,7 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     declared_cmb_spectrum_names,
     discover_cmb_model_records,
     discover_cmb_plugins,
+    read_cmb_parity_matrix_report,
     resolve_source_residual_audit_controls,
     run_bundled_cmb_corpus_baseline,
     run_cmb_model_diagnostic,
@@ -1606,6 +1607,10 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
                 json.loads(destination.read_text(encoding="utf-8")),
                 persisted,
             )
+            self.assertEqual(
+                read_cmb_parity_matrix_report(destination),
+                persisted,
+            )
         self.assertEqual(persisted["report_sha256"], executed["report_sha256"])
 
     def test_fixed_lcdm_parity_rejects_mismatched_physical_inputs(self):
@@ -2017,7 +2022,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             contract_audits=audits,
             source_graph_audits=audits,
             declaration_audits=audits,
-            solver_identity="ccmbs_numpy",
+            solver_identity="ccmbs",
             dataset_identities={"cmb": "fixture"},
             fixture_hashes={"lcdm": "fixture"},
             integrity_checks={
@@ -2098,7 +2103,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             contract_audits={filename: {"valid": True}},
             source_graph_audits={filename: {"valid": True}},
             declaration_audits={filename: {"valid": True}},
-            solver_identity="ccmbs_numpy",
+            solver_identity="ccmbs",
             dataset_identities={"cmb": "fixture"},
             fixture_hashes={"lcdm": "fixture"},
             integrity_checks=checks,
@@ -2198,7 +2203,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         ):
             record = run_final_cmb_certification(
                 reference_required_models=(),
-                solver_identity="ccmbs_numpy",
+                solver_identity="ccmbs",
                 dataset_identities={"cmb": "fixture"},
                 fixture_hashes={"fixture": "hash"},
                 bao_isolation={"available": True, "converged": True},
@@ -2265,7 +2270,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             raw_spectra = {"TT": numpy.array([0.1, 0.2])}
             requested_ells = (2, 3)
             requested_spectra = ("TT",)
-            solver_id = "ccmbs_numpy"
+            solver_id = "ccmbs"
             solver_label = "CCMBS NumPy"
             diagnostics = {"work_units": 2}
             phase_timings = {"projection": 0.1}
@@ -2277,7 +2282,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             "raw_spectra": {"TT": numpy.array([0.1, 0.2])},
             "requested_ells": (2, 3),
             "requested_spectra": ("TT",),
-            "solver_id": "ccmbs_numpy",
+            "solver_id": "ccmbs",
             "solver_label": "CCMBS NumPy",
             "diagnostics": {"work_units": 2},
             "phase_timings": {"projection": 0.1},

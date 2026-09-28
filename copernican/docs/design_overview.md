@@ -97,7 +97,8 @@ described throughout this document.
 ## Declared CCMBS Solver
 CMB contracts use the declared-math graph CCMBS solver in
 `copernican/lib/likelihoods/cmb/` through the selectable solver registry.
-The stable default execution identity is `ccmbs_numpy`. User interfaces keep
+The stable public execution identity is `ccmbs`; internal hardware selection
+is recorded separately. User interfaces keep
 control/test model, sampler, and CMB solver selections independent.
 * One immutable graph carries variables, derived quantities,
  differential equations, algebraic constraints, closures, source terms,

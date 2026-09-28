@@ -39,7 +39,7 @@ class CMBBatchContractTestCase(unittest.TestCase):
         self.assertIsNone(result.failure)
         self.assertEqual(result.requested_ells, (2, 3))
         self.assertEqual(result.requested_spectra, ("TT",))
-        self.assertEqual(result.solver_id, "ccmbs_numpy")
+        self.assertEqual(result.solver_id, "ccmbs")
         json.dumps(result.to_dict(), sort_keys=True)
 
     def test_batch_preserves_input_order_and_isolates_typed_failures(self):
@@ -81,7 +81,7 @@ class CMBBatchContractTestCase(unittest.TestCase):
             requested_spectra=("TT",),
             diagnostics={"work_units": 4},
             phase_timings={"projection": 0.25},
-            solver_id="ccmbs_numpy",
+            solver_id="ccmbs",
             solver_label="CCMBS NumPy",
             raw_spectra={"TT": numpy.array([0.1, 0.2])},
         )
@@ -89,7 +89,7 @@ class CMBBatchContractTestCase(unittest.TestCase):
         payload = result.to_dict()
         self.assertEqual(payload["requested_ells"], (8, 3))
         self.assertEqual(payload["requested_spectra"], ("TT",))
-        self.assertEqual(payload["solver_id"], "ccmbs_numpy")
+        self.assertEqual(payload["solver_id"], "ccmbs")
         self.assertEqual(payload["raw_spectra"]["TT"], [0.1, 0.2])
         json.dumps(payload, sort_keys=True)
 

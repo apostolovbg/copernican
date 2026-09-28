@@ -1,6 +1,6 @@
-"""Canonical identity for the reference CCMBS solver."""
+"""Canonical identity for the single public CCMBS solver."""
 
-CCMBS_ID = "ccmbs_numpy"
+CCMBS_ID = "ccmbs"
 CCMBS_LABEL = "CCMBS — Copernican Cosmic Microwave Background Solver"
 
 __all__ = ["CCMBS_ID", "CCMBS_LABEL"]

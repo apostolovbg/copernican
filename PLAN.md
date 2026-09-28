@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-27
+**Last Updated:** 2026-09-28
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -55,13 +55,12 @@ scientific production run or its full observational datasets.
 * `model_wcdm.yml`.
 
 **Non-goals:** This plan does not add a surrogate, another production
-Boltzmann backend, delayed acceptance, broad sampler optimization, a CAMB
+Boltzmann solver, delayed acceptance, broad sampler optimization, a CAMB
 runtime fallback, or a full-resolution production run. Optional compiled
-numerical kernels and an accelerator backend are now included only as the
-performance path owned by Slices Fifteen and Sixteen; they cannot replace the
-CPU reference or conceal a CCMBS defect. The existing Python 3.11 `.venv` is
-managed outside this plan and must not be recreated, replaced, upgraded, or
-otherwise modified.
+numerical kernels and hardware acceleration are execution paths inside the
+single CCMBS solver; they cannot create a second solver identity or conceal a
+CCMBS defect. The existing Python 3.11 `.venv` is managed outside this plan
+and must not be recreated, replaced, upgraded, or otherwise modified.
 
 **Reason for the reset:** The production output from 2026-09-02 showed the
 actual failure mode. LambdaCDM produced no CMB curve because CCMBS rejected
@@ -86,7 +85,10 @@ tolerance or replacing the CPU correctness route.
 ## Global Constraints
 
 * Do not change branches or create branches.
-* CCMBS is the selected production CMB solver. CAMB is comparison-only.
+* CCMBS is the one public production CMB solver. CAMB is comparison-only.
+  Hardware selection is internal CCMBS execution policy: CPU and optional
+  accelerator backends are not public solver choices, contract values, or
+  parity identities.
 * Model files contain theory, not solver implementation instructions.
   `numerical`, `accuracy_controls`, hierarchy floors, ODE tolerances,
   quadrature counts, coupling thresholds, fixed integration starts, and
@@ -959,64 +961,95 @@ runtime envelopes retain `collision_kernel_metrics` with elapsed kernel time,
 mode and fallback counts, allocation events, cache evidence, and raw-array
 digests. No GPU or dependency change is required.
 
-### [closed] Slice Sixteen — optional portable accelerator boundary
+### [active] Slice Sixteen — one CCMBS engine with optional hardware execution
 
-Establish the explicit optional accelerator boundary for validated fixed-shape
-numerical kernels. Taichi is the initial candidate because Metal can serve
-Apple Silicon and Vulkan can serve cross-platform devices such as the RX480.
-The backend is selected explicitly; hardware or package absence is typed
-non-applicability, never a silent CPU/GPU result substitution.
+Correct the accelerator boundary so CCMBS is one engine in implementation as
+well as in public identity. Remove the separate `ccmbs_numpy` and
+`ccmbs_taichi` modules, classes, imports, registry concepts, manifest values,
+and standalone test surfaces. Consolidate the execution logic under CCMBS
+and let its internal device policy choose the best supported path for the
+available hardware. A device adapter may exist only as an implementation
+detail of CCMBS; it must not be a solver, backend contract, or separately
+selectable route.
 
-The new `ccmbs_taichi` adapter is import-safe without Taichi, reports
-path-free device capability evidence, and exposes a fixed-shape exact
-two-state collision pilot. The shared Python orchestration layer retains
-adaptive planning, cache identity, persistence, diagnostics, and typed
-failure handling. Selecting the adapter for the full declared graph returns a
-typed engine-capability result rather than delegating to CCMBSNumpySolver.
+The portable CPU path remains the correctness baseline. Optional device
+acceleration may be used for validated fixed-shape kernels when supported
+hardware and software are available. Unsupported kernels, unavailable
+optional runtimes, and unsuitable devices fall back to CPU execution inside
+CCMBS; they do not produce a second solver result or a public
+non-applicability decision. Device capability, selection, fallback, and
+numerical-validation evidence remains path-free and visible in CCMBS runtime
+provenance.
 
-Acceptance requires deterministic accelerator identity, explicit candidate
-device reporting, typed failure on unavailable hardware, and a CPU-only test
-path that remains green. The pilot's numerical route has no CPU fallback and
-does not relax convergence or parity decisions. Full-graph accelerator
-execution remains a later optimization and is not needed by ordinary test
-discovery.
+Taichi is not a dependency of the ordinary installation or test route. If
+implementation work introduces Taichi as an optional dependency, the same
+slice must first declare its exact package/version and platform markers in
+the appropriate optional dependency surface, resolve and hash it through the
+repository lock process, and add its direct and transitive license evidence
+to the corresponding license inventory. The inventory must retain the
+license text or authoritative source, SPDX identification where available,
+package version, source URL, and hash evidence. No unlicensed or implicit
+runtime import is acceptable, and tests must remain valid when Taichi is not
+installed.
 
-Slice Sixteen closure evidence: `ccmbs_taichi` is registered lazily beside
-`ccmbs_numpy`; importing the solver registry does not import Taichi. The
-fixed-shape pilot uses Taichi only after explicit selection and preserves
-exact real two-state exponential structure. Focused tests verify registration,
-capability provenance, path-free probes, typed full-route non-applicability,
-and typed missing-runtime behavior. No dependency or GPU hardware is added
-to the ordinary installation or test path.
+The shared CCMBS orchestration layer retains adaptive planning, cache identity,
+persistence, diagnostics, typed failures, and convergence decisions. Device
+selection cannot change physical inputs, requested surfaces, numerical
+tolerances, or parity acceptance. Fixed-shape acceleration must compare
+against the CPU baseline within an explicit numerical contract before a path
+is eligible for automatic use. No optional runtime or hardware is required
+for ordinary installation or tests.
 
-### [active] Slice Seventeen — bounded quantitative CCMBS/CAMB parity closure
+Acceptance requires one CCMBS implementation and registry identity, automatic
+hardware-aware capability selection, deterministic device provenance, CPU
+fallback for unsupported work, and equivalent raw results for every enabled
+accelerated path. The source tree and tests must contain no standalone
+`ccmbs_numpy` or `ccmbs_taichi` solver surfaces. Focused tests must exercise
+the public CCMBS route, optional-runtime absence, device selection, fallback,
+and numerical equivalence without importing separate backend classes.
 
-Resume Slice Fourteen's canonical sparse matrix only after the CPU baseline
-and optional accelerator boundary are validated. Execute one actual fixed
-LCDM TT/TE/EE row through the ordinary public route, retaining raw C_ell and
-D_ell arrays, independently resolved CAMB inputs, source and evolution
-evidence, residuals, convergence records, and durable hashes. Use that row to
-locate any physical discrepancy before expanding to shifted amplitude,
-massive-neutrino LCDM, Planck, wCDM, and w0wa.
+Slice Sixteen is reopened because the previous closure only removed public
+labels while retaining the split implementation and standalone tests. It is
+not closed until the implementation is consolidated, the optional dependency
+and license boundary is explicit, and the focused evidence proves that CCMBS
+alone owns execution choice and provenance.
 
-Expand to the remaining comparable models and declared surfaces only after
-the fixed row passes. Shared artifacts may be reused only for identical
-physical points, requests, numerical plans, and reference identities. The
-bounded matrix must pass without mocks, CAMB fallback, dropped surfaces,
-relaxed tolerances, or diagnostic bypasses. Full-resolution production remains
-the user's separate scientific run.
+### [planned] Slice Seventeen — bounded quantitative CCMBS/CAMB parity evidence
 
-Slice Seventeen implementation evidence now provides the explicit
+Establish the explicit, fail-closed evidence boundary for the first bounded
+CCMBS/CAMB comparison after the corrected single-engine boundary. The boundary
+fixes one ordinary-route LCDM TT/TE/EE row, its
+physical identity, CAMB-resolved defaults, canonical ell tier, raw C_ell and
+D_ell surfaces, source and evolution evidence, residuals, convergence
+records, and durable hashes. It does not claim that the numerical row has
+passed.
+
+Slice Seventeen implementation evidence provides the explicit
 `run_fixed_lcdm_cmb_parity()` command. It rejects mismatched declared and CAMB
-physical inputs, requires CAMB's resolved defaults, retains raw source and
-evolution evidence beside the spectra and residuals, and persists a reloadable
-hash-checked report. Its fixed-row execution is intentionally outside ordinary
-test discovery because it is the first expensive scientific comparison. The
-slice remains active until that explicit ordinary-route row is actually
-executed and its quantitative decision is retained; a green development gate
-does not claim parity.
+physical inputs, requires a versioned CAMB identity and resolved massless
+neutrino defaults, retains raw source and evolution evidence beside spectra
+and residuals, and persists a reloadable hash-checked report. Its execution
+remains outside ordinary test discovery because it is an expensive scientific
+comparison. The command must be revalidated through the one public CCMBS
+identity and record the selected execution backend separately from the solver
+identity. The actual fixed-row decision and later matrix expansion are owned
+by the next implementation slice; full-resolution production remains the
+user's separate scientific run.
 
-### [planned] Slice Eighteen — bounded sampler and corpus closure
+### [planned] Slice Eighteen — explicit parity, sampler, and corpus closure
+
+Execute the explicit fixed LCDM TT/TE/EE row through the ordinary public route
+using `run_fixed_lcdm_cmb_parity()`. Retain and reload the complete report,
+including raw spectra, independently resolved CAMB inputs, source and
+evolution evidence, residuals, convergence records, and hashes. Require a
+quantitative decision before expanding to shifted amplitude, massive-neutrino
+LCDM, Planck, wCDM, and w0wa. Shared artifacts may be reused only for
+identical physical points, requests, numerical plans, reference identities, and
+backend-validation provenance. The bounded matrix must pass without mocks,
+CAMB fallback, dropped surfaces, relaxed tolerances, or diagnostic bypasses.
+Backend changes must not be treated as new physical points; they must either
+reuse a validated immutable product or produce a separately evidenced product
+with the same CCMBS contract and numerical plan.
 
 Define one honest joint-MCMC resolution policy. It may reuse shared immutable
 products only when the complete physical parameter point, declaration,
@@ -1050,6 +1083,13 @@ accepted raw array, and that every intentionally expensive test states the
 behavior it proves. Full-resolution production data and scientific proof are
 separate explicitly invoked evidence work, not hidden inside `gate --verify`,
 `devcovenant run`, or ordinary test discovery.
+
+Slice Eighteen implementation evidence now includes a reloadable parity-report
+digest verifier and a typed MCMC timeout path. A timed-out proposal produces
+an explicitly incomplete result with phase, request identity, position, and
+timeout evidence; it is never converted to an ordinary posterior rejection.
+The fixed-row quantitative decision, cache-identity policy, and corpus matrix
+remain outstanding requirements of this slice.
 
 ## Completion Standard
 
