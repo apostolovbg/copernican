@@ -1449,6 +1449,14 @@ def build_cmb_parity_matrix_report(
             ),
             "issues": list(issues),
         }
+        actual_mapping = actual if isinstance(actual, Mapping) else {}
+        solver_provenance = {
+            "solver_id": str(actual_mapping.get("solver_id", "")),
+            "solver_label": str(actual_mapping.get("solver_label", "")),
+            "runtime_diagnostics": _jsonable(
+                actual_mapping.get("runtime_diagnostics", {})
+            ),
+        }
         records[model_name] = {
             "model": model_name,
             "status": status,
@@ -1457,6 +1465,7 @@ def build_cmb_parity_matrix_report(
             "resolved_parameters": resolved_parameter_records.get(model_name),
             "parameter_points": _jsonable(point_specs),
             "runtime_evidence": evidence["runtime_evidence"],
+            "solver_provenance": solver_provenance,
             "raw_evidence_sha256": _canonical_sha256(evidence),
         }
 
@@ -4664,10 +4673,8 @@ def build_final_cmb_certification_report(
         "bao_isolation": _jsonable(bao_evidence),
         "issues": sorted(global_issues),
     }
-    canonical = json.dumps(
-        _jsonable(base), sort_keys=True, separators=(",", ":")
-    ).encode("utf-8")
-    base["record_sha256"] = hashlib.sha256(canonical).hexdigest()
+    base.pop("record_sha256", None)
+    base["record_sha256"] = _canonical_sha256(base)
     return base
 
 
@@ -4686,6 +4693,35 @@ def write_final_cmb_certification_report(
         encoding="utf-8",
     )
     return record
+
+
+def read_final_cmb_certification_report(
+    source: str | Path,
+) -> dict[str, Any]:
+    """Reload one final certification manifest and verify its digest."""
+
+    path = Path(source)
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError(
+            f"Unable to read final CMB certification report from {path}"
+        ) from error
+    if not isinstance(payload, Mapping):
+        raise ValueError("Final CMB certification report must be a mapping")
+    expected = str(payload.get("record_sha256", ""))
+    if len(expected) != 64:
+        raise ValueError("Final CMB certification report lacks record_sha256")
+    actual = _canonical_sha256(
+        {
+            key: value
+            for key, value in payload.items()
+            if key != "record_sha256"
+        }
+    )
+    if actual != expected:
+        raise ValueError("Final CMB certification report digest is invalid")
+    return dict(payload)
 
 
 def run_final_cmb_certification(

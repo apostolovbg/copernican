@@ -11647,6 +11647,7 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
                 "write_cmb_corpus_baseline_report",
                 "write_cmb_certification_report",
                 "write_cmb_parity_matrix_report",
+                "read_final_cmb_certification_report",
                 "write_final_cmb_certification_report",
             },
         )

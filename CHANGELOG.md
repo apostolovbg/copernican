@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-28
+**Last Updated:** 2026-10-02
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,70 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-10-02:
+  Change: Refreshed Slice Eighteen closure records and documentation dates.
+  Why: Refreshed markers because the current gate session requires a fresh
+    changelog entry for touched documentation.
+  Impact: Bounded closure evidence remains current and traceable while Slice
+    Nineteen stays the explicit scientific handoff.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+
+- 2026-09-30:
+  Change: Closed Slice Eighteen's bounded closure infrastructure and added
+    digest-verified final certification manifests.
+  Why: Final reports needed process-independent reload verification while
+    parity, cache, sampler, and corpus evidence stayed bounded for tests.
+  Impact: Timeout, cache, matrix, provenance, and manifest evidence are
+    covered without executing the expensive scientific acceptance row.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+
+- 2026-09-30:
+  Change: Refreshed Slice Seventeen evidence documentation and changelog
+    dates.
+  Why: The current gate session requires touched documentation and its
+    changelog entry to use today's UTC date.
+  Impact: Parity implementation evidence remains current and traceable across
+    the plan, README mirrors, diagnostics, and focused tests.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+
+- 2026-09-28:
+  Change: Closed Slice Seventeen's bounded parity evidence implementation and
+    added ordinary-route persistence coverage.
+  Why: Revalidated the fixed LCDM parity command after CCMBS became one
+    implementation-owned engine without running the expensive scientific row.
+  Impact: The command now has bounded proof for public-route execution,
+    raw-surface retention, backend provenance, and reloadable report hashes;
+    quantitative parity remains Slice Eighteen work.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
 
 - 2026-09-28:
   Change: Consolidated CCMBS execution and removed standalone CPU and

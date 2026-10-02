@@ -7,6 +7,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 import numpy
@@ -15,6 +16,7 @@ import yaml
 from copernican.lib import model_adapter, model_coder, model_spec_validator
 from copernican.lib.likelihoods.cmb import cmb as cmb_api
 from copernican.lib.likelihoods.cmb import diagnostics
+from copernican.lib.likelihoods.cmb.contracts import CMBResult
 from copernican.lib.likelihoods.cmb.contracts_audit import (
     assert_bundled_cmb_contracts,
     audit_bundled_cmb_contracts,
@@ -50,6 +52,7 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     discover_cmb_model_records,
     discover_cmb_plugins,
     read_cmb_parity_matrix_report,
+    read_final_cmb_certification_report,
     resolve_source_residual_audit_controls,
     run_bundled_cmb_corpus_baseline,
     run_cmb_model_diagnostic,
@@ -1694,6 +1697,157 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "massless neutrinos"):
             run_fixed_lcdm_cmb_parity(reference, declared)
 
+    def test_fixed_lcdm_parity_runs_public_route_and_reloads_report(self):
+        """The bounded fixed-row command retains its durable route evidence."""
+
+        model_name = "model_lcdm.yml"
+        ell_values = tuple(CMB_PARITY_CERTIFICATION_TIER["ells"])
+        spectra = ("TT", "TE", "EE")
+        parameter_map = {
+            "H0": 75.0,
+            "ombh2": 0.0309375,
+            "omch2": 0.18,
+            "tau": 0.054,
+            "As": 2.1e-9,
+            "ns": 0.965,
+            "Neff": 3.0,
+            "YHe": 0.245,
+            "mnu": 0.0,
+            "num_massive_neutrinos": 0,
+        }
+        resolved = {
+            "H0": 75.0,
+            "ombh2": 0.0309375,
+            "omch2": 0.18,
+            "omk": 0.0,
+            "YHe": 0.245,
+            "tau": 0.054,
+            "As": 2.1e-9,
+            "ns": 0.965,
+            "num_nu_massless": 3.0,
+            "num_nu_massive": 0,
+            "omnuh2": 0.0,
+        }
+        ell = numpy.asarray(ell_values, dtype=float)
+        conversion = ell * (ell + 1.0) / (2.0 * numpy.pi)
+        c_values = {
+            "TT": numpy.linspace(2.0, 4.0, ell.size),
+            "TE": numpy.linspace(-1.0, 1.0, ell.size),
+            "EE": numpy.linspace(1.0, 2.0, ell.size),
+        }
+        raw_spectra = {
+            name: values.tolist() for name, values in c_values.items()
+        }
+        public_spectra = {
+            name: (values * conversion).tolist()
+            for name, values in c_values.items()
+        }
+        runtime_evidence = {
+            "production_scalar_k_convergence": {"converged": True},
+            "resolution_axis_evidence": {
+                "evolution": {"status": "measured"},
+                "source": {"status": "measured"},
+            },
+            "scalar_evolution_convergence": {"converged": True},
+            "source_history_refinement": {"independently_evolved": True},
+            "declared_source_history_convergence": {"finite": True},
+            "source_history_residual_samples_by_k": {"0.1": {"finite": True}},
+            "independent_source_residual_audit": {"converged": True},
+            "source_history_bundle_digest": {"sha256": "b" * 64},
+        }
+        result = CMBResult(
+            spectra=public_spectra,
+            raw_spectra=raw_spectra,
+            requested_ells=ell_values,
+            requested_spectra=spectra,
+            diagnostics={
+                "ccmbs_backend": {"selected_backend": "cpu"},
+                "performance_record": {
+                    "context": {
+                        "runtime": {
+                            "production_scalar_k_convergence": {
+                                "converged": True,
+                                "relative_error": 0.0,
+                            }
+                        }
+                    }
+                },
+            },
+            solver_id="ccmbs",
+            solver_label="CCMBS",
+        )
+        reference = {
+            "reference_identity": "camb:test",
+            "contract": {"param_map": parameter_map},
+            "resolved_parameters": resolved,
+            "ell_values": ell_values,
+            "spectra": {
+                name: {
+                    "C_ell": raw_spectra[name],
+                    "D_ell": public_spectra[name],
+                }
+                for name in spectra
+            },
+            "fixture_sha256": "a" * 64,
+            "tolerances": {name: 0.01 for name in spectra},
+        }
+        record = CMBModelDiscoveryRecord(
+            model_filename=model_name,
+            model_name="LambdaCDM",
+            status="ready",
+            plugin=SimpleNamespace(),
+        )
+
+        def ordinary_route(*args, **kwargs):
+            """Place the mocked ordinary-route result in the public slot."""
+
+            cmb_api._LAST_CMB_RESULT.set(result)
+
+        with tempfile.TemporaryDirectory() as output_directory:
+            destination = Path(output_directory) / "fixed-lcdm-parity.json"
+            with (
+                mock.patch.object(
+                    diagnostics,
+                    "discover_cmb_model_records",
+                    return_value=(record,),
+                ),
+                mock.patch.object(
+                    cmb_api,
+                    "compute_cmb_spectrum_from_contract",
+                    side_effect=ordinary_route,
+                ) as public_request,
+                mock.patch(
+                    "copernican.lib.likelihoods.cmb.orchestrators.ccmbs."
+                    "last_declared_runtime_evidence",
+                    return_value=runtime_evidence,
+                ),
+            ):
+                report = run_fixed_lcdm_cmb_parity(
+                    reference,
+                    {"param_map": dict(parameter_map)},
+                    output_path=destination,
+                )
+            restored = read_cmb_parity_matrix_report(destination)
+
+        self.assertTrue(report["accepted"], report)
+        self.assertEqual(public_request.call_count, 1)
+        row = report["reports"][model_name]
+        self.assertEqual(row["solver_provenance"]["solver_id"], "ccmbs")
+        self.assertEqual(
+            row["solver_provenance"]["runtime_diagnostics"]["ccmbs_backend"][
+                "selected_backend"
+            ],
+            "cpu",
+        )
+        self.assertEqual(
+            {item["row"] for item in row["comparison"]["rows"]},
+            {f"scalar:{name}" for name in spectra},
+        )
+        self.assertEqual(
+            restored["report_sha256"],
+            report["report_sha256"],
+        )
+
     def test_source_history_audit_recomputes_all_declared_closures(
         self,
     ) -> None:
@@ -2214,6 +2368,36 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             record["provenance"]["raw_evidence_digests"][filename],
             diagnostics._canonical_sha256(report.to_dict()),
         )
+
+        with tempfile.TemporaryDirectory() as directory:
+            destination = Path(directory) / "final-certification.json"
+            persisted = write_final_cmb_certification_report(
+                (report,),
+                destination,
+                required_model_filenames=(filename,),
+                reference_required_models=(),
+                contract_audits={filename: {"valid": True}},
+                source_graph_audits={filename: {"valid": True}},
+                declaration_audits={filename: {"valid": True}},
+                solver_identity="ccmbs",
+                dataset_identities={"cmb": "fixture"},
+                fixture_hashes={"fixture": "hash"},
+                integrity_checks=integrity["checks"],
+                bao_isolation={"available": True, "converged": True},
+                full_matrix=matrix,
+            )
+            restored = read_final_cmb_certification_report(destination)
+            self.assertEqual(
+                restored["record_sha256"], persisted["record_sha256"]
+            )
+            tampered = json.loads(destination.read_text(encoding="utf-8"))
+            tampered["success"] = False
+            destination.write_text(
+                json.dumps(tampered),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "digest is invalid"):
+                read_final_cmb_certification_report(destination)
 
     def test_scalar_batch_cache_audit_requires_order_and_unique_identities(
         self,

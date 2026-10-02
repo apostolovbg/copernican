@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-09-28
+**Last Updated:** 2026-10-02
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -278,11 +278,16 @@ fixed-background values and covariance handling.
 and dataset identities, fixture hashes, per-model raw evidence digests, and
 explicit integrity decisions. `assess_bao_cmb_isolation()` compares captured
 BAO values, covariance metadata, and typed failures without invoking CCMBS.
+Bounded parity reports also retain the ordinary-route solver identity and
+selected backend diagnostics beside the raw comparison rows, so hardware
+provenance cannot be confused with a separate physical solver.
 `run_final_cmb_certification()` is the production hand-off: it executes the
 full declared-observable matrix, rehydrates every raw report, applies the
 repository and BAO-isolation gates, and optionally writes one deterministic
 JSON artifact. It never invokes sampling or accepts a plot in place of raw
 scientific evidence.
+`read_final_cmb_certification_report()` reloads that artifact and rejects any
+post-run mutation by verifying its recorded digest.
 Generated model plugins expose separate recombination and drag-epoch sound
 horizons. BAO selects `get_sound_horizon_rs_drag_Mpc()` and records its
 epoch, source, and fitted drag redshift; the CMB background continues to use

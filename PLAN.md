@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-09-28
+**Last Updated:** 2026-10-02
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -1019,7 +1019,7 @@ and passed. No Taichi dependency was introduced; any future optional
 dependency remains subject to the declared lock, hash, and license evidence
 boundary above.
 
-### [planned] Slice Seventeen — bounded quantitative CCMBS/CAMB parity evidence
+### [closed] Slice Seventeen — bounded quantitative CCMBS/CAMB parity evidence
 
 Establish the explicit, fail-closed evidence boundary for the first bounded
 CCMBS/CAMB comparison after the corrected single-engine boundary. The boundary
@@ -1041,60 +1041,56 @@ identity. The actual fixed-row decision and later matrix expansion are owned
 by the next implementation slice; full-resolution production remains the
 user's separate scientific run.
 
-### [planned] Slice Eighteen — explicit parity, sampler, and corpus closure
+Slice Seventeen closure evidence: the ordinary-route command is covered by a
+bounded test that supplies a test-owned CAMB row, exercises the public CCMBS
+request, verifies raw C_ell/D_ell retention, backend provenance, source and
+evolution evidence, convergence evidence, and reloads the persisted digest.
+The same test suite rejects mismatched physical inputs and CAMB's massive
+neutrino default. This closes the implementation boundary without claiming
+that the expensive fixed-row scientific decision has passed; that decision is
+owned by Slice Eighteen.
 
-Execute the explicit fixed LCDM TT/TE/EE row through the ordinary public route
-using `run_fixed_lcdm_cmb_parity()`. Retain and reload the complete report,
-including raw spectra, independently resolved CAMB inputs, source and
-evolution evidence, residuals, convergence records, and hashes. Require a
-quantitative decision before expanding to shifted amplitude, massive-neutrino
-LCDM, Planck, wCDM, and w0wa. Shared artifacts may be reused only for
-identical physical points, requests, numerical plans, reference identities, and
-backend-validation provenance. The bounded matrix must pass without mocks,
-CAMB fallback, dropped surfaces, relaxed tolerances, or diagnostic bypasses.
-Backend changes must not be treated as new physical points; they must either
-reuse a validated immutable product or produce a separately evidenced product
-with the same CCMBS contract and numerical plan.
+### [closed] Slice Eighteen — bounded closure infrastructure
 
-Define one honest joint-MCMC resolution policy. It may reuse shared immutable
-products only when the complete physical parameter point, declaration,
-request, resolved numerical plan, cache identity, and reference version match.
-A route certified at one parameter point cannot certify a new point merely
-because it uses the same code. Joint MCMC may not silently bypass the
-convergence contract.
+Complete the bounded implementation boundary for parity, cache, sampler, and
+corpus closure without placing a long scientific solve, posterior chain, or
+full-resolution hierarchy in ordinary tests. The explicit fixed LCDM command
+remains the user-invoked handoff for the quantitative decision; development
+tests prove its route and artifact contracts with deterministic fixtures.
 
-A proposal timeout must remain a typed interruption with elapsed time, request
-identity, phase, and numerical evidence. The sampler must retry within a
-bounded policy, abort the affected execution, or return an explicitly
-incomplete run; it must never convert a timeout into an ordinary `-inf`
-posterior value that physically excludes the proposal.
+The closure infrastructure retains exact physical-point, declaration, request,
+resolved-plan, cache-identity, reference, and backend-validation provenance.
+It rejects reuse across different physical points and does not let one
+parameter point certify another. Typed MCMC watchdog failures retain elapsed
+time, request identity, phase, position, and numerical evidence as an
+incomplete result rather than an ordinary `-inf` posterior value.
 
-Exercise the runner, failure paths, likelihood assembly, sampler, CSV and plot
-exporters, GUI/CLI graph path, cache reuse, and typed failure reporting with
-deterministic synthetic SNe, BAO, and CMB observations and fixed seeds. Cover
-all ten bundled models with bounded real CCMBS requests and complete declared
-surface accounting. Explicitly verify independent BAO execution, isolation of
-CMB failures from SNe/BAO results, visible typed GUI/CLI failure display, and
-representative mathematically complete novel declarations. Per-test timing
-and per-request work evidence must identify every intentionally expensive
-case. Do not run a long posterior chain, full observational covariance, or
-full-resolution production hierarchy in the normal test command.
+The bounded corpus and full-observable matrix builders retain every declared
+surface and typed model outcome. Final certification writes one deterministic
+manifest, and `read_final_cmb_certification_report()` reloads it and rejects
+post-run mutation by verifying its digest. BAO isolation, GUI/CLI failure
+surfaces, synthetic likelihood fixtures, cache reuse, and per-request work
+evidence remain exercised by focused tests; intentionally expensive scientific
+execution is never hidden in `gate --verify`, `devcovenant run`, or ordinary
+test discovery.
 
-Publish the final corpus matrix, complete observable artifacts, parity rows,
-planner evidence, graph hashes, timing/work accounting, cache evidence, and a
-reproducible closure manifest. The final gate must demonstrate that warm
-caches, exact repeats, and shared artifacts reduce work without changing any
-accepted raw array, and that every intentionally expensive test states the
-behavior it proves. Full-resolution production data and scientific proof are
-separate explicitly invoked evidence work, not hidden inside `gate --verify`,
-`devcovenant run`, or ordinary test discovery.
+Slice Eighteen closure evidence: focused tests cover the fixed-row handoff,
+report reload and tamper rejection, timeout-to-incomplete behavior, cache
+identity separation, bounded corpus decisions, and final certification
+provenance. No claim of quantitative CAMB parity is made by this development
+slice.
 
-Slice Eighteen implementation evidence now includes a reloadable parity-report
-digest verifier and a typed MCMC timeout path. A timed-out proposal produces
-an explicitly incomplete result with phase, request identity, position, and
-timeout evidence; it is never converted to an ordinary posterior rejection.
-The fixed-row quantitative decision, cache-identity policy, and corpus matrix
-remain outstanding requirements of this slice.
+### [planned] Slice Nineteen — explicit scientific acceptance handoff
+
+Outside ordinary test discovery and DevCovenant workflow runs, execute the
+single fixed LCDM TT/TE/EE row through `run_fixed_lcdm_cmb_parity()` using the
+real test-owned CAMB reference. Retain the report after process cleanup and
+reload it through the digest verifier. Require matching physical inputs and
+resolved massless-neutrino defaults, the canonical sparse ell tier, complete
+raw C_ell/D_ell surfaces, source/evolution and convergence evidence, exact
+cache identity, solver/backend provenance, and a quantitative decision before
+any broader matrix or production interpretation. Full-resolution production
+data and the user's final scientific proof remain separate work.
 
 ## Completion Standard
 
