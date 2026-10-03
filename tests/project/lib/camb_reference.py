@@ -1207,3 +1207,87 @@ __all__ = [
     "resolve_camb_parameters",
     "write_lcdm_full_reference_fixture",
 ]
+
+
+def completion_reference_windows(fixture: Mapping[str, Any]) -> list[dict]:
+    """Freeze contiguous feature windows from independent dense CAMB arrays.
+
+    Acoustic extrema above ell 50 exclude the reionization bump. Three TT
+    peaks/troughs, EE peaks, and TE crossings cover phase and sign; fixed
+    high-ell windows constrain damping. Unit spacing prevents interpolation
+    from hiding a spike between the sparse range anchors.
+    """
+
+    ell = numpy.asarray(fixture["ell_values"], dtype=int)
+    if not numpy.array_equal(ell, numpy.arange(2, 2501)):
+        raise ValueError("Completion windows require dense ell 2 through 2500")
+    features = []
+    for name, kind in (
+        ("TT", "peak"),
+        ("TT", "trough"),
+        ("EE", "peak"),
+        ("TE", "zero_crossing"),
+    ):
+        values = numpy.asarray(fixture["spectra"][name]["D_ell"])
+        if kind == "zero_crossing":
+            indices = numpy.flatnonzero(values[:-1] * values[1:] <= 0)
+        else:
+            sign = 1 if kind == "peak" else -1
+            indices = (
+                numpy.flatnonzero(
+                    (sign * numpy.diff(values)[:-1] > 0)
+                    & (sign * numpy.diff(values)[1:] < 0)
+                )
+                + 1
+            )
+        centers = [int(ell[index]) for index in indices if ell[index] >= 50][
+            :3
+        ]
+        if len(centers) != 3:
+            raise ValueError(
+                f"Independent reference lacks three {name} {kind}s"
+            )
+        for center in centers:
+            features.append(
+                {
+                    "surface": name,
+                    "kind": kind,
+                    "ell": center,
+                    "lower": center - 8,
+                    "upper": center + 8,
+                }
+            )
+    return features
+
+
+def build_completion_camb_reference(
+    contract: Mapping[str, Any], *, model_name: str, fixed_point: str
+) -> dict:
+    """Retain resolved defaults and reference-selected acoustic windows."""
+
+    dense = build_camb_full_reference_fixture(
+        contract,
+        range(2, 2501),
+        model_name=model_name,
+        fixed_point=fixed_point,
+    )
+    features = completion_reference_windows(dense)
+    selected = set(CAMB_PARITY_ELL_VALUES)
+    for feature in features:
+        selected.update(range(feature["lower"], feature["upper"] + 1))
+    selected.update(range(1988, 2013))
+    selected.update(range(2480, 2501))
+    ells = sorted(selected)
+    indices = numpy.asarray(ells) - 2
+    dense["ell_values"] = ells
+    for surface in dense["spectra"].values():
+        for representation in ("C_ell", "D_ell"):
+            surface[representation] = numpy.asarray(surface[representation])[
+                indices
+            ].tolist()
+    dense["features"] = features
+    dense["damping_windows"] = [[1988, 2012], [2480, 2500]]
+    dense["resolved_defaults"] = str(_make_camb_params(contract, lmax=2500))
+    dense.pop("fixture_sha256")
+    dense["fixture_sha256"] = reference_fixture_sha256(dense)
+    return dense

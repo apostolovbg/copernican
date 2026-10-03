@@ -128,6 +128,56 @@ CMB_PARITY_CERTIFICATION_TIER = {
     },
 }
 
+# This inventory is the completion contract, not a selectable smoke tier.
+# Point labels are owned by the test reference builder; final certification
+# cannot shrink the required inventory through caller-provided subsets.
+CMB_COMPLETION_POINTS = {
+    "model_lcdm.yml": ("initial", "amplitude_up"),
+    "model_lcdm_mnu.yml": ("initial", "mass_zero", "mass_006", "mass_050"),
+    "model_ref_planck2018.yml": ("initial",),
+    "model_wcdm.yml": ("initial", "w_minus_09"),
+    "model_w0wa.yml": ("initial", "w0_minus_09", "wa_plus_02"),
+    "model_qauc.yml": ("initial",),
+    "model_qrsf.yml": ("initial",),
+    "model_tog.yml": ("initial",),
+    "model_torg.yml": ("initial",),
+    "model_usmf2.yml": ("initial",),
+}
+CMB_COMPLETION_AUXILIARY_CASES = (
+    "novel:renamed_lcdm",
+    "novel:recombination_opacity",
+    "novel:extra_fluid_interaction",
+    "sector:nonzero_vector",
+    "sector:nonzero_tensor",
+    "sector:nonzero_lensing",
+)
+CMB_COMPLETION_AXES = (
+    "background",
+    "momentum_q",
+    "hierarchy_depth",
+    "evolution",
+    "source",
+    "projection",
+    "physical_limits",
+    "k_integration",
+)
+CMB_COMPLETION_METRICS = {
+    "relative_tolerances": dict(
+        CMB_PARITY_CERTIFICATION_TIER["relative_tolerances"]
+    ),
+    # Cross errors below 0.1% of the matching auto-spectrum covariance
+    # scale are numerically negligible at a zero crossing. This does not
+    # divide by a small cross value or normalize EE by the TT amplitude.
+    "cross_absolute_fraction": 0.001,
+    "roundoff_ulps": 64,
+    "conversion_relative_tolerance": 1.0e-10,
+    "feature_location_tolerance_ell": 2,
+    "window_half_width_ell": 8,
+    "window_maximum_spacing_ell": 1,
+    "numerical_relative_budget": 0.005,
+}
+
+
 _FINAL_CERTIFICATION_INTEGRITY_KEYS = (
     "no_camb_fallback",
     "no_surrogate_spectra",
@@ -4624,6 +4674,549 @@ def write_cmb_certification_report(
     return record
 
 
+def cmb_completion_source_identity(
+    repository_root: str | Path | None = None,
+) -> dict[str, Any]:
+    """Hash the actual solver, declarations, and acceptance source files.
+
+    Content identity includes uncommitted work and excludes documentation,
+    bytecode, and generated reports. A commit label alone cannot identify
+    the numerical implementation that produced an artifact.
+    """
+
+    root = Path(repository_root or Path(__file__).resolve().parents[4])
+    paths = set((root / "copernican/lib").rglob("*.py"))
+    paths.update((root / "copernican/samplers").rglob("*.py"))
+    paths.update((root / "copernican/models").glob("model_*.yml"))
+    paths.update((root / "copernican/models").glob("model_*.yaml"))
+    for name in (
+        "camb_reference.py",
+        "scientific_acceptance.py",
+        "test_slice_seven.py",
+    ):
+        paths.add(root / "tests/project/lib" / name)
+    paths.add(root / "tests/project/fixtures/ccmbs_completion_contract.json")
+    paths.add(root / "tests/copernican/lib/likelihoods/cmb/test_cmb.py")
+    files = {}
+    for path in sorted(paths):
+        if path.is_file() and "__pycache__" not in path.parts:
+            relative = path.relative_to(root).as_posix()
+            files[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
+    return {"files": files, "sha256": _canonical_sha256(files)}
+
+
+def _completion_artifact(
+    root: Path, entry: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Read a digest-bound JSON payload inside its portable artifact root."""
+
+    relative = Path(str(entry.get("path", "")))
+    if relative.is_absolute() or ".." in relative.parts or not relative.parts:
+        raise ValueError("artifact path must be a relative contained path")
+    path = (root / relative).resolve()
+    if not path.is_relative_to(root.resolve()):
+        raise ValueError("artifact path escapes its evidence root")
+    contents = path.read_bytes()
+    if hashlib.sha256(contents).hexdigest() != entry.get("sha256"):
+        raise ValueError("artifact content digest is invalid")
+    payload = json.loads(contents)
+    if not isinstance(payload, dict):
+        raise ValueError("artifact payload must be a mapping")
+    return payload
+
+
+def compare_cmb_completion_spectra(
+    actual: Mapping[str, Any],
+    reference: Mapping[str, Any],
+    requirement: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Apply frozen per-surface and physical-feature acceptance metrics.
+
+    Both representations are compared and independently checked for unit
+    conversion. Cross absolute allowances use the matching auto spectra;
+    auto-spectrum roundoff floors use that surface alone. No amplitude or
+    phase fit is performed before deciding acceptance.
+    """
+
+    issues: list[str] = []
+    metrics: dict[str, Any] = {}
+    ell = numpy.asarray(requirement["ells"], dtype=int)
+    expected = set(requirement["surfaces"])
+    for label, payload in (("actual", actual), ("reference", reference)):
+        if list(payload.get("ell_values", ())) != ell.tolist():
+            issues.append(f"{label} ell coverage differs from the contract")
+        if set(payload.get("spectra", {})) != expected:
+            issues.append(
+                f"{label} surface inventory differs from the contract"
+            )
+    if issues:
+        return {"accepted": False, "issues": issues, "metrics": metrics}
+
+    def _native_c(payload: Mapping[str, Any], name: str) -> numpy.ndarray:
+        """Convert declared dimensionless C into independent native units."""
+
+        values = numpy.asarray(payload["spectra"][name]["C_ell"])
+        units = payload.get("raw_units", "CAMB_native")
+        if units == "CAMB_native":
+            return values
+        if units != "dimensionless":
+            raise ValueError("unknown raw spectrum units")
+        temperature = float(requirement["temperature_K"])
+        if not numpy.isfinite(temperature) or temperature <= 0:
+            raise ValueError("physical CMB temperature must be positive")
+        base_name = describe_cmb_spectrum(name).base_spectrum
+        power = (
+            0 if base_name == "PP" else 1 if base_name in {"TP", "EP"} else 2
+        )
+        return values * (temperature * 1.0e6) ** power
+
+    crosses = {"TE": ("TT", "EE"), "TP": ("TT", "PP"), "EP": ("EE", "PP")}
+    for name in sorted(expected):
+        token = name.removeprefix("lensed_")
+        tolerance = CMB_COMPLETION_METRICS["relative_tolerances"].get(name)
+        if tolerance is None:
+            issues.append(f"no frozen tolerance for {name}")
+            continue
+        try:
+            for representation in ("C_ell", "D_ell"):
+                values = numpy.asarray(actual["spectra"][name][representation])
+                truth = numpy.asarray(
+                    reference["spectra"][name][representation]
+                )
+                if representation == "C_ell":
+                    values = _native_c(actual, name)
+                    truth = _native_c(reference, name)
+                if values.shape != ell.shape or truth.shape != ell.shape:
+                    raise ValueError("surface shape differs from ell coverage")
+                if not numpy.all(numpy.isfinite(values)) or not numpy.all(
+                    numpy.isfinite(truth)
+                ):
+                    raise ValueError("non-finite surface")
+                roundoff = (
+                    CMB_COMPLETION_METRICS["roundoff_ulps"]
+                    * numpy.finfo(float).eps
+                    * float(numpy.max(numpy.abs(truth), initial=0.0))
+                )
+                allowance = tolerance * numpy.abs(truth) + roundoff
+                if token in crosses:
+                    prefix = "lensed_" if name.startswith("lensed_") else ""
+                    first, second = crosses[token]
+                    covariance_scale = numpy.sqrt(
+                        numpy.abs(
+                            numpy.asarray(
+                                reference["spectra"][prefix + first][
+                                    representation
+                                ]
+                            )
+                            * numpy.asarray(
+                                reference["spectra"][prefix + second][
+                                    representation
+                                ]
+                            )
+                        )
+                    )
+                    absolute = (
+                        CMB_COMPLETION_METRICS["cross_absolute_fraction"]
+                        * covariance_scale
+                    )
+                    allowance = allowance + absolute
+                    significant = numpy.abs(truth) > absolute + roundoff
+                    if numpy.any(
+                        numpy.sign(values[significant])
+                        != numpy.sign(truth[significant])
+                    ):
+                        issues.append(f"{name} cross-spectrum sign differs")
+                elif numpy.any(values < 0.0):
+                    issues.append(f"{name} auto-spectrum is negative")
+                residual = numpy.abs(values - truth)
+                passed = bool(numpy.all(residual <= allowance))
+                metrics[f"{name}:{representation}"] = {
+                    "absolute_residual": residual.tolist(),
+                    "allowance": numpy.asarray(allowance).tolist(),
+                    "accepted": passed,
+                }
+                if not passed:
+                    issues.append(f"{name} {representation} exceeds its bound")
+            factor = _parity_conversion_factor(name, ell)
+            for label, payload in (
+                ("actual", actual),
+                ("reference", reference),
+            ):
+                surface = payload["spectra"][name]
+                converted = _native_c(payload, name) * factor
+                native = numpy.asarray(surface["D_ell"])
+                if not numpy.allclose(
+                    converted,
+                    native,
+                    rtol=CMB_COMPLETION_METRICS[
+                        "conversion_relative_tolerance"
+                    ],
+                    atol=0.0,
+                ):
+                    issues.append(
+                        f"{label} {name} C_ell/D_ell conversion differs"
+                    )
+        except (KeyError, TypeError, ValueError) as error:
+            issues.append(f"{name}: {error}")
+    for feature in () if issues else requirement.get("features", ()):
+        name = feature["surface"]
+        indices = numpy.flatnonzero(
+            (ell >= feature["lower"]) & (ell <= feature["upper"])
+        )
+        if indices.size != feature["upper"] - feature["lower"] + 1:
+            issues.append(f"{name} feature window lacks contiguous coverage")
+            continue
+        values = numpy.asarray(actual["spectra"][name]["D_ell"])[indices]
+        kind = feature["kind"]
+        if kind == "zero_crossing":
+            candidates = numpy.flatnonzero(values[:-1] * values[1:] <= 0)
+            locations = ell[indices][candidates]
+        elif kind in {"peak", "trough"}:
+            position = (
+                numpy.argmax(values)
+                if kind == "peak"
+                else numpy.argmin(values)
+            )
+            locations = numpy.asarray([ell[indices[position]]])
+        else:
+            issues.append(f"unknown feature kind: {kind}")
+            continue
+        if (
+            not locations.size
+            or float(numpy.min(numpy.abs(locations - feature["ell"])))
+            > CMB_COMPLETION_METRICS["feature_location_tolerance_ell"]
+        ):
+            issues.append(f"{name} {kind} location exceeds its bound")
+    return {"accepted": not issues, "issues": issues, "metrics": metrics}
+
+
+def assess_cmb_completion_evidence(
+    contract: Mapping[str, Any] | None,
+    rows: Mapping[str, Mapping[str, Any]] | None,
+    *,
+    evidence_root: str | Path | None,
+    repository_root: str | Path | None = None,
+) -> dict[str, Any]:
+    """Reject incomplete, synthetic, stale, or unreloadable final evidence.
+
+    This extends the existing final certification decision. Baseline and
+    wiring reports remain useful artifacts but cannot satisfy this boundary.
+    Runtime bounds are checked independently of a caller's accepted flag.
+    """
+
+    issues: list[str] = []
+    records: dict[str, Any] = {}
+    required = {
+        f"{model}:{point}"
+        for model, points in CMB_COMPLETION_POINTS.items()
+        for point in points
+    } | set(CMB_COMPLETION_AUXILIARY_CASES)
+    if not isinstance(contract, Mapping):
+        return {
+            "accepted": False,
+            "issues": ["completion contract is missing"],
+            "rows": {},
+        }
+    requirements = contract.get("cases", {})
+    if set(requirements) != required:
+        issues.append(
+            "completion contract does not contain the frozen case inventory"
+        )
+    if contract.get("metrics") != _jsonable(CMB_COMPLETION_METRICS):
+        issues.append("completion metrics differ from the frozen contract")
+    root = Path(repository_root or Path(__file__).resolve().parents[4])
+    try:
+        frozen = json.loads(
+            (
+                root / "tests/project/fixtures/ccmbs_completion_contract.json"
+            ).read_text()
+        )
+        for case_id in required:
+            if _canonical_sha256(requirements.get(case_id, {})) != frozen[
+                "case_sha256"
+            ].get(case_id):
+                issues.append(
+                    f"{case_id}: required physics/reference contract "
+                    "differs from the frozen inventory"
+                )
+    except (OSError, ValueError, KeyError, TypeError):
+        issues.append("frozen completion inventory is unavailable")
+    identity = cmb_completion_source_identity(repository_root)
+    if contract.get("source_identity") != identity:
+        issues.append("completion source identity is stale")
+    digest_payload = {
+        k: v for k, v in contract.items() if k != "contract_sha256"
+    }
+    if contract.get("contract_sha256") != _canonical_sha256(digest_payload):
+        issues.append("completion contract digest is invalid")
+    if evidence_root is None:
+        issues.append("persistent evidence root is missing")
+    supplied = rows or {}
+    if set(supplied) != required:
+        issues.append(
+            "actual completion case inventory is incomplete or unexpected"
+        )
+    for case_id in sorted(required):
+        row_issues: list[str] = []
+        row = supplied.get(case_id, {})
+        requirement = requirements.get(case_id, {})
+        if row.get("execution_kind") != "ordinary_ccmbs":
+            row_issues.append("real ordinary CCMBS execution is missing")
+        if row.get("status") != "accepted":
+            row_issues.append("case has no accepted numerical decision")
+        if row.get("source_sha256") != identity["sha256"]:
+            row_issues.append("case source identity is stale")
+        if row.get("requirement_sha256") != _canonical_sha256(requirement):
+            row_issues.append(
+                "case declaration/reference/request identity is stale"
+            )
+        artifacts = row.get("artifacts", {})
+        needed = {"execution", "raw_products", "refinements"}
+        if requirement.get("reference_kind") == "camb":
+            needed.add("reference")
+        if requirement.get("graph_required"):
+            needed.add("graph")
+        loaded: dict[str, Any] = {}
+        for name in sorted(needed):
+            entry = artifacts.get(name)
+            if not isinstance(entry, Mapping) or evidence_root is None:
+                row_issues.append(f"{name} retained artifact is missing")
+                continue
+            try:
+                loaded[name] = _completion_artifact(Path(evidence_root), entry)
+            except (OSError, UnicodeError, ValueError, TypeError) as error:
+                row_issues.append(f"{name} artifact rejected: {error}")
+        execution = loaded.get("execution", {})
+        if execution.get("solver_id") != "ccmbs" or execution.get(
+            "numerical_overrides"
+        ):
+            row_issues.append(
+                "ordinary unmodified CCMBS route is not evidenced"
+            )
+        if set(execution.get("spectra", {})) != set(
+            requirement.get("surfaces", ())
+        ):
+            row_issues.append("complete declared output surfaces are missing")
+        if execution.get("physical_inputs") != requirement.get(
+            "physical_inputs"
+        ):
+            row_issues.append(
+                "execution physical inputs differ from the contract"
+            )
+        if not requirement.get("surfaces") or not requirement.get(
+            "physical_inputs"
+        ):
+            row_issues.append("case lacks a resolved physical/output contract")
+        for product_name in (
+            "source_revision",
+            "request",
+            "device",
+            "numerical_plan",
+            "cache_identity",
+            "phase_timing",
+            "work",
+        ):
+            if not execution.get(product_name):
+                row_issues.append(f"execution provenance lacks {product_name}")
+        if execution.get("raw_units") not in {"dimensionless", "CAMB_native"}:
+            row_issues.append("raw spectrum units are unresolved")
+        products = loaded.get("raw_products", {})
+        for product_name in ("grids", "weights", "sources", "transfers"):
+            if not products.get(product_name):
+                row_issues.append(
+                    f"retained numerical products lack {product_name}"
+                )
+        if requirement.get("graph_required"):
+            try:
+                graph = loaded["graph"]
+                image_entry = graph["image"]
+                image_path = Path(image_entry["path"])
+                root = Path(evidence_root).resolve()
+                target = (root / image_path).resolve()
+                if image_path.is_absolute() or not target.is_relative_to(root):
+                    raise ValueError("graph escapes evidence root")
+                if (
+                    hashlib.sha256(target.read_bytes()).hexdigest()
+                    != image_entry["sha256"]
+                ):
+                    raise ValueError("graph digest differs")
+                if (
+                    graph.get("execution_sha256")
+                    != artifacts["execution"]["sha256"]
+                ):
+                    raise ValueError(
+                        "graph does not reference its raw execution"
+                    )
+            except (KeyError, TypeError, ValueError, OSError) as error:
+                row_issues.append(f"graph artifact rejected: {error}")
+        axes = loaded.get("refinements", {}).get("axes", {})
+        allocated_budget = 0.0
+        for axis_name in CMB_COMPLETION_AXES:
+            axis = axes.get(axis_name, {})
+            status = axis.get("status")
+            if status == "not_applicable":
+                reasons = requirement.get("axis_non_applicability", {})
+                if (
+                    not reasons.get(axis_name)
+                    or axis.get("reason") != reasons[axis_name]
+                ):
+                    row_issues.append(
+                        f"{axis_name} lacks a physical non-applicability proof"
+                    )
+                continue
+            try:
+                error = float(axis["error"])
+                limit = float(axis["limit"])
+                if (
+                    not numpy.isfinite(error)
+                    or not numpy.isfinite(limit)
+                    or not 0
+                    <= error
+                    <= limit
+                    <= CMB_COMPLETION_METRICS["numerical_relative_budget"]
+                ):
+                    raise ValueError(
+                        "error is unresolved or budget is too permissive"
+                    )
+                allocated_budget += limit
+                if status == "measured":
+                    base = axis["base_sha256"]
+                    refined = axis["refined_sha256"]
+                    if (
+                        not isinstance(base, str)
+                        or len(base) != 64
+                        or not isinstance(refined, str)
+                        or len(refined) != 64
+                        or base == refined
+                    ):
+                        raise ValueError(
+                            "independent refinement products are missing"
+                        )
+                    for label, digest in (
+                        ("base", base),
+                        ("refined", refined),
+                    ):
+                        product = axis[label]
+                        if _canonical_sha256(product) != digest or not product:
+                            raise ValueError(
+                                "refinement payload is missing or stale"
+                            )
+                    if axis["base"].get("effective_grid") == axis[
+                        "refined"
+                    ].get("effective_grid"):
+                        raise ValueError(
+                            "refinement did not change "
+                            "the effective calculation"
+                        )
+                elif status == "validated_bound":
+                    validation = axis["validation"]
+                    if not validation.get("domain") or not validation.get(
+                        "assumptions"
+                    ):
+                        raise ValueError(
+                            "bound domain and assumptions are missing"
+                        )
+                    _completion_artifact(
+                        Path(evidence_root), validation["artifact"]
+                    )
+                else:
+                    raise ValueError("axis is unresolved")
+            except (KeyError, TypeError, ValueError, OSError) as error:
+                row_issues.append(f"{axis_name}: {error}")
+        if (
+            allocated_budget
+            > CMB_COMPLETION_METRICS["numerical_relative_budget"]
+        ):
+            row_issues.append("combined numerical budget exceeds the contract")
+        for match_name in requirement.get("required_physics_matching", ()):
+            matching = execution.get("physics_matching", {}).get(
+                match_name, {}
+            )
+            try:
+                difference = float(matching["maximum_error"])
+                threshold = float(matching["threshold"])
+                if (
+                    not 0
+                    <= difference
+                    <= threshold
+                    <= CMB_COMPLETION_METRICS["numerical_relative_budget"]
+                ):
+                    raise ValueError(
+                        "physical input matching exceeds its bound"
+                    )
+                _completion_artifact(Path(evidence_root), matching["artifact"])
+            except (KeyError, TypeError, ValueError, OSError) as error:
+                row_issues.append(f"physical matching {match_name}: {error}")
+        if requirement.get("nonzero_required"):
+            surface = "PP" if case_id.endswith("lensing") else "BB"
+            values = (
+                execution.get("spectra", {}).get(surface, {}).get("C_ell", [])
+            )
+            if not values or not numpy.any(numpy.asarray(values) > 0):
+                row_issues.append("required nonzero sector was not exercised")
+        if "reference" in loaded and "execution" in loaded:
+            reference = loaded["reference"]
+            reference_contents = {
+                key: value
+                for key, value in reference.items()
+                if key != "fixture_sha256"
+            }
+            if reference.get("fixture_sha256") != _canonical_sha256(
+                reference_contents
+            ):
+                row_issues.append(
+                    "independent reference content digest is invalid"
+                )
+            if reference.get("fixture_sha256") != requirement.get(
+                "reference_sha256"
+            ):
+                row_issues.append("independent reference identity is stale")
+            if reference.get("reference_identity") != requirement.get(
+                "reference_identity"
+            ):
+                row_issues.append("independent reference version differs")
+            if reference.get("features") != requirement.get("features"):
+                row_issues.append(
+                    "independent reference feature windows differ"
+                )
+            comparison = compare_cmb_completion_spectra(
+                execution, reference, requirement
+            )
+            row_issues.extend(comparison["issues"])
+        elif requirement.get("reference_kind") != "camb":
+            results = execution.get("invariant_results", {})
+            for invariant in requirement.get("required_invariants", ()):
+                try:
+                    result = results[invariant]
+                    residual = float(result["residual"])
+                    limit = float(result["limit"])
+                    if (
+                        not 0
+                        <= residual
+                        <= limit
+                        <= CMB_COMPLETION_METRICS["numerical_relative_budget"]
+                    ):
+                        raise ValueError("invariant exceeds frozen budget")
+                    _completion_artifact(
+                        Path(evidence_root), result["artifact"]
+                    )
+                except (KeyError, TypeError, ValueError, OSError) as error:
+                    row_issues.append(
+                        f"independent invariant {invariant}: {error}"
+                    )
+            if not requirement.get("required_invariants"):
+                row_issues.append(
+                    "independent theory invariants are unresolved"
+                )
+        records[case_id] = {"accepted": not row_issues, "issues": row_issues}
+    return {
+        "accepted": not issues
+        and all(row["accepted"] for row in records.values()),
+        "issues": issues,
+        "rows": records,
+    }
+
+
 def build_final_cmb_certification_report(
     reports: Iterable[CMBModelDiagnostic],
     *,
@@ -4644,6 +5237,9 @@ def build_final_cmb_certification_report(
     full_matrix: Mapping[str, Any] | None = None,
     repository_integrity: Mapping[str, Any] | None = None,
     repository_root: str | Path | None = None,
+    completion_contract: Mapping[str, Any] | None = None,
+    completion_rows: Mapping[str, Mapping[str, Any]] | None = None,
+    evidence_root: str | Path | None = None,
 ) -> dict[str, Any]:
     """Build the strict, final corpus decision and its provenance.
 
@@ -4785,6 +5381,20 @@ def build_final_cmb_certification_report(
             "full bundled observable matrix is not scientifically certified"
         )
 
+    completion = assess_cmb_completion_evidence(
+        completion_contract,
+        completion_rows,
+        evidence_root=evidence_root,
+        repository_root=repository_root,
+    )
+    if not completion["accepted"]:
+        metadata_issues.append(
+            "bounded engine completion evidence is not accepted"
+        )
+    if set(required_models) != set(BUNDLED_CMB_MODEL_FILENAMES):
+        metadata_issues.append(
+            "final certification requires the complete bundled corpus"
+        )
     global_issues = integrity_issues + metadata_issues
     final_success = bool(
         base["complete"]
@@ -4802,6 +5412,9 @@ def build_final_cmb_certification_report(
     }
     base["repository_integrity"] = _jsonable(repository_integrity or {})
     base["full_matrix"] = _jsonable(full_matrix or {})
+    base["completion"] = completion
+    base["completion_contract"] = _jsonable(completion_contract or {})
+    base["completion_rows"] = _jsonable(completion_rows or {})
     base["success"] = final_success
     base["final_certification"] = {
         "schema_version": 1,
@@ -4844,6 +5457,9 @@ def write_final_cmb_certification_report(
 
 def read_final_cmb_certification_report(
     source: str | Path,
+    *,
+    evidence_root: str | Path | None = None,
+    repository_root: str | Path | None = None,
 ) -> dict[str, Any]:
     """Reload one final certification manifest and verify its digest."""
 
@@ -4868,6 +5484,17 @@ def read_final_cmb_certification_report(
     )
     if actual != expected:
         raise ValueError("Final CMB certification report digest is invalid")
+    if payload.get("success"):
+        completion = assess_cmb_completion_evidence(
+            payload.get("completion_contract"),
+            payload.get("completion_rows"),
+            evidence_root=evidence_root or path.parent,
+            repository_root=repository_root,
+        )
+        if not completion["accepted"]:
+            raise ValueError(
+                "Final CMB certification evidence is stale or incomplete"
+            )
     return dict(payload)
 
 
@@ -4892,6 +5519,9 @@ def run_final_cmb_certification(
     fixture_hashes: Mapping[str, Any] | None = None,
     repository_root: str | Path | None = None,
     destination: str | Path | None = None,
+    completion_contract: Mapping[str, Any] | None = None,
+    completion_rows: Mapping[str, Mapping[str, Any]] | None = None,
+    evidence_root: str | Path | None = None,
 ) -> dict[str, Any]:
     """Run and persist the complete final CCMBS certification boundary.
 
@@ -4960,6 +5590,10 @@ def run_final_cmb_certification(
         bao_isolated=bao_isolated,
         full_matrix=matrix,
         repository_integrity=repository_integrity,
+        repository_root=repository_root,
+        completion_contract=completion_contract,
+        completion_rows=completion_rows,
+        evidence_root=evidence_root,
     )
     if destination is not None:
         path = Path(destination)

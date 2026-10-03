@@ -67,6 +67,7 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
 )
 from copernican.lib.likelihoods.cmb.results import CMBBatchResult
 from copernican.lib.likelihoods.cmb.runtime import cache
+from tests.project.lib import scientific_acceptance
 
 
 class CCMBSDiagnosticTestCase(unittest.TestCase):
@@ -2156,7 +2157,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         )
 
     def test_final_certification_requires_integrity_and_bao_evidence(self):
-        """Final status cannot hide missing provenance or boundary checks."""
+        """Synthetic wiring evidence cannot certify physical engine output."""
 
         filename = "model_lcdm.yml"
         report = CMBModelDiagnostic(
@@ -2214,8 +2215,9 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             },
             bao_isolation={"available": True, "converged": True},
         )
-        self.assertTrue(record["success"])
-        self.assertEqual(record["final_certification"]["status"], "certified")
+        self.assertFalse(record["success"])
+        self.assertFalse(record["completion"]["accepted"])
+        self.assertEqual(record["final_certification"]["status"], "rejected")
         self.assertEqual(
             record["provenance"]["raw_evidence_digests"][filename],
             record["reports"][0]["raw_evidence_sha256"],
@@ -2234,7 +2236,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         self.assertGreater(len(first["file_digests"]), 0)
 
     def test_final_certification_derives_bao_isolation_and_tracks_matrix(self):
-        """The final boundary records BAO and matrix evidence."""
+        """Wiring records BAO and matrix evidence without engine acceptance."""
 
         filename = "model_lcdm.yml"
         report = CMBModelDiagnostic(
@@ -2285,7 +2287,8 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             bao_isolated={"chi2": 4.0, "covariance": "full"},
             full_matrix={"success": True, "record_sha256": "matrix"},
         )
-        self.assertTrue(record["success"])
+        self.assertFalse(record["success"])
+        self.assertFalse(record["completion"]["accepted"])
         self.assertTrue(
             record["final_certification"]["bao_isolation"]["converged"]
         )
@@ -2312,7 +2315,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         self.assertTrue(record["final_certification"]["issues"])
 
     def test_final_runner_rehydrates_matrix_rows_without_rerunning(self):
-        """Final orchestration preserves matrix raw evidence and provenance."""
+        """Mocked orchestration preserves rows but cannot certify physics."""
 
         filename = "model_lcdm.yml"
         report = CMBModelDiagnostic(
@@ -2382,7 +2385,8 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
                 fixture_hashes={"fixture": "hash"},
                 bao_isolation={"available": True, "converged": True},
             )
-        self.assertTrue(record["success"])
+        self.assertFalse(record["success"])
+        self.assertFalse(record["completion"]["accepted"])
         self.assertEqual(record["full_matrix"]["required_models"], [filename])
         self.assertEqual(
             record["provenance"]["raw_evidence_digests"][filename],
@@ -2411,7 +2415,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
                 restored["record_sha256"], persisted["record_sha256"]
             )
             tampered = json.loads(destination.read_text(encoding="utf-8"))
-            tampered["success"] = False
+            tampered["success"] = True
             destination.write_text(
                 json.dumps(tampered),
                 encoding="utf-8",
@@ -2598,6 +2602,300 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         self.assertTrue(evidence["exact_repeat"])
         self.assertTrue(evidence["cross_request"])
         self.assertTrue(evidence["spectra_equal"])
+
+
+class CompletionContractTestCase(unittest.TestCase):
+    """Adversarial contract tests; synthetic arrays never certify an engine."""
+
+    def test_frozen_case_inventory_includes_physical_response_points(self):
+        from copernican.lib.likelihoods.cmb import diagnostics as d
+
+        self.assertEqual(len(d.CMB_COMPLETION_POINTS), 10)
+        self.assertEqual(
+            d.CMB_COMPLETION_POINTS["model_lcdm_mnu.yml"],
+            ("initial", "mass_zero", "mass_006", "mass_050"),
+        )
+        self.assertEqual(len(d.CMB_COMPLETION_AUXILIARY_CASES), 6)
+        report = d.assess_cmb_completion_evidence(None, {}, evidence_root=None)
+        self.assertFalse(report["accepted"])
+
+    def test_completion_rejects_synthetic_missing_stale_and_unresolved_rows(
+        self,
+    ):
+        from copernican.lib.likelihoods.cmb import diagnostics as d
+
+        identity = d.cmb_completion_source_identity()
+        cases = {
+            f"{name}:{point}": {}
+            for name, points in d.CMB_COMPLETION_POINTS.items()
+            for point in points
+        }
+        cases.update({name: {} for name in d.CMB_COMPLETION_AUXILIARY_CASES})
+        contract = {
+            "cases": cases,
+            "source_identity": identity,
+            "metrics": d.CMB_COMPLETION_METRICS,
+        }
+        contract["contract_sha256"] = d._canonical_sha256(contract)
+        rows = {
+            name: {
+                "status": "accepted",
+                "execution_kind": "mock",
+                "source_sha256": "obsolete",
+            }
+            for name in cases
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            result = d.assess_cmb_completion_evidence(
+                contract, rows, evidence_root=directory
+            )
+        self.assertFalse(result["accepted"])
+        issues = result["rows"]["model_lcdm.yml:initial"]["issues"]
+        for fragment in (
+            "real ordinary",
+            "source identity",
+            "artifact is missing",
+            "background:",
+            "momentum_q:",
+            "hierarchy_depth:",
+        ):
+            self.assertTrue(any(fragment in issue for issue in issues), issues)
+        contract["source_identity"] = {}
+        result = d.assess_cmb_completion_evidence(
+            contract, {}, evidence_root=None
+        )
+        self.assertIn("completion source identity is stale", result["issues"])
+        self.assertIn(
+            "completion contract digest is invalid", result["issues"]
+        )
+
+    def test_surface_metric_rejects_sign_spikes_and_bad_conversion(self):
+        import copy
+        import math
+
+        from copernican.lib.likelihoods.cmb import diagnostics as d
+
+        ell = [2, 3, 4]
+        requirement = {"ells": ell, "surfaces": ["TT", "TE", "EE", "BB"]}
+        reference = {"ell_values": ell, "spectra": {}}
+        for name, values in {
+            "TT": [10, 12, 11],
+            "EE": [1, 2, 1],
+            "TE": [0.1, 0, -0.1],
+            "BB": [0, 0, 0],
+        }.items():
+            reference["spectra"][name] = {
+                "C_ell": values,
+                "D_ell": [
+                    value * multipole * (multipole + 1) / (2 * math.pi)
+                    for multipole, value in zip(ell, values)
+                ],
+            }
+        # This checks only the mathematical comparator, never certification.
+        self.assertTrue(
+            d.compare_cmb_completion_spectra(
+                reference, reference, requirement
+            )["accepted"]
+        )
+        dimensionless = copy.deepcopy(reference)
+        dimensionless["raw_units"] = "dimensionless"
+        requirement["temperature_K"] = 2.7255
+        for surface in dimensionless["spectra"].values():
+            surface["C_ell"] = [
+                value / (2.7255e6) ** 2 for value in surface["C_ell"]
+            ]
+        self.assertTrue(
+            d.compare_cmb_completion_spectra(
+                dimensionless, reference, requirement
+            )["accepted"]
+        )
+        for surface, index, multiplier in (
+            ("TE", 0, -1),
+            ("EE", 1, 10),
+            ("TT", 2, 2),
+        ):
+            corrupted = copy.deepcopy(reference)
+            corrupted["spectra"][surface]["D_ell"][index] *= multiplier
+            self.assertFalse(
+                d.compare_cmb_completion_spectra(
+                    corrupted, reference, requirement
+                )["accepted"]
+            )
+        corrupted = copy.deepcopy(reference)
+        corrupted["spectra"]["BB"]["C_ell"][0] = 1e-100
+        self.assertFalse(
+            d.compare_cmb_completion_spectra(
+                corrupted, reference, requirement
+            )["accepted"]
+        )
+        del corrupted["spectra"]["EE"]
+        self.assertFalse(
+            d.compare_cmb_completion_spectra(
+                corrupted, reference, requirement
+            )["accepted"]
+        )
+
+    def test_raw_units_convert_potential_and_mixed_correlations(self):
+        """Potential uses no temperature factor; TP and EP use only one."""
+
+        import copy
+        import math
+
+        requirement = {
+            "ells": [2],
+            "surfaces": ["TT", "EE", "PP", "TP", "EP"],
+            "temperature_K": 2.7255,
+        }
+        reference = {"ell_values": [2], "spectra": {}}
+        ell_powers = {"TT": 1, "EE": 1, "PP": 2, "TP": 1.5, "EP": 1.5}
+        unit_factors = {
+            "TT": 2.7255e6**2,
+            "EE": 2.7255e6**2,
+            "PP": 1.0,
+            "TP": 2.7255e6,
+            "EP": 2.7255e6,
+        }
+        for name in requirement["surfaces"]:
+            reference["spectra"][name] = {
+                "C_ell": [1.0],
+                "D_ell": [6.0 ** ell_powers[name] / (2 * math.pi)],
+            }
+        actual = copy.deepcopy(reference)
+        actual["raw_units"] = "dimensionless"
+        for name in requirement["surfaces"]:
+            actual["spectra"][name]["C_ell"] = [1.0 / unit_factors[name]]
+        self.assertTrue(
+            diagnostics.compare_cmb_completion_spectra(
+                actual, reference, requirement
+            )["accepted"]
+        )
+        actual["spectra"]["TP"]["C_ell"] = [1.0 / 2.7255e6**2]
+        self.assertFalse(
+            diagnostics.compare_cmb_completion_spectra(
+                actual, reference, requirement
+            )["accepted"]
+        )
+
+    def test_retained_artifacts_reject_tampering_missing_and_escape(self):
+        from copernican.lib.likelihoods.cmb import diagnostics as d
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            entry = scientific_acceptance._retain(
+                root / "raw.json", {"raw": [1]}
+            )
+            self.assertEqual(d._completion_artifact(root, entry), {"raw": [1]})
+            (root / "raw.json").write_text('{"raw": [2]}')
+            with self.assertRaisesRegex(ValueError, "digest"):
+                d._completion_artifact(root, entry)
+            (root / "raw.json").unlink()
+            with self.assertRaises(OSError):
+                d._completion_artifact(root, entry)
+            with self.assertRaisesRegex(ValueError, "relative"):
+                d._completion_artifact(root, {"path": "../raw.json"})
+
+    def test_stale_reference_and_metadata_only_axes_are_rejected(self):
+        from copernican.lib.likelihoods.cmb import diagnostics as d
+
+        identity = d.cmb_completion_source_identity()
+        requirement = {
+            "reference_kind": "camb",
+            "reference_sha256": "old",
+            "reference_identity": "independent:expected",
+            "ells": [2],
+            "surfaces": ["BB"],
+            "physical_inputs": {"mass": 0},
+        }
+        reference = {
+            "ell_values": [2],
+            "spectra": {"BB": {"C_ell": [0.0], "D_ell": [0.0]}},
+            "reference_identity": "independent:changed",
+        }
+        reference["fixture_sha256"] = d._canonical_sha256(reference)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            artifacts = {
+                "reference": scientific_acceptance._retain(
+                    root / "ref.json", reference
+                ),
+                "execution": scientific_acceptance._retain(
+                    root / "exec.json", reference
+                ),
+                "raw_products": scientific_acceptance._retain(
+                    root / "raw.json", {}
+                ),
+                "refinements": scientific_acceptance._retain(
+                    root / "axes.json",
+                    {
+                        "axes": {
+                            name: {
+                                "status": "validated_bound",
+                                "error": 0,
+                                "limit": 0.0001,
+                            }
+                            for name in d.CMB_COMPLETION_AXES
+                        }
+                    },
+                ),
+            }
+            contract = {
+                "cases": {"model_lcdm.yml:initial": requirement},
+                "metrics": d.CMB_COMPLETION_METRICS,
+                "source_identity": identity,
+            }
+            contract["contract_sha256"] = d._canonical_sha256(contract)
+            row = {
+                "status": "accepted",
+                "execution_kind": "ordinary_ccmbs",
+                "source_sha256": identity["sha256"],
+                "requirement_sha256": d._canonical_sha256(requirement),
+                "artifacts": artifacts,
+            }
+            result = d.assess_cmb_completion_evidence(
+                contract, {"model_lcdm.yml:initial": row}, evidence_root=root
+            )
+        issues = result["rows"]["model_lcdm.yml:initial"]["issues"]
+        self.assertIn("independent reference identity is stale", issues)
+        self.assertIn("independent reference version differs", issues)
+        self.assertTrue(any("momentum_q:" in issue for issue in issues))
+        self.assertFalse(result["accepted"])
+
+
+class CompletionPersistenceTestCase(unittest.TestCase):
+    """Final readback must revalidate artifacts and current source identity."""
+
+    def test_final_reader_rejects_forged_accepted_report_with_valid_digest(
+        self,
+    ):
+        import json
+
+        from copernican.lib.likelihoods.cmb import diagnostics as d
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "final.json"
+            report = {
+                "success": True,
+                "completion_contract": {},
+                "completion_rows": {},
+            }
+            report["record_sha256"] = d._canonical_sha256(report)
+            path.write_text(json.dumps(report))
+            with self.assertRaisesRegex(ValueError, "stale or incomplete"):
+                d.read_final_cmb_certification_report(path)
+
+    def test_changed_acceptance_source_invalidates_content_identity(self):
+        from copernican.lib.likelihoods.cmb import diagnostics as d
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "tests/project/lib/scientific_acceptance.py"
+            path.parent.mkdir(parents=True)
+            path.write_text("value = 1\n")
+            original = d.cmb_completion_source_identity(root)
+            path.write_text("value = 2\n")
+            self.assertNotEqual(
+                original, d.cmb_completion_source_identity(root)
+            )
 
 
 if __name__ == "__main__":

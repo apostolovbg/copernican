@@ -70,6 +70,17 @@ class ScientificAcceptanceHandoffTestCase(unittest.TestCase):
         read.assert_called_once_with(destination)
         plugin.get_cmb_declared_runtime.assert_called_once_with((75.0,))
 
+    def test_baseline_command_keeps_rejection_explicit(self):
+        with mock.patch.object(
+            scientific_acceptance,
+            "run_completion_baseline",
+            return_value={"accepted": False},
+        ) as run:
+            with mock.patch("builtins.print"):
+                result = scientific_acceptance.main(["--baseline"])
+        self.assertEqual(result, 1)
+        self.assertIn("ccmbs-acceptance", str(run.call_args.args[0]))
+
 
 if __name__ == "__main__":
     unittest.main()

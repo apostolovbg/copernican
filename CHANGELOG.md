@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-10-02
+**Last Updated:** 2026-10-03
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,36 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-10-03:
+  Change: Implemented Slice One's frozen CCMBS completion contract and
+    persistent ordinary LCDM diagnostic baseline.
+  Why: Rejected synthetic-only certification, missing physical cases,
+    unresolved numerical axes, stale identities, and unavailable evidence.
+  Impact: Defined 23 required cases and independent feature-window metrics;
+    retained actual baseline rejection without claiming engine acceptance.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+  tests/project/fixtures/ccmbs_completion_contract.json
+
+- 2026-10-03:
+  Change: Replaced the completed CCMBS plan with eight completion slices.
+  Why: Addressed unproven parity, weak convergence, sampler bypass, and
+    temporary evidence through explicit implementation and closure criteria.
+  Impact: Defined actual bounded engine acceptance before the human launches
+    the validated LCDM versus Planck2018ref 5/10 comparison.
+  Files:
+  CHANGELOG.md
+  PLAN.md
 
 - 2026-10-02:
   Change: Completed Slice Nineteen's explicit scientific handoff boundary.

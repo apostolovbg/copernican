@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-10-02
+**Last Updated:** 2026-10-03
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -287,7 +287,13 @@ repository and BAO-isolation gates, and optionally writes one deterministic
 JSON artifact. It never invokes sampling or accepts a plot in place of raw
 scientific evidence.
 `read_final_cmb_certification_report()` reloads that artifact and rejects any
-post-run mutation by verifying its recorded digest.
+post-run mutation by verifying its recorded digest. A certified final report
+also revalidates its source identity and retained completion artifacts. The
+completion contract requires all 23 physical and auxiliary cases, complete
+surfaces, independent reference windows, and resolved numerical axes;
+synthetic wiring reports cannot certify CCMBS. `diagnostics.py` applies both
+raw and public spectrum bounds without fitting amplitude or phase.
+
 Generated model plugins expose separate recombination and drag-epoch sound
 horizons. BAO selects `get_sound_horizon_rs_drag_Mpc()` and records its
 epoch, source, and fitted drag redshift; the CMB background continues to use

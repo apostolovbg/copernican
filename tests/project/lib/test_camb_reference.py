@@ -455,3 +455,70 @@ class CambReferenceModuleTestCase(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+class CompletionReferenceWindowTestCase(unittest.TestCase):
+    """Freeze window selection independently from the engine residuals."""
+
+    def test_completion_windows_require_dense_reference_and_cover_features(
+        self,
+    ):
+        import numpy
+
+        from tests.project.lib import camb_reference
+
+        ell = numpy.arange(2, 2501)
+        fixture = {
+            "ell_values": ell,
+            "spectra": {
+                "TT": {"D_ell": 2 + numpy.cos(ell / 40)},
+                "EE": {"D_ell": 2 - numpy.cos(ell / 40)},
+                "TE": {"D_ell": numpy.sin(ell / 40)},
+            },
+        }
+        features = camb_reference.completion_reference_windows(fixture)
+        self.assertEqual(len(features), 12)
+        self.assertTrue(
+            all(row["upper"] - row["lower"] == 16 for row in features)
+        )
+        fixture["ell_values"] = [2, 20, 100]
+        with self.assertRaisesRegex(ValueError, "dense"):
+            camb_reference.completion_reference_windows(fixture)
+
+    def test_frozen_completion_references_resolve_all_required_physics_points(
+        self,
+    ):
+        import json
+        from pathlib import Path
+
+        path = (
+            Path(__file__).resolve().parents[1]
+            / "fixtures"
+            / "ccmbs_completion_contract.json"
+        )
+        fixture = json.loads(path.read_text())
+        cases = fixture["cases"]
+        self.assertEqual(len(cases), 23)
+        for label in (
+            "model_lcdm.yml:initial",
+            "model_lcdm_mnu.yml:mass_zero",
+        ):
+            self.assertEqual(
+                cases[label]["resolved_reference_inputs"]["num_nu_massive"], 0
+            )
+        for row in cases.values():
+            if row["reference_kind"] != "camb":
+                continue
+            self.assertEqual(len(row["reference_sha256"]), 64)
+            self.assertEqual(len(row["surfaces"]), 11)
+            self.assertEqual(row["ells"][-1], 2500)
+            for feature in row["features"]:
+                self.assertTrue(
+                    set(
+                        range(feature["lower"], feature["upper"] + 1)
+                    ).issubset(row["ells"])
+                )
+
+
+if __name__ == "__main__":
+    unittest.main()
