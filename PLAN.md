@@ -1048,7 +1048,7 @@ evolution evidence, convergence evidence, and reloads the persisted digest.
 The same test suite rejects mismatched physical inputs and CAMB's massive
 neutrino default. This closes the implementation boundary without claiming
 that the expensive fixed-row scientific decision has passed; that decision is
-owned by Slice Eighteen.
+owned by Slice Nineteen.
 
 ### [closed] Slice Eighteen — bounded closure infrastructure
 
@@ -1080,17 +1080,29 @@ identity separation, bounded corpus decisions, and final certification
 provenance. No claim of quantitative CAMB parity is made by this development
 slice.
 
-### [planned] Slice Nineteen — explicit scientific acceptance handoff
+### [closed] Slice Nineteen — explicit scientific acceptance handoff
 
-Outside ordinary test discovery and DevCovenant workflow runs, execute the
-single fixed LCDM TT/TE/EE row through `run_fixed_lcdm_cmb_parity()` using the
-real test-owned CAMB reference. Retain the report after process cleanup and
-reload it through the digest verifier. Require matching physical inputs and
-resolved massless-neutrino defaults, the canonical sparse ell tier, complete
-raw C_ell/D_ell surfaces, source/evolution and convergence evidence, exact
-cache identity, solver/backend provenance, and a quantitative decision before
-any broader matrix or production interpretation. Full-resolution production
-data and the user's final scientific proof remain separate work.
+Close the bounded scientific handoff without placing its expensive CCMBS
+execution in ordinary test discovery or DevCovenant workflow runs. The
+user-invoked command builds the single fixed LCDM TT/TE/EE row through the
+test-owned CAMB reference and sends it through the ordinary public CCMBS
+route. The handoff preflights matching physical inputs and resolved
+massless-neutrino defaults, the canonical sparse ell tier, complete raw
+C_ell/D_ell surfaces, and the reference digest.
+
+The acceptance report now requires source/evolution and convergence evidence,
+exact cache identity, solver/backend provenance, and a quantitative decision.
+It retains rejected comparisons instead of converting them into success, and
+the persisted report can be reloaded by a separate process through the digest
+verifier. `tests/project/lib/scientific_acceptance.py` is the explicit
+operator boundary: `--output` performs the handoff and `--verify` reloads an
+existing artifact. Full-resolution production data and the user's final
+scientific proof remain separate work.
+
+Slice Nineteen closure evidence: focused tests cover canonical CAMB-row
+construction, strict fixed-row preflight, cache/backend provenance, report
+reload, and the separate-process handoff wiring. No quantitative CAMB parity
+claim is made until the explicit operator command returns an accepted report.
 
 ## Completion Standard
 

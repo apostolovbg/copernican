@@ -863,6 +863,7 @@ def build_camb_full_reference_fixture(
             "source": "CAMB get_*_cls raw_cl and native D_ell outputs",
         },
         "contract": contract,
+        "resolved_parameters": resolve_camb_parameters(contract),
         "tolerances": {
             name: float(FIXED_LCDM_FULL_REFERENCE_TOLERANCES.get(name, 0.05))
             for name in requested
@@ -962,6 +963,20 @@ def build_camb_parity_reference_set(
     }
     report["report_sha256"] = reference_fixture_sha256(report)
     return report
+
+
+def build_fixed_lcdm_camb_parity_row(
+    ells: Iterable[int] = CAMB_PARITY_ELL_VALUES,
+) -> dict[str, Any]:
+    """Build the canonical sparse fixed-LCDM TT/TE/EE CAMB row."""
+
+    return build_camb_full_reference_fixture(
+        FIXED_LCDM_REFERENCE_CONTRACT,
+        ells,
+        model_name="model_lcdm.yml",
+        fixed_point="initial",
+        spectra=FIXED_LCDM_REFERENCE_SPECTRA,
+    )
 
 
 def build_lcdm_full_reference_fixture(
@@ -1180,6 +1195,7 @@ __all__ = [
     "build_lcdm_full_reference_fixture",
     "build_camb_full_reference_fixture",
     "build_camb_parity_reference_set",
+    "build_fixed_lcdm_camb_parity_row",
     "compare_lcdm_reference_spectra",
     "compare_scalar_history_waves",
     "compute_camb_background_observables",

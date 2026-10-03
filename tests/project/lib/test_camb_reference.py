@@ -75,6 +75,9 @@ class CambReferenceModuleTestCase(unittest.TestCase):
         self.assertIn(
             "build_camb_parity_reference_set", camb_reference.__all__
         )
+        self.assertIn(
+            "build_fixed_lcdm_camb_parity_row", camb_reference.__all__
+        )
         self.assertIn("compare_lcdm_reference_spectra", camb_reference.__all__)
         self.assertIn("compare_scalar_history_waves", camb_reference.__all__)
         self.assertIn(
@@ -100,6 +103,22 @@ class CambReferenceModuleTestCase(unittest.TestCase):
         for values in histories.values():
             self.assertEqual(values.shape, eta_values.shape)
             self.assertTrue(numpy.all(numpy.isfinite(values)))
+
+    def test_fixed_lcdm_parity_row_uses_the_canonical_sparse_contract(self):
+        """The scientific handoff builder retains one exact CAMB row."""
+
+        fixture = camb_reference.build_fixed_lcdm_camb_parity_row(
+            ells=(2, 20, 100)
+        )
+
+        self.assertEqual(fixture["model"], "model_lcdm.yml")
+        self.assertEqual(fixture["fixed_point"], "initial")
+        self.assertEqual(
+            tuple(fixture["declared_observables"]), ("TT", "TE", "EE")
+        )
+        self.assertEqual(tuple(fixture["ell_values"]), (2, 20, 100))
+        self.assertEqual(fixture["resolved_parameters"]["num_nu_massive"], 0)
+        self.assertEqual(fixture["resolved_parameters"]["omnuh2"], 0.0)
 
     def test_scalar_history_wave_comparator_records_phase_evidence(self):
         """Wave comparison retains finite phase and residual diagnostics."""

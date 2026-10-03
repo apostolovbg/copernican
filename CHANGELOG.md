@@ -80,6 +80,25 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-10-02:
+  Change: Completed Slice Nineteen's explicit scientific handoff boundary.
+  Why: Hardened fixed-LCDM acceptance with exact physical, cache, backend,
+    surface, convergence, and durable-report evidence.
+  Impact: Retained a user-invoked quantitative decision without placing the
+    expensive scientific solve in ordinary test discovery or gate workflows.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-10-02:
   Change: Refreshed Slice Eighteen closure records and documentation dates.
   Why: Refreshed markers because the current gate session requires a fresh
     changelog entry for touched documentation.

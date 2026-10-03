@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-09-28
+**Last Updated:** 2026-10-02
 **Project Version:** 12.0.26
 
 ## Overview
@@ -189,8 +189,9 @@ test-owned reference builder executes CAMB directly on one exact ell grid for
 the five comparable bundled cosmologies and retains raw `C_ell`/`D_ell`
 surfaces, contract and numerical-plan digests, and artifact hashes. The
 fail-closed comparator rejects a changed raw surface. Canonical
-CCMBS-versus-CAMB acceptance at the production envelope remains assigned to
-Slice Seventeen; CAMB-only rows are never reported as canonical parity.
+CCMBS-versus-CAMB acceptance at the bounded scientific handoff remains
+assigned to Slice Nineteen; CAMB-only rows are never reported as canonical
+parity.
 The bounded parity tier uses the sparse ell grid `(2, 20, 100, 200, 500,
 800, 1200, 1500, 2000, 2500)`. `build_cmb_parity_matrix_report()` retains
 exact surface, fixture, tolerance, and refinement decisions and rejects
@@ -203,14 +204,16 @@ cannot report parity until the retained comparisons pass.
 arrays and its integrity digest, for reload verification in another process.
 Named fixed-point contracts and CAMB rows are supported for response points;
 each point receives its own ordinary-route execution and parity decision.
-`run_fixed_lcdm_cmb_parity()` is the Slice Seventeen evidence-boundary
+`run_fixed_lcdm_cmb_parity()` is the Slice Nineteen scientific handoff
 command. It defines fixed massless-neutrino LCDM TT/TE/EE on the canonical
-sparse grid, rejects mismatched declared and resolved CAMB inputs, and retains
-raw source/evolution histories, residuals, convergence records, and hashes.
-Its optional persisted report is verified by
-`read_cmb_parity_matrix_report()` in a later process. Slice Eighteen owns the
-quantitative row execution; neither command is part of ordinary test
-discovery.
+sparse grid, rejects mismatched declared and resolved CAMB inputs, and
+requires complete raw surfaces, source/evolution convergence, exact cache
+identity, solver/backend provenance, and a quantitative decision. The
+test-owned `build_fixed_lcdm_camb_parity_row()` supplies the independent CAMB
+row. Run `python -m tests.project.lib.scientific_acceptance --output PATH` to
+produce the durable report, then run the same module with `--verify PATH` in a
+separate process. The verifier uses `read_cmb_parity_matrix_report()` and
+neither command is part of ordinary test discovery.
 
 The runtime keeps source-history caching separate from complete-spectrum
 caching. A history is reusable only when its static contract, dynamic

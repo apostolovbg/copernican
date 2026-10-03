@@ -1222,6 +1222,7 @@ def build_cmb_parity_matrix_report(
         Mapping[str, Mapping[str, Mapping[str, Any]]] | None
     ) = None,
     require_runtime_evidence: bool = False,
+    require_scientific_provenance: bool = False,
 ) -> dict[str, Any]:
     """Build a fail-closed matrix of bounded CCMBS/CAMB parity decisions.
 
@@ -1360,7 +1361,14 @@ def build_cmb_parity_matrix_report(
                 if not bool(comparison.get("accepted", False)):
                     issues.append("one or more parity rows were rejected")
                 if require_runtime_evidence:
-                    issues.extend(_parity_runtime_evidence_issues(actual))
+                    issues.extend(
+                        _parity_runtime_evidence_issues(
+                            actual,
+                            require_scientific_provenance=(
+                                require_scientific_provenance
+                            ),
+                        )
+                    )
                 point_comparisons: dict[str, Mapping[str, Any]] = {}
                 for point_label, point in sorted(
                     point_specs.items(), key=lambda item: str(item[0])
@@ -1451,6 +1459,9 @@ def build_cmb_parity_matrix_report(
         }
         actual_mapping = actual if isinstance(actual, Mapping) else {}
         solver_provenance = {
+            "cache_identity": _jsonable(
+                actual_mapping.get("cache_identity", {})
+            ),
             "solver_id": str(actual_mapping.get("solver_id", "")),
             "solver_label": str(actual_mapping.get("solver_label", "")),
             "runtime_diagnostics": _jsonable(
@@ -1671,6 +1682,7 @@ def _ordinary_parity_payload(
         "sector": "scalar",
         "ell_values": expected_ells,
         "spectra": surfaces,
+        "cache_identity": _cache_identity_payload(),
         "solver_id": str(getattr(result, "solver_id", "")),
         "solver_label": str(getattr(result, "solver_label", "")),
         "runtime_diagnostics": _jsonable(diagnostics),
@@ -1703,6 +1715,8 @@ def _ordinary_parity_refinement(result: Any) -> dict[str, Any]:
 
 def _parity_runtime_evidence_issues(
     payload: Mapping[str, Any],
+    *,
+    require_scientific_provenance: bool = False,
 ) -> tuple[str, ...]:
     """Validate raw source and evolution evidence for a parity row."""
 
@@ -1750,6 +1764,44 @@ def _parity_runtime_evidence_issues(
         residual_audit.get("converged", False)
     ):
         issues.append("independent source residual audit is unresolved")
+    if require_scientific_provenance:
+        cache_identity = payload.get("cache_identity")
+        if not isinstance(cache_identity, Mapping):
+            issues.append("exact CCMBS cache identity is missing")
+        elif not bool(cache_identity.get("available", False)):
+            issues.append("exact CCMBS cache identity is unavailable")
+        else:
+            for field_name in (
+                "contract_static_sha256",
+                "model_static_sha256",
+                "request_specific_sha256",
+                "sha256",
+            ):
+                value = cache_identity.get(field_name)
+                if not isinstance(value, str) or len(value) != 64:
+                    issues.append(
+                        "CCMBS cache identity has an invalid " f"{field_name}"
+                    )
+            if cache_identity.get("identity_schema") != (
+                "ccmbs-runtime-cache-identity-sha256-v1"
+            ):
+                issues.append("CCMBS cache identity schema is invalid")
+        solver_id = str(payload.get("solver_id", "")).strip()
+        solver_label = str(payload.get("solver_label", "")).strip()
+        if solver_id != "ccmbs":
+            issues.append("CCMBS solver provenance is missing or invalid")
+        if not solver_label:
+            issues.append("CCMBS solver label is missing")
+        diagnostics = payload.get("runtime_diagnostics")
+        backend = (
+            diagnostics.get("ccmbs_backend")
+            if isinstance(diagnostics, Mapping)
+            else None
+        )
+        if not isinstance(backend, Mapping):
+            issues.append("CCMBS backend provenance is missing")
+        elif not str(backend.get("selected_backend", "")).strip():
+            issues.append("CCMBS selected backend is missing")
     return tuple(issues)
 
 
@@ -1765,6 +1817,7 @@ def run_cmb_parity_matrix(
         Mapping[str, Mapping[str, float]] | None
     ) = None,
     require_runtime_evidence: bool = False,
+    require_scientific_provenance: bool = False,
 ) -> dict[str, Any]:
     """Run one explicit ordinary-route CCMBS/CAMB parity matrix.
 
@@ -2016,6 +2069,7 @@ def run_cmb_parity_matrix(
         execution_failures_by_model=execution_failures,
         parameter_points_by_model=parameter_points,
         require_runtime_evidence=require_runtime_evidence,
+        require_scientific_provenance=require_scientific_provenance,
     )
 
 
@@ -2060,6 +2114,15 @@ def run_fixed_lcdm_cmb_parity(
         "As",
         "ns",
         "Neff",
+        "YHe",
+    )
+    resolved_parameter_names = (
+        "H0",
+        "ombh2",
+        "omch2",
+        "tau",
+        "As",
+        "ns",
         "YHe",
     )
     for parameter_name in required_parameters:
@@ -2117,6 +2180,74 @@ def run_fixed_lcdm_cmb_parity(
         raise ValueError(
             "Fixed LCDM CAMB row must resolve to massless neutrinos"
         )
+    expected_massless = float(reference_param_map.get("Neff", 0.0))
+    if not numpy.isclose(
+        float(resolved["num_nu_massless"]),
+        expected_massless,
+        rtol=0.0,
+        atol=1.0e-12,
+    ):
+        raise ValueError(
+            "Fixed LCDM CAMB row has an inconsistent massless-neutrino "
+            "count"
+        )
+    for parameter_name in resolved_parameter_names:
+        if not numpy.isclose(
+            float(resolved[parameter_name]),
+            float(reference_param_map[parameter_name]),
+            rtol=1.0e-12,
+            atol=1.0e-14,
+        ):
+            raise ValueError(
+                "Fixed LCDM CAMB resolved parameters differ for "
+                f"'{parameter_name}'"
+            )
+    reference_ells = tuple(
+        int(value) for value in reference_row.get("ell_values", ())
+    )
+    if reference_ells != ell_values:
+        raise ValueError(
+            "Fixed LCDM CAMB row must use the canonical sparse ell grid"
+        )
+    declared_observables = tuple(
+        str(value) for value in reference_row.get("declared_observables", ())
+    )
+    if declared_observables != spectra:
+        raise ValueError(
+            "Fixed LCDM CAMB row must declare exactly TT, TE and EE"
+        )
+    reference_spectra = reference_row.get("spectra")
+    if (
+        not isinstance(reference_spectra, Mapping)
+        or tuple(str(name) for name in reference_spectra) != spectra
+    ):
+        raise ValueError(
+            "Fixed LCDM CAMB row must retain exactly TT, TE and EE surfaces"
+        )
+    for spectrum_name in spectra:
+        surface = reference_spectra.get(spectrum_name)
+        if not isinstance(surface, Mapping) or set(surface) != {
+            "C_ell",
+            "D_ell",
+        }:
+            raise ValueError(
+                "Fixed LCDM CAMB row must retain raw C_ell and D_ell for "
+                f"'{spectrum_name}'"
+            )
+        for representation in ("C_ell", "D_ell"):
+            values = numpy.asarray(surface[representation], dtype=float)
+            if values.shape != (len(ell_values),) or not numpy.all(
+                numpy.isfinite(values)
+            ):
+                raise ValueError(
+                    "Fixed LCDM CAMB row contains an invalid "
+                    f"{representation} surface for '{spectrum_name}'"
+                )
+    fixture_digest = str(reference_row.get("fixture_sha256", ""))
+    if len(fixture_digest) != 64 or any(
+        character not in "0123456789abcdef" for character in fixture_digest
+    ):
+        raise ValueError("Fixed LCDM CAMB row lacks a valid fixture digest")
     report = run_cmb_parity_matrix(
         {model_name: reference_row},
         required_models=(model_name,),
@@ -2128,15 +2259,31 @@ def run_fixed_lcdm_cmb_parity(
             model_name: dict(reference_row.get("tolerances", {}) or {})
         },
         require_runtime_evidence=True,
+        require_scientific_provenance=True,
     )
     report = dict(report)
     report["scope"] = {
-        "id": "slice-seventeen-fixed-lcdm-tt-te-ee-v1",
+        "id": "slice-nineteen-fixed-lcdm-tt-te-ee-v1",
         "model": model_name,
         "spectra": spectra,
         "ell_values": ell_values,
         "reference_identity": str(reference_row.get("reference_identity", "")),
         "resolved_parameters": _jsonable(resolved),
+    }
+    report["quantitative_decision"] = {
+        "status": "accepted" if report.get("accepted") else "rejected",
+        "accepted": bool(report.get("accepted")),
+        "criteria": {
+            "physical_inputs": True,
+            "massless_neutrino_defaults": True,
+            "canonical_ell_grid": True,
+            "complete_raw_surfaces": True,
+            "runtime_and_convergence_evidence": bool(
+                report.get("runtime_evidence_required")
+            ),
+            "cache_and_backend_provenance": True,
+            "quantitative_surface_comparison": bool(report.get("accepted")),
+        },
     }
     report["report_sha256"] = _canonical_sha256(
         {key: value for key, value in report.items() if key != "report_sha256"}

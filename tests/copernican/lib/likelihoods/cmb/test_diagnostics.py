@@ -1781,6 +1781,7 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             "contract": {"param_map": parameter_map},
             "resolved_parameters": resolved,
             "ell_values": ell_values,
+            "declared_observables": spectra,
             "spectra": {
                 name: {
                     "C_ell": raw_spectra[name],
@@ -1821,6 +1822,21 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
                     "last_declared_runtime_evidence",
                     return_value=runtime_evidence,
                 ),
+                mock.patch.object(
+                    diagnostics,
+                    "_cache_identity_payload",
+                    return_value={
+                        "available": True,
+                        "identity_schema": (
+                            "ccmbs-runtime-cache-identity-sha256-v1"
+                        ),
+                        "contract_static_sha256": "a" * 64,
+                        "model_static_sha256": "b" * 64,
+                        "request_specific_sha256": "c" * 64,
+                        "execution_solver": "ccmbs",
+                        "sha256": "d" * 64,
+                    },
+                ),
             ):
                 report = run_fixed_lcdm_cmb_parity(
                     reference,
@@ -1830,6 +1846,10 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             restored = read_cmb_parity_matrix_report(destination)
 
         self.assertTrue(report["accepted"], report)
+        self.assertEqual(
+            report["quantitative_decision"]["status"],
+            "accepted",
+        )
         self.assertEqual(public_request.call_count, 1)
         row = report["reports"][model_name]
         self.assertEqual(row["solver_provenance"]["solver_id"], "ccmbs")
