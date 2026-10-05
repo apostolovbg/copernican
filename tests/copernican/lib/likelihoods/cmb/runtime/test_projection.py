@@ -208,6 +208,11 @@ class ProjectionModuleTestCase(unittest.TestCase):
                 spectra={
                     name: value * scale for name, value in values.items()
                 },
+                runtime_envelope={
+                    "evolution_modes_evolved": (
+                        1 if request.get("_numerical_overrides") else 0
+                    )
+                },
             )
 
         with (
@@ -232,6 +237,8 @@ class ProjectionModuleTestCase(unittest.TestCase):
         self.assertTrue(record["nested"])
         self.assertEqual(record["new_node_count"], 1)
         self.assertGreater(record["new_node_work_units"], 0)
+        self.assertTrue(record["cold_refinement"])
+        self.assertFalse(record["warm_reuse"])
         self.assertNotEqual(
             record["base_grid_sha256"], record["refined_grid_sha256"]
         )
@@ -285,6 +292,112 @@ class ProjectionModuleTestCase(unittest.TestCase):
 
         self.assertGreater(refined.size, base.size)
         self.assertTrue(numpy.all(numpy.isin(base, refined)))
+
+    def test_cold_refinement_requires_measured_new_work(self):
+        """A nominal finer count cannot certify a cold production run."""
+
+        contract = {
+            "numerical": {"k_sample_count": 8},
+            "perturbation_data": SimpleNamespace(
+                accuracy_controls={
+                    "production_scalar_convergence": {
+                        "enabled": True,
+                        "required_spectra": ["TT", "TE", "EE"],
+                    }
+                }
+            ),
+        }
+
+        def fake_impl(request, *args, **kwargs):
+            del args, kwargs
+            refined = bool(request.get("_numerical_overrides"))
+            return projection.CustomCMBSpectrumData(
+                ell_grid=numpy.asarray((2, 3)),
+                k_grid=numpy.asarray(
+                    (0.1, 0.15, 0.2) if refined else (0.1, 0.2)
+                ),
+                transfer_components={},
+                spectra={
+                    "TT": numpy.asarray((1.0, 2.0)),
+                    "TE": numpy.asarray((0.1, 0.2)),
+                    "EE": numpy.asarray((0.5, 0.8)),
+                },
+            )
+
+        with mock.patch.object(
+            projection,
+            "_compute_custom_cmb_spectrum_data_impl",
+            side_effect=fake_impl,
+        ):
+            with self.assertRaisesRegex(ValueError, "no measured new work"):
+                projection._compute_custom_cmb_spectrum_data(
+                    contract,
+                    (2, 3),
+                    requested_spectra=("TT", "TE", "EE"),
+                )
+
+    def test_warm_refinement_requires_matching_accepted_finer_grid(self):
+        """Exact warm reuse records its matching nested finer calculation."""
+
+        contract = {
+            "numerical": {"k_sample_count": 8},
+            "perturbation_data": SimpleNamespace(
+                accuracy_controls={
+                    "production_scalar_convergence": {
+                        "enabled": True,
+                        "required_spectra": ["TT", "TE", "EE"],
+                    }
+                }
+            ),
+        }
+
+        def fake_impl(request, *args, **kwargs):
+            del args
+            refined = bool(request.get("_numerical_overrides"))
+            if refined:
+                kwargs["performance_timer"].mark_cache_state("exact_cache_hit")
+            return projection.CustomCMBSpectrumData(
+                ell_grid=numpy.asarray((2, 3)),
+                k_grid=numpy.asarray(
+                    (0.1, 0.15, 0.2) if refined else (0.1, 0.2)
+                ),
+                transfer_components={},
+                spectra={
+                    "TT": numpy.asarray((1.0, 2.0)),
+                    "TE": numpy.asarray((0.1, 0.2)),
+                    "EE": numpy.asarray((0.5, 0.8)),
+                },
+            )
+
+        with (
+            mock.patch.object(
+                projection,
+                "_compute_custom_cmb_spectrum_data_impl",
+                side_effect=fake_impl,
+            ),
+            mock.patch.object(projection.cache, "set_cmb_spectrum"),
+        ):
+            result = projection._compute_custom_cmb_spectrum_data(
+                contract,
+                (2, 3),
+                requested_spectra=("TT", "TE", "EE"),
+            )
+
+        record = result.runtime_envelope["production_scalar_k_convergence"]
+        self.assertTrue(record["warm_reuse"])
+        self.assertTrue(record["matching_accepted_finer_calculation"])
+        self.assertEqual(record["new_node_work_units"], 0)
+
+    def test_projection_quadrature_retains_endpoint_contributions(self):
+        """Composite projection weights include both physical endpoints."""
+
+        eta = numpy.asarray((0.0, 0.3, 0.7, 1.0))
+        weights = projection._simpson_weights(eta)
+        endpoint_source = numpy.asarray((1.0, 0.0, 0.0, 2.0))
+
+        self.assertGreater(float(weights[0]), 0.0)
+        self.assertGreater(float(weights[-1]), 0.0)
+        self.assertGreater(float(numpy.dot(weights, endpoint_source)), 0.0)
 
     def test_projection_source_does_not_import_camb(self):
         """The declared projection module should remain CAMB-free."""

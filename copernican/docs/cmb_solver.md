@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-10-02
+**Last Updated:** 2026-10-05
 **Project Version:** 12.0.26
 
 ## Overview
@@ -221,9 +221,11 @@ parameters, CCMBS identity, source eta grid, and source-role set all match;
 the runtime envelope records the hit and miss counts. Phase-aware k ladders
 also retain their uncapped physical node requirement in `phase_grid_status`.
 Background eta refinement likewise continues through a bounded measured
-ladder when its first independent comparison remains unresolved. Every
-attempt and its selected bound are retained in the runtime evidence; a
-theoretical node count alone is never reported as convergence.
+ladder when its first independent comparison remains unresolved. The accepted
+finer solution becomes the production background. Every attempt measures the
+physical endpoints, opacity and visibility features, ionization and sound
+speed, drag quantities, and active massive-neutrino histories; a theoretical
+node count alone is never reported as convergence.
 Contracts that set `require_phase_resolution` reject a capped ladder before
 evolution, while bounded diagnostic fixtures may retain the explicit
 under-resolved status for evidence.
@@ -271,13 +273,13 @@ largest radial and acoustic phase gaps. A grid is resolved only when its node
 count and every phase gap satisfy the declared bound; a dense count with one
 large gap is therefore still rejected.
 
-Adaptive transfer refinement keeps this phase work separate from evolution.
-The base k modes are evolved once, and a nested projection ladder preserves
-those modes while adding only projection nodes. Source histories and
-background products are reused; strict refinement interpolates compatible
-source histories and computes only the projection kernels required by the
-new nodes. Runtime envelopes retain the base/refined node counts, phase
-status, interpolation and refinement timing, work units, and reuse flags.
+Adaptive transfer refinement keeps this phase work separate from eta
+quadrature. The base k modes are evolved once, and a nested projection ladder
+preserves those modes while adding new phase nodes. Strict production
+refinement evolves the declared hierarchy at every new node. Matching cached
+source histories and background products remain reusable. Runtime envelopes
+retain base/refined node counts, phase status, cold and warm mode counts,
+refinement timing, measured work, and reuse flags.
 
 Each fixed-point runtime envelope also stores compact raw source-history
 samples at deterministic eta anchors. `audit_source_history_residuals()`
@@ -664,12 +666,13 @@ so the Friedmann source counts each component exactly once.
 The engine owns the background grid. It partitions one physical scale-factor
 budget across the early radiation scaffold, the recombination visibility
 feature, and the late reionization interval, then rebuilds the complete
-history on a doubled budget. The accepted background retains relative errors
-for conformal age, both sound horizons, visibility, and ionization fraction.
-The BAO drag transition is found from the pre-recombination opacity depth and
-is exposed separately from the recombination visibility ruler. For massive
-neutrinos, the background payload retains density and pressure histories from
-the same q quadrature that supplies the perturbation weights.
+history on a doubled budget. The accepted finer background retains relative
+errors for its endpoints, conformal age, both sound horizons, opacity,
+visibility, ionization, and sound speed. The BAO drag transition is found
+from the pre-recombination opacity depth and is exposed separately from the
+recombination visibility ruler. For massive neutrinos, the comparison and
+background payload retain density and pressure histories from the same q
+quadrature that supplies the perturbation weights.
 
 The authoritative evolved states are the q-resolved hierarchy members:
 
@@ -1692,32 +1695,42 @@ Adaptive refinement is driven by the engine planner. The canonical runtime
 stages are transfer, source, projection, and evolution:
 
 Transfer refinement places nodes from the requested radial phase, acoustic
-sound-horizon phase, and declared reference multipoles. Source refinement
-subdivides conformal-time intervals according to the largest requested
-Fourier phase and the visibility peak and shoulders. Projection refinement
-compares the full Simpson line-of-sight result with a coarsened Simpson
-surface while using the same exact sector kernel and declared source
-histories. Source history interpolation remains the bounded default; a
-contract may set `adaptive_source.direct_source_quadrature: true` when it
-explicitly budgets re-evolution on the refined k surface. Evolution refinement
-runs coarse, intermediate, and reference histories for the same cosmology and
-compares both adjacent pairs at early, recombination, and late anchor regions.
-The reference verdict uses the intermediate-to-reference comparison; the
-runtime envelope retains both comparisons, measured errors, anchor values,
+sound-horizon phase, and declared reference multipoles, then performs actual
+new-mode evolution on the nested ladder. Evolution refinement runs coarse,
+intermediate, and reference state and source histories for the same cosmology.
+Those independently evolved histories are compared at every shared node and
+interval midpoint, with named coordinates taken from visibility onset, peak,
+tail, interaction transition, and integration endpoints.
+
+Source refinement separately measures representation and interpolation error
+on a nested eta grid while holding the accepted evolution fixed. It adapts the
+coarse representation up to 87.5% of the fine grid, reports global
+per-product L-infinity errors for acceptance, and retains local near-zero
+relative errors as diagnostics. Projection refinement builds genuinely
+distinct nested phase-aware eta plans, uses positive trapezoid quadrature,
+and compares the resulting requested spectra per product. Its phase target is
+the effective projected k endpoint rather than the broader declared domain.
+Dense background samples seed the plan without consuming its refinement
+budget. The runtime envelope retains both adjacent evolution comparisons,
+source and projection product errors, grid identities, feature values, actual
 sample counts, and refinement levels for all enabled surfaces.
 
 The declared projection request resolves the dependency closure of the selected
 `requested_spectra`. It evaluates only the transfer components and source
 terms needed by those spectra. An unavailable requested spectrum raises an
 explicit availability error before evolution rather than returning an empty
-surface or borrowing another sector.
+surface or borrowing another sector. The bounded ordinary final-tier test runs
+a multi-spectrum request and its TT subset through the production planner,
+requires measured acceptance on every active axis, and compares the shared TT
+surface directly.
 
 The planner requires an evolution sample plan and a declared scalar evolution
 graph. Its node bounds apply to the declared fine history, and the runtime
 envelope charges the coarse, intermediate, and reference integrations. A
-strict request raises a named under-resolution error when any physical anchor
-fails the declared absolute or relative tolerance; it never substitutes a
-grid-size response or an empirical spectrum correction.
+strict request raises a typed under-resolution error with the failed products
+when the dense history surface misses its declared absolute or relative
+tolerance; it never substitutes a grid-size response or an empirical spectrum
+correction.
 
 The planner's convergence guards are not output corrections. Each enabled
 surface compares successive physical approximations and raises a named
@@ -1759,8 +1772,14 @@ correlation coefficient `TE / sqrt(abs(TT * EE))` for normalized `TE`.
 Successive refinements must change `TT` and `EE` by less than 1%, normalized
 `TE` by less than 2%, `PP` by less than 3%, and lensed `BB` by less than 5%.
 Massive-neutrino q refinement must remain below 2%, and every accepted
-hierarchy refinement must remain below 1%. Zero crossings remain finite
-because the L-infinity metric uses the refined surface peak as its scale.
+hierarchy bound must remain below 1%. The q check doubles the node count,
+extends both thermal tails independently, and compares density, pressure,
+shear, momentum, and streaming-speed moments across the active mass domain.
+Hierarchy validation records a free-streaming spherical-tail bound with its
+closure assumptions, visibility-phase domain, and terminal multipole.
+Configured q and hierarchy floors alone cannot produce `validated_bound`.
+Zero crossings remain finite because dense history metrics retain local and
+absolute scales.
 
 The acceptance ladder varies background resolution, source-grid density,
 fixed k anchors, scalar/vector/tensor hierarchy depths, massive-neutrino q

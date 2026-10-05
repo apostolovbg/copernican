@@ -868,6 +868,176 @@ def evaluate_control_refinement(
     )
 
 
+def evaluate_momentum_grid_refinement_bounds(
+    momentum_grids: Mapping[str, Mapping[str, Any]],
+    *,
+    mass_ratio_max: float,
+    tolerance: float = FINAL_Q_GRID_RELATIVE_TOLERANCE,
+) -> dict[str, Mapping[str, Any]]:
+    """Measure q quadrature and omitted-tail errors over its physical domain.
+
+    Each configured logarithmic grid is compared with a doubled-count grid
+    whose lower and upper support are independently extended.  Density,
+    pressure, momentum, and streaming-speed moments are sampled from the
+    relativistic limit through the request's largest ``a m / T_nu`` value.
+    A configured node floor alone therefore cannot produce a validated bound.
+    """
+
+    maximum_ratio = float(mass_ratio_max)
+    threshold = float(tolerance)
+    if not numpy.isfinite(maximum_ratio) or maximum_ratio < 0.0:
+        raise ValueError("Momentum refinement mass_ratio_max must be finite")
+    if not numpy.isfinite(threshold) or threshold <= 0.0:
+        raise ValueError("Momentum refinement tolerance must be positive")
+    positive_floor = max(maximum_ratio * 1.0e-8, 1.0e-8)
+    ratio_samples = numpy.unique(
+        numpy.concatenate(
+            (
+                numpy.asarray((0.0, maximum_ratio), dtype=float),
+                numpy.geomspace(
+                    positive_floor,
+                    max(maximum_ratio, positive_floor),
+                    12,
+                ),
+            )
+        )
+    )
+
+    def _moments(
+        *,
+        count: int,
+        q_min: float,
+        q_max: float,
+    ) -> numpy.ndarray:
+        """Return thermal moments on one endpoint-inclusive log-q grid."""
+
+        q_values = numpy.geomspace(q_min, q_max, count, dtype=float)
+        log_spacing = (numpy.log(q_max) - numpy.log(q_min)) / (count - 1)
+        weights = numpy.full(count, log_spacing, dtype=float)
+        weights[[0, -1]] *= 0.5
+        exp_negative_q = numpy.exp(-q_values)
+        occupation = exp_negative_q / (1.0 + exp_negative_q)
+        base = weights * occupation
+        rows: list[float] = []
+        for mass_ratio in ratio_samples:
+            energy = numpy.sqrt(
+                numpy.square(q_values) + float(mass_ratio) ** 2
+            )
+            density = float(numpy.sum(base * q_values**3 * energy))
+            pressure = float(numpy.sum(base * q_values**5 / (3.0 * energy)))
+            shear = float(numpy.sum(base * q_values**5 / energy))
+            momentum = float(numpy.sum(base * q_values**3 * energy))
+            velocity_weights = base * q_values**4
+            velocity = float(
+                numpy.sum(velocity_weights * q_values / energy)
+                / max(float(numpy.sum(velocity_weights)), 1.0e-300)
+            )
+            rows.extend((density, pressure, shear, momentum, velocity))
+        result = numpy.asarray(rows, dtype=float)
+        if not numpy.all(numpy.isfinite(result)) or numpy.any(result < 0.0):
+            raise ValueError("Momentum refinement produced invalid moments")
+        return result
+
+    evidence: dict[str, Mapping[str, Any]] = {}
+    for grid_name, raw_grid in momentum_grids.items():
+        count = int(raw_grid["count"])
+        q_min = float(raw_grid["q_min"])
+        q_max = float(raw_grid["q_max"])
+        if count < 2 or not 0.0 < q_min < q_max:
+            raise ValueError(
+                f"Momentum grid '{grid_name}' has an invalid refinement domain"
+            )
+        refined_count = 2 * count + 1
+        refined_q_min = q_min / 4.0
+        refined_q_max = max(q_max + 8.0, 32.0)
+        coarse = _moments(count=count, q_min=q_min, q_max=q_max)
+        refined = _moments(
+            count=refined_count,
+            q_min=refined_q_min,
+            q_max=refined_q_max,
+        )
+        relative_error = float(
+            numpy.max(
+                numpy.abs(refined - coarse)
+                / numpy.maximum(numpy.abs(refined), 1.0e-300),
+                initial=0.0,
+            )
+        )
+        evidence[str(grid_name)] = {
+            "method": "doubled_count_extended_support_thermal_moments",
+            "coarse": {
+                "count": count,
+                "q_min": q_min,
+                "q_max": q_max,
+            },
+            "refined": {
+                "count": refined_count,
+                "q_min": refined_q_min,
+                "q_max": refined_q_max,
+            },
+            "mass_ratio_domain": [0.0, maximum_ratio],
+            "sample_count": int(ratio_samples.size),
+            "moments": (
+                "density",
+                "pressure",
+                "shear",
+                "momentum",
+                "streaming_speed",
+            ),
+            "relative_error": relative_error,
+            "tolerance": threshold,
+            "converged": bool(relative_error < threshold),
+            "assumptions": (
+                "thermal Fermi-Dirac occupation",
+                "endpoint-inclusive log-q trapezoid rule",
+            ),
+        }
+    return evidence
+
+
+def evaluate_hierarchy_truncation_bounds(
+    truncation_bounds: Mapping[str, Mapping[str, Any]],
+    *,
+    tolerance: float = FINAL_HIERARCHY_RELATIVE_TOLERANCE,
+) -> dict[str, Mapping[str, Any]]:
+    """Validate declared hierarchy bounds and their assumptions/domain."""
+
+    threshold = float(tolerance)
+    if not truncation_bounds:
+        return {}
+    if not numpy.isfinite(threshold) or threshold <= 0.0:
+        raise ValueError("Hierarchy truncation tolerance must be positive")
+    evidence: dict[str, Mapping[str, Any]] = {}
+    for family_name, raw_bound in truncation_bounds.items():
+        phase_domain = tuple(raw_bound.get("phase_domain", ()))
+        assumptions = tuple(raw_bound.get("assumptions", ()))
+        relative_bound = float(raw_bound.get("relative_bound", float("inf")))
+        terminal = int(raw_bound.get("terminal_multipole", 0))
+        closure = str(raw_bound.get("closure", ""))
+        domain_valid = bool(
+            len(phase_domain) == 2
+            and numpy.all(numpy.isfinite(phase_domain))
+            and float(phase_domain[0]) <= float(phase_domain[1])
+        )
+        converged = bool(
+            domain_valid
+            and assumptions
+            and terminal > 0
+            and closure == "free_streaming_scalar"
+            and numpy.isfinite(relative_bound)
+            and relative_bound < threshold
+            and bool(raw_bound.get("validated", False))
+        )
+        evidence[str(family_name)] = {
+            **dict(raw_bound),
+            "relative_bound": relative_bound,
+            "tolerance": threshold,
+            "domain_valid": domain_valid,
+            "converged": converged,
+        }
+    return evidence
+
+
 def require_convergence(
     report: ConvergenceReport | RefinementMetric,
 ) -> None:
@@ -898,6 +1068,8 @@ __all__ = [
     "RUNTIME_WORK_LIMIT_NAMES",
     "RefinementMetric",
     "evaluate_control_refinement",
+    "evaluate_hierarchy_truncation_bounds",
+    "evaluate_momentum_grid_refinement_bounds",
     "evaluate_spectrum_refinement",
     "require_convergence",
     "resolve_production_scalar_convergence",

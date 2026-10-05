@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-05
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -81,10 +81,12 @@ stale production-sized grid.
 
 The adaptive runtime closes phase resolution against measured spacing, not
 only against a theoretical node-count floor. Production k-grid convergence
-retains distinct nested grids, new-node work, cache state, and shape-aware
-digests, so an identical or non-nested refinement cannot be reported as
-evidence. Bounded graph tests persist raw arrays, refinement records, and a
-manifest, then reload and hash them from a fresh process after plot cleanup.
+retains distinct nested grids, measured new-mode work, cache state, and
+shape-aware digests. Cold refinement evolves every new k mode; warm reuse is
+accepted only for the matching finer calculation. An identical or non-nested
+refinement cannot be reported as evidence. Bounded graph tests persist raw
+arrays, refinement records, and a manifest, then reload and hash them from a
+fresh process after plot cleanup.
 
 Corpus admission and execution keep theory labels separate from physical
 identity. Renaming a complete declaration preserves its route, compiled
@@ -126,14 +128,26 @@ phase-aware line-of-sight grid. Its runtime envelope records the effective
 eta-node count and spacing, so raw projection resolution is inspectable rather
 than hidden by plotting.
 
-Transfer phase refinement is projection-only and nested. The engine evolves a
-bounded base k ladder once, then preserves those modes while adding phase
-quadrature nodes for the projection surface. Compatible source histories,
-background products, and base transfer products are reused; strict refinement
-interpolates source histories and computes only the projection kernels needed
-for new nodes. Runtime evidence records the physical phase status, base and
-refined node counts, interpolation and refinement timing, work units, and
-reuse flags.
+Transfer phase refinement is nested. The engine evolves a bounded base k
+ladder once, preserves those modes, and evolves the declared hierarchy at
+every new phase-quadrature node before projection. Background products and
+matching cached source histories remain reusable. Runtime evidence records
+the physical phase status, base and refined node counts, cold and warm mode
+counts, refinement timing, measured work, and reuse flags.
+
+Evolution acceptance compares independently evolved state and source
+histories over every shared node and interval midpoint, with additional
+anchors taken from the actual visibility and interaction histories. Source
+representation is then measured separately by adaptive interpolation on a
+materially distinct nested eta grid while evolution stays fixed. Per-product
+global errors drive acceptance, while local near-zero errors remain retained
+diagnostics. Localized spikes, sign changes, and near-zero crossings therefore
+remain visible outside the named anchors. Projection quadrature uses nested
+phase-aware eta grids, positive trapezoid weights, and the effective projected
+k endpoint. It compares the resulting spectra per product and retains both
+grid identities and measured differences. The runtime separately reports
+evolution-history, source-representation, k-refinement, and line-of-sight
+errors.
 
 Evolved scalar Einstein residuals use the sum of absolute declared equation
 terms as their dimensionless normalization. Copernican records the maximum
@@ -191,11 +205,16 @@ rerunning the remapper.
 Declared CMB validation records the resolved numerical envelope in each run
 manifest. The named final tier requires bounded background, transfer,
 source, hierarchy, momentum-grid, and lensing controls and rejects
-under-resolved requests before expensive evolution. Cross-sector refinement
-tests enforce the documented `TT`, `TE`, `EE`, `PP`, lensed `BB`, q-grid,
-and hierarchy thresholds. Explicit graphs without a sector registry retain
-their active sector identity from compiled observable and tensor-character
-metadata, so runtime envelopes cannot silently omit executed sectors.
+under-resolved requests before expensive evolution. Momentum acceptance
+compares doubled-count quadrature with independently extended low- and high-q
+tails across the active thermal mass domain. Hierarchy acceptance uses a
+free-streaming spherical-tail bound tied to its closure assumptions, terminal
+multipole, and visibility-phase domain; configured floors alone do not earn a
+validated status. Cross-sector refinement tests enforce the documented `TT`,
+`TE`, `EE`, `PP`, lensed `BB`, q-grid, and hierarchy thresholds. Explicit
+graphs without a sector registry retain their active sector identity from
+compiled observable and tensor-character metadata, so runtime envelopes
+cannot silently omit executed sectors.
 
 The fixed-parameter CCMBS diagnostics API is independent of samplers and
 plots. `discover_cmb_model_records()` enumerates `.yml` and `.yaml` model
@@ -401,13 +420,18 @@ explicit handoff and `--verify PATH` reloads the durable report in a separate
 process through `read_cmb_parity_matrix_report()`. The handoff returns a
 quantitative accepted/rejected decision and remains outside ordinary test
 discovery and full-resolution production work.
-Slice Thirteen now makes the ordinary production planner own transfer,
-source, projection, and evolution refinement. Independently evolved anchor
-histories and compact evidence for background, q, hierarchy, evolution,
-source, projection, and physical limits are retained in the public
-performance record. The bounded production graph test uses that ordinary
-route, confirms wave-bearing TT/TE/EE output, and proves exact-repeat reuse
-without a diagnostic bypass or a second cold solve.
+The ordinary production planner owns transfer, source, projection, and
+evolution refinement. Independently evolved dense feature histories and
+compact evidence for background, q, hierarchy, evolution, source, projection,
+and physical limits are retained in the public performance record. Physical
+limit evidence checks both k and eta endpoints, integration start, omitted
+visibility tails, thermal background support, and lensing ell support. The
+bounded production graph test uses that ordinary route, confirms wave-bearing
+TT/TE/EE output, and proves exact-repeat reuse without a diagnostic bypass or
+a second cold solve. A compact ordinary final-tier graph also runs both a
+multi-spectrum request and its TT subset, requires every active numerical
+axis to meet its measured budget, and verifies that the shared TT result is
+unchanged.
 The final LambdaCDM declaration keeps one fixed phase-aware production
 surface for k, eta, and evolution. CCMBS keeps the generated hierarchy
 history at the declared LOS phase resolution so
@@ -438,9 +462,11 @@ budget across the radiation scaffold, recombination visibility feature, and
 late reionization interval, then performs an independent doubled-grid
 refinement. If that measured comparison remains outside its bound, the
 engine continues through a bounded refinement ladder instead of treating a
-single theoretical node count as convergence. Each production background
-records every attempted refinement, the selected bound, visibility
-normalization, drag-transition index, and the canonical BAO drag ruler.
+single theoretical node count as convergence. The accepted finer background
+becomes the production background. Each attempt measures endpoints, opacity,
+visibility normalization, electron fraction, sound speed, drag quantities,
+and massive-neutrino density and pressure when active; drag remains an
+independent baryon-opacity quantity.
 Massive-neutrino density and pressure histories are retained
 from the same q quadrature used by perturbation evolution, including the
 continuous zero-mass limit.

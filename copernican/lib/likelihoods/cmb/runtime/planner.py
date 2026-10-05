@@ -60,6 +60,33 @@ def _next_power_of_two(value: int) -> int:
     return result
 
 
+def _free_streaming_tail_bound(
+    *,
+    phase_limit: float,
+    terminal_multipole: int,
+) -> float:
+    """Bound a free-streaming spherical hierarchy above its phase domain.
+
+    For orders at or above the maximum source phase, the positive-series
+    recurrence bounds each next spherical-Bessel amplitude by
+    ``x / (2 l + 3 - x)``.  Multiplying those ratios from ``ceil(x)`` to the
+    terminal multipole gives a conservative dimensionless tail bound.
+    """
+
+    phase = max(float(phase_limit), 0.0)
+    terminal = int(terminal_multipole)
+    starting_order = max(0, int(math.ceil(phase)))
+    if terminal <= starting_order:
+        return float("inf")
+    bound = 1.0
+    for order in range(starting_order, terminal):
+        denominator = 2.0 * float(order) + 3.0 - phase
+        if denominator <= 0.0:
+            return float("inf")
+        bound *= phase / denominator if phase > 0.0 else 0.0
+    return float(bound)
+
+
 @dataclass(frozen=True, slots=True)
 class CMBNumericalPlan:
     """Immutable numerical decision made by the CCMBS engine."""
@@ -321,10 +348,10 @@ def plan_cmb_numerics(
     # the terminal recurrence.  This keeps low-ell work bounded while
     # growing automatically for acoustic and damping-tail requests.
     visibility_phase = max(8, int(math.ceil(float(ell_max) / 32.0)))
-    photon_l_max = max(16, visibility_phase + 12)
+    photon_l_max = max(20, visibility_phase + 20)
     polarization_l_max = max(photon_l_max, 16)
-    neutrino_l_max = max(12, photon_l_max - 4)
-    massive_l_max = max(12, neutrino_l_max - 1)
+    neutrino_l_max = max(16, visibility_phase + 20)
+    massive_l_max = max(16, visibility_phase + 20)
     hierarchy_controls = {
         "photon_temperature": int(photon_l_max),
         "photon_polarization": int(polarization_l_max),
@@ -416,22 +443,23 @@ def plan_cmb_numerics(
                     "enabled": True,
                     "minimum_nodes": int(k_nodes),
                     "maximum_nodes": int(max(2 * k_nodes, 1024)),
-                    "relative_tolerance": 2.0e-2,
+                    "relative_tolerance": 1.0e-2,
                     "absolute_tolerance": 1.0e-12,
-                    "maximum_refinements": 1,
+                    "maximum_refinements": 2,
+                    "algorithm": "nested_independent_source_projection",
                 },
                 "adaptive_source": {
                     "enabled": True,
                     "minimum_nodes": int(eta_nodes),
                     "maximum_nodes": int(max(2 * eta_nodes, 256)),
-                    "relative_tolerance": 2.0,
+                    "relative_tolerance": 2.0e-2,
                     "absolute_tolerance": 1.0e-12,
-                    "maximum_refinements": 1,
+                    "maximum_refinements": 2,
                 },
                 "adaptive_projection": {
                     "enabled": True,
                     "minimum_nodes": int(eta_nodes),
-                    "maximum_nodes": int(max(8 * eta_nodes, 1024)),
+                    "maximum_nodes": int(max(16 * eta_nodes, 2048)),
                     "relative_tolerance": 2.0e-2,
                     "absolute_tolerance": 1.0e-12,
                     "maximum_refinements": 1,
@@ -440,10 +468,10 @@ def plan_cmb_numerics(
                     "enabled": True,
                     "minimum_nodes": int(evolution_nodes),
                     "maximum_nodes": int(max(4 * evolution_nodes, 512)),
-                    "relative_tolerance": 2.0e-1,
+                    "relative_tolerance": 1.0e-2,
                     "absolute_tolerance": 1.0e-12,
-                    "maximum_refinements": 1,
-                    "validation_mode_count": 3,
+                    "maximum_refinements": 2,
+                    "validation_mode_count": 7,
                 },
                 # Scalar Einstein checks are engine-owned acceptance
                 # diagnostics. The model declaration supplies the equations;
@@ -514,6 +542,38 @@ def plan_cmb_numerics(
             "family_l_max": hierarchy_family_controls,
             "state_equation_count": int(len(equation_entries)),
             "sector_count": int(len(sector_names)),
+            "truncation_bounds": {
+                row["name"]: {
+                    "kind": "free_streaming_spherical_tail",
+                    "closure": row["closure"],
+                    "phase_domain": [0.0, float(visibility_phase)],
+                    "terminal_multipole": int(
+                        hierarchy_family_controls[row["name"]]
+                    ),
+                    "relative_bound": _free_streaming_tail_bound(
+                        phase_limit=float(visibility_phase),
+                        terminal_multipole=int(
+                            hierarchy_family_controls[row["name"]]
+                        ),
+                    ),
+                    "assumptions": (
+                        "collisionless free streaming above the active "
+                        "visibility-source phase",
+                        "declared free_streaming_scalar terminal closure",
+                    ),
+                    "validated": bool(
+                        row["closure"] == "free_streaming_scalar"
+                        and _free_streaming_tail_bound(
+                            phase_limit=float(visibility_phase),
+                            terminal_multipole=int(
+                                hierarchy_family_controls[row["name"]]
+                            ),
+                        )
+                        < 1.0e-2
+                    ),
+                }
+                for row in family_rows
+            },
         },
         "collision_schedule": {
             "method": "declared_rate_phase_partition",
@@ -571,7 +631,7 @@ def plan_cmb_numerics(
                 "status": "required",
             },
             "momentum_q": {
-                "method": "declared_q_support_and_quadrature_bound",
+                "method": "doubled_count_extended_support_thermal_moments",
                 "status": (
                     "required"
                     if bool(momentum_grid_controls)
@@ -584,25 +644,25 @@ def plan_cmb_numerics(
                 ),
             },
             "hierarchy_depth": {
-                "method": "declared_hierarchy_depth_bound",
+                "method": "free_streaming_spherical_tail_bound",
                 "status": (
                     "required" if hierarchy_controls else "not_applicable"
                 ),
             },
             "evolution": {
-                "method": "independent_anchor_history_refinement",
+                "method": "independent_dense_feature_history_refinement",
                 "status": "required",
             },
             "source": {
-                "method": "independent_source_history_refinement",
+                "method": "nested_source_history_interpolation_refinement",
                 "status": "required",
             },
             "projection": {
-                "method": "independent_line_of_sight_quadrature_refinement",
+                "method": "nested_line_of_sight_quadrature_refinement",
                 "status": "required",
             },
             "physical_limits": {
-                "method": "engine_owned_k_eta_surface_bounds",
+                "method": "measured_k_eta_tail_and_lensing_support",
                 "status": "required",
             },
         }

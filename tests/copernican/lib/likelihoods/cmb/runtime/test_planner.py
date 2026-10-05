@@ -143,7 +143,23 @@ class AutomaticCMBPlannerTestCase(unittest.TestCase):
                 )
         self.assertEqual(
             int(controls["adaptive_evolution"]["validation_mode_count"]),
-            3,
+            7,
+        )
+        self.assertEqual(
+            controls["adaptive_transfer"]["algorithm"],
+            "nested_independent_source_projection",
+        )
+        self.assertLessEqual(
+            float(controls["adaptive_source"]["relative_tolerance"]),
+            2.0e-2,
+        )
+        self.assertGreaterEqual(
+            int(controls["adaptive_projection"]["maximum_nodes"]),
+            16 * int(controls["adaptive_projection"]["minimum_nodes"]),
+        )
+        self.assertEqual(
+            int(controls["adaptive_projection"]["maximum_refinements"]),
+            1,
         )
         axes = plan.physical_scale_evidence["adaptive_resolution_axes"]
         self.assertEqual(
@@ -157,6 +173,10 @@ class AutomaticCMBPlannerTestCase(unittest.TestCase):
                 "projection",
                 "physical_limits",
             },
+        )
+        self.assertEqual(
+            axes["source"]["method"],
+            "nested_source_history_interpolation_refinement",
         )
         self.assertEqual(axes["evolution"]["status"], "required")
 
@@ -291,6 +311,25 @@ class AutomaticCMBPlannerTestCase(unittest.TestCase):
         self.assertGreaterEqual(int(evidence["spectrum_edge_count"]), 4)
         self.assertIn("scalar", evidence["sectors"])
         self.assertTrue(evidence["kernels"])
+
+    def test_plan_proves_hierarchy_tail_bounds_on_a_named_domain(self) -> None:
+        """Hierarchy floors alone cannot stand in for truncation evidence."""
+
+        plan = plan_cmb_numerics(
+            self._lcdm_contract(),
+            ells=range(2, 2001),
+            spectra=("TT", "TE", "EE"),
+        )
+        bounds = plan.physical_scale_evidence["hierarchy_resolution"][
+            "truncation_bounds"
+        ]
+
+        self.assertTrue(bounds)
+        for evidence in bounds.values():
+            self.assertTrue(evidence["validated"])
+            self.assertLess(evidence["relative_bound"], 1.0e-2)
+            self.assertEqual(evidence["phase_domain"][0], 0.0)
+            self.assertTrue(evidence["assumptions"])
 
 
 if __name__ == "__main__":

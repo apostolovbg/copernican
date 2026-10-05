@@ -2974,6 +2974,18 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
             refinement["fine_sample_count"],
             len(refinement["fine_eta"]),
         )
+        if refinement["refinement_mode_count"]:
+            self.assertFalse(refinement["independently_evolved"])
+            self.assertTrue(refinement["evolution_held_fixed"])
+            self.assertLess(
+                refinement["coarse_sample_count"],
+                refinement["fine_sample_count"],
+            )
+            self.assertEqual(
+                refinement["coarse_evolution_sample_count"],
+                refinement["fine_evolution_sample_count"],
+            )
+            self.assertTrue(refinement["product_errors"])
 
         cache.clear_cmb_result_caches()
         second = cmb_projection._compute_custom_cmb_spectrum_data(
@@ -6546,6 +6558,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "maximum_nodes": 24,
                 "relative_tolerance": 2.0,
                 "absolute_tolerance": 1.0e-12,
+                "algorithm": "diagnostic_transfer_interpolation",
             },
             "adaptive_source": {
                 "minimum_nodes": 282,
@@ -6651,6 +6664,90 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         for values in spectrum_data.spectra.values():
             self.assertTrue(numpy.all(numpy.isfinite(values)))
 
+    def test_ordinary_production_refinement_accepts_request_subset(
+        self,
+    ) -> None:
+        """A bounded ordinary request passes every active numerical axis."""
+
+        raw_contract = _analytic_signal_contract(decay_rate=1.0e-5)
+        raw_contract.pop("numerical", None)
+        observables = raw_contract["perturbations"]["observables"]
+        observables["electric_transfer"] = copy.deepcopy(
+            observables["signal_transfer"]
+        )
+        observables["EE"] = {
+            "kind": "angular_power_spectrum",
+            "primary": "electric_transfer",
+            "secondary": "electric_transfer",
+        }
+        contract = _prepare_declared_contract(raw_contract)
+        self.assertEqual(contract["_engine_request_mode"], "production")
+        cache.clear_cmb_caches()
+        ells = numpy.asarray((2, 3), dtype=int)
+
+        full = cmb_solver._compute_declared_perturbation_spectrum(
+            contract,
+            ells,
+            spectra=("TT", "EE"),
+        )
+        full_evidence = cmb_solver.last_declared_runtime_evidence()
+        subset = cmb_solver._compute_declared_perturbation_spectrum(
+            contract,
+            ells,
+            spectra=("TT",),
+        )
+        subset_evidence = cmb_solver.last_declared_runtime_evidence()
+
+        numpy.testing.assert_allclose(
+            subset,
+            full["TT"],
+            rtol=1.0e-12,
+            atol=1.0e-30,
+        )
+        expected_statuses = {
+            "background": "measured",
+            "momentum_q": "not_applicable",
+            "hierarchy_depth": "not_applicable",
+            "evolution": "measured",
+            "source": "measured",
+            "projection": "measured",
+            "physical_limits": "measured",
+        }
+        for evidence in (full_evidence, subset_evidence):
+            self.assertIsNotNone(evidence)
+            self.assertEqual(evidence["accuracy_tier"], "final")
+            self.assertEqual(
+                {
+                    name: row["status"]
+                    for name, row in evidence[
+                        "resolution_axis_evidence"
+                    ].items()
+                },
+                expected_statuses,
+            )
+            self.assertLessEqual(
+                float(evidence["adaptive_transfer_relative_error"]),
+                1.0e-2,
+            )
+            self.assertLessEqual(
+                float(evidence["adaptive_source_relative_error"]),
+                2.0e-2,
+            )
+            self.assertLessEqual(
+                float(evidence["adaptive_projection_relative_error"]),
+                2.0e-2,
+            )
+            self.assertLessEqual(
+                float(evidence["adaptive_evolution_relative_error"]),
+                1.0e-2,
+            )
+            self.assertTrue(
+                all(evidence["physical_limit_evidence"]["checks"].values())
+            )
+            self.assertTrue(
+                evidence["production_scalar_k_convergence"]["converged"]
+            )
+
     def test_declared_scalar_evolution_refinement_reports_anchor_errors(
         self,
     ) -> None:
@@ -6701,7 +6798,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         self.assertEqual(
             set(report["anchor_relative_errors"]),
-            {"early", "recombination", "late"},
+            {
+                "integration_start",
+                "visibility_onset",
+                "visibility_peak",
+                "visibility_tail",
+                "interaction_transition",
+                "integration_end",
+            },
         )
         evidence = report["refinement_evidence"]
         self.assertTrue(evidence["same_model"])
@@ -6722,10 +6826,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertGreater(float(report["relative_error"]), 1.0e-2)
         self.assertTrue(numpy.isfinite(float(report["absolute_error"])))
 
-    def test_declared_scalar_evolution_converges_at_physical_anchors(
+    def test_declared_scalar_evolution_detects_between_anchor_drift(
         self,
     ) -> None:
-        """A declared scalar history meets the one-percent anchor bound."""
+        """Dense history checks reject drift missed by three anchors."""
 
         contract = _speedup_contract(_analytic_signal_contract())
         contract["model_name"] = "DeclaredScalarEvolutionConvergence"
@@ -6746,6 +6850,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "absolute_tolerance": 1.0e-12,
             },
             "runtime_envelope": "bounded",
+            "fail_on_nonconvergence": False,
         }
         spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
             _prepare_declared_contract(contract),
@@ -6766,11 +6871,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             int(report["intermediate_sample_count"]),
             int(report["coarse_sample_count"]),
         )
-        self.assertLessEqual(float(report["relative_error"]), 1.0e-2)
-        self.assertLessEqual(
-            max(report["anchor_relative_errors"].values()),
-            1.0e-2,
-        )
+        self.assertGreater(float(report["relative_error"]), 1.0e-2)
+        self.assertTrue(report["anchor_relative_errors"])
         self.assertTrue(numpy.all(numpy.isfinite(spectrum_data.spectra["TT"])))
 
     def test_declared_scalar_hierarchy_depth_converges_at_anchor_surface(
@@ -6883,7 +6985,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "_declared_graph_projection",
             side_effect=_record_projection,
         ):
-            cmb_projection._compute_custom_cmb_spectrum_data(
+            spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
                 prepared,
                 numpy.asarray((20, 23), dtype=int),
                 requested_spectra=("TT",),
@@ -6891,6 +6993,15 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
 
         self.assertGreater(len(eta_sizes), 1)
         self.assertLess(min(eta_sizes), max(eta_sizes))
+        attempts = spectrum_data.runtime_envelope[
+            "adaptive_projection_refinement_attempts"
+        ]
+        self.assertEqual(len(attempts), 1)
+        self.assertLess(
+            attempts[0]["coarse_sample_count"],
+            attempts[0]["fine_sample_count"],
+        )
+        self.assertTrue(attempts[0]["product_errors"])
 
     def test_requested_unknown_spectrum_fails_before_runtime(self) -> None:
         """Unknown requested spectra fail instead of returning an empty set."""

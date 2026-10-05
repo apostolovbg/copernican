@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-05
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,32 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-10-05:
+  Change: Repaired Slice Two's automatic CCMBS numerical acceptance with
+    independent evolution, nested source and projection refinements, and
+    enforceable physical evidence.
+  Why: Removed permissive history anchors, nominal work claims, configured
+    q/hierarchy labels, unstable line-of-sight sampling, and incomplete
+    endpoint checks from final acceptance.
+  Impact: Enforced typed per-product failures and measured budgets across
+    ordinary production axes while preserving request-subset results.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
 
 - 2026-10-03:
   Change: Implemented Slice One's frozen CCMBS completion contract and

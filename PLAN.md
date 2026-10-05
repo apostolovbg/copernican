@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-10-03
+**Last Updated:** 2026-10-05
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -237,9 +237,11 @@ independent demonstrated bound on the resulting observable error.
 
 Refinement must change the effective calculation after all floors and caches.
 Retain both products, node/endpoint identities, measured errors, and actual
-work. Independently evolve source/history validation samples; interpolation
-of one history is not an independent evolution. A finer k quadrature over a
-fixed interval does not establish that the interval itself is sufficient.
+work. Independently evolve state and source histories on the evolution axis;
+interpolation of one history is not independent evolution evidence. Measure
+source-history representation separately on materially distinct nested eta
+grids while holding that accepted evolution fixed. A finer k quadrature over
+a fixed interval does not establish that the interval itself is sufficient.
 
 Measure request-subset consistency: overlapping multipoles must agree across
 low-to-high ell requests and observable subsets within the declared numerical
@@ -387,8 +389,8 @@ renaming, changed recombination, an interaction, and nonzero sectors.
 
 Reference-selected windows contain every integer ell within eight multipoles
 of the first three TT peaks/troughs, EE peaks, and TE zero crossings above
-ell 50. Damping windows are 1988–2012 and 2480–2500. Feature displacement may
-not exceed two multipoles. The existing per-surface relative ceilings apply
+ell 50. Damping windows are 1988–2012 and 2480–2500. Feature displacement
+may not exceed two multipoles. The existing per-surface relative ceilings apply
 at every retained sample in both native C_ell and D_ell units. Cross absolute
 allowances are 0.001 times the square root of the corresponding reference
 auto-spectrum product, plus 64 binary64 epsilons of that surface. Auto floors
@@ -497,7 +499,8 @@ pending; the gate stays open until that run succeeds and is reviewed.
 
 ## Slice Two — repair automatic numerical acceptance
 
-**Status:** pending. **Entry:** Slice One's metrics and failure inventory.
+**Status:** implementation acceptance complete; workflow confirmation pending.
+**Entry:** Slice One's metrics and failure inventory.
 
 **Owners:** CMB `runtime/planner.py`, `runtime/adaptive.py`,
 `runtime/convergence.py`, `runtime/background.py`, `runtime/evolution.py`,
@@ -508,8 +511,10 @@ pending; the gate stays open until that run succeeds and is reviewed.
 1. Replace permissive source/evolution acceptance with physically justified
    error budgets. Sample actual recombination/visibility and interaction
    features, not three fixed fractions labelled as physical epochs. Use
-   independent histories at informative k values and account for errors
-   between sampled anchors and near zeros.
+   independent state and source histories at informative k values and account
+   for errors between sampled anchors and near zeros. Independently measure
+   source-history representation with evolution held fixed, so evolution and
+   interpolation errors cannot be conflated.
 2. Make source refinement materially change resolution. Do not certify it
    with effectively identical grids or an N-versus-N-minus-one comparison
    without a validated estimator. Separate time-history, k-history
@@ -539,6 +544,28 @@ relevant numerical assertion; well-resolved controls must pass it.
 labels. Real bounded ordinary requests exercise the revised checks. Their
 measured errors meet justified budgets and request-subset consistency holds.
 No global CAMB parity claim is made before Slice Three.
+
+Implementation acceptance evidence:
+
+* The six focused planner, adaptive, convergence, background, evolution, and
+  projection modules pass 86 tests. They cover localized source spikes, sign
+  reversals, dense resolved controls, physical feature anchors, actual q
+  refinement, hierarchy-bound assumptions, endpoint quadrature, identical
+  grids, cold measured work, and matching warm reuse.
+* Four bounded runtime regressions exercise independent adaptive histories,
+  dense between-anchor drift detection, and the retained final phase-grid
+  floor through real declared execution.
+* The ordinary final-tier production regression runs a compact multi-spectrum
+  graph and its TT request subset. Both calculations report measured
+  background, evolution, source, projection, and physical-limit axes; inactive
+  q and hierarchy axes remain explicitly inapplicable. All adaptive errors
+  meet the planner budgets, the nested k comparison converges with measured
+  work, and the shared TT result agrees to the declared test tolerance.
+
+Slice Two's implementation acceptance is satisfied. No CAMB parity or full
+scientific production result is claimed. Required full-suite workflow
+confirmation remains pending; the gate stays open until that run succeeds and
+is reviewed.
 
 ## Slice Three — close actual LCDM physics and graph recovery
 

@@ -5107,15 +5107,33 @@ def _build_custom_cmb_background(
     ) -> float:
         """Return a finite relative max error on one common a-grid."""
 
-        common_a = numpy.geomspace(
-            max(
-                float(coarse_background.a_grid[0]),
-                float(fine_background.a_grid[0]),
-                1.0e-8,
-            ),
-            1.0,
-            128,
+        common_a = numpy.unique(
+            numpy.concatenate(
+                (
+                    numpy.geomspace(
+                        max(
+                            float(coarse_background.a_grid[0]),
+                            float(fine_background.a_grid[0]),
+                            1.0e-8,
+                        ),
+                        1.0,
+                        256,
+                    ),
+                    numpy.asarray(coarse_background.a_grid, dtype=float),
+                    numpy.asarray(fine_background.a_grid, dtype=float),
+                )
+            )
         )
+        common_a = common_a[
+            (
+                common_a
+                >= max(
+                    float(coarse_background.a_grid[0]),
+                    float(fine_background.a_grid[0]),
+                )
+            )
+            & (common_a <= 1.0)
+        ]
         coarse_values = numpy.asarray(
             coarse_history(coarse_background.eta_of_a(common_a)),
             dtype=float,
@@ -5129,7 +5147,7 @@ def _build_custom_cmb_background(
         # to the feature amplitude while retaining a true relative metric for
         # the bulk of each physical history.
         floor = max(
-            float(numpy.max(numpy.abs(fine_values))) * 1.0e-6, 1.0e-300
+            float(numpy.max(numpy.abs(fine_values))) * 1.0e-8, 1.0e-300
         )
         denominator = numpy.maximum(numpy.abs(fine_values), floor)
         error = numpy.max(numpy.abs(coarse_values - fine_values) / denominator)
@@ -5143,7 +5161,95 @@ def _build_custom_cmb_background(
     ) -> dict[str, float]:
         """Measure all scalar and history differences for one refinement."""
 
+        def _sampled_grid_error(
+            coarse_values: numpy.ndarray | None,
+            fine_values: numpy.ndarray | None,
+        ) -> float:
+            """Compare optional native-grid thermal histories on common a."""
+
+            if coarse_values is None and fine_values is None:
+                return 0.0
+            if coarse_values is None or fine_values is None:
+                return float("inf")
+            common_a = numpy.unique(
+                numpy.concatenate(
+                    (
+                        numpy.asarray(coarse_background.a_grid, dtype=float),
+                        numpy.asarray(fine_background.a_grid, dtype=float),
+                    )
+                )
+            )
+            coarse_sample = numpy.interp(
+                common_a,
+                coarse_background.a_grid,
+                numpy.asarray(coarse_values, dtype=float),
+            )
+            fine_sample = numpy.interp(
+                common_a,
+                fine_background.a_grid,
+                numpy.asarray(fine_values, dtype=float),
+            )
+            scale = max(
+                float(numpy.max(numpy.abs(fine_sample), initial=0.0)),
+                1.0e-300,
+            )
+            return float(
+                numpy.max(
+                    numpy.abs(fine_sample - coarse_sample)
+                    / numpy.maximum(numpy.abs(fine_sample), scale * 1.0e-8),
+                    initial=0.0,
+                )
+            )
+
+        def _optional_history_error(name: str) -> float:
+            """Compare an optional eta history when both products expose it."""
+
+            coarse_history = getattr(coarse_background, name, None)
+            fine_history = getattr(fine_background, name, None)
+            if coarse_history is None and fine_history is None:
+                return 0.0
+            if coarse_history is None or fine_history is None:
+                return float("inf")
+            return _relative_error(
+                coarse_background,
+                fine_background,
+                coarse_history,
+                fine_history,
+            )
+
+        def _visibility_integral(background: Any) -> float:
+            """Integrate native visibility or sample its public accessor."""
+
+            eta_values = getattr(background, "eta_grid", None)
+            visibility_values = getattr(background, "visibility_grid", None)
+            if eta_values is None or visibility_values is None:
+                eta_values = numpy.asarray(
+                    background.eta_of_a(background.a_grid),
+                    dtype=float,
+                )
+                visibility_values = numpy.asarray(
+                    background.visibility_of_eta(eta_values),
+                    dtype=float,
+                )
+            return float(
+                numpy.trapz(
+                    numpy.asarray(visibility_values, dtype=float),
+                    numpy.asarray(eta_values, dtype=float),
+                )
+            )
+
+        coarse_visibility_integral = _visibility_integral(coarse_background)
+        fine_visibility_integral = _visibility_integral(fine_background)
         errors = {
+            "a_start": abs(
+                float(coarse_background.a_grid[0])
+                - float(fine_background.a_grid[0])
+            )
+            / max(abs(float(fine_background.a_grid[0])), 1.0e-300),
+            "a_end": abs(
+                float(coarse_background.a_grid[-1])
+                - float(fine_background.a_grid[-1])
+            ),
             "eta0": abs(
                 float(coarse_background.eta0) - float(fine_background.eta0)
             )
@@ -5177,6 +5283,36 @@ def _build_custom_cmb_background(
                 coarse_background.x_e_of_eta,
                 fine_background.x_e_of_eta,
             ),
+            "opacity": _optional_history_error("tau_dot_of_eta"),
+            "sound_speed": _optional_history_error("sound_speed_of_eta"),
+            "visibility_integral": abs(
+                coarse_visibility_integral - fine_visibility_integral
+            )
+            / max(abs(fine_visibility_integral), 1.0e-300),
+            "massive_neutrino_density": _sampled_grid_error(
+                getattr(
+                    coarse_background,
+                    "massive_neutrino_density_grid",
+                    None,
+                ),
+                getattr(
+                    fine_background,
+                    "massive_neutrino_density_grid",
+                    None,
+                ),
+            ),
+            "massive_neutrino_pressure": _sampled_grid_error(
+                getattr(
+                    coarse_background,
+                    "massive_neutrino_pressure_grid",
+                    None,
+                ),
+                getattr(
+                    fine_background,
+                    "massive_neutrino_pressure_grid",
+                    None,
+                ),
+            ),
         }
         if not all(numpy.isfinite(value) for value in errors.values()):
             raise ValueError(
@@ -5184,7 +5320,6 @@ def _build_custom_cmb_background(
             )
         return errors
 
-    original_coarse = base
     coarse = base
     coarse_numerics = numerics
     attempts: list[dict[str, Any]] = []
@@ -5232,7 +5367,7 @@ def _build_custom_cmb_background(
         coarse = refined
         coarse_numerics = refined_numerics
 
-    evidence = dict(base.resolution_evidence)
+    evidence = dict(refined.resolution_evidence)
     evidence.update(
         {
             "refinement": {
@@ -5255,12 +5390,12 @@ def _build_custom_cmb_background(
                 f"{name}={value:.6g}" for name, value in errors.items()
             )
         )
-    original_coarse.resolution_evidence = evidence
+    refined.resolution_evidence = evidence
     cache_key = _custom_cmb_background_cache_key(
         contract,
         physical_params,
         numerics,
         background_provider,
     )
-    cache.set_cmb_background(cache_key, original_coarse)
+    cache.set_cmb_background(cache_key, refined)
     return _get_cached_custom_cmb_background(cache_key)

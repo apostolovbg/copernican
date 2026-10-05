@@ -17,6 +17,8 @@ from copernican.lib.likelihoods.cmb.runtime.convergence import (
     ProductionScalarConvergenceControls,
     RefinementMetric,
     evaluate_control_refinement,
+    evaluate_hierarchy_truncation_bounds,
+    evaluate_momentum_grid_refinement_bounds,
     evaluate_spectrum_refinement,
     require_convergence,
     resolve_declared_numerical_envelope,
@@ -110,6 +112,8 @@ class ConvergenceTestCase(unittest.TestCase):
             evaluate_control_refinement.__name__,
             "evaluate_control_refinement",
         )
+        self.assertTrue(callable(evaluate_hierarchy_truncation_bounds))
+        self.assertTrue(callable(evaluate_momentum_grid_refinement_bounds))
 
     def test_production_scalar_rule_resolves_declared_doubled_grid(
         self,
@@ -314,6 +318,86 @@ class ConvergenceTestCase(unittest.TestCase):
 
         self.assertTrue(metric.converged)
         self.assertTrue(numpy.isfinite(metric.relative_error))
+
+    def test_q_bound_measures_count_and_both_thermal_tails(self) -> None:
+        """A resolved q surface passes an independent support refinement."""
+
+        evidence = evaluate_momentum_grid_refinement_bounds(
+            {
+                "massive_neutrino_default": {
+                    "count": 32,
+                    "q_min": 0.02,
+                    "q_max": 24.0,
+                    "quadrature_order": 2,
+                }
+            },
+            mass_ratio_max=400.0,
+        )["massive_neutrino_default"]
+
+        self.assertTrue(evidence["converged"])
+        self.assertGreater(
+            evidence["refined"]["count"],
+            evidence["coarse"]["count"],
+        )
+        self.assertLess(
+            evidence["refined"]["q_min"],
+            evidence["coarse"]["q_min"],
+        )
+        self.assertGreater(
+            evidence["refined"]["q_max"],
+            evidence["coarse"]["q_max"],
+        )
+
+    def test_q_bound_rejects_insufficient_support(self) -> None:
+        """A short sparse q grid cannot claim a configured validated bound."""
+
+        evidence = evaluate_momentum_grid_refinement_bounds(
+            {
+                "truncated": {
+                    "count": 8,
+                    "q_min": 0.1,
+                    "q_max": 8.0,
+                    "quadrature_order": 2,
+                }
+            },
+            mass_ratio_max=400.0,
+        )["truncated"]
+
+        self.assertFalse(evidence["converged"])
+        self.assertGreater(evidence["relative_error"], 0.02)
+
+    def test_hierarchy_bound_requires_assumptions_domain_and_error(
+        self,
+    ) -> None:
+        """Hierarchy status follows the bound, not the configured depth."""
+
+        valid = evaluate_hierarchy_truncation_bounds(
+            {
+                "photons": {
+                    "closure": "free_streaming_scalar",
+                    "phase_domain": (0.0, 8.0),
+                    "terminal_multipole": 28,
+                    "relative_bound": 1.0e-4,
+                    "assumptions": ("free streaming",),
+                    "validated": True,
+                }
+            }
+        )["photons"]
+        invalid = evaluate_hierarchy_truncation_bounds(
+            {
+                "photons": {
+                    "closure": "free_streaming_scalar",
+                    "phase_domain": (0.0, 8.0),
+                    "terminal_multipole": 28,
+                    "relative_bound": 0.1,
+                    "assumptions": (),
+                    "validated": True,
+                }
+            }
+        )["photons"]
+
+        self.assertTrue(valid["converged"])
+        self.assertFalse(invalid["converged"])
 
 
 if __name__ == "__main__":  # pragma: no cover

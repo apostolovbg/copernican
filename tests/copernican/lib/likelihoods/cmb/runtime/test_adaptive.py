@@ -6,18 +6,23 @@ import unittest
 
 import numpy
 
+from copernican.lib.likelihoods.cmb.errors import classify_exception
 from copernican.lib.likelihoods.cmb.runtime.adaptive import (
     AdaptiveControls,
+    AdaptiveNonConvergenceError,
     ConvergenceEstimate,
     HistoryConvergence,
     LOSQuadratureControls,
     estimate_convergence,
     estimate_history_convergence,
+    informative_k_indices,
+    nested_coarse_indices,
     nested_phase_aware_k_grid,
     phase_aware_eta_grid,
     phase_aware_k_grid,
     phase_aware_k_grid_requirements,
     phase_aware_k_grid_status,
+    physical_history_anchors,
     require_convergence,
     resolve_adaptive_controls,
     resolve_los_quadrature_controls,
@@ -36,6 +41,8 @@ class AdaptiveControlsTestCase(unittest.TestCase):
         self.assertTrue(callable(phase_aware_k_grid_requirements))
         self.assertTrue(callable(phase_aware_k_grid_status))
         self.assertTrue(callable(nested_phase_aware_k_grid))
+        self.assertTrue(callable(informative_k_indices))
+        self.assertTrue(callable(physical_history_anchors))
         self.assertTrue(callable(require_convergence))
         self.assertTrue(callable(resolve_adaptive_controls))
         self.assertEqual(
@@ -335,6 +342,31 @@ class AdaptiveControlsTestCase(unittest.TestCase):
             float(numpy.max(numpy.diff(eta))),
         )
 
+    def test_dense_background_leaves_budget_for_phase_refinement(self) -> None:
+        """A dense background cannot consume the LOS refinement budget."""
+
+        eta = numpy.linspace(0.0, 20.0, 1001)
+        visibility = numpy.exp(-0.5 * numpy.square((eta - 7.0) / 0.05))
+        refined = phase_aware_eta_grid(
+            eta,
+            visibility=visibility,
+            k_max=2.0,
+            minimum_nodes=32,
+            maximum_nodes=128,
+            phase_points_per_cycle=8.0,
+        )
+
+        self.assertEqual(refined.size, 128)
+        self.assertEqual(float(refined[0]), float(eta[0]))
+        self.assertEqual(float(refined[-1]), float(eta[-1]))
+        self.assertTrue(numpy.any(numpy.isclose(refined, 7.0)))
+        visibility_region = refined[(refined >= 6.8) & (refined <= 7.2)]
+        self.assertGreater(visibility_region.size, 3)
+        self.assertLess(
+            float(numpy.max(numpy.diff(visibility_region))),
+            20.0 / 127.0,
+        )
+
     def test_convergence_estimate_rejects_underresolved_result(self) -> None:
         """A strict tolerance raises a named under-resolution error."""
 
@@ -384,6 +416,7 @@ class AdaptiveControlsTestCase(unittest.TestCase):
             {"early", "recombination", "late"},
         )
         self.assertFalse(estimate.converged)
+        self.assertGreater(estimate.sample_count, fine_eta.size)
         with self.assertRaisesRegex(ValueError, "history refinement"):
             require_convergence(
                 ConvergenceEstimate(
@@ -394,6 +427,130 @@ class AdaptiveControlsTestCase(unittest.TestCase):
                 label="history refinement",
                 fail_on_nonconvergence=True,
             )
+
+    def test_history_convergence_rejects_spikes_between_named_anchors(
+        self,
+    ) -> None:
+        """A localized fine-grid source spike cannot hide between anchors."""
+
+        coarse_eta = numpy.asarray((0.0, 0.5, 1.0))
+        fine_eta = numpy.linspace(0.0, 1.0, 9)
+        coarse = {"source": numpy.zeros(coarse_eta.size)}
+        fine_values = numpy.zeros(fine_eta.size)
+        fine_values[2] = 1.0
+        fine = {"source": fine_values}
+
+        estimate = estimate_history_convergence(
+            coarse_eta,
+            coarse,
+            fine_eta,
+            fine,
+            relative_tolerance=1.0e-2,
+            absolute_tolerance=1.0e-12,
+            feature_eta={"start": 0.0, "peak": 0.5, "end": 1.0},
+        )
+
+        self.assertFalse(estimate.converged)
+        self.assertGreater(estimate.relative_error, 0.9)
+
+    def test_history_convergence_rejects_resolved_sign_reversal(self) -> None:
+        """A physical sign reversal near a zero receives a finite error."""
+
+        eta = numpy.linspace(0.0, 1.0, 17)
+        coarse = {"source": eta - 0.5}
+        fine = {"source": 0.5 - eta}
+
+        estimate = estimate_history_convergence(
+            eta,
+            coarse,
+            eta,
+            fine,
+            relative_tolerance=1.0e-2,
+            absolute_tolerance=1.0e-12,
+        )
+
+        self.assertFalse(estimate.converged)
+        self.assertTrue(numpy.isfinite(estimate.relative_error))
+
+    def test_history_convergence_accepts_a_resolved_dense_control(
+        self,
+    ) -> None:
+        """Independent dense histories pass when their full surfaces agree."""
+
+        coarse_eta = numpy.linspace(0.0, 1.0, 33)
+        fine_eta = numpy.linspace(0.0, 1.0, 65)
+        coarse = {"source": numpy.sin(2.0 * numpy.pi * coarse_eta)}
+        fine = {"source": numpy.sin(2.0 * numpy.pi * fine_eta)}
+
+        estimate = estimate_history_convergence(
+            coarse_eta,
+            coarse,
+            fine_eta,
+            fine,
+            relative_tolerance=1.0e-2,
+            absolute_tolerance=1.0e-12,
+        )
+
+        self.assertTrue(estimate.converged)
+        self.assertLess(estimate.relative_error, 1.0e-2)
+
+    def test_physical_features_and_nested_coarse_grid_are_distinct(
+        self,
+    ) -> None:
+        """Feature sampling preserves endpoints without an identical grid."""
+
+        eta = numpy.linspace(0.0, 10.0, 33)
+        visibility = numpy.exp(-numpy.square((eta - 4.0) / 0.5))
+        interaction = numpy.exp(8.0 - eta)
+        anchors = physical_history_anchors(
+            eta,
+            visibility=visibility,
+            interaction_rate=interaction,
+        )
+        indices = nested_coarse_indices(eta, feature_eta=anchors)
+
+        self.assertEqual(anchors["integration_start"], 0.0)
+        self.assertEqual(anchors["integration_end"], 10.0)
+        self.assertLess(indices.size, eta.size)
+        self.assertEqual(int(indices[0]), 0)
+        self.assertEqual(int(indices[-1]), eta.size - 1)
+
+    def test_informative_k_modes_cover_endpoints_and_features(self) -> None:
+        """Validation modes include the physical k surface, not fractions."""
+
+        k_values = numpy.geomspace(1.0e-4, 0.4, 100)
+        indices = informative_k_indices(
+            k_values,
+            count=7,
+            feature_k=(0.01, 0.1),
+        )
+
+        self.assertEqual(indices[0], 0)
+        self.assertEqual(indices[-1], 99)
+        self.assertEqual(len(indices), 7)
+
+    def test_nonconvergence_error_retains_failed_products(self) -> None:
+        """Adaptive failures expose typed machine-readable product context."""
+
+        estimate = ConvergenceEstimate(1.0, 1.0, False)
+        with self.assertRaises(AdaptiveNonConvergenceError) as raised:
+            require_convergence(
+                estimate,
+                label="source-history",
+                fail_on_nonconvergence=True,
+            )
+
+        self.assertEqual(raised.exception.label, "source-history")
+        self.assertEqual(
+            raised.exception.failed_products,
+            ("source-history",),
+        )
+        diagnostic = classify_exception(raised.exception).diagnostic()
+        self.assertEqual(diagnostic["category"], "convergence_failure")
+        self.assertEqual(
+            diagnostic["context"]["failed_products"],
+            ("source-history",),
+        )
 
 
 if __name__ == "__main__":  # pragma: no cover
