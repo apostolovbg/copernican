@@ -26,10 +26,15 @@ from copernican.lib.likelihoods.cmb.orchestrators import ccmbs as cmb_solver
 from copernican.lib.likelihoods.cmb.runtime import background as cmb_background
 from copernican.lib.likelihoods.cmb.runtime import (
     cache,
+    collisions,
     convergence,
     evolution,
 )
-from copernican.lib.likelihoods.cmb.runtime import projection as cmb_projection
+from copernican.lib.likelihoods.cmb.runtime import execution as cmb_execution
+from copernican.lib.likelihoods.cmb.runtime import (
+    mode_evolution,
+    spectrum_projection,
+)
 from tests.project.lib import camb_reference
 
 
@@ -1522,10 +1527,10 @@ def _ensure_prepared_declared_contract(
 def _raw_declared_spectrum_data(
     contract: dict[str, object],
     ells: numpy.ndarray,
-) -> cmb_projection.CustomCMBSpectrumData:
+) -> cmb_execution.CustomCMBSpectrumData:
     """Return unclipped declared spectrum data for one declared contract."""
 
-    return cmb_projection._compute_custom_cmb_spectrum_data(
+    return cmb_execution._compute_custom_cmb_spectrum_data(
         _ensure_prepared_declared_contract(contract),
         numpy.asarray(ells, dtype=int),
     )
@@ -1557,7 +1562,7 @@ def _raw_declared_public_spectra(
     else:
         analysis_ell_grid = requested_ell_grid
         output_indices = numpy.arange(requested_ell_grid.size, dtype=int)
-    custom_data = cmb_projection._compute_custom_cmb_spectrum_data(
+    custom_data = cmb_execution._compute_custom_cmb_spectrum_data(
         prepared,
         analysis_ell_grid,
         requested_spectra=cmb_solver._requested_base_spectra(
@@ -1659,7 +1664,7 @@ def _capture_visible_scalar_monopole_history(
 
     cache.clear_cmb_parameter_caches()
     captured: list[tuple[numpy.ndarray, numpy.ndarray]] = []
-    original = cmb_projection._evaluate_compiled_expression_noerr
+    original = mode_evolution._evaluate_compiled_expression_noerr
 
     def _capture_monopole_history(
         expression_data: object,
@@ -1689,7 +1694,7 @@ def _capture_visible_scalar_monopole_history(
         return original(expression_data, env)
 
     with mock.patch.object(
-        cmb_projection,
+        mode_evolution,
         "_evaluate_compiled_expression_noerr",
         side_effect=_capture_monopole_history,
     ):
@@ -1716,7 +1721,7 @@ def _capture_tensor_source_histories(
         for name, entry in perturbation_data.sources.items()
     }
     captured: dict[tuple[str, float], numpy.ndarray] = {}
-    original = cmb_projection._evaluate_compiled_expression_noerr
+    original = mode_evolution._evaluate_compiled_expression_noerr
 
     def _capture_source_history(
         expression_data: object,
@@ -1736,11 +1741,11 @@ def _capture_tensor_source_histories(
         return value
 
     with mock.patch.object(
-        cmb_projection,
+        mode_evolution,
         "_evaluate_compiled_expression_noerr",
         side_effect=_capture_source_history,
     ):
-        cmb_projection._compute_custom_cmb_spectrum_data(
+        cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             numpy.asarray((40,), dtype=int),
             requested_spectra=("TT", "EE", "BB"),
@@ -2834,19 +2839,19 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
             physical_params,
             numerics,
         )
-        low_ell_grid = cmb_projection._build_projection_k_grid(
+        low_ell_grid = spectrum_projection._build_projection_k_grid(
             ell_arr=numpy.asarray((20, 60, 120), dtype=int),
             background=background_data,
             numerics=numerics,
             perturbation_data=contract["perturbation_data"],
         )
-        full_ell_grid = cmb_projection._build_projection_k_grid(
+        full_ell_grid = spectrum_projection._build_projection_k_grid(
             ell_arr=numpy.asarray((2, 2000), dtype=int),
             background=background_data,
             numerics=numerics,
             perturbation_data=contract["perturbation_data"],
         )
-        production_ell_grid = cmb_projection._build_projection_k_grid(
+        production_ell_grid = spectrum_projection._build_projection_k_grid(
             ell_arr=numpy.asarray((20, 60, 120), dtype=int),
             background=background_data,
             numerics=numerics,
@@ -2933,7 +2938,7 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
             _speedup_contract(_declared_scalar_hierarchy_contract())
         )
         cache.clear_cmb_result_caches()
-        first = cmb_projection._compute_custom_cmb_spectrum_data(
+        first = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 24, dtype=int),
             requested_spectra=("TT",),
@@ -2988,7 +2993,7 @@ class SliceNineReferenceContractTestCase(unittest.TestCase):
             self.assertTrue(refinement["product_errors"])
 
         cache.clear_cmb_result_caches()
-        second = cmb_projection._compute_custom_cmb_spectrum_data(
+        second = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 24, dtype=int),
             requested_spectra=("TT",),
@@ -3433,7 +3438,7 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
             )
         )
         source = numpy.asarray((1.0, 2.0, 3.0), dtype=float)
-        actual = cmb_projection._declared_graph_projection(
+        actual = spectrum_projection._declared_graph_projection(
             projection="line_of_sight_signal",
             kernel="spherical_bessel_window",
             sector="tensor",
@@ -3499,7 +3504,7 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
                 kernel_batch.tensor_b,
             ),
         ):
-            actual = cmb_projection._declared_graph_projection(
+            actual = spectrum_projection._declared_graph_projection(
                 projection=projection,
                 kernel=kernel,
                 sector="tensor",
@@ -3579,7 +3584,7 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
                 kernel_batch.vector_b,
             ),
         ):
-            actual = cmb_projection._declared_graph_projection(
+            actual = spectrum_projection._declared_graph_projection(
                 projection=projection,
                 kernel="spherical_bessel_window",
                 sector="vector",
@@ -4137,14 +4142,14 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
         )
         ells = numpy.arange(20, 30, dtype=int)
         low_decay_tt = numpy.asarray(
-            cmb_projection._compute_custom_cmb_spectrum_data(
+            cmb_execution._compute_custom_cmb_spectrum_data(
                 low_decay,
                 ells,
             ).spectra["TT"],
             dtype=float,
         )
         high_decay_tt = numpy.asarray(
-            cmb_projection._compute_custom_cmb_spectrum_data(
+            cmb_execution._compute_custom_cmb_spectrum_data(
                 high_decay,
                 ells,
             ).spectra["TT"],
@@ -4663,7 +4668,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
 
         eta_grid = numpy.asarray((0.0, 0.3, 0.9, 1.4, 2.1), dtype=float)
         history = 2.0 * eta_grid**2 + 3.0 * eta_grid + 1.0
-        weights = cmb_projection._simpson_weights(eta_grid)
+        weights = spectrum_projection._simpson_weights(eta_grid)
         expected = (
             (2.0 / 3.0) * eta_grid[-1] ** 3
             + (3.0 / 2.0) * eta_grid[-1] ** 2
@@ -4684,7 +4689,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             (0.0, 1.0e-6, 0.2, 0.4, 1.0),
             dtype=float,
         )
-        weights = cmb_projection._simpson_weights(eta_grid)
+        weights = spectrum_projection._simpson_weights(eta_grid)
 
         self.assertTrue(numpy.all(numpy.isfinite(weights)))
         self.assertTrue(numpy.all(weights >= 0.0))
@@ -4773,7 +4778,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "additive": numpy.asarray((1.0, 1.0, 1.0), dtype=float),
         }
 
-        projected = cmb_projection._declared_graph_projection(
+        projected = spectrum_projection._declared_graph_projection(
             projection="line_of_sight_temperature",
             kernel=None,
             kernel_batch=kernel_batch,
@@ -4825,7 +4830,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         eta_weights = numpy.asarray((0.25, 0.5, 0.25), dtype=float)
         derivative_source = numpy.asarray((1.0, 2.0, 3.0), dtype=float)
-        projected = cmb_projection._declared_graph_projection(
+        projected = spectrum_projection._declared_graph_projection(
             projection="line_of_sight_temperature",
             kernel=None,
             kernel_batch=kernel_batch,
@@ -4863,7 +4868,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             tensor_b=numpy.ones((1, 2), dtype=float),
         )
         with self.assertRaisesRegex(ValueError, "no available source"):
-            cmb_projection._declared_graph_projection(
+            spectrum_projection._declared_graph_projection(
                 projection="line_of_sight_temperature",
                 kernel="temperature_mixed_window",
                 kernel_batch=kernel_batch,
@@ -4895,7 +4900,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         eta_weights = numpy.asarray((0.25, 0.5, 0.25), dtype=float)
         source = numpy.asarray((1.0, 2.0, 3.0), dtype=float)
         geometry = numpy.asarray((0.875, 0.375, 0.125), dtype=float)
-        projected = cmb_projection._declared_graph_projection(
+        projected = spectrum_projection._declared_graph_projection(
             projection="line_of_sight_lensing_potential",
             kernel="lensing_potential_window",
             kernel_batch=kernel_batch,
@@ -5002,7 +5007,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 cmb_solver,
                 cmb_background,
                 evolution,
-                cmb_projection,
+                cmb_execution,
             )
         )
         for needle in (
@@ -5032,14 +5037,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             _speedup_contract(_custom_contract())
         )
         ells = numpy.arange(20, 45, dtype=int)
-        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             ells,
         )
 
         self.assertIsInstance(
             spectrum_data,
-            cmb_projection.CustomCMBSpectrumData,
+            cmb_execution.CustomCMBSpectrumData,
         )
         self.assertTrue(numpy.array_equal(spectrum_data.ell_grid, ells))
         self.assertEqual(
@@ -5124,7 +5129,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         contract = _prepare_declared_contract(contract_data)
         captured_tau: list[numpy.ndarray] = []
-        original = cmb_projection._evaluate_compiled_expression_noerr
+        original = mode_evolution._evaluate_compiled_expression_noerr
 
         def _capture_tau(
             expression_data: object,
@@ -5143,11 +5148,11 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             return original(expression_data, env)
 
         with mock.patch.object(
-            cmb_projection,
+            mode_evolution,
             "_evaluate_compiled_expression_noerr",
             side_effect=_capture_tau,
         ):
-            cmb_projection._compute_custom_cmb_spectrum_data(
+            cmb_execution._compute_custom_cmb_spectrum_data(
                 contract,
                 numpy.asarray((40,), dtype=int),
                 requested_spectra=("TT",),
@@ -5855,7 +5860,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         target_state = numpy.asarray((0.5, -0.25, 0.75), dtype=float)
         dt = 0.125
-        actual = cmb_projection._exact_linear_collision_step(
+        actual = collisions._exact_linear_collision_step(
             operator_matrix=operator_matrix,
             dt=dt,
             target_state=target_state,
@@ -5876,7 +5881,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         target_state = numpy.asarray((0.35, -0.2), dtype=float)
         dt = 0.375
-        actual = cmb_projection._exact_linear_collision_step(
+        actual = collisions._exact_linear_collision_step(
             operator_matrix=operator_matrix,
             dt=dt,
             target_state=target_state,
@@ -5901,7 +5906,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         target_state = numpy.asarray((0.35, -0.2), dtype=float)
         dt = 0.375
         operator_scale = 0.12
-        actual = cmb_projection._exact_linear_collision_step(
+        actual = collisions._exact_linear_collision_step(
             operator_matrix=operator_matrix,
             dt=dt,
             target_state=target_state,
@@ -5929,7 +5934,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         target_state = numpy.asarray((0.5, -0.25, 0.35, -0.2), dtype=float)
         dt = 0.375
-        actual = cmb_projection._exact_linear_collision_step(
+        actual = collisions._exact_linear_collision_step(
             operator_matrix=operator_matrix,
             dt=dt,
             target_state=target_state,
@@ -5988,12 +5993,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         shifted["param_map"]["As"] *= 1.1
         ells = numpy.arange(20, 45, dtype=int)
-        first = cmb_projection._compute_custom_cmb_spectrum_data(
+        first = cmb_execution._compute_custom_cmb_spectrum_data(
             baseline,
             ells,
             requested_spectra=("TT", "TE", "EE", "PP", "TP", "EP"),
         )
-        second = cmb_projection._compute_custom_cmb_spectrum_data(
+        second = cmb_execution._compute_custom_cmb_spectrum_data(
             shifted,
             ells,
             requested_spectra=("TT", "TE", "EE", "PP", "TP", "EP"),
@@ -6025,12 +6030,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         shifted["param_map"]["As"] *= 1.1
         ells = numpy.arange(20, 45, dtype=int)
         spectra = ("TT", "TE", "EE", "PP", "TP", "EP")
-        first = cmb_projection._compute_custom_cmb_spectrum_data(
+        first = cmb_execution._compute_custom_cmb_spectrum_data(
             baseline,
             ells,
             requested_spectra=spectra,
         )
-        second = cmb_projection._compute_custom_cmb_spectrum_data(
+        second = cmb_execution._compute_custom_cmb_spectrum_data(
             shifted,
             ells,
             requested_spectra=spectra,
@@ -6535,11 +6540,11 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             source_grid_multiplier=4,
         )
         ells = numpy.arange(20, 30, dtype=int)
-        baseline_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        baseline_data = cmb_execution._compute_custom_cmb_spectrum_data(
             baseline,
             ells,
         )
-        refined_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        refined_data = cmb_execution._compute_custom_cmb_spectrum_data(
             refined,
             ells,
         )
@@ -6574,7 +6579,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "fail_on_nonconvergence": True,
         }
         contract = _prepare_declared_contract(contract)
-        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 24, dtype=int),
         )
@@ -6776,7 +6781,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "runtime_envelope": "bounded",
             "fail_on_nonconvergence": False,
         }
-        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
             _prepare_declared_contract(contract),
             numpy.arange(20, 24, dtype=int),
             requested_spectra=("TT",),
@@ -6852,7 +6857,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "runtime_envelope": "bounded",
             "fail_on_nonconvergence": False,
         }
-        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
             _prepare_declared_contract(contract),
             numpy.arange(20, 24, dtype=int),
             requested_spectra=("TT",),
@@ -6897,7 +6902,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 }
             )
             contract["perturbations"]["numerics"].update(contract["numerical"])
-            spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+            spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
                 _prepare_declared_contract(contract),
                 numpy.asarray((20, 60, 120), dtype=int),
                 requested_spectra=("TT", "EE"),
@@ -6933,11 +6938,11 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         }
         refined = _prepare_declared_contract(refined)
         ells = numpy.arange(20, 24, dtype=int)
-        baseline_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        baseline_data = cmb_execution._compute_custom_cmb_spectrum_data(
             baseline,
             ells,
         )
-        refined_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        refined_data = cmb_execution._compute_custom_cmb_spectrum_data(
             refined,
             ells,
         )
@@ -6971,7 +6976,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         }
         prepared = _prepare_declared_contract(contract)
         eta_sizes: list[int] = []
-        original_projection = cmb_projection._declared_graph_projection
+        original_projection = spectrum_projection._declared_graph_projection
 
         def _record_projection(*args: object, **kwargs: object) -> object:
             """Record the radial resolution used by each projection."""
@@ -6981,11 +6986,11 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             return original_projection(*args, **kwargs)
 
         with mock.patch.object(
-            cmb_projection,
+            cmb_execution,
             "_declared_graph_projection",
             side_effect=_record_projection,
         ):
-            spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+            spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
                 prepared,
                 numpy.asarray((20, 23), dtype=int),
                 requested_spectra=("TT",),
@@ -7012,7 +7017,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ValueError,
             "does not provide requested spectra: XX",
         ):
-            cmb_projection._compute_custom_cmb_spectrum_data(
+            cmb_execution._compute_custom_cmb_spectrum_data(
                 _prepare_declared_contract(contract),
                 numpy.asarray((20, 23), dtype=int),
                 requested_spectra=("XX",),
@@ -7047,7 +7052,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract = _speedup_contract(_custom_contract(include_lensing=True))
         contract["model_name"] = "RequestedSpectrumSourceFiltering"
         evaluated_expressions: list[str] = []
-        original_evaluator = cmb_projection._evaluate_compiled_expression_noerr
+        original_evaluator = mode_evolution._evaluate_compiled_expression_noerr
 
         def _record_expression(
             expression_data: object,
@@ -7061,11 +7066,11 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             return original_evaluator(expression_data, env)
 
         with mock.patch.object(
-            cmb_projection,
+            mode_evolution,
             "_evaluate_compiled_expression_noerr",
             side_effect=_record_expression,
         ):
-            spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+            spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
                 _prepare_declared_contract(contract),
                 numpy.asarray((20, 23), dtype=int),
                 requested_spectra=("TT",),
@@ -7110,7 +7115,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "phase_points_per_cycle": 8,
             "fail_on_nonconvergence": True,
         }
-        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
             _prepare_declared_contract(contract),
             numpy.asarray((20, 30, 40), dtype=int),
             requested_spectra=("TT", "TE", "EE", "PP"),
@@ -7183,7 +7188,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                     spectra_by_grid["baseline_k_grid"]
                 )
             cache.clear_cmb_caches()
-            spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+            spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
                 _prepare_declared_contract(contract),
                 numpy.asarray((20, 30, 40), dtype=int),
                 requested_spectra=("TT", "TE", "EE", "PP"),
@@ -7395,7 +7400,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             contract,
             k_sample_count=64,
         )
-        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 25, dtype=int),
         )
@@ -7419,7 +7424,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             numerics,
         )
         ells = numpy.arange(20, 121, dtype=int)
-        k_grid = cmb_projection._build_projection_k_grid(
+        k_grid = spectrum_projection._build_projection_k_grid(
             ell_arr=ells,
             background=background_data,
             numerics=numerics,
@@ -7474,14 +7479,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             physical_params,
             numerics,
         )
-        k_grid = cmb_projection._build_projection_k_grid(
+        k_grid = spectrum_projection._build_projection_k_grid(
             ell_arr=numpy.asarray((20, 60, 120), dtype=int),
             background=background_data,
             numerics=numerics,
             perturbation_data=contract["perturbation_data"],
             allow_final_production_floor=True,
         )
-        requirements = cmb_projection.phase_aware_k_grid_requirements(
+        requirements = cmb_execution.phase_aware_k_grid_requirements(
             float(k_grid[0]),
             float(k_grid[-1]),
             phase_points_per_cycle=8.0,
@@ -7490,7 +7495,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ),
             sound_horizon=max(float(background_data.sound_horizon_mpc), 1.0),
         )
-        status = cmb_projection.phase_aware_k_grid_status(
+        status = cmb_execution.phase_aware_k_grid_status(
             k_grid,
             phase_points_per_cycle=8.0,
             eta_distance=(
@@ -7520,7 +7525,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             numerics,
         )
         ells = numpy.asarray((40, 50, 70), dtype=int)
-        k_grid = cmb_projection._build_projection_k_grid(
+        k_grid = spectrum_projection._build_projection_k_grid(
             ell_arr=ells,
             background=background_data,
             numerics=numerics,
@@ -7584,7 +7589,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             }
         }
         contract = _prepare_declared_contract(contract)
-        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 25, dtype=int),
         )
@@ -7620,7 +7625,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 0.0,
             )
 
-        cmb_projection._compute_custom_cmb_spectrum_data(
+        cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 25, dtype=int),
         )
@@ -7639,11 +7644,11 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         }
         contract = _prepare_declared_contract(raw_contract)
         with mock.patch.object(
-            cmb_projection,
+            cmb_execution,
             "_build_custom_cmb_background",
         ) as background_builder:
             with self.assertRaisesRegex(ValueError, "under-resolved"):
-                cmb_projection._compute_custom_cmb_spectrum_data(
+                cmb_execution._compute_custom_cmb_spectrum_data(
                     contract,
                     numpy.arange(20, 25, dtype=int),
                 )
@@ -7656,7 +7661,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract = _prepare_declared_contract(
             _speedup_contract(_analytic_signal_contract())
         )
-        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 25, dtype=int),
         )
@@ -7675,14 +7680,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract = _prepare_declared_contract(raw_contract)
         ells = numpy.arange(20, 25, dtype=int)
 
-        cold = cmb_projection._compute_custom_cmb_spectrum_data(
+        cold = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             ells,
             requested_spectra=("TT",),
         )
         cold_record = cache.latest_cmb_performance_record()
         cache.clear_cmb_result_caches()
-        warm = cmb_projection._compute_custom_cmb_spectrum_data(
+        warm = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             ells,
             requested_spectra=("TT",),
@@ -7704,7 +7709,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             float(warm_record["phase_seconds"]["compilation_seconds"]),
         )
 
-        exact = cmb_projection._compute_custom_cmb_spectrum_data(
+        exact = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             ells,
             requested_spectra=("TT",),
@@ -7728,7 +7733,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             _analytic_signal_contract(source_scale=1.25)
         )
         shifted_contract = _prepare_declared_contract(shifted_raw)
-        shifted = cmb_projection._compute_custom_cmb_spectrum_data(
+        shifted = cmb_execution._compute_custom_cmb_spectrum_data(
             shifted_contract,
             ells,
             requested_spectra=("TT",),
@@ -7757,7 +7762,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract = _prepare_declared_contract(
             _speedup_contract(_analytic_signal_contract())
         )
-        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 25, dtype=int),
             requested_spectra=("TT",),
@@ -7783,13 +7788,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract = _prepare_declared_contract(
             _speedup_contract(_analytic_signal_contract())
         )
-        cmb_projection._compute_custom_cmb_spectrum_data(
+        cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             numpy.asarray((20, 25), dtype=int),
             requested_spectra=("TT",),
         )
         cache.clear_cmb_result_caches()
-        cmb_projection._compute_custom_cmb_spectrum_data(
+        cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             numpy.asarray((20, 30), dtype=int),
             requested_spectra=("TT",),
@@ -7850,12 +7855,12 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "secondary": "signal_transfer",
             }
         prepared = _prepare_declared_contract(contract)
-        tt_only = cmb_projection._compute_custom_cmb_spectrum_data(
+        tt_only = cmb_execution._compute_custom_cmb_spectrum_data(
             prepared,
             numpy.asarray((20, 30), dtype=int),
             requested_spectra=("TT",),
         )
-        lensing_inputs = cmb_projection._compute_custom_cmb_spectrum_data(
+        lensing_inputs = cmb_execution._compute_custom_cmb_spectrum_data(
             prepared,
             numpy.asarray((20, 30), dtype=int),
             requested_spectra=("TT", "TE", "EE", "BB", "PP"),
@@ -7983,7 +7988,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             )
         )
         ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
-        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             ells,
             requested_spectra=("TT",),
@@ -8003,7 +8008,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 numpy.isfinite(numpy.asarray(spectrum_data.spectra["TT"]))
             )
         )
-        repeated = cmb_projection._compute_custom_cmb_spectrum_data(
+        repeated = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             ells,
             requested_spectra=("TT",),
@@ -8044,7 +8049,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             dtype=float,
         )
         scales = numpy.asarray((0.75, 1.25), dtype=float)
-        batched = cmb_projection._exact_batched_linear_collision_step(
+        batched = collisions._exact_batched_linear_collision_step(
             operator_matrices=matrices,
             dt=0.125,
             target_states=states,
@@ -8052,7 +8057,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         expected = numpy.asarray(
             [
-                cmb_projection._exact_linear_collision_step(
+                collisions._exact_linear_collision_step(
                     operator_matrix=matrix,
                     dt=0.125,
                     target_state=state,
@@ -8105,7 +8110,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "input_digest": hashlib.sha256(),
             "output_digest": hashlib.sha256(),
         }
-        actual = cmb_projection._exact_batched_linear_collision_step(
+        actual = collisions._exact_batched_linear_collision_step(
             operator_matrices=matrices,
             dt=0.125,
             target_states=states,
@@ -8115,7 +8120,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         expected = numpy.asarray(
             [
-                cmb_projection._exact_linear_collision_step(
+                collisions._exact_linear_collision_step(
                     operator_matrix=matrix_row,
                     dt=0.125,
                     target_state=state,
@@ -8328,18 +8333,18 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         ells = numpy.asarray((20, 60, 120), dtype=int)
         cache.clear_cmb_caches()
-        batched = cmb_projection._compute_custom_cmb_spectrum_data(
+        batched = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             ells,
             requested_spectra=("TT",),
         )
         cache.clear_cmb_caches()
         with mock.patch.object(
-            cmb_projection,
+            mode_evolution,
             "_can_batch_declared_evolution",
             return_value=False,
         ):
-            scalar = cmb_projection._compute_custom_cmb_spectrum_data(
+            scalar = cmb_execution._compute_custom_cmb_spectrum_data(
                 contract,
                 ells,
                 requested_spectra=("TT",),
@@ -8358,7 +8363,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract = _prepare_declared_contract(
             _declared_scalar_hierarchy_contract()
         )
-        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             numpy.asarray((20, 60, 120), dtype=int),
             requested_spectra=("TT",),
@@ -8384,7 +8389,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         }
         contract = _prepare_declared_contract(raw_contract)
         cache.clear_cmb_caches()
-        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             numpy.asarray((20, 60, 120), dtype=int),
             requested_spectra=("TT",),
@@ -8406,7 +8411,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             }
         }
         contract = _prepare_declared_contract(contract)
-        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 25, dtype=int),
         )
@@ -9230,7 +9235,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             contract["model_name"] = f"VectorHierarchyRefinement{depth}"
             contract["numerical"].update(controls)
             contract["perturbations"]["numerics"].update(controls)
-            spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+            spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
                 _prepare_declared_contract(contract),
                 numpy.asarray((20, 60, 120), dtype=int),
                 requested_spectra=("TT", "EE", "BB"),
@@ -9302,7 +9307,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             _speedup_contract(_declared_vector_hierarchy_contract())
         )
         ells = numpy.arange(20, 45, dtype=int)
-        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             ells,
         )
@@ -9682,7 +9687,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             contract["model_name"] = f"TensorHierarchyRefinement{depth}"
             contract["numerical"].update(controls)
             contract["perturbations"]["numerics"].update(controls)
-            spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+            spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
                 _prepare_declared_contract(contract),
                 numpy.asarray((20, 60, 120), dtype=int),
                 requested_spectra=("TT", "EE", "BB"),
@@ -9707,7 +9712,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             _speedup_contract(_declared_tensor_hierarchy_contract())
         )
         ells = numpy.asarray((20, 60, 120), dtype=int)
-        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             ells,
         )
@@ -10365,7 +10370,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract = _prepare_declared_contract(
             _speedup_contract(_declared_scalar_hierarchy_contract())
         )
-        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 24, dtype=int),
             requested_spectra=("TT",),
@@ -10434,7 +10439,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract = _prepare_declared_contract(
             _speedup_contract(_declared_scalar_hierarchy_contract())
         )
-        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 24, dtype=int),
             requested_spectra=("TT",),
@@ -10476,7 +10481,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract = _prepare_declared_contract(
             _speedup_contract(_declared_scalar_hierarchy_contract())
         )
-        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 24, dtype=int),
             requested_spectra=("TT",),
@@ -10499,7 +10504,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract = _prepare_declared_contract(
             _speedup_contract(_declared_scalar_hierarchy_contract())
         )
-        spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
             numpy.arange(20, 24, dtype=int),
             requested_spectra=("TT",),
@@ -10523,7 +10528,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ValueError,
             "exceeds declared numerical limits",
         ):
-            cmb_projection._build_projection_k_grid(
+            spectrum_projection._build_projection_k_grid(
                 ell_arr=numpy.asarray((2, 2_000), dtype=int),
                 background=SimpleNamespace(
                     eta0=14_000.0,
@@ -10540,66 +10545,6 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                     accuracy_controls={},
                     manifest_summary={},
                 ),
-            )
-
-    def test_scalar_constraint_acceptance_is_resolution_aware(
-        self,
-    ) -> None:
-        """Reference tolerances apply only to sufficiently resolved grids."""
-
-        context = {
-            "einstein_energy_residual": numpy.full(8, 5.0e-3),
-        }
-        controls = {
-            "scalar_constraint_reference_eta_samples": 16,
-            "scalar_constraint_tolerances": {
-                "einstein_energy_residual": 1.0e-3,
-            },
-        }
-        diagnostics = cmb_projection._validate_scalar_constraint_histories(
-            perturbation_data=SimpleNamespace(conservation_rules={}),
-            context=context,
-            eta_grid=numpy.arange(8, dtype=float),
-            accuracy_controls=controls,
-            k_value=0.1,
-        )
-
-        self.assertFalse(diagnostics["einstein_energy_residual"]["enforced"])
-        self.assertFalse(
-            diagnostics["einstein_energy_residual"]["reference_resolution_met"]
-        )
-        self.assertEqual(
-            diagnostics["einstein_energy_residual"]["resolution_status"],
-            "under_resolved",
-        )
-        self.assertEqual(
-            diagnostics["einstein_energy_residual"]["physical_judgement"],
-            "deferred",
-        )
-        self.assertEqual(
-            diagnostics["einstein_energy_residual"]["normalization_source"],
-            "residual_magnitude_fallback",
-        )
-        self.assertEqual(
-            diagnostics["einstein_energy_residual"]["tolerance_kind"],
-            "normalized",
-        )
-        self.assertGreater(
-            float(diagnostics["einstein_energy_residual"]["maximum_absolute"]),
-            float(diagnostics["einstein_energy_residual"]["tolerance"]),
-        )
-
-        controls["scalar_constraint_reference_eta_samples"] = 8
-        with self.assertRaisesRegex(
-            ValueError,
-            "Scalar Einstein constraint exceeded tolerance",
-        ):
-            cmb_projection._validate_scalar_constraint_histories(
-                perturbation_data=SimpleNamespace(conservation_rules={}),
-                context=context,
-                eta_grid=numpy.arange(8, dtype=float),
-                accuracy_controls=controls,
-                k_value=0.1,
             )
 
     def test_declared_power_spectrum_scale_factor_is_physical(
@@ -10655,7 +10600,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         log_k = numpy.asarray((-2.0, -0.5, 1.0), dtype=numpy.longdouble)
         primordial = numpy.square(log_k)
         unit_transfer = numpy.ones((1, log_k.size), dtype=numpy.longdouble)
-        actual = cmb_projection._integrate_power_spectrum(
+        actual = spectrum_projection._integrate_power_spectrum(
             primordial,
             log_k,
             unit_transfer,
@@ -10931,14 +10876,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
         adiabatic_tt = numpy.asarray(
-            cmb_projection._compute_custom_cmb_spectrum_data(
+            cmb_execution._compute_custom_cmb_spectrum_data(
                 adiabatic,
                 ells,
             ).spectra["TT"],
             dtype=numpy.longdouble,
         )
         cdm_tt = numpy.asarray(
-            cmb_projection._compute_custom_cmb_spectrum_data(
+            cmb_execution._compute_custom_cmb_spectrum_data(
                 cdm_mode,
                 ells,
             ).spectra["TT"],
@@ -11048,7 +10993,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ValueError,
             "initial collision constraint exceeded tolerance",
         ):
-            cmb_projection._compute_custom_cmb_spectrum_data(
+            cmb_execution._compute_custom_cmb_spectrum_data(
                 contract,
                 numpy.arange(20, 24, dtype=int),
             )
@@ -11183,14 +11128,14 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
         light_tt = numpy.asarray(
-            cmb_projection._compute_custom_cmb_spectrum_data(
+            cmb_execution._compute_custom_cmb_spectrum_data(
                 light,
                 ells,
             ).spectra["TT"],
             dtype=numpy.longdouble,
         )
         heavy_tt = numpy.asarray(
-            cmb_projection._compute_custom_cmb_spectrum_data(
+            cmb_execution._compute_custom_cmb_spectrum_data(
                 heavy,
                 ells,
             ).spectra["TT"],
@@ -11429,7 +11374,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 contract["numerical"]
             )
             cache.clear_cmb_caches()
-            spectrum_data = cmb_projection._compute_custom_cmb_spectrum_data(
+            spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
                 _prepare_declared_contract(contract),
                 numpy.asarray((20, 40), dtype=int),
                 requested_spectra=("TT",),
@@ -11578,14 +11523,14 @@ class SliceSixteenRuntimeAuthorityTestCase(unittest.TestCase):
         """The production scalar entry point must use the declared graph."""
 
         boundary_source = inspect.getsource(
-            cmb_projection._compute_custom_cmb_spectrum_data
+            cmb_execution._compute_custom_cmb_spectrum_data
         )
         self.assertIn(
             "_compute_custom_cmb_spectrum_data_impl",
             boundary_source,
         )
         source = inspect.getsource(
-            cmb_projection._compute_custom_cmb_spectrum_data_impl
+            mode_evolution.build_declared_mode_evolution
         )
         self.assertIn("_mode_rhs", source)
         self.assertIn("_integrate_declared_state_history", source)
@@ -11611,7 +11556,7 @@ class SliceSixteenRuntimeAuthorityTestCase(unittest.TestCase):
             dtype=float,
         )
         current = numpy.asarray((0.7, 0.03), dtype=float)
-        result = cmb_projection._solve_declared_fast_collision_target(
+        result = collisions._solve_declared_fast_collision_target(
             matrix,
             numpy.zeros(2, dtype=float),
             current,
@@ -11671,7 +11616,7 @@ class SliceSixteenRuntimeAuthorityTestCase(unittest.TestCase):
         prepared = _prepare_declared_contract(contract)
         evolution._compile_equation_program.cache_clear()
         with mock.patch.object(
-            cmb_projection,
+            cmb_execution,
             "_compile_equation_program",
             wraps=evolution._compile_equation_program,
         ) as compile_program:

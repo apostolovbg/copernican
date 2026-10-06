@@ -29,10 +29,10 @@ from ..errors import (
     failure_context,
 )
 from ..runtime import cache
+from ..runtime.execution import _compute_custom_cmb_spectrum_data
 from ..runtime.lensing import lensed_cls as _lensed_cls
 from ..runtime.performance import PhaseTimer
 from ..runtime.postprocessing import build_postprocessing_evidence
-from ..runtime.projection import _compute_custom_cmb_spectrum_data
 
 _TEMPERATURE_LIKE_OUTPUT_ROLES = {
     "polarization_b",

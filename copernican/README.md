@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-10-05
+**Last Updated:** 2026-10-06
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -171,7 +171,12 @@ correctness baseline, while an optional accelerator may run only validated
 fixed-shape kernels and must match the CPU result before use. Ordinary
 installation and tests do not require Taichi or any other accelerator runtime;
 unavailable hardware falls back inside the same CCMBS engine rather than
-creating a second solver identity.
+creating a second solver identity. The public execution orchestrator in
+`runtime/execution.py` composes focused owners for hierarchy evolution,
+collisions, line-of-sight grids, spectrum projection, numerical controls,
+diagnostics, and evidence identities. Those owners retain the same request and
+cache semantics while keeping solver physics separate from the measurements
+and persisted evidence that observe it.
 
 A default package installation has no CAMB or CLASS dependency. The repository
 workspace lock includes CAMB only for independent scientific-reference tests;
@@ -328,8 +333,8 @@ for the drag-era BAO ruler, leaving the recombination endpoint independent.
 Missing helpers, invalid background shapes or values, non-finite predictions,
 and invalid drag endpoints are retained as typed BAO metadata rather than
 being collapsed into an unexplained likelihood value.
-Slice One records the pre-repair corpus baseline before any shared physics is
-changed. `CMB_CORPUS_BASELINE_REQUEST` freezes the initial-guess parameters,
+The corpus baseline records pre-repair behavior before shared physics
+changes. `CMB_CORPUS_BASELINE_REQUEST` freezes the initial-guess parameters,
 ordered TT/TE/EE multipoles, k/eta node counts, source-anchor rule, and
 doubled-k refinement. `run_bundled_cmb_corpus_baseline()` evaluates each
 frozen `BUNDLED_CMB_MODEL_FILENAMES` row once, attaches contract and
@@ -358,7 +363,7 @@ opt-in matrix execution can also evaluate two bounded parameter points through
 both public scalar and ordered batch paths, recording per-point equality and
 cache identities; a model with no independently variable parameter remains
 explicitly unavailable for that comparison.
-Slice Eight enforces the universal declaration boundary.
+The full-observable matrix enforces the universal declaration boundary.
 `declared_cmb_spectrum_names()`
 reads every angular-power observable from a compiled model, so a matrix
 request cannot silently collapse to TT/TE/EE. `run_bundled_cmb_full_matrix()`
@@ -380,14 +385,14 @@ Tier-controlled parity uses the same declared numerical overrides and workload
 for both paths. The cached scalar wrapper retains its typed result, raw
 unscaled spectra, request metadata, solver identity, and phase provenance so
 the audit compares solver products rather than plot output.
-Slice Seven closes the production parity and graph boundary. The shared
+The production parity and graph boundary uses the shared
 `canonical_cmb_theory_spectra()` payload is consumed by likelihoods,
 diagnostics, and graph rendering. Independent CAMB fixtures retain complete
 raw `C_ell`/`D_ell` surfaces, fixed-point metadata, physical-shape evidence,
 and artifact hashes; cache reports retain request-state and cross-request
 reuse evidence. CMB graphs display typed execution or surface failures when a
 theory cannot produce a valid curve.
-Slice Eleven closes the bounded external CAMB evidence boundary. The
+The bounded external CAMB evidence boundary uses the
 test-owned reference builder executes CAMB directly on one exact ell grid for
 the five comparable bundled cosmologies and retains raw `C_ell`/`D_ell`
 surfaces, contract and numerical-plan digests, and artifact hashes. The

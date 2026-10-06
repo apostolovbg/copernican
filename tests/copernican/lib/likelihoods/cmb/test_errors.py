@@ -25,7 +25,12 @@ from copernican.lib.likelihoods.cmb.errors import (
     classify_exception,
     failure_context,
 )
-from copernican.lib.likelihoods.cmb.runtime import cache, evolution, projection
+from copernican.lib.likelihoods.cmb.runtime import (
+    cache,
+    constraint_validation,
+    evolution,
+    execution,
+)
 
 
 def _cmb_dataframe() -> pandas.DataFrame:
@@ -223,13 +228,13 @@ class CMBErrorTaxonomyTestCase(unittest.TestCase):
 
         with (
             mock.patch.object(
-                projection,
+                execution,
                 "_compute_custom_cmb_spectrum_data_impl",
                 side_effect=_fail,
             ),
             self.assertRaises(NonFiniteEvolutionError),
         ):
-            projection._compute_custom_cmb_spectrum_data(
+            execution._compute_custom_cmb_spectrum_data(
                 {"model_name": "FailureModel"},
                 (20,),
                 requested_spectra=("TT",),
@@ -293,7 +298,7 @@ class CMBErrorTaxonomyTestCase(unittest.TestCase):
         )
 
         with self.assertRaises(ConstraintViolationError) as evolved:
-            projection._validate_scalar_constraint_histories(
+            constraint_validation._validate_scalar_constraint_histories(
                 perturbation_data=perturbation_data,
                 context={
                     "einstein_energy_residual": numpy.asarray((0.0, 0.004))

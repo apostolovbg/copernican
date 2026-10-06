@@ -20,10 +20,10 @@ from copernican.lib import cmb_contract
 from copernican.lib import model_adapter as model_plugin_validation
 from copernican.lib import model_coder, model_spec_validator, run_manifest
 from copernican.lib.cmb_identity import CCMBS_ID
-from copernican.lib.likelihoods.cmb import cache, cmb, projection
+from copernican.lib.likelihoods.cmb import cache, cmb
 from copernican.lib.likelihoods.cmb.orchestrators import ccmbs
 from copernican.lib.likelihoods.cmb.runtime import background as cmb_background
-from copernican.lib.likelihoods.cmb.runtime import evolution
+from copernican.lib.likelihoods.cmb.runtime import evolution, execution
 from copernican.lib.model_adapter import PluginValidationError
 from copernican.lib.perturbation_contract import PerturbationContractData
 
@@ -2586,7 +2586,7 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
             production_enabled=True,
         )
         cache.clear_cmb_caches()
-        spectrum_data = projection._compute_custom_cmb_spectrum_data(
+        spectrum_data = execution._compute_custom_cmb_spectrum_data(
             plugin.get_cmb_declared_runtime(plugin.INITIAL_GUESSES),
             numpy.asarray((2, 8, 20), dtype=int),
             requested_spectra=("TT", "TE", "EE", "PP"),
@@ -2705,7 +2705,7 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
                     point=point_name,
                 ):
                     spectrum_data = (
-                        projection._compute_custom_cmb_spectrum_data(
+                        execution._compute_custom_cmb_spectrum_data(
                             plugin.get_cmb_declared_runtime(parameters),
                             numpy.asarray((2, 10, 20), dtype=int),
                             requested_spectra=("TT",),

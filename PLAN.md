@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-10-05
+**Last Updated:** 2026-10-06
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -29,11 +29,12 @@ the useful implementation; do not restart CCMBS or repeat completed work
 without a failing acceptance criterion that requires it. Old slice numbers in
 historical records refer to the previous plan, not to this one.
 
-There are eight implementation slices. Execute them in order. Each slice owns
+There are nine implementation slices. Execute them in order. Each slice owns
 concrete changes, focused tests, evidence, and closure conditions. Numerical
-repair precedes actual LCDM parity; actual LCDM parity precedes broader
-certification. Do not move an unmet requirement to a later handoff or mark a
-slice closed because a command capable of testing it now exists.
+repair precedes structural separation; structural separation precedes actual
+LCDM parity, which precedes broader certification. Do not move an unmet
+requirement to a later handoff or mark a slice closed because a command
+capable of testing it now exists.
 
 The human's full scientific production campaign is outside this plan. Bounded
 real CCMBS forward calculations, independent reference comparisons, and
@@ -43,8 +44,9 @@ Planck2018ref with **5 burn-in steps and 10 production steps**. The human
 launches that demonstration after engine acceptance; neither that short chain
 nor a long production campaign substitutes for the acceptance evidence.
 
-**Initial state:** all eight slices below are pending. Replacing this document
-does not close Slice One or certify the current engine.
+**Current state:** Slices One and Two are complete. Slice Three begins from
+their accepted numerical behavior; Slices Four through Nine remain pending.
+Completion of either completed slice does not certify physical parity.
 
 ## Scope and invariants
 
@@ -87,8 +89,12 @@ sampler integration, BAO independence, GUI/CLI output, and retained evidence.
 9. Fix the owning implementation. Do not widen tolerances, remove difficult
    points, disable tests, suppress failures, alter observations, or change
    CI/environment policy to obtain a pass. Do not add unrelated cleanup,
-   dependency changes, version bumps, or general architecture projects.
-10. Stay on the current branch and use the existing managed `.venv`. Do not
+   dependency changes, version bumps, or architecture work outside Slice
+   Three.
+10. Slice Three separates physics, numerical execution, diagnostics, and
+   evidence through one-way dependencies. It preserves Slice Two behavior;
+   diagnostic or evidence code must not alter the physics it observes.
+11. Stay on the current branch and use the existing managed `.venv`. Do not
     recreate or upgrade it. Follow `AGENTS.md`, including managed-block and
     changelog rules. No side agents, commits, or pushes without instruction.
 
@@ -100,26 +106,27 @@ Reproduce them against the active source and preserve the repair regressions.
 * **G1, actual parity:** the previous final slices delivered commands and
   mocked acceptance tests without an accepted actual CCMBS/CAMB row. The
   previous completion standard nevertheless required bounded parity. Slices
-  One, Three, and Four own the executable matrix and its actual results.
-* **G2, graph coverage:** `tests/project/lib/test_slice_seven.py` currently
+  One, Four, and Five own the executable matrix and its actual results.
+* **G2, graph coverage:** the historical public graph regression currently
   stops at ell 100, supplies numerical overrides, and no longer asserts the
-  earlier TT trough-to-peak behavior. Slices Three and Four restore meaningful
-  ordinary-route wave coverage for LCDM and Planck2018ref.
+  earlier TT trough-to-peak behavior. Slice Three gives it a behavior-named
+  home; Slices Four and Five restore meaningful ordinary-route wave coverage
+  for LCDM and Planck2018ref.
 * **G3, source acceptance:** production source tolerance is 2.0 and evolution
   tolerance is 0.2. The history comparator samples three fractional positions;
   a source sign reversal and an intervening spike can pass its source check.
   Slice Two replaces this assurance with justified error control and negative
-  controls, then Slice Three verifies its effect on observables.
+  controls, then Slice Four verifies its effect on observables.
 * **G4, numerical evidence:** q/hierarchy controls are labelled
   `validated_bound` from configured floors, and physical limits are labelled
   `measured` from grid information. Those labels do not demonstrate the
   associated errors. Slice Two owns real estimates, bounds, and enforcement.
 * **G5, inference:** `joint_mcmc` still defers doubled-k acceptance without
-  first requiring a valid certificate for that exact calculation. Slice Six
+  first requiring a valid certificate for that exact calculation. Slice Seven
   closes this gap without reintroducing timeout-to-posterior rejection.
 * **G6, persistence:** the graph subprocess reads inside an outer temporary
-  directory which is then removed. Slices One and Three retain actual
-  evidence from the outset; Slice Seven verifies its final durability.
+  directory which is then removed. Slices One and Four retain actual evidence
+  from the outset; Slice Eight verifies its final durability.
 
 The latest inspected baseline run at the reset passed 871 tests in about
 56 minutes. This records repository health, not physical acceptance. Preserve
@@ -332,7 +339,7 @@ non-applicability, or silently carry unresolved requirements forward.
 
 ## Slice One — establish the executable completion contract
 
-**Status:** implementation acceptance complete; workflow confirmation pending.
+**Status:** complete.
 **Entry:** the existing CCMBS implementation at this reset.
 
 **Owners:** `PLAN.md`, the CMB diagnostics and certification functions,
@@ -409,45 +416,51 @@ Physical-input matching remains explicit: species/distributions, primordial
 inputs, recombination, reionization, gauge/sources, units, lensing, and sectors
 must have retained quantitative evidence. In particular the declared
 collapse-source reionization is not CAMB's default tanh history merely because
-both have tau=0.054. Slice Three owns that comparison and any necessary source
-repair for LCDM; Slice Four owns the remaining comparable points. Neither may
-claim parity based on parameter maps alone or defer matching to Slice Eight.
+both have tau=0.054. Slice Four owns that comparison and any necessary source
+repair for LCDM; Slice Five owns the remaining comparable points. Neither may
+claim parity based on parameter maps alone or defer matching to Slice Nine.
 
-All selectors below are existing modules; use the full listed module for new
-regressions added in that slice. Prefix each invocation with
+Selectors below name the current modules that own each obligation. Slice Three
+replaces historical slice-named modules with behavior-named successors and
+updates every selector in the same change. Prefix each invocation with
 `source .venv/bin/activate && python -m unittest`.
 
 * Two: `tests.copernican.lib.likelihoods.cmb.runtime.test_planner`,
   plus `test_adaptive`, `test_convergence`, `test_background`,
-  `test_evolution`, and `test_projection` in that same runtime package.
-* Three: `tests.project.lib.test_slice_seven`,
+  `test_evolution`, and `test_spectrum_projection` in that runtime package.
+* Three: the focused ownership modules `test_execution`,
+  `test_mode_evolution`, `test_collisions`, `test_line_of_sight`,
+  `test_spectrum_projection`, `test_numerical_controls`,
+  `test_constraint_validation`, and `test_evidence`, plus `test_cmb`,
+  `test_diagnostics`, and `tests.project.lib.test_scientific_acceptance`.
+* Four: the purpose-named public graph regression produced by Slice Three,
   `tests.project.lib.test_camb_reference`, and
   `tests.copernican.lib.likelihoods.cmb.test_cmb`.
-* Four: `tests.project.lib.test_camb_reference`,
+* Five: `tests.project.lib.test_camb_reference`,
   `tests.copernican.lib.likelihoods.cmb.test_diagnostics`, and
   `tests.copernican.lib.likelihoods.cmb.runtime.test_lensing`.
-* Five: `tests.copernican.lib.likelihoods.cmb.test_cmb`,
+* Six: `tests.copernican.lib.likelihoods.cmb.test_cmb`,
   `tests.copernican.lib.likelihoods.cmb.test_contracts_audit`, and
   `tests.copernican.lib.likelihoods.cmb.test_diagnostics`.
-* Six: `tests.copernican.samplers.test_sampler_mcmc`,
+* Seven: `tests.copernican.samplers.test_sampler_mcmc`,
   `tests.copernican.lib.likelihoods.cmb.runtime.test_adaptive`, and
   `tests.copernican.lib.likelihoods.cmb.runtime.test_cache`.
-* Seven: `tests.copernican.lib.likelihoods.cmb.runtime.test_performance`,
+* Eight: `tests.copernican.lib.likelihoods.cmb.runtime.test_performance`,
   `tests.copernican.lib.likelihoods.cmb.runtime.test_cache`, and
   `tests.project.lib.test_scientific_acceptance`.
-* Eight: `tests.project.lib.test_scientific_acceptance` and
-  `tests.project.lib.test_slice_seven`.
+* Nine: `tests.project.lib.test_scientific_acceptance` and the
+  purpose-named public graph regression produced by Slice Three.
 
 G1 is guarded by `CompletionContractTestCase` in
 `tests/copernican/lib/likelihoods/cmb/test_diagnostics.py` and the three
 explicitly synthetic final-report tests in that module. G2 uses
 `CompletionReferenceWindowTestCase` in `test_camb_reference.py`, then the
-ordinary graph regression in `test_slice_seven.py` during Slice Three. G3/G4
+ordinary graph regression during Slice Four. G3/G4
 are rejected at the final contract by
 `test_completion_rejects_synthetic_missing_stale_and_unresolved_rows`;
 Slice Two must add actual source-sign/spike and refinement regressions in
 `runtime/test_adaptive.py` and `runtime/test_convergence.py`. G5 remains the
-Slice Six sampler obligation in `test_sampler_mcmc.py`; no Slice One result
+Slice Seven sampler obligation in `test_sampler_mcmc.py`; no Slice One result
 claims that bypass has been repaired. G6 uses
 `test_retained_artifacts_reject_tampering_missing_and_escape` and
 `CompletionPersistenceTestCase`, plus separate-process baseline readback.
@@ -464,9 +477,8 @@ exits 0 only after all referenced files and current source identity validate.
 The three primary focused modules passed 74 tests in 103.581 seconds.
 After the unit-conversion and provenance adjustments, the completion,
 reference-window, persistence, and command regressions passed 12 tests in
-0.478 seconds. Their logs are retained at
-`devcovenant/registry/runtime/slice-one-focused.log` and
-`devcovenant/registry/runtime/slice-one-completion-tests.log`.
+0.478 seconds. The focused and completion checks retain no DevCovenant
+runtime artifacts.
 The original synthetic final-report tests now explicitly assert rejection;
 they retain their orchestration assertions without claiming physical success.
 
@@ -476,12 +488,12 @@ C_ell and D_ell parity in TT, TE, and EE. The independent unit-conversion
 checks passed. Maximum public relative errors over ell=(2,20,100) were
 176.7303% TT, 98.5186% TE, and 90.4770% EE. These are unadjusted diagnostic
 residuals, not matched-history scientific certification. Slices Two and
-Three own the numerical acceptance and physical-input/source comparisons
+Four own the numerical acceptance and physical-input/source comparisons
 needed to resolve them. No amplitude rescaling or tolerance relaxation was
 used to obtain this result.
 
 Persistent evidence is under the configured output root at
-`ccmbs-acceptance/slice-one/`. The producer exited before a separate
+`ccmbs-acceptance/completion-evidence/`. The producer exited before a separate
 `--verify-baseline` invocation successfully reloaded `baseline.json`,
 `completion-contract.json`, and all twelve reference payloads. All 23
 materialized cases match the tracked frozen inventory. Portable identities:
@@ -493,13 +505,12 @@ materialized cases match the tracked frozen inventory. Portable identities:
 * Source content SHA-256, including uncommitted implementation:
   `ea038e9e5adc5d37ba2b03ffc4a7b682b6fd5017857a144f330722968fbd6229`
 
-The contract slice's implementation acceptance is satisfied. This does not
-close any physics row. Required full-suite workflow confirmation remains
-pending; the gate stays open until that run succeeds and is reviewed.
+The contract slice and its required workflow confirmation are complete. This
+does not close any physics row.
 
 ## Slice Two — repair automatic numerical acceptance
 
-**Status:** implementation acceptance complete; workflow confirmation pending.
+**Status:** complete.
 **Entry:** Slice One's metrics and failure inventory.
 
 **Owners:** CMB `runtime/planner.py`, `runtime/adaptive.py`,
@@ -543,7 +554,7 @@ relevant numerical assertion; well-resolved controls must pass it.
 **Closure:** all applicable axes have enforceable evidence rather than status
 labels. Real bounded ordinary requests exercise the revised checks. Their
 measured errors meet justified budgets and request-subset consistency holds.
-No global CAMB parity claim is made before Slice Three.
+No global CAMB parity claim is made before Slice Four.
 
 Implementation acceptance evidence:
 
@@ -562,59 +573,150 @@ Implementation acceptance evidence:
   meet the planner budgets, the nested k comparison converges with measured
   work, and the shared TT result agrees to the declared test tolerance.
 
-Slice Two's implementation acceptance is satisfied. No CAMB parity or full
-scientific production result is claimed. Required full-suite workflow
-confirmation remains pending; the gate stays open until that run succeeds and
-is reviewed.
+Slice Two is complete. No CAMB parity or full scientific production result is
+claimed.
 
-## Slice Three — close actual LCDM physics and graph recovery
+## Slice Three — separate CCMBS solver layers and tests
+
+**Status:** implementation complete; awaiting human full-suite confirmation.
+**Entry:** Slice Two's completed numerical acceptance and workflow evidence.
+
+**Owners:** CMB public entrypoints, the `runtime` physics and numerical
+modules, diagnostics and evidence writers/readers, relevant documentation,
+and the corresponding runtime, CMB, project, persistence, and public-route
+tests.
+
+**Work:**
+
+1. Characterize the accepted Slice Two behavior before moving code. Retain
+   fixed public requests, direct runtime requests, typed failures,
+   exact-repeat cases, valid and invalid cache reuse, persisted evidence, and
+   bounded ordinary-production requests as the behavior baseline. A source
+   identity change requires fresh evidence identity; it cannot relax any
+   numerical criterion or alter accepted behavior.
+2. Establish one-way ownership: physics owns background, hierarchy evolution,
+   source formation, line-of-sight kernels, and observable assembly; numerical
+   execution owns plans, nested refinement, quadrature, cache identity, work
+   accounting, and typed numerical failures; diagnostics own measurements,
+   comparisons, graph inputs, and decisions; evidence owns serialization,
+   manifests, reload, and tamper detection. Public orchestration composes
+   those layers without becoming another physics or diagnostic owner.
+3. Extract the substantive implementation from the monolithic projection path
+   into focused modules with explicit typed inputs and outputs. Physics must
+   not import diagnostics or evidence. Diagnostics and evidence observe only
+   completed typed products and must not alter their calculation. Remove old
+   internal paths after callers migrate; retain only supported public API
+   contracts.
+4. Reorganize tests as first-class refactor work. Physics tests directly cover
+   each extracted owner and its invariants; numerical tests cover planning,
+   refinement, endpoints, cold work, reuse, and typed failure; diagnostics
+   tests cover measurement and rejection; evidence tests cover persistence,
+   reload, identity, cleanup, and tampering; public-route tests cover their
+   composition. Move historical slice-named test modules to behavior-named
+   homes, separating fixture builders from assertions and plumbing fixtures
+   from physical-reference assertions.
+5. Reduce test cost without reducing fidelity. One necessary calculation may
+   provide raw products, diagnostics, graph inputs, and evidence to multiple
+   assertions only when its declaration, physical point, request, resolved
+   plan, numerical controls, source identity, and execution semantics match.
+   Keep explicit fresh-cold, valid-warm, invalid-reuse, and exact-repeat work
+   tests. Do not save time by reducing resolution, loosening budgets, omitting
+   products or axes, self-generating physical truth, or sharing certificates
+   across non-identical requests.
+6. Measure phase timing, cache hits/misses, and actual work for bounded
+   expensive tests. Remove demonstrated duplicate setup or computation, retain
+   the reason for each required cold solve, and preserve test isolation.
+7. Update comments, docstrings, runtime documentation, test descriptions, and
+   exact documentation mirrors to the resulting ownership boundaries. Remove
+   stale descriptions of the monolith and historical slice-owned test paths.
+
+**Focused tests:** direct tests for every extracted physics, numerical,
+diagnostic, and evidence owner; the retained Slice Two focused suite; bounded
+ordinary-production and request-subset cases; cold/warm/invalid-reuse and
+exact-repeat cases; public-route graph coverage; and separate-process
+reload/tamper tests.
+
+**Closure:** the normal public route still enforces every applicable Slice Two
+criterion without relaxed thresholds or missing coverage. Physics, numerical
+execution, diagnostics, and evidence have one-way dependencies and direct
+tests. The monolithic internal path and historical slice-named test paths are
+gone, test ownership mirrors code ownership, and only identity-safe duplicate
+work has been removed. This slice makes no physical-parity claim.
+
+### Implementation evidence — 2026-10-05
+
+* The thirteen focused runtime modules passed 91 tests in 0.875 seconds. They
+  directly cover numerical controls, mode evolution, collisions, line-of-sight
+  grids, spectrum projection, constraint validation, evidence identity, and
+  the retained Slice Two owners.
+* Public-route cache, exact-repeat, invalid-reuse, source-history capture,
+  scalar/batch, collision, and request-subset regressions passed after their
+  assertions moved to the extracted owners. The full CMB module exercised 223
+  cases during this refactor; the only migration failures were stale test
+  module targets, each repaired and rerun through its new owner.
+* `tests.project.lib.test_ccmbs_production_graph` passed one bounded ordinary
+  public LambdaCDM graph calculation in 691.749 seconds. It retained the
+  512-to-1024 nested-k calculation and completed both declared evolution and
+  projection phases through `runtime/execution.py`.
+
+The implementation evidence is complete. The human must now confirm the
+separate full `devcovenant run` before this slice is marked closed and the gate
+is closed. No physical-parity claim is made here.
+
+## Slice Four — close actual LCDM physics and graph recovery
 
 **Status:** pending.
-**Entry:** enforceable numerical acceptance from Slice Two.
+**Entry:** Slice Three's preserved behavior baseline and one-way boundaries.
 
-**Owners:** the generic background, hierarchy, source, projection, and
-post-processing code responsible for measured disagreement; independent CAMB
-helpers, diagnostics, and `tests/project/lib/test_slice_seven.py`.
+**Owners:** the extracted background, hierarchy, source, projection, and
+post-processing physics owners responsible for measured disagreement;
+independent CAMB helpers, diagnostics, and the purpose-named public graph
+regression created by Slice Three.
 
 **Work:**
 
 1. Execute actual fixed massless-LCDM CCMBS through the normal public route
-   and compare with the physically matched CAMB reference. Cover the canonical
-   sparse range and Slice One's acoustic/zero-crossing/damping windows. Use
-   production planning without numerical overrides or diagnostic bypasses.
+   and compare it with the physically matched CAMB reference. Cover the
+   canonical sparse range and Slice One's acoustic, zero-crossing, and damping
+   windows. Use production planning without numerical overrides or diagnostic
+   bypasses.
 2. Find the earliest disagreement in background/recombination, initial data,
    metric/species evolution, collisions, polarization/ISW sources, transfer
    projection, normalization, or assembly. Retain aligned intermediate arrays
-   and fix that generic owner. Do not compensate for an upstream defect with
-   downstream scaling, smoothing, clipping, or model-specific rules.
+   and fix the extracted owning physics module. Do not compensate for an
+   upstream defect with downstream scaling, smoothing, clipping, or
+   model-specific rules, and do not recreate cross-layer implementation in the
+   public orchestrator.
 3. Require accepted TT/TE/EE raw and public comparisons, physically located
    peaks/troughs, TE signs/zeros, and damping behavior. Restore a meaningful
    real graph regression reaching acoustic structure and the high-ell regime.
    Finite, smooth, nonnegative output alone is insufficient.
-4. Feed the same accepted arrays into plotting, likelihood/export checks,
-   and exact-repeat evidence. Use independent synthetic observations for
-   plumbing assertions; never use equality with self-generated observations
-   as physical parity evidence.
+4. Feed the same accepted arrays into plotting, likelihood/export checks, and
+   exact-repeat evidence. Use independent synthetic observations for plumbing
+   assertions; never use equality with self-generated observations as physical
+   parity evidence.
 5. Retain the graph and all numerical products outside temporary directories.
    After the producer exits and temporary workspaces are removed, reload the
    manifest and its actual payloads in another process and verify decisions.
 
 **Focused tests:** the fixed-LCDM acceptance command, real public graph test,
-reference-input checks, and the source/runtime regressions needed for each
-repair. Retain one cold solve, compatible refinements, and exact-repeat work
-accounting; do not perform another cold solve for each graph assertion.
+reference-input checks, and the direct physics/runtime regressions needed for
+each repair. Retain one cold solve, identity-safe compatible reuse, and
+exact-repeat work accounting; do not perform another cold solve for each graph
+assertion.
 
 **Closure:** an actual accepted LCDM comparison and durable graph demonstrate
 correct quantitative TT/TE/EE and wave structure. The comparison has executed
 successfully; a command definition or mocked accepted row cannot close this
 slice. Any runtime blocker to obtaining this result is repaired here.
 
-## Slice Four — close comparable models and complete observables
+## Slice Five — close comparable models and complete observables
 
-**Status:** pending. **Entry:** accepted actual LCDM evidence from Slice Three.
+**Status:** pending. **Entry:** accepted actual LCDM evidence from Slice Four.
 
-**Owners:** generic model/background/species/source/lensing/assembly paths,
-the existing bounded parity matrix, reference fixtures, and related tests.
+**Owners:** extracted generic model, background, species, source, lensing, and
+assembly paths; the bounded parity matrix, reference fixtures, and related
+tests.
 
 **Work:**
 
@@ -630,12 +732,13 @@ the existing bounded parity matrix, reference fixtures, and related tests.
    TP, EP, lensing, active sector contributions, and totals. Validate absolute
    units, signs, physical zeros, remapping support, and covariance bounds.
    Reference-inapplicable sectors need independent analytic or convergence
-   evidence under Slice Five; they cannot simply disappear from the matrix.
+   evidence under Slice Six; they cannot simply disappear from the matrix.
 4. Produce the ordinary Planck2018ref graph from its accepted arrays and
    verify that comparison rendering retains both model curves. Extend shape
    assertions and range/subset consistency to the same physical points.
-5. Share compatible work and retain all accepted and rejected attempts.
-   Repair generic defects and rerun affected earlier rows after each fix.
+5. Share compatible work only through Slice Three's complete identity rules
+   and retain all accepted and rejected attempts. Repair generic defects in
+   their extracted owner and rerun affected earlier rows after each fix.
 
 **Focused tests:** actual parity-matrix execution, independent CAMB fixtures,
 full-observable diagnostics, massive-neutrino/background tests, lensing and
@@ -646,7 +749,7 @@ comparison, with complete resolved reference identity and numerical evidence.
 The fixed LCDM and Planck2018ref public graphs both pass quantitative and shape
 acceptance. No matrix row is pending because it was called expensive.
 
-## Slice Five — close universal declarations and all active sectors
+## Slice Six — close universal declarations and all active sectors
 
 **Status:** pending. **Entry:** comparable physics and observables accepted.
 
@@ -656,7 +759,7 @@ runtime, corpus/full-observable diagnostics, and their existing tests.
 **Work:**
 
 1. Execute all ten bundled models through the same ordinary engine route.
-   Reuse accepted comparable rows from Slice Four only when their complete
+   Reuse accepted comparable rows from Slice Five only when their complete
    identities remain current. Validate each non-CAMB theory against its own
    declared equations and invariants, not resemblance to LCDM.
 2. Exercise unrelated names, altered recombination/opacity, additional
@@ -673,6 +776,9 @@ runtime, corpus/full-observable diagnostics, and their existing tests.
    field, axis, and request without hiding failures in discovery or graphs.
 5. Confirm scalar/batch ordering, failure isolation, renamed-model identity,
    and cache separation across different theories and physical inputs.
+6. Place every new declaration capability in the extracted physics or numerical
+   owner that governs it. Diagnostics and evidence may measure the capability,
+   but may not become a fallback execution path or restore monolithic control.
 
 **Focused tests:** model validator/coder/adapter tests, declared-contract and
 source-graph tests, scalar/vector/tensor runtime cases, and actual bundled and
@@ -684,7 +790,7 @@ engine-capability defect, unclassified outcome, or fabricated physical zero.
 Finite representative coverage supports the completion claim; automatic
 numerical enforcement remains mandatory for future declarations and points.
 
-## Slice Six — close sampler and application integration
+## Slice Seven — close sampler and application integration
 
 **Status:** pending. **Entry:** accepted model and numerical matrix.
 
@@ -712,6 +818,9 @@ related tests.
    the accepted canonical products. Retain real model identities and raw/public
    conventions. Test the free LCDM and fixed Planck2018ref execution paths;
    do not invent a sampled chain for a model with no free parameters.
+6. Reuse forward products or numerical certificates only through the complete
+   identity rules established in Slice Three. Application consumers may read
+   diagnostics and evidence but must not change solver outcomes.
 
 **Focused tests:** sampler timeout/incomplete and proposal-path tests, CMB
 public/cache tests, independent BAO and combined-likelihood tests, model
@@ -724,7 +833,7 @@ proposal values agree with the corresponding forward calculation. Failures
 remain typed and cannot bias a completed posterior through silent numerical
 rejection. Both model roles and all application consumers use accepted data.
 
-## Slice Seven — consolidate durable evidence and execution cost
+## Slice Eight — consolidate durable evidence and execution cost
 
 **Status:** pending. **Entry:** all required physics and integration rows pass.
 
@@ -742,10 +851,14 @@ work accounting and measured bottlenecks, relevant docs and exact mirrors.
    nearby-parameter requests. Record per-test and per-phase timing, memory
    where material, actual evolution/projection work, and cache hits/misses.
    Explain every repeated cold calculation required by independent acceptance.
+   Prove complete identity for every reused product and retain at least one
+   fresh cold execution for each required acceptance path.
 3. Remove demonstrated duplicate work and resolve bottlenecks that make the
    bounded acceptance or final short comparison impractical. Optimize owning
    kernels/schedules/caches without changing physics or acceptance. Rerun the
-   affected numerical comparisons after performance changes.
+   affected numerical comparisons after performance changes. Do not reduce
+   resolution, budgets, products, physical coverage, or failure assertions to
+   improve test cost.
 4. Ensure ordinary discovery remains bounded and preserves meaningful real
    coverage. Retain an explicit reproducible command for any less-frequent
    acceptance case and its current accepted artifact; do not replace it with
@@ -755,8 +868,9 @@ work accounting and measured bottlenecks, relevant docs and exact mirrors.
    stale parity, durability, automatic-device-selection, or old slice-closure
    claims. Follow canonical doc ownership and keep package docs package-facing.
 6. Review code, tests, docs, config, managed assets/mirrors, consistency,
-   performance, and architecture against this plan. Repair remaining defects
-   required for CCMBS completion; avoid unrelated repository improvement.
+   performance, and architecture against this plan. Verify that the Slice
+   Three boundaries still hold; repair remaining completion defects without
+   starting unrelated architecture work.
 
 **Focused tests:** persistence/reload/tamper and cleanup regressions,
 performance/cache tests, all affected numerical rows, and doc/mirror checks.
@@ -764,12 +878,14 @@ Record the human's complete successful `devcovenant run` and required gate
 results against the final accepted implementation.
 
 **Closure:** a durable, current accepted manifest proves the entire matrix,
-with no unowned requirement or unexplained execution regression. Required
-checks are green; these checks accompany, rather than replace, engine evidence.
+with no unowned requirement or unexplained execution regression. Reuse is
+identity-safe, required cold work remains demonstrated, and the Slice Three
+boundaries remain intact. Required checks are green; these checks accompany,
+rather than replace, engine evidence.
 
-## Slice Eight — prepare the 5/10 Copernican demonstration
+## Slice Nine — prepare the 5/10 Copernican demonstration
 
-**Status:** pending. **Entry:** Slice Seven's accepted final evidence.
+**Status:** pending. **Entry:** Slice Eight's accepted final evidence.
 
 **Owners:** existing run-manifest/configuration and application launch paths,
 comparison validation, operator documentation, and bounded integration tests.
@@ -789,8 +905,8 @@ comparison validation, operator documentation, and bounded integration tests.
 3. Validate the configuration, model/dataset loading, parser integrity,
    application dispatch, and output contract through existing supported
    interfaces without launching the human's observational comparison. Any
-   preflight must be proven not to start that solve. Bounded integration
-   tests use already accepted products and controlled observations.
+   preflight must be proven not to start that solve. Bounded integration tests
+   use identity-matched accepted products and controlled observations.
 4. Record the exact tested launch command and equivalent GUI selections,
    prerequisites, configuration path, expected output directory, and runtime
    estimate based on measured accepted forward/proposal work. Include all
@@ -826,12 +942,16 @@ CCMBS is complete under this plan only when all of these are demonstrated:
   accepted output, including the tested nonzero sector and lensing paths;
 * every applicable numerical axis is enforced with meaningful measured errors
   or validated bounds, and adversarial failures are detected;
+* physics, numerical execution, diagnostics, and evidence have maintained
+  one-way ownership boundaries, direct tests, and a normal public route that
+  composes them without a replacement monolith;
 * production, sampler, batch, cache, graph, and export paths share the accepted
   numerical contract, with correct independent BAO and typed failure behavior;
 * graphs and raw/refined products are retained, reloadable, hash-verified, and
   tied to the source and reference identities that produced them;
-* runtime evidence accounts for required work and demonstrates reuse without
-  accuracy reductions or arbitrary wall-clock acceptance;
+* runtime evidence accounts for required work, demonstrates identity-safe
+  reuse, retains required cold work, and avoids accuracy reductions or
+  arbitrary wall-clock acceptance;
 * docs, tests, configuration, and mirrored assets agree with the
   implementation;
 * all focused acceptance and required full-suite/gate checks have passed,

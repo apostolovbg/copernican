@@ -18,7 +18,7 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
 )
 from copernican.workflow import _output_root
 from tests.project.lib import camb_reference
-from tests.project.lib.test_slice_seven import _read_source_revision
+from tests.project.lib.test_ccmbs_production_graph import _read_source_revision
 
 _MODEL_FILENAME = "model_lcdm.yml"
 
@@ -533,7 +533,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--evidence-root",
         type=Path,
-        default=_output_root() / "ccmbs-acceptance" / "slice-one",
+        default=_output_root() / "ccmbs-acceptance" / "completion-evidence",
     )
     args = parser.parse_args(argv)
     if args.baseline or args.verify_baseline:

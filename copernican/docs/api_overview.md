@@ -121,10 +121,12 @@ The helpers in `copernican.lib.likelihoods.cmb` expose one declared production
 path. The package-level `cmb.py` entrypoint validates a prepared runtime or a
 route-neutral contract and delegates to `orchestrators/ccmbs.py` for
 declared-graph execution. `runtime/background.py` owns the declared background,
-recombination, and reionization tables; `runtime/evolution.py` owns the
-compiled declared-graph evolution plan; `runtime/projection.py` owns the
-line-of-sight transfer and spectrum assembly; and `runtime/cache.py` owns
- bounded cache state plus reset and diagnostics helpers.
+recombination, and reionization tables; `runtime/evolution.py` owns graph
+compilation; `runtime/mode_evolution.py` owns declared hierarchy stepping;
+`runtime/spectrum_projection.py` owns line-of-sight transfer and spectrum
+assembly; and `runtime/cache.py` owns bounded cache state. Numerical controls,
+constraint checks, and evidence identities remain in their focused runtime
+owners rather than in public orchestration.
 `copernican.lib.cmb_identity` exposes the stable production identity
 `ccmbs`. CLI and GUI callers select model roles and
 a sampler; they do not select a CMB solver.

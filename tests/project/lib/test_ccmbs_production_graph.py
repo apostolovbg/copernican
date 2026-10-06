@@ -1,4 +1,4 @@
-"""Production CMB graph recovery evidence for Slice Seven."""
+"""Production CMB graph evidence for the ordinary public route."""
 
 from __future__ import annotations
 
@@ -36,7 +36,7 @@ _PRODUCTION_NUMERICAL_OVERRIDES = {
 }
 
 
-class _SliceSevenTestPlugin:
+class _ProductionGraphTestPlugin:
     """Expose the model label required by the comparison renderer."""
 
     MODEL_NAME = "LambdaCDM"
@@ -146,7 +146,7 @@ def _build_production_evidence() -> dict[str, object]:
     )
     observations.attrs.update(
         {
-            "dataset_id": "slice_seven_production",
+            "dataset_id": "ccmbs_production_graph",
             "dataset_name": "CCMBS production graph evidence",
             "covariance_matrix_inv": numpy.eye(len(observations)),
         }
@@ -174,8 +174,8 @@ def _build_production_evidence() -> dict[str, object]:
                 graph_result,
                 fit_result,
                 fit_result,
-                _SliceSevenTestPlugin,
-                _SliceSevenTestPlugin,
+                _ProductionGraphTestPlugin,
+                _ProductionGraphTestPlugin,
                 plot_dir=plot_dir,
                 timestamp="20260918_000000",
                 comparison=comparison,
@@ -214,7 +214,7 @@ def _build_production_evidence() -> dict[str, object]:
             "source_revision": source_revision,
             "declaration_identity": {
                 "model_filename": plugin.MODEL_FILENAME,
-                "model_name": _SliceSevenTestPlugin.MODEL_NAME,
+                "model_name": _ProductionGraphTestPlugin.MODEL_NAME,
             },
             "resolved_physical_inputs": {
                 "model_parameters": [
@@ -284,7 +284,7 @@ def _build_production_evidence() -> dict[str, object]:
     }
 
 
-class SliceSevenProductionGraphTestCase(unittest.TestCase):
+class ProductionGraphTestCase(unittest.TestCase):
     """Require finite, wave-bearing output from the bounded public route."""
 
     def test_production_request_retains_wave_graph_and_work_evidence(self):

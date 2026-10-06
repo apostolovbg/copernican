@@ -40,7 +40,7 @@ from .errors import (
     classify_exception,
 )
 from .runtime import cache
-from .runtime.projection import _compute_custom_cmb_spectrum_data
+from .runtime.execution import _compute_custom_cmb_spectrum_data
 
 _DEFAULT_SPECTRA = ("TT", "TE", "EE")
 _DEFAULT_ELL_VALUES = (2, 20, 100)
@@ -83,7 +83,7 @@ CAMB_COMPARABLE_CMB_MODEL_FILENAMES = (
 # evidence tier for the matrix and is never substituted for a model's
 # production numerical declaration.
 CMB_CERTIFICATION_TIER = {
-    "id": "ccmbs-slice-seven-full-observable-v1",
+    "id": "ccmbs-full-observable-certification-v1",
     # The first acoustic feature is near ell=200.  A certification surface
     # that stops below it can only test finiteness, not the physical acoustic
     # structure required by the matrix acceptance contract.
@@ -93,8 +93,8 @@ CMB_CERTIFICATION_TIER = {
     "numerical_overrides": {"k_sample_count": 1024},
 }
 
-# Slice Fourteen uses one sparse grid that samples the low, acoustic,
-# intermediate, and damping regimes.  This is deliberately separate from
+# The parity certification tier samples the low, acoustic, intermediate,
+# and damping regimes on one sparse grid.  This is deliberately separate from
 # the ten-model full-observable certification tier: a parity row must retain
 # its exact CAMB identity and cannot inherit that tier's request shape.
 CMB_PARITY_CERTIFICATION_TIER = {
@@ -4692,7 +4692,7 @@ def cmb_completion_source_identity(
     for name in (
         "camb_reference.py",
         "scientific_acceptance.py",
-        "test_slice_seven.py",
+        "test_ccmbs_production_graph.py",
     ):
         paths.add(root / "tests/project/lib" / name)
     paths.add(root / "tests/project/fixtures/ccmbs_completion_contract.json")
@@ -5870,8 +5870,8 @@ def run_cmb_model_diagnostic(
                 "source_residual_audit": _jsonable(source_residual_audit),
             }
         # Source-closure metrics are recorded with this runtime report.  The
-        # generated-hierarchy slice owns their scientific acceptance; keeping
-        # them diagnostic here lets Slice One certify raw projection without
+        # Generated-hierarchy acceptance owns scientific evaluation. Keeping it
+        # diagnostic here lets the baseline certify raw projection without
         # silently discarding the failed residual evidence.
         if failure is None and shape["issues"]:
             failure = {
@@ -6564,7 +6564,7 @@ def build_bundled_cmb_matrix_report(
     source_graph_audits: Mapping[str, Mapping[str, Any]] | None = None,
     declaration_audits: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Build the strict filename-keyed scientific matrix for Slice Seven."""
+    """Build the strict filename-keyed full-observable scientific matrix."""
 
     return build_cmb_certification_report(
         reports,

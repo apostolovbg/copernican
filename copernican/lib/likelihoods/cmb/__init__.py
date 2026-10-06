@@ -85,7 +85,7 @@ from .errors import (
     UnsupportedCapabilityError,
 )
 from .results import CMBBatchResult
-from .runtime import cache, projection  # noqa: F401
+from .runtime import cache, execution  # noqa: F401
 from .solvers.registry import CMB_SOLVER_REGISTRY  # noqa: F401
 from .solvers.registry import available_cmb_solvers  # noqa: F401
 from .solvers.registry import get_cmb_solver  # noqa: F401

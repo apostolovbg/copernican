@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-10-05
+**Last Updated:** 2026-10-06
 **Project Version:** 12.0.26
 
 ## Overview
@@ -124,8 +124,8 @@ BAO isolation record before reporting `certified`. The pure comparison helper
 `assess_bao_cmb_isolation()` compares fixed-background values, covariance
 metadata, and typed failures without importing or invoking a CMB solver.
 
-Slice One records the pre-repair corpus baseline before any shared physics is
-changed. `CMB_CORPUS_BASELINE_REQUEST` freezes the initial-guess parameters,
+The corpus baseline records pre-repair behavior before shared physics
+changes. `CMB_CORPUS_BASELINE_REQUEST` freezes the initial-guess parameters,
 ordered TT/TE/EE multipoles, k/eta node counts, source-anchor rule, and
 doubled-k refinement. `run_bundled_cmb_corpus_baseline()` evaluates each
 frozen `BUNDLED_CMB_MODEL_FILENAMES` row once, attaches contract and
@@ -154,7 +154,7 @@ opt-in matrix execution can also evaluate two bounded parameter points through
 both public scalar and ordered batch paths, recording per-point equality and
 cache identities; a model with no independently variable parameter remains
 explicitly unavailable for that comparison.
-Slice Eight enforces the universal declaration boundary.
+The full-observable matrix enforces the universal declaration boundary.
 `declared_cmb_spectrum_names()`
 reads every angular-power observable from a compiled model, so a matrix
 request cannot silently collapse to TT/TE/EE. `run_bundled_cmb_full_matrix()`
@@ -176,15 +176,16 @@ Tier-controlled parity uses the same declared numerical overrides and workload
 for both paths. The cached scalar wrapper retains its typed result, raw
 unscaled spectra, request metadata, solver identity, and phase provenance so
 the audit compares solver products rather than plot output.
-Slice Seven closes this boundary for production consumers. Likelihood,
-diagnostic, and graph code share `canonical_cmb_theory_spectra()` so aliases
-and array shapes are resolved once. Independent CAMB fixtures retain complete
-raw `C_ell` and `D_ell` surfaces at explicit fixed points, with physical-shape
+The production parity and graph boundary gives production consumers one
+shared path: likelihood, diagnostic, and graph code share
+`canonical_cmb_theory_spectra()`. It resolves aliases and array shapes once.
+Independent CAMB fixtures retain complete raw `C_ell` and `D_ell` surfaces at
+explicit fixed points, with physical-shape
 metrics and deterministic artifact hashes. Cache evidence records cold, warm,
 exact-repeat, cross-request, and spectrum-equality states. Graph artifacts
 retain typed CMB execution and missing-surface failures instead of omitting a
 failed theory.
-Slice Eleven closes the bounded external CAMB evidence boundary. The
+The bounded external CAMB evidence boundary uses the
 test-owned reference builder executes CAMB directly on one exact ell grid for
 the five comparable bundled cosmologies and retains raw `C_ell`/`D_ell`
 surfaces, contract and numerical-plan digests, and artifact hashes. The
@@ -1135,9 +1136,10 @@ initial data, and source-independent histories without re-evolving modes; the
 runtime envelope records the schedule digest and every cache hit or miss.
 
 Within and outside the fast-manifold regime,
-`copernican/lib/perturbation_contract.py` and
-`copernican/lib/likelihoods/cmb/runtime/projection.py` advance the exact
-Thomson block from the compiled `exact_form`.
+`copernican/lib/perturbation_contract.py`,
+`copernican/lib/likelihoods/cmb/runtime/mode_evolution.py`, and
+`runtime/collisions.py` advance the exact Thomson block from the compiled
+`exact_form`.
 While the threshold is active, the runtime derives first-order fast states
 from the declared collision matrix and the forcing produced by the same
 compiled equation program. Singular blocks preserve their declared
@@ -1461,20 +1463,20 @@ stages:
    blocks, initial modes, gauge roles, and q-resolved momentum grids. Each
    wave number is evolved through the declared state surface; production
    execution does not call an external Boltzmann backend.
-4. `runtime/projection.py` evaluates transfer histories on the fixed numerical
-   envelope, applies the scalar, vector, or tensor line-of-sight kernels, and
-   integrates the transfer products into raw angular spectra. The source
+4. `runtime/mode_evolution.py` evolves declared histories, while
+   `runtime/line_of_sight.py` builds physical grids and
+   `runtime/spectrum_projection.py` applies scalar, vector, or tensor kernels
+   and integrates transfer products into raw angular spectra. The source
    history and radial-kernel conventions in this document determine the sign,
    parity, and normalization of each transfer.
-5. `orchestrators/ccmbs.py` converts raw spectra to the public units,
-   resolves requested-spectrum dependencies, and sends the four-component
-   temperature/polarization surface through `lensing.py` when lensed
-   outputs are requested. `runtime/postprocessing.py` then records every
-   surface dependency, validates finite auto/cross products, and hashes the
-   raw transfer, unlensed, and public arrays. `runtime/cache.py` owns bounded
-   structural, parameter-dependent, and result caches with explicit
-   invalidation rules; exact lensed remapping is reused by a key containing
-   its scaled inputs, convention, sampling factor, and ell grid.
+5. `runtime/execution.py` composes those physical products with numerical
+   controls and cache identity. `orchestrators/ccmbs.py` converts raw spectra
+   to public units, resolves requested-spectrum dependencies, and sends the
+   four-component temperature/polarization surface through `lensing.py` when
+   lensed outputs are requested. `runtime/postprocessing.py` validates every
+   surface dependency; `runtime/evidence.py` hashes retained identities; and
+   `runtime/cache.py` owns bounded structural, parameter-dependent, and
+   result caches with explicit invalidation rules.
 
 The runtime has three cache classes. Structural work contains the compiled
 expression and equation plans, dependency closure, state-slot and hierarchy

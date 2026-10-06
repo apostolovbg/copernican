@@ -1,91 +1,21 @@
-"""Focused tests for the declared CMB projection module."""
+"""Focused tests for declared CMB numerical execution."""
 
 import unittest
-import warnings
-from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
 import numpy
 
-from copernican.lib.likelihoods.cmb.runtime import projection
+from copernican.lib.likelihoods.cmb.runtime import execution
 
 
-class ProjectionModuleTestCase(unittest.TestCase):
-    """Exercise declared projection helpers directly."""
-
-    def test_runtime_work_estimate_is_deterministic_and_accounted(self):
-        """Large bounded requests are accounted for, not rejected."""
-
-        contract = {
-            "perturbations": {
-                "accuracy_controls": {"runtime_envelope": "bounded"}
-            }
-        }
-        arguments = {
-            "ell_count": 2500,
-            "k_count": 2048,
-            "eta_count": 2048,
-            "state_slot_count": 64,
-            "transfer_component_count": 3,
-            "momentum_point_count": 256,
-            "evolution_multiplier": 3,
-        }
-        first = projection._enforce_runtime_envelope(contract, **arguments)
-        second = projection._enforce_runtime_envelope(contract, **arguments)
-        self.assertEqual(first, second)
-        self.assertEqual(first["work_accounting_mode"], "accounted")
-        self.assertEqual(first["work_limits"], {})
-        self.assertFalse(first["work_limits_enforced"])
-        self.assertGreater(first["total_work_units"], 100_000_000)
-
-    def test_explicit_work_limit_is_metadata_not_a_machine_ceiling(self):
-        """A valid request is not rejected by an operator work hint."""
-
-        contract = {
-            "perturbations": {
-                "accuracy_controls": {
-                    "runtime_envelope": {
-                        "maximum_total_work_units": 1,
-                    }
-                }
-            }
-        }
-        envelope = projection._enforce_runtime_envelope(
-            contract,
-            ell_count=100,
-            k_count=100,
-            eta_count=100,
-            state_slot_count=8,
-            transfer_component_count=2,
-            momentum_point_count=0,
-        )
-        self.assertEqual(
-            envelope["work_limits"], {"maximum_total_work_units": 1}
-        )
-        self.assertFalse(envelope["work_limits_enforced"])
-
-    def test_evolution_chunk_size_is_deterministic(self):
-        """Evolution chunking is derived from declared array dimensions."""
-
-        first = projection._resolve_evolution_chunk_size(
-            k_count=2048,
-            eta_count=2048,
-            state_slot_count=64,
-        )
-        second = projection._resolve_evolution_chunk_size(
-            k_count=2048,
-            eta_count=2048,
-            state_slot_count=64,
-        )
-        self.assertEqual(first, second)
-        self.assertGreaterEqual(first, 1)
-        self.assertLessEqual(first * 2048 * 64, 16_000_000)
+class ExecutionModuleTestCase(unittest.TestCase):
+    """Exercise public numerical execution composition directly."""
 
     def test_custom_spectrum_data_accessors_return_named_payloads(self):
         """Transfer and spectrum accessors should expose stable arrays."""
 
-        spectrum_data = projection.CustomCMBSpectrumData(
+        spectrum_data = execution.CustomCMBSpectrumData(
             ell_grid=numpy.array([20.0, 30.0]),
             k_grid=numpy.array([0.1, 0.2]),
             transfer_components={
@@ -141,7 +71,7 @@ class ProjectionModuleTestCase(unittest.TestCase):
         def fake_impl(request, *args, **kwargs):
             del args, kwargs
             scale = 1.1 if request.get("_numerical_overrides") else 1.0
-            return projection.CustomCMBSpectrumData(
+            return execution.CustomCMBSpectrumData(
                 ell_grid=numpy.array([2, 3]),
                 k_grid=numpy.array([0.1, 0.2]),
                 transfer_components={},
@@ -153,14 +83,14 @@ class ProjectionModuleTestCase(unittest.TestCase):
 
         with (
             mock.patch.object(
-                projection,
+                execution,
                 "_compute_custom_cmb_spectrum_data_impl",
                 side_effect=fake_impl,
             ),
-            mock.patch.object(projection.cache, "set_cmb_spectrum"),
+            mock.patch.object(execution.cache, "set_cmb_spectrum"),
         ):
             with self.assertRaisesRegex(ValueError, "invalid k-grid evidence"):
-                projection._compute_custom_cmb_spectrum_data(
+                execution._compute_custom_cmb_spectrum_data(
                     contract,
                     (2, 3),
                     requested_spectra=("TT", "TE", "EE"),
@@ -197,7 +127,7 @@ class ProjectionModuleTestCase(unittest.TestCase):
                 "TE": numpy.asarray([1.0, 2.0]),
                 "EE": numpy.asarray([3.0, 4.0]),
             }
-            return projection.CustomCMBSpectrumData(
+            return execution.CustomCMBSpectrumData(
                 ell_grid=numpy.array([2, 3]),
                 k_grid=(
                     numpy.array([0.1, 0.15, 0.2])
@@ -217,13 +147,13 @@ class ProjectionModuleTestCase(unittest.TestCase):
 
         with (
             mock.patch.object(
-                projection,
+                execution,
                 "_compute_custom_cmb_spectrum_data_impl",
                 side_effect=fake_impl,
             ),
-            mock.patch.object(projection.cache, "set_cmb_spectrum"),
+            mock.patch.object(execution.cache, "set_cmb_spectrum"),
         ):
-            result = projection._compute_custom_cmb_spectrum_data(
+            result = execution._compute_custom_cmb_spectrum_data(
                 contract,
                 (2, 3),
                 requested_spectra=("TT", "TE", "EE"),
@@ -247,52 +177,6 @@ class ProjectionModuleTestCase(unittest.TestCase):
         self.assertEqual(record["declared_refined_count"], 16)
         self.assertEqual(set(record["metrics"]), {"TT", "TE", "EE"})
 
-    def test_production_grid_floor_keeps_refinement_nested_and_distinct(self):
-        """A phase floor must not collapse the doubled production grid."""
-
-        background = SimpleNamespace(
-            eta0=1000.0,
-            eta_rec=100.0,
-            sound_horizon_mpc=10.0,
-        )
-        perturbation_data = SimpleNamespace(
-            accuracy_controls={
-                "accuracy_tier": "final",
-                "phase_aware_k_quadrature": True,
-                "require_phase_resolution": True,
-            },
-            manifest_summary={"generated_scalar_hierarchy": True},
-        )
-        base_numerics = SimpleNamespace(
-            ell_min=2,
-            ell_max=20,
-            k_min=0.01,
-            k_max=0.3,
-            k_sample_count=8,
-            k_grid_refinement_factor=1,
-        )
-        base = projection._build_projection_k_grid(
-            ell_arr=numpy.asarray((2, 20)),
-            background=background,
-            numerics=base_numerics,
-            perturbation_data=perturbation_data,
-            retain_declared_surface=True,
-        )
-        refined_numerics = SimpleNamespace(
-            **{**vars(base_numerics), "k_grid_refinement_factor": 2}
-        )
-        refined = projection._build_projection_k_grid(
-            ell_arr=numpy.asarray((2, 20)),
-            background=background,
-            numerics=refined_numerics,
-            perturbation_data=perturbation_data,
-            retain_declared_surface=True,
-            refinement_anchors=base,
-        )
-
-        self.assertGreater(refined.size, base.size)
-        self.assertTrue(numpy.all(numpy.isin(base, refined)))
-
     def test_cold_refinement_requires_measured_new_work(self):
         """A nominal finer count cannot certify a cold production run."""
 
@@ -311,7 +195,7 @@ class ProjectionModuleTestCase(unittest.TestCase):
         def fake_impl(request, *args, **kwargs):
             del args, kwargs
             refined = bool(request.get("_numerical_overrides"))
-            return projection.CustomCMBSpectrumData(
+            return execution.CustomCMBSpectrumData(
                 ell_grid=numpy.asarray((2, 3)),
                 k_grid=numpy.asarray(
                     (0.1, 0.15, 0.2) if refined else (0.1, 0.2)
@@ -325,12 +209,12 @@ class ProjectionModuleTestCase(unittest.TestCase):
             )
 
         with mock.patch.object(
-            projection,
+            execution,
             "_compute_custom_cmb_spectrum_data_impl",
             side_effect=fake_impl,
         ):
             with self.assertRaisesRegex(ValueError, "no measured new work"):
-                projection._compute_custom_cmb_spectrum_data(
+                execution._compute_custom_cmb_spectrum_data(
                     contract,
                     (2, 3),
                     requested_spectra=("TT", "TE", "EE"),
@@ -356,7 +240,7 @@ class ProjectionModuleTestCase(unittest.TestCase):
             refined = bool(request.get("_numerical_overrides"))
             if refined:
                 kwargs["performance_timer"].mark_cache_state("exact_cache_hit")
-            return projection.CustomCMBSpectrumData(
+            return execution.CustomCMBSpectrumData(
                 ell_grid=numpy.asarray((2, 3)),
                 k_grid=numpy.asarray(
                     (0.1, 0.15, 0.2) if refined else (0.1, 0.2)
@@ -371,13 +255,13 @@ class ProjectionModuleTestCase(unittest.TestCase):
 
         with (
             mock.patch.object(
-                projection,
+                execution,
                 "_compute_custom_cmb_spectrum_data_impl",
                 side_effect=fake_impl,
             ),
-            mock.patch.object(projection.cache, "set_cmb_spectrum"),
+            mock.patch.object(execution.cache, "set_cmb_spectrum"),
         ):
-            result = projection._compute_custom_cmb_spectrum_data(
+            result = execution._compute_custom_cmb_spectrum_data(
                 contract,
                 (2, 3),
                 requested_spectra=("TT", "TE", "EE"),
@@ -387,99 +271,6 @@ class ProjectionModuleTestCase(unittest.TestCase):
         self.assertTrue(record["warm_reuse"])
         self.assertTrue(record["matching_accepted_finer_calculation"])
         self.assertEqual(record["new_node_work_units"], 0)
-
-    def test_projection_quadrature_retains_endpoint_contributions(self):
-        """Composite projection weights include both physical endpoints."""
-
-        eta = numpy.asarray((0.0, 0.3, 0.7, 1.0))
-        weights = projection._simpson_weights(eta)
-        endpoint_source = numpy.asarray((1.0, 0.0, 0.0, 2.0))
-
-        self.assertGreater(float(weights[0]), 0.0)
-        self.assertGreater(float(weights[-1]), 0.0)
-        self.assertGreater(float(numpy.dot(weights, endpoint_source)), 0.0)
-
-    def test_projection_source_does_not_import_camb(self):
-        """The declared projection module should remain CAMB-free."""
-
-        source_text = Path(projection.__file__).read_text(encoding="utf-8")
-        self.assertNotIn("import camb", source_text)
-
-    def test_irregular_log_k_quadrature_uses_stable_positive_weights(self):
-        """Phase-aware nodes must not create negative Simpson lobes."""
-
-        log_k = numpy.asarray(
-            (-9.0, -7.0, -6.9, -5.0, -2.0, 0.0),
-            dtype=numpy.longdouble,
-        )
-        transfer = numpy.asarray(
-            ((1.0, -0.8, 0.7, -0.4, 0.3, -0.1),),
-            dtype=numpy.longdouble,
-        )
-        actual = projection._integrate_power_spectrum(
-            numpy.ones(log_k.size, dtype=numpy.longdouble),
-            log_k,
-            transfer,
-            transfer,
-            auto_spectrum=True,
-        )
-        self.assertTrue(numpy.all(numpy.isfinite(actual)))
-        self.assertGreaterEqual(float(actual[0]), 0.0)
-
-    def test_coarse_projection_preserves_empty_optional_sectors(self):
-        """Coarsening scalar kernels must not index absent vector sectors."""
-
-        scalar = numpy.ones((2, 4), dtype=float)
-        empty = numpy.empty((2, 0), dtype=float)
-        kernel_batch = SimpleNamespace(
-            j_l=scalar,
-            j_l_derivative=scalar,
-            j_l_second_derivative=scalar,
-            e_kernel=scalar,
-            b_kernel=scalar,
-            vector_temperature_1=empty,
-            vector_temperature_2=empty,
-            vector_e=empty,
-            vector_b=empty,
-            tensor_temperature=empty,
-            tensor_e=empty,
-            tensor_b=empty,
-        )
-        with warnings.catch_warnings(record=True) as captured:
-            warnings.simplefilter("always", DeprecationWarning)
-            coarse = projection._slice_projection_kernel_batch(
-                kernel_batch,
-                numpy.asarray((0, 3), dtype=int),
-            )
-
-        self.assertFalse(
-            any(item.category is DeprecationWarning for item in captured)
-        )
-        self.assertEqual(coarse.j_l.shape, (2, 2))
-        self.assertEqual(coarse.vector_temperature_1.shape, (2, 0))
-        self.assertEqual(coarse.tensor_e.shape, (2, 0))
-
-    def test_batched_collision_overflow_is_handled_without_runtime_warnings(
-        self,
-    ):
-        """Rejected stiff collision rows must not flood worker stderr."""
-
-        blocks = numpy.asarray(
-            [[[1.0e3, 0.0], [0.0, -1.0e3]]],
-            dtype=float,
-        )
-        states = numpy.asarray([[1.0, 1.0]], dtype=float)
-        with warnings.catch_warnings(record=True) as captured:
-            warnings.simplefilter("always", RuntimeWarning)
-            result = projection._exact_batched_two_state_blocks(
-                blocks,
-                states,
-            )
-
-        self.assertIsNone(result)
-        self.assertFalse(
-            any(item.category is RuntimeWarning for item in captured)
-        )
 
 
 if __name__ == "__main__":  # pragma: no cover

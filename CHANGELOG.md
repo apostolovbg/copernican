@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-10-05
+**Last Updated:** 2026-10-06
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,196 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-10-06:
+  Change: Removed slice-labelled CCMBS artifacts and renamed evidence
+    boundaries for their durable behavior.
+  Why: Prevented temporary plan labels from defining code, tests,
+    documentation, or persisted evidence paths.
+  Impact: Kept CCMBS certification, graph coverage, and evidence names tied to
+    their actual behavior.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  docs/api_overview.md
+  docs/design_overview.md
+  copernican/docs/api_overview.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/collisions.py
+  copernican/lib/likelihoods/cmb/runtime/constraint_validation.py
+  copernican/lib/likelihoods/cmb/runtime/evidence.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/line_of_sight.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_collisions.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_constraint_validation.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evidence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_line_of_sight.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_ccmbs_production_graph.py
+  tests/project/lib/test_slice_seven.py
+
+- 2026-10-06:
+  Change: Refreshed the CCMBS refactor record and managed documentation dates.
+  Why: Aligned the active gate session with the current UTC date.
+  Impact: Preserved traceable Slice Three changes and current documentation
+    metadata for the refactored execution runtime.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  docs/api_overview.md
+  docs/design_overview.md
+  copernican/docs/api_overview.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/collisions.py
+  copernican/lib/likelihoods/cmb/runtime/constraint_validation.py
+  copernican/lib/likelihoods/cmb/runtime/evidence.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/line_of_sight.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_collisions.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_constraint_validation.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evidence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_line_of_sight.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_ccmbs_production_graph.py
+  tests/project/lib/test_slice_seven.py
+
+- 2026-10-05:
+  Change: Updated CCMBS model-adapter coverage to import the execution owner.
+  Why: Removed the stale projection-module import that blocked test discovery.
+  Impact: Restored model-adapter test discovery for the refactored CCMBS
+    execution runtime.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  docs/api_overview.md
+  docs/design_overview.md
+  copernican/docs/api_overview.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/collisions.py
+  copernican/lib/likelihoods/cmb/runtime/constraint_validation.py
+  copernican/lib/likelihoods/cmb/runtime/evidence.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/line_of_sight.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_collisions.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_constraint_validation.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evidence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_line_of_sight.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_ccmbs_production_graph.py
+  tests/project/lib/test_slice_seven.py
+
+- 2026-10-05:
+  Change: Refactored CCMBS execution into focused physics, numerical,
+    diagnostics, evidence, and behavior-named test owners.
+  Why: Removed the projection monolith while preserving identity-safe public
+    behavior, cache evidence, and bounded production graph coverage.
+  Impact: Preserved hierarchy evolution, collisions, line-of-sight
+    projection, controls, validation, and retained evidence for CCMBS work.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  docs/api_overview.md
+  docs/design_overview.md
+  copernican/docs/api_overview.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/design_overview.md
+  copernican/lib/likelihoods/cmb/__init__.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/collisions.py
+  copernican/lib/likelihoods/cmb/runtime/constraint_validation.py
+  copernican/lib/likelihoods/cmb/runtime/evidence.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/line_of_sight.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  copernican/lib/likelihoods/cmb/runtime/projection.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_collisions.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_constraint_validation.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evidence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_line_of_sight.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_errors.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_ccmbs_production_graph.py
+  tests/project/lib/test_slice_seven.py
+
+- 2026-10-05:
+  Change: Revised the CCMBS completion plan around a dedicated solver-layer
+    and test-ownership refactor before physical parity work.
+  Why: Aligned maintainability and identity-safe test-cost control with
+    scientific acceptance while aligning all later ownership and closure rules.
+  Impact: Restructured the remaining slices, preserved numerical fidelity, and
+    made the final acceptance criteria enforce the new architecture.
+  Files:
+  CHANGELOG.md
+  PLAN.md
 
 - 2026-10-05:
   Change: Repaired Slice Two's automatic CCMBS numerical acceptance with

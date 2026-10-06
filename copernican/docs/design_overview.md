@@ -55,10 +55,12 @@ described throughout this document.
  surface, `orchestrators/ccmbs.py` owns declared execution coordination,
  `solvers/` owns backend selection, and `runtime/` owns numerical helpers.
  Solver selection remains independent from sampler selection.
- `runtime/background.py`, `runtime/evolution.py`,
- `runtime/projection.py`, and `runtime/cache.py` split the declared path
- into background tables, declared evolution, line-of-sight projection,
- and bounded cache ownership. Nested sampling and ensemble MCMC both rely
+ `runtime/background.py`, `runtime/mode_evolution.py`,
+ `runtime/spectrum_projection.py`, and `runtime/cache.py` split the declared
+ path into background tables, declared evolution, line-of-sight projection,
+ and bounded cache ownership. `runtime/execution.py` composes those physics
+ owners with numerical controls; `runtime/evidence.py` retains only stable
+ identities and telemetry. Nested sampling and ensemble MCMC both rely
  on the shared Stage 2 helper so the counter lines and listener events
  stay consistent regardless of sampler backend.
 * `copernican/models/` holds YAML descriptions that declare bounds, priors,
@@ -122,10 +124,12 @@ control/test model, sampler, and CMB solver selections independent.
  `g(eta) = -tau_dot * exp(-tau)`.
 * The package split keeps the declared boundary explicit:
  `runtime/background.py` owns background-state construction,
- `runtime/evolution.py` owns compiled graph stepping,
- `runtime/projection.py` owns transfer projection and spectrum assembly,
- `runtime/cache.py` owns bounded cache storage, and the remaining runtime
- modules own adaptive grids, convergence, performance, and lensing helpers.
+ `runtime/evolution.py` owns compilation, `runtime/mode_evolution.py` owns
+ declared hierarchy stepping, `runtime/spectrum_projection.py` owns transfer
+ projection and spectrum assembly, and `runtime/cache.py` owns bounded cache
+ storage. `runtime/numerical_controls.py`, `runtime/line_of_sight.py`,
+ `runtime/constraint_validation.py`, and `runtime/evidence.py` own their
+ respective controls, grids, checks, and retained identities.
 * Perturbations evolve whichever declared variables expose differential
  equations. Constraints and closures resolve algebraic targets inside the
  same graph before the declared observables are projected.

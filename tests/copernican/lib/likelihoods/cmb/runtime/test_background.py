@@ -8,7 +8,7 @@ import numpy
 from copernican.lib.likelihoods.cmb.runtime import (
     background,
     cache,
-    projection,
+    spectrum_projection,
 )
 
 
@@ -340,7 +340,7 @@ class BackgroundModuleTestCase(unittest.TestCase):
             x_signature,
         )
         with self.assertRaisesRegex(ValueError, "incompatible with sector"):
-            projection._declared_graph_projection(
+            spectrum_projection._declared_graph_projection(
                 projection="line_of_sight_vector_temperature",
                 kernel="spherical_bessel_window",
                 sector="scalar",
