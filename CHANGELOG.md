@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-10-06
+**Last Updated:** 2026-10-18
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,35 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-10-18:
+  Change: Fixed generated vector Thomson evolution and corrected CAMB
+    reference rebuild checks across compiler and platform differences.
+  Why: Removed unresolved stiff photon damping from explicit streaming and
+    replaced byte-identical rebuild assumptions with a numerical envelope.
+  Impact: Preserved the revised roadmap, fixture integrity, and scientific
+    parity thresholds; added analytic checks and verified phase convergence.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/project/lib/test_camb_reference.py
+
+- 2026-10-18:
+  Change: Replaced the CCMBS roadmap with independent physics checks,
+    practical automatic execution, and staged scientific acceptance.
+  Why: Addressed costly acceptance loops and separated physical proof from
+    application tests, policy gates, and later observational campaigns.
+  Impact: Preserved completed Slices One through Three and defined measured
+    closure for a general declared engine and the LCDM/Planck handoff.
+  Files:
+  PLAN.md
+  CHANGELOG.md
 
 - 2026-10-06:
   Change: Removed slice-labelled CCMBS artifacts and renamed evidence

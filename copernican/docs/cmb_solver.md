@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-10-06
+**Last Updated:** 2026-10-18
 **Project Version:** 12.0.26
 
 ## Overview
@@ -750,6 +750,15 @@ matter vorticity, photon heat flux and anisotropic stress, massless-neutrino
 moments, and photon E/B multipoles provide the declared state roles. Thomson
 vector drag carries the momentum exchange between photons and baryons, and
 each vector hierarchy uses its declared free-streaming terminal closure.
+
+The generated graph applies vector Thomson drag as an exact, always-active
+collision block. A second exact block couples `pi_gamma_vector` and
+`e_gamma_v2` with matrix `[[-0.9, 0.6], [0.1, -0.4]]` times the collision
+rate. The same block damps higher photon temperature and E/B moments, including
+`b_gamma_v2`, exponentially. Those damping terms are omitted from explicit
+streaming equations so they act once. Collision eigenmode and conserved
+momentum tests check these blocks against analytic solutions at large optical
+depth; a halved streaming phase must keep vector TT/EE/BB within 0.5 percent.
 
 The compiled manifest identifies these roles through `vector_hierarchy`. It
 records the metric state, vector hierarchy state groups, even/odd parity, the

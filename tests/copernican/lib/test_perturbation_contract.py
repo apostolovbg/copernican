@@ -8,9 +8,11 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+import numpy
 import yaml
 
 import copernican.lib.perturbation_contract as perturbation_contract_module
+from copernican.lib.likelihoods.cmb.runtime import collisions
 from copernican.lib.perturbation_contract import (
     PerturbationClosureData,
     PerturbationCollisionLinearFormData,
@@ -1683,6 +1685,80 @@ class PerturbationContractTestCase(unittest.TestCase):
                 "thomson_vector_drag_balance"
             ].expression,
         )
+
+    def test_vector_exact_drag_preserves_momentum_at_large_optical_depth(
+        self,
+    ) -> None:
+        """Generated drag must match the analytic momentum/slip solution."""
+
+        compiled = self._compile(_vector_metadata_only_contract())
+        operator = compiled.collision_operators["thomson_vector_drag"]
+        self.assertEqual(operator.integration_strategy, "exact")
+        self.assertEqual(operator.activation_strategy, "always")
+        loading = 2.25
+        matrix = numpy.asarray(
+            [
+                [
+                    evaluate_compiled_expression(
+                        entry, {"vector_photon_baryon_loading": loading}
+                    )
+                    for entry in row
+                ]
+                for row in operator.exact_form.compiled_matrix
+            ]
+        )
+        initial = numpy.asarray((2.0, -0.5))
+        momentum = loading * initial[0] + initial[1]
+        equilibrium_q = momentum / (loading + 0.75)
+        for rate in (0.0, 25.0, 1.0e6):
+            with self.subTest(rate=rate):
+                dt = 0.02
+                result = collisions._exact_linear_collision_step(
+                    operator_matrix=matrix,
+                    dt=dt,
+                    operator_scale=rate,
+                    target_state=initial,
+                )
+                expected_q = equilibrium_q + (
+                    initial[0] - equilibrium_q
+                ) * numpy.exp(-(1.0 + 4.0 * loading / 3.0) * rate * dt)
+                numpy.testing.assert_allclose(
+                    result,
+                    (expected_q, momentum - loading * expected_q),
+                    rtol=1.0e-12,
+                    atol=1.0e-12,
+                )
+
+    def test_vector_exact_polarization_damps_both_collision_eigenmodes(
+        self,
+    ) -> None:
+        """The complete quadrupole block must decay at both Thomson rates."""
+
+        compiled = self._compile(_vector_metadata_only_contract())
+        operator = compiled.collision_operators["vector_quadrupole_collision"]
+        self.assertEqual(operator.integration_strategy, "exact")
+        self.assertEqual(operator.activation_strategy, "always")
+        matrix = numpy.asarray(
+            [
+                [evaluate_compiled_expression(entry, {}) for entry in row]
+                for row in operator.exact_form.compiled_matrix
+            ]
+        )
+        for initial, decay in (((1.0, 1.0), 0.3), ((-6.0, 1.0), 1.0)):
+            for optical_depth in (0.5, 1000.0):
+                with self.subTest(initial=initial, depth=optical_depth):
+                    result = collisions._exact_linear_collision_step(
+                        operator_matrix=matrix,
+                        dt=optical_depth,
+                        target_state=numpy.asarray(initial),
+                    )
+                    numpy.testing.assert_allclose(
+                        result,
+                        numpy.asarray(initial)
+                        * numpy.exp(-decay * optical_depth),
+                        rtol=1.0e-12,
+                        atol=1.0e-140,
+                    )
 
     def test_vector_collision_terms_vanish_on_tight_coupling_surface(
         self,

@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-10-06
+**Last Updated:** 2026-10-18
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -16,952 +16,729 @@ Use `PLAN.md` to track active implementation work below this block.
 
 ## Overview
 
-**Goal:** Complete the Copernican Cosmic Microwave Background Solver
-(CCMBS), with demonstrated numerical and physical correctness on the bounded
-acceptance matrix below, before the human launches the final application
-comparison. Completion means a working engine with retained evidence. A
-finished reporting interface, a green policy gate, or closed slice headings
-cannot establish that result.
+**Goal:** Complete CCMBS as Copernican's ordinary production CMB engine:
+complete theories expressible by the declaration grammar execute their own
+physics, numerical resolution is selected and justified by the engine, and
+independent comparisons demonstrate correctness. Deliver the surrounding
+application with consistent SNe/BAO/CMB likelihoods, model comparisons,
+samplers, GUI/CLI behavior, plots, exports, and reproducible evidence.
 
-This plan replaces the nineteen-slice plan at commit `148a175`. The previous
-plan and its implementation history remain in Git and `CHANGELOG.md`. Preserve
-the useful implementation; do not restart CCMBS or repeat completed work
-without a failing acceptance criterion that requires it. Old slice numbers in
-historical records refer to the previous plan, not to this one.
+The final demonstration compares the free LCDM control with the fixed
+Planck2018 reference using **5 burn-in and 10 production steps**. CAMB parity
+means comparing each CCMBS physical point with its own matched independent
+CAMB calculation. It does not mean forcing the free and fixed models to have
+identical spectra. The human's later scientific campaigns and posterior
+convergence studies remain separate from bounded engine acceptance.
 
-There are nine implementation slices. Execute them in order. Each slice owns
-concrete changes, focused tests, evidence, and closure conditions. Numerical
-repair precedes structural separation; structural separation precedes actual
-LCDM parity, which precedes broader certification. Do not move an unmet
-requirement to a later handoff or mark a slice closed because a command
-capable of testing it now exists.
+This roadmap replaces the preceding nine-slice plan. Completed Slices One,
+Two, and Three are preserved, including the human's confirmation that Slice
+Three is complete. Their useful code, numerical regressions, and ownership
+boundaries remain the starting point. They do not establish CAMB parity.
+Historical plans and evidence remain in Git and CHANGELOG.md. Unpushed
+experiments on another machine are not part of this accepted baseline.
 
-The human's full scientific production campaign is outside this plan. Bounded
-real CCMBS forward calculations, independent reference comparisons, and
-adversarial numerical tests are required development work inside this plan.
-The final handoff prepares an ordinary Copernican comparison of LCDM against
-Planck2018ref with **5 burn-in steps and 10 production steps**. The human
-launches that demonstration after engine acceptance; neither that short chain
-nor a long production campaign substitutes for the acceptance evidence.
+**Current state:** Slices One through Three are complete; Slice Four is next.
+Slices Four through Ten below are pending. Replacing this document authorizes
+planning only; implementation proceeds one explicitly authorized slice at a
+time. A green policy gate, a generated report, or a successful mock cannot
+close a physical acceptance requirement.
 
-**Current state:** Slices One and Two are complete. Slice Three begins from
-their accepted numerical behavior; Slices Four through Nine remain pending.
-Completion of either completed slice does not certify physical parity.
+## Execution principles
 
-## Scope and invariants
+1. One public production solver, `ccmbs`, evaluates the declared graph. CAMB
+   is an independent test reference only. No reference spectra, empirical
+   amplitude/phase fits, smoothing, clipping, or surrogate theories repair
+   production output.
+2. Universality means every complete declaration within the supported grammar
+   follows the same engine contract. No model-name dispatch, privileged LCDM
+   path, hidden standard-cosmology physics, or numerical recipes in YAML.
+   Missing compiler/runtime capability for valid mathematics is engine work;
+   malformed mathematics and a theory that explicitly declares no observable
+   remain distinct cases.
+3. Models own equations, species/distributions, interactions, gauges, initial
+   and boundary data, physical domains, and observables. The engine owns
+   grids, hierarchy depths, integration starts, step sizes, tolerances,
+   quadrature, refinement, and hardware choice. Initial heuristic estimates
+   must earn acceptance through measurements or validated bounds.
+4. Preserve the completed numerical safeguards: distinct nested refinement,
+   measured phase spacing, independently evolved histories, explicit neutrino
+   inputs, typed numerical failures, and incomplete sampler timeout semantics.
+   A numerical algorithm may change only with direct equivalence/refinement
+   tests and fresh affected acceptance evidence.
+5. Repair the earliest failing physical or numerical owner. Background errors
+   are not projection corrections; equation errors are not tolerance changes.
+   Derive sign, gauge, unit, and normalization expectations independently of
+   the implementation under test.
+6. Keep Slice Three's one-way boundaries. Physics owns physical evolution and
+   sources; numerical execution owns planning, quadrature, reuse, and work;
+   diagnostics measure completed products; evidence serializes and verifies
+   them. Public orchestration composes these owners. Do not restart the
+   architecture, grow another monolith, or add a certification framework.
+7. A production result contains every requested accepted surface or a typed
+   failure with usable context and failed products. Finite arrays, physical
+   zeros, unsupported labels, and status strings are not substitutes for
+   mathematical or numerical evidence.
+8. Ordinary explicit ell requests use production planning. Bounded diagnostic
+   overrides are useful component probes, visibly classified as diagnostic.
+   They cannot certify the ordinary route or enter likelihoods unnoticed.
+9. Preserve the scalar CPU correctness reference. Optimize measured kernels,
+   schedules, memory, and compatible work before adding devices or
+   dependencies. No accelerator is required by this roadmap.
+10. Keep the scope of each slice explicit. No unrelated cleanup, version
+    bumps, dependency changes, CI workarounds, blanket test suppression, or
+    metadata changes to obtain a pass. Keep forward-only contracts and repair
+    generated artifacts through their owning sources.
 
-The scope includes declarations and compilation, automatic numerical planning,
-background and recombination, perturbation hierarchies and collisions, source
-histories, line-of-sight projection, lensing and observable assembly, caches,
-sampler integration, BAO independence, GUI/CLI output, and retained evidence.
+## Starting findings and regression obligations
 
-1. CCMBS remains the single public production CMB solver. CAMB is an
-   independent test reference only. Never use it to supply production spectra
-   or repair a failed CCMBS request.
-2. Every complete declaration expressible by the grammar follows the same
-   engine route. No model-name branches, privileged LCDM implementation,
-   hidden standard-cosmology defaults, or model-specific numerical patches.
-   A missing compiler/runtime capability is an engine defect to repair.
-3. Preserve each theory's equations and parameter semantics. Models declare
-   physics, domains, species, gauges, initial data, interactions, sources, and
-   observables. The engine owns numerical counts, tolerances, hierarchy
-   depths, integration starts, and refinement decisions. Do not restore
-   numerical recipes in YAML or rename a physical mismatch as unavailable
-   merely to make a reference row pass.
-4. Normal requests, including explicit ell arrays, use automatic production
-   planning. Diagnostic overrides are allowed for component tests, but their
-   results cannot certify the ordinary route. No hidden reduced-grid path in
-   acceptance, likelihood, sampler, graph, or export execution.
-5. A valid request returns complete, finite, accepted requested products or
-   a typed failure with the numerical or mathematical evidence. An empty
-   graph, omitted surface, fabricated physical zero, swallowed exception, or
-   replacement reference curve is not an accepted outcome.
-6. All applicable scalar, vector, tensor, unlensed, lensed, auto, cross, and
-   total surfaces remain in scope. A physical zero or non-applicability
-   decision requires a declaration-based reason. Engine absence is neither.
-7. Preserve distinct nested k refinement, measured phase spacing, explicit
-   CAMB neutrino inputs, and incomplete sampler timeout semantics already
-   implemented. Regressions in these boundaries block closure.
-8. Retain scalar/CPU correctness as the reference for batching, caching, and
-   any acceleration. An optional device is never required to complete this
-   plan. Device work is allowed only to resolve a measured acceptance-work
-   bottleneck while preserving numerical results and failure behavior.
-9. Fix the owning implementation. Do not widen tolerances, remove difficult
-   points, disable tests, suppress failures, alter observations, or change
-   CI/environment policy to obtain a pass. Do not add unrelated cleanup,
-   dependency changes, version bumps, or architecture work outside Slice
-   Three.
-10. Slice Three separates physics, numerical execution, diagnostics, and
-   evidence through one-way dependencies. It preserves Slice Two behavior;
-   diagnostic or evidence code must not alter the physics it observes.
-11. Stay on the current branch and use the existing managed `.venv`. Do not
-    recreate or upgrade it. Follow `AGENTS.md`, including managed-block and
-    changelog rules. No side agents, commits, or pushes without instruction.
+These are concrete investigation inputs, not claims that every root cause is
+already understood. Reproduce against the current source before repairing.
 
-## Starting defects and ownership
+* **Physics identity:** the generated photon monopole RHS uses `-Phi_tau`,
+  while baryon and neutrino continuity use positive metric derivatives.
+  With the documented variables and equal photon/baryon velocities, the
+  declared equations give `(delta_b - 3*Theta_gamma0)' = 6*Phi'`. Establish
+  the independent continuity/entropy invariant and repair the owning
+  materializer, comments, documentation, and regression together.
+* **Reference matching:** the LCDM declarations specify a collapse-source
+  reionization history; CAMB 1.6.0's default is tanh. Equal `tau` and parameter
+  maps do not establish equal opacity, visibility, or source histories.
+* **Parameter consistency:** audit distance/sound-horizon and CMB background
+  uses of shared parameters, including photon density, temperature, matter,
+  neutrino bookkeeping, and recombination versus drag endpoints. Preserve
+  intended theory semantics and make accidental inconsistencies explicit.
+* **Work growth:** the radial-phase rule at ell 2500 implies approximately
+  9,600 base k nodes before production doubling. Sparse output ell values do
+  not remove those evolution modes. This is a formula-derived estimate, not
+  a measured runtime or a justified minimum for every future algorithm.
+* **Repeated work:** outer k refinement re-enters execution with internal
+  checks. Adaptive production controls disable transfer-cache reuse, and
+  source histories have a 1,024-entry/128 MiB cache. Measure actual reuse and
+  recomputation; do not assume matching nodes survived or remained reusable.
+* **Diagnostic fidelity:** stage diagnostics can select different integration
+  behavior. An informative diagnostic comparison must be followed by an
+  ordinary-route regression before it can support production acceptance.
+* **Acceptance coverage:** the existing fixed-LCDM `--output` command targets
+  the historical sparse-only request. The graph regression stops at ell 100,
+  supplies numerical overrides, compares a model with itself, and deletes
+  its outer artifact directory. Neither closes the new acceptance contract.
+* **Application coverage:** the shipped Planck parser keeps the TT covariance
+  block, and the wide-table CMB likelihood selects TT while post-processing
+  also discovers TE/EE. The manifest named `reference_planck2018.yml` selects
+  TORG. Fix these inconsistencies in the owning application slice; a graph
+  label or filename is not proof of the underlying likelihood or model pair.
+* **Behavioral coverage:** direct run-pipeline tests check imports/callables,
+  while executor tests mock that pipeline. Add bounded behavioral coverage
+  for the actual shared application path, with independently controlled data.
+* **Evidence freshness:** completion identity currently includes broad app
+  and test sources. Record which changes invalidate physical products,
+  comparisons, or rendering; whole-repository provenance must remain honest
+  without forcing unrelated consumers to repeat identical physical work.
 
-These findings are the starting work inventory, not assumptions of completion.
-Reproduce them against the active source and preserve the repair regressions.
+The preceding plan records an ordinary low-ell LCDM rejection in 252.256
+seconds and a bounded graph test in 691.749 seconds. Its full-suite baseline
+was about 56 minutes. These are historical observations, not current
+benchmarks, accepted spectra, or acceptable development-loop targets.
 
-* **G1, actual parity:** the previous final slices delivered commands and
-  mocked acceptance tests without an accepted actual CCMBS/CAMB row. The
-  previous completion standard nevertheless required bounded parity. Slices
-  One, Four, and Five own the executable matrix and its actual results.
-* **G2, graph coverage:** the historical public graph regression currently
-  stops at ell 100, supplies numerical overrides, and no longer asserts the
-  earlier TT trough-to-peak behavior. Slice Three gives it a behavior-named
-  home; Slices Four and Five restore meaningful ordinary-route wave coverage
-  for LCDM and Planck2018ref.
-* **G3, source acceptance:** production source tolerance is 2.0 and evolution
-  tolerance is 0.2. The history comparator samples three fractional positions;
-  a source sign reversal and an intervening spike can pass its source check.
-  Slice Two replaces this assurance with justified error control and negative
-  controls, then Slice Four verifies its effect on observables.
-* **G4, numerical evidence:** q/hierarchy controls are labelled
-  `validated_bound` from configured floors, and physical limits are labelled
-  `measured` from grid information. Those labels do not demonstrate the
-  associated errors. Slice Two owns real estimates, bounds, and enforcement.
-* **G5, inference:** `joint_mcmc` still defers doubled-k acceptance without
-  first requiring a valid certificate for that exact calculation. Slice Seven
-  closes this gap without reintroducing timeout-to-posterior rejection.
-* **G6, persistence:** the graph subprocess reads inside an outer temporary
-  directory which is then removed. Slices One and Four retain actual evidence
-  from the outset; Slice Eight verifies its final durability.
+## Test workloads and practical cost contract
 
-The latest inspected baseline run at the reset passed 871 tests in about
-56 minutes. This records repository health, not physical acceptance. Preserve
-its useful coverage while replacing inadequate acceptance assertions.
+The deterministic forward solver and the stochastic sampler need different
+proofs. A full chain is unnecessary to detect a continuity error, a bad
+collision block, an incorrect likelihood vector, or a stale numerical cache.
+Use the following workloads, each with an explicit claim and reproducible
+command. Extend existing test owners and the existing acceptance runner.
 
-## Acceptance contract
+| Workload | Required evidence | Working cost target |
+| --- | --- | --- |
+| Focused development | Independent math and app behavior | At most 60 s |
+| Bounded real physics | Histories, kernels, refinement | At most 5 min |
+| Ordinary discovery | Broad tests and production smoke | At most 15 min |
+| Cold LCDM acceptance | Full frozen physical parity request | At most 15 min |
+| Cold Planck acceptance | Matched massive-neutrino point | At most 30 min |
 
-### Model and observable matrix
+These are implementation targets on one recorded reference machine using the
+managed CPU environment, not claimed present measurements or physical
+validity cutoffs. Record hardware, interpreter, numerical libraries, thread
+settings, cold/warm state, per-test and per-phase timings, peak memory when
+material, and actual evolved/projected work. Record fixed budgets for the
+remaining required cases from measured component costs before launching them.
 
-Slice One must materialize this exact required inventory in the existing
-acceptance machinery. Missing, failed, stale, or unclassified rows prevent
-completion. A report that successfully records rejection is still rejection.
+An exceeded target is a performance blocker to investigate in the slice that
+needs the calculation. Do not repeatedly launch a multi-hour matrix to learn
+that one component is still wrong. Profile representative bounded work,
+retain rejected attempts, and repair the measured cause. A valid slow theory
+is not scientifically rejected by a clock. Any revision of these completion
+budgets requires an explicit human decision with measurements; do not weaken
+physics or silently redefine completion to meet them.
 
-| Declaration | Required evidence |
+Ordinary discovery must keep real solver composition and adversarial coverage.
+Move expensive exact acceptance to explicit focused execution only while
+retaining its assertions, commands, and actual current evidence. Do not hide
+hard cases with skip flags or replace every physical test with mocks. Freeze
+independently generated, versioned, digest-verified CAMB products for recurring
+comparisons; regenerate them explicitly when their physical/reference inputs
+change, not on every test run.
+
+Use small independent synthetic observations and the existing synthetic solver
+for application dispatch, row ordering, failures, and output tests. Such tests
+prove application behavior, never physical parity. Analytic/manufactured
+solutions and frozen independent histories supply physical truth for bounded
+component tests. Include negative controls that expose wrong signs, shifted
+phases, source spikes, missed tails, and invalid reuse.
+
+## Scientific acceptance contract
+
+### Required physical cases
+
+Retain the existing 23-case inventory: 17 bundled physical points and six
+auxiliary declarations. The tracked
+`tests/project/fixtures/ccmbs_completion_contract.json` owns the frozen exact
+requests, reference identities, windows, surfaces, and applicability. Extend
+existing diagnostics and readers to execute that contract; do not add a
+parallel report system or silently rebaseline its hashes.
+
+| Declaration | Required points and proof |
 | --- | --- |
-| `model_lcdm.yml` | Matched CAMB parity and ordinary-route graph |
-| `model_ref_planck2018.yml` | Matched CAMB parity and ordinary-route graph |
-| `model_lcdm_mnu.yml` | Matched CAMB parity and q/hierarchy convergence |
-| `model_wcdm.yml` | Matched CAMB parity and LCDM-limit behavior |
-| `model_w0wa.yml` | Matched CAMB parity and wCDM/LCDM-limit behavior |
-| `model_qauc.yml` | Theory-specific invariants and full declared output |
-| `model_qrsf.yml` | Theory-specific invariants and full declared output |
-| `model_tog.yml` | Theory-specific invariants and full declared output |
-| `model_torg.yml` | Theory-specific invariants and full declared output |
-| `model_usmf2.yml` | Theory-specific invariants and full declared output |
+| `model_lcdm.yml` | Initial, As multiplied by 1.1; CAMB and real graph |
+| `model_ref_planck2018.yml` | Fixed initial point; CAMB and real graph |
+| `model_lcdm_mnu.yml` | Initial 0.25 eV; 0, 0.06, 0.50 eV; CAMB and q |
+| `model_wcdm.yml` | Initial and w=-0.9; CAMB and common limits |
+| `model_w0wa.yml` | Initial, (-0.9,0), (-1,0.2); CAMB and common limits |
+| `model_qauc.yml` | Declared attractor/normalization invariants |
+| `model_qrsf.yml` | Declared baryon-locked density/momentum/Euler laws |
+| `model_tog.yml` | Declared temporal normalization and early limits |
+| `model_torg.yml` | Declared relational sources and photon drag |
+| `model_usmf2.yml` | Shrink-field dynamics, constraints, physical limits |
 
-Every row enumerates its declared observables and active sectors before
-execution. Cover TT, TE, EE, BB, PP, TP, EP, lensed products, and sector totals
-where declared. A request for every declared surface must match that inventory
-exactly. Add explicit nonzero tensor/vector/lensing fixtures where the bundled
-scalar models cannot exercise those paths. Do not certify a nonzero path by
-running a scalar declaration whose answer is physically zero.
+The six auxiliary cases cover an unrelated name, changed recombination and
+opacity, an extra fluid/interaction, and nonzero vector, tensor, and lensing
+paths. A rename alone proves name independence. An extra-fluid test must
+actually change the physical state/equations. Scalar zeros cannot certify
+nonzero sectors. Malformed, singular, contradictory, and non-finite inputs
+need separate negative tests and cannot substitute for valid execution.
 
-The comparable matrix includes more than each initial point: a shifted
-primordial amplitude, more than one nonzero neutrino mass plus the zero-mass
-limit, and non-Lambda dark-energy points plus their common limits. Freeze
-exact physical inputs and expected applicability in Slice One. Compatible
-points may share compilation, but distinct physical points must receive their
-own physical evolution and acceptance evidence.
+Enumerate every declaration's sectors and observables before execution.
+Retain TT, TE, EE, BB, PP, TP, EP, lensed products, and sector totals wherever
+applicable. No undeclared surface is invented; no required surface silently
+disappears. Preserve exact ell ordering, duplicates, units, signs, physical
+zeros, and non-applicability reasons through all consumers.
 
-Add representative complete novel declarations with unrelated names, changed
-recombination/opacity, and an extra fluid or interaction. Renaming alone proves
-name independence, not support for different physics. Malformed, singular,
-non-finite, or contradictory declarations require separate negative tests;
-they cannot replace successful execution of valid novel declarations.
+### Matched independent physics and metrics
 
-### Reference identity and quantitative acceptance
+Freeze complete reference identities before inspecting residuals: parameters
+and resolved defaults, density closure, mass counts and distributions,
+primordial conventions, recombination, reionization, gauge transformations,
+source definitions, temperature, units, sectors, and lensing. Assert resolved
+massless CAMB defaults for the massless LCDM point. Compare physical histories
+quantitatively, not only parameter maps or class names.
 
-Compare identical physics and conventions: all resolved parameters and
-defaults, species and neutrino masses/distributions, primordial normalization,
-recombination and reionization, gauge/source definitions, units, lensing,
-sector definitions, and the exact ell grid. Matching a few cosmological
-parameters is insufficient. Assert CAMB's resolved inputs, including zero
-massive neutrinos for the fixed massless LCDM row, after defaults apply.
+If a standard reference and a declaration describe different physical
+histories, locate and resolve the difference explicitly. Match the reference
+to the declared physics where supported, or correct a demonstrated declaration
+error with its derivation. Do not silently replace a theory's law, use an
+unmatched reference, relax the metric, or call an engine defect unavailable.
 
-Retain the existing per-surface relative ceilings:
+Preserve the per-surface ceilings below, in both raw C_ell and public D_ell.
+Use the existing independent dimensional conversion; never fit amplitudes or
+phases before deciding parity.
 
 | Surface | Relative ceiling |
 | --- | --- |
-| TT, EE, BB | 2% |
-| TE, PP | 3% |
-| TP, EP | 5% |
-| Lensed TT, lensed EE | 2% |
-| Lensed TE | 3% |
-| Lensed BB | 5% |
+| TT, EE, BB, lensed TT, lensed EE | 2% |
+| TE, PP, lensed TE | 3% |
+| TP, EP, lensed BB | 5% |
 
-No unlisted applicable surface has an implicit pass. In Slice One, specify
-its metric, units, absolute floor, relative ceiling, and reference before
-examining CCMBS residuals. Require both raw C_ell and public D_ell checks and
-verify their conversion independently. Fix normalization or sign errors at
-the source; never fit away amplitude or phase before deciding parity.
+Cross absolute allowances remain 0.001 times the square root of the matching
+reference auto-spectrum product plus 64 binary64 epsilons of that surface.
+Auto floors use that surface's scale; exactly zero BB keeps a zero floor.
+Retain sign/zero-crossing checks separately. Independent C/D conversion must
+agree within 1e-10 relative error. No unlisted applicable surface has an
+implicit pass; define its independent metric before viewing its residuals.
 
-Cross-spectra and near-zero surfaces require explicit absolute-plus-relative
-criteria. Use physically justified reference scales, including the matching
-auto spectra for cross-spectrum normalization, with sign and zero-crossing
-checks retained separately. An arbitrary denominator floor, dominant TT
-amplitude, or a best-fit rescaling cannot hide an EE/cross-spectrum failure.
-Freeze these metric definitions and numerical floors with their physical
-justification. They are not tunable parameters for making a row green.
+Keep sparse anchors `(2,20,100,200,500,800,1200,1500,2000,2500)` plus the
+reference-selected unit-spaced windows within eight multipoles of the first
+three TT peaks/troughs, EE peaks, and TE zero crossings above ell 50. Retain
+damping windows 1988-2012 and 2480-2500 and a maximum feature displacement of
+two multipoles. Assess locations, amplitudes, damping, and unexplained spikes
+from raw arrays before plotting. Sparse anchors alone do not prove shape.
 
-The canonical sparse coverage remains
-`(2, 20, 100, 200, 500, 800, 1200, 1500, 2000, 2500)`.
-These anchors establish range coverage, not wave-shape coverage by themselves.
-Add contiguous or demonstrably adequate sampled windows around reference
-peaks, troughs, TE sign changes, and the damping regime. Resolve window choices
-and maximum spacing from the independent reference in Slice One, before
-looking at CCMBS output. Assert feature locations, amplitudes, damping, and
-absence of unexplained spikes from raw arrays before plotting.
+### Numerical acceptance and reuse
 
-Frozen CAMB products are permitted when generated independently, versioned,
-physically matched, and digest-verified. CCMBS output cannot be an independent
-oracle for itself. Never replace an actual comparison with a mock, a
-CAMB-versus-CAMB row, synthetic observations copied from CCMBS, or a graph
-whose two theory curves are the same cached array.
+Preserve the combined 0.5% observable numerical-error budget. Allocate it
+across applicable background, q/support, hierarchy, evolution/start/coupling,
+source representation, k/projection, endpoint, and lensing axes. Do not add
+unrelated dimensionless history errors and call the sum an observable bound.
+Different local tolerances require a validated propagation bound or an
+independent comparison showing their combined observable effect.
 
-### Numerical and execution acceptance
+Each axis needs independent measured refinement or a validated bound with
+assumptions, applicability domain, and negative controls. Counts, floors,
+finite values, and metadata labels alone cannot establish acceptance. Resolve
+between-anchor features and near-zero behavior, actual background/interaction
+features, thermal tails, and physical integration endpoints.
 
-Every applicable numerical axis needs either measured independent refinement
-or an implemented error bound validated over its stated domain. Cover:
+Independently evolve histories when measuring evolution error. Measure source
+interpolation with that evolution held fixed. Refine k and eta calculations
+materially after all floors; changing a nominal count is insufficient. Keep
+both products, grids, weights, identities, errors, and actual new work.
+Finer quadrature on a fixed interval does not prove adequate interval support.
 
-* background, recombination, visibility, and drag;
-* momentum/q resolution and distribution support;
-* hierarchy truncation in every active sector;
-* evolution accuracy, initial-time handling, and tight-coupling transitions;
-* source-history sampling and interpolation;
-* k integration and line-of-sight/projection quadrature; and
-* physical integration endpoints and lensing support/padding.
+Separate the resolution needed for physical source evolution from the
+resolution needed for oscillatory projection if measurements justify that
+algorithm. Every interpolated/approximated product needs its own error check,
+new independent physical samples where necessary, and ordinary-route parity.
+Never cap a phase grid or reuse interpolation as independent evolution proof.
 
-Node counts, minimum-depth rules, finite values, enabled flags, and status
-strings are metadata, not error bounds. Allocate numerical error budgets from
-the observable acceptance criteria and validate their combined effect. A
-200% source difference or 20% evolution difference cannot be accepted merely
-because those values were configured. Any looser internal bound needs an
-independent demonstrated bound on the resulting observable error.
+Reuse only products with matching actual dependencies: declaration, physical
+point, parameter dependencies, request, resolved numerical contract, grids,
+solver/backend, and source implementation. Structural compilation, background,
+source histories, transfers, complete spectra, and acceptance decisions have
+different dependency sets. A nearby parameter point cannot borrow a numerical
+certificate. Primordial-only changes may reuse evolution only when the
+compiled dependencies prove independence; their spectra and decisions remain
+point-specific.
 
-Refinement must change the effective calculation after all floors and caches.
-Retain both products, node/endpoint identities, measured errors, and actual
-work. Independently evolve state and source histories on the evolution axis;
-interpolation of one history is not independent evolution evidence. Measure
-source-history representation separately on materially distinct nested eta
-grids while holding that accepted evolution fixed. A finer k quadrature over
-a fixed interval does not establish that the interval itself is sufficient.
+Keep cold, valid-warm, invalid-reuse, exact-repeat, request-subset, and ordered
+scalar/batch tests. Independent refinement must retain new work; a verified
+exact hit reports no new evolution/projection. Keep a demonstrated cold solve
+for every required physical execution path and regenerate affected evidence
+after relevant changes. Do not require a new cold solve for each plot panel.
 
-Measure request-subset consistency: overlapping multipoles must agree across
-low-to-high ell requests and observable subsets within the declared numerical
-budget. Measure scalar/batch and cold/warm/exact-repeat equivalence, ordering,
-and failure isolation. Validate cross-parameter cache separation and any
-partial reuse against the complete physical and numerical identity.
+### Persistent evidence and selective revalidation
 
-### Evidence and test workload
+Use the existing diagnostics, acceptance runner, writers/readers, and one
+persistent location under the configured output root:
+`ccmbs-acceptance/completion-evidence/`. Retain compact reference fixtures
+under the existing test-fixture conventions. Manifests use relative artifact
+paths; tracked files contain no machine-local absolute paths.
 
-Use existing diagnostics, reference helpers, and report readers. Extend them
-only where acceptance requires it; do not create another certification layer.
-Each required row records actual execution status and retains:
+Each accepted or rejected attempt records source revision plus uncommitted
+content identity, declaration and full physical/reference inputs, exact
+request, numerical plan, backend, cache identity, raw/public spectra,
+source/transfer histories, grids/weights/refinement products, numerical and
+physical residuals, decisions, phase timings, actual work, and payload hashes.
+An integrity hash without its available payload is not retained evidence.
 
-* source revision and source-content identity for uncommitted work;
-* declaration, resolved physical inputs, reference version and digest;
-* exact request, solver/device, numerical plan, and cache identity;
-* raw/public spectra, grids, weights, source/transfer histories, and both
-  refinement products needed to reproduce its decisions;
-* absolute/relative/shape residuals, thresholds, and accepted/rejected result;
-* phase timing, effective work, cache reuse, and refinement work; and
-* reloadable artifact locations and content hashes.
+Record whole-checkout provenance and the dependency identity of each product.
+A rendering-only change requires fresh consumer verification; it does not
+justify repeating unchanged physical evolution. A changed equation, plan,
+background, reference, or metric invalidates all dependent products/decisions.
+Implement and test that dependency distinction before relying on it. Never
+rewrite an old artifact's identity to claim execution on changed physics.
 
-Choose one persistent evidence location under the configured output root in
-Slice One. Store relative artifact paths in manifests and keep compact
-regression fixtures under the existing test fixture conventions. Evidence must
-survive the producer's exit and ordinary test cleanup. A hash without its
-payload is not a retained artifact. Reopen any accepted row invalidated by a
-source, theory, reference, or numerical-contract change; rerun affected rows
-and their dependents instead of trusting a stale manifest.
+Persist one completed case at a time with explicit missing/failed/stale
+states. Resume only validated unaffected work. After producer exit and normal
+test cleanup, reload actual graphs and numerical payloads in a separate
+process; reject missing files, tampering, escaped paths, and disconnected
+hashes. Successful report generation or verification is distinct from an
+accepted scientific result.
 
-Ordinary tests retain bounded real solver coverage and adversarial tests.
-Share compatible forward products across observables, assertions, and graph
-rendering. Expensive acceptance cases may run through an explicit focused
-command instead of every discovery run, but the implementing agent must
-actually execute them and retain accepted results before closing their slice.
-They may not be reassigned to the human's later scientific production run.
+## Workflow and closure
 
-Do not hide full observational covariance calculations, long chains, or
-repeated high-resolution CAMB generation in ordinary discovery. Use bounded
-synthetic observations for application/likelihood plumbing and frozen
-independent references for numerical comparisons. Keep real parser/hash tests
-separate. Every accepted numerical result still uses its required ordinary
-production controls, regardless of where its test is scheduled.
+Follow AGENTS.md and the active slice. Use the existing branch and managed
+`.venv`; do not recreate or upgrade it. Read current repository instructions
+again after a repository switch. Inspect a dirty worktree once, preserve
+existing work, and keep changes scoped to the authorized slice. Review any
+imported staged experiment against its actual diff and evidence first.
 
-Measure per-test and per-request cost. Use the current approximately one-hour
-full suite as the development budget to improve or preserve through shared
-work. If required acceptance exposes a runtime blocker, fix that blocker in
-the current slice, preserving accuracy; report evidence of the cost rather
-than weakening acceptance or deferring the physics indefinitely.
-
-## Execution and closure rules
-
-Read `AGENTS.md` and the active slice before editing. Inspect a dirty worktree
-once and continue from that state. Use the active repository's policy and
-profile owners; never edit managed blocks or unrelated metadata.
-
-For each authorized slice, use the managed entrypoint:
+Open before edits:
 
 ```bash
 source .venv/bin/activate && python -m devcovenant gate --open
 ```
 
-Run the slice's focused tests and actual acceptance commands, inspect their
-retained evidence, repair failures at source, then run:
+Run the focused tests and actual calculations required by that slice, inspect
+summary/tail/log artifacts, and repair blockers in their owning source. Then:
 
 ```bash
 source .venv/bin/activate && python -m devcovenant gate --verify
 ```
 
-The human runs the expensive `devcovenant run` in this working arrangement.
-Leave the gate open at the verified handoff; do not run `gate --close` before
-required workflow evidence is fresh and successful. Do not run
-`devcovenant check --nofix`, commit, push, or launch the final demonstration
-unless specifically instructed. Stage all changes after each completed slice.
+Stage all completed slice changes and hand off with the gate open. In this
+working arrangement the human runs `devcovenant run`; do not run or close it
+on the human's behalf without instruction. A subsequent close requires the
+fresh successful workflow evidence. Never commit, push, run
+`devcovenant check --nofix`, or launch the final demonstration without explicit
+instruction for that action.
 
-The implementing agent records the focused commands, actual results, artifact
-paths/digests, and any pending human full-suite confirmation under that slice.
-Keep implementation acceptance, policy verification, and full-suite workflow
-confirmation distinct. Mark a slice closed only when its stated acceptance
-has passed and the required full-suite confirmation is recorded. A pending
-human run is not an engine defect, but it is not a completed workflow either.
+Record exact focused commands, measured results/costs, artifact identities,
+and outstanding human workflow confirmation under the active slice. A slice
+may be implementation-complete while awaiting that confirmation. Close it
+only when its stated behavioral/scientific conditions and workflow evidence
+are satisfied. Do not close an expensive physical obligation with command
+wiring or transfer it to the human's later scientific campaign.
 
-Any newly found blocker belongs to the earliest slice whose obligation it
-violates. Repair only what is needed to satisfy that obligation. If a later
-change invalidates earlier evidence, reopen that acceptance and regenerate it.
-Do not invent additional slices, redefine success, turn failures into accepted
-non-applicability, or silently carry unresolved requirements forward.
+A new blocker belongs to the earliest unmet obligation it violates. Later
+changes reopen affected earlier evidence rather than repeating unrelated
+work. No automated stage may quietly expand to the entire observational
+campaign. This plan replacement requires policy verification only; it makes
+no claim that the implementation slices below have executed.
 
-## Slice One — establish the executable completion contract
+## Preserved completed foundation
 
-**Status:** complete.
-**Entry:** the existing CCMBS implementation at this reset.
+### Slice One - executable completion contract
 
-**Owners:** `PLAN.md`, the CMB diagnostics and certification functions,
-`tests/project/lib/camb_reference.py`,
-`tests/project/lib/scientific_acceptance.py`, and their existing tests.
+**Status:** complete, carried forward.
 
-**Work:**
+Keep the frozen 23-case inventory, independent reference conventions, exact
+windows/metrics, persistent-evidence contract, and rejection of missing,
+synthetic, stale, or tampered evidence. The recorded low-ell rejection is a
+baseline, not accepted physics. Reuse current independent references when
+their identities still match.
 
-1. Materialize the required model/point/surface matrix, exact reference
-   identities, ell windows, error metrics, and applicability decisions from
-   this document. Map G1 through G6 to named regression tests and owners.
-2. Make final certification reject missing real execution, incomplete
-   surfaces, unresolved axes, failed parity, stale source/reference identity,
-   and unavailable artifacts. Distinguish successful report generation from
-   accepted engine output. Keep mock-based wiring tests explicitly identified.
-3. Establish persistent artifact output using the existing writer/reader
-   contract. Run the smallest meaningful ordinary LCDM baseline against its
-   matched independent reference, retaining actual results or typed failure.
-   This baseline diagnoses work; rejection cannot count as engine acceptance.
-4. Record the concrete focused test selectors and commands for each later
-   slice using existing modules. Do not leave placeholders for critical
-   comparisons or move unresolved physical-input matching to the final run.
+### Slice Two - automatic numerical acceptance
 
-**Focused tests:** diagnostic and final-report rejection, reference resolved
-inputs, exact inventories, stale/tampered/missing artifacts, and command
-wiring.
-The primary existing modules are
-`tests.copernican.lib.likelihoods.cmb.test_diagnostics`,
-`tests.project.lib.test_camb_reference`, and
-`tests.project.lib.test_scientific_acceptance`.
+**Status:** complete, carried forward.
 
-**Closure:** an executable acceptance matrix and honest baseline exist;
-negative tests prove that incomplete or synthetic-only evidence cannot certify
-CCMBS. This closes the contract slice only. All physics rows remain pending
-until their actual comparisons pass in the owning slices.
+Preserve independently evolved history comparisons, source sign/spike
+controls, q and hierarchy checks, endpoint coverage, meaningful nested grids,
+measured work, and request-subset regressions. New algorithms must satisfy
+those behaviors and the combined observable-error budget; do not restart the
+slice or assume a passing regression certifies all unseen declarations.
 
-### Frozen Slice One decisions and regression ownership
+### Slice Three - solver and test ownership
 
-The executable inventory contains 17 bundled physical points and six auxiliary
-cases. LCDM amplitude is multiplied by 1.1. Massive-neutrino response masses
-are 0, 0.06, and 0.50 eV, in addition to the declared 0.25 eV initial point.
-The dark-energy responses are w=-0.9, (w0,wa)=(-0.9,0), and (-1,0.2).
-Initial wCDM/w0wa points retain their common massive-neutrino limit; they are
-not silently compared with the massless LCDM declaration.
+**Status:** complete, as confirmed by the human.
 
-`tests/project/fixtures/ccmbs_completion_contract.json` freezes every case
-identity, reference digest, surface, applicability decision, ell list, and
-feature location. The persistent `completion-contract.json` additionally
-retains full physical declarations and resolved CAMB defaults. Twelve CAMB
-reference rows cover the five comparable declarations and their response
-points. The five other theories require their named source, conservation,
-initial-condition, and limiting-case invariants; six auxiliary recipes cover
-renaming, changed recombination, an interaction, and nonzero sectors.
+Keep the extracted physics, numerical, diagnostics, and evidence owners,
+behavior-named tests, public composition boundary, and identity-safe reuse.
+Its ordinary graph evidence preserves behavior but is not quantitative CAMB
+parity. Further changes repair measured defects in those owners, without a
+second architecture rewrite.
 
-Reference-selected windows contain every integer ell within eight multipoles
-of the first three TT peaks/troughs, EE peaks, and TE zero crossings above
-ell 50. Damping windows are 1988–2012 and 2480–2500. Feature displacement
-may not exceed two multipoles. The existing per-surface relative ceilings apply
-at every retained sample in both native C_ell and D_ell units. Cross absolute
-allowances are 0.001 times the square root of the corresponding reference
-auto-spectrum product, plus 64 binary64 epsilons of that surface. Auto floors
-use only that surface's scale; exactly zero BB has a zero floor. Independent
-C/D conversion must agree within 1e-10 relative error. CCMBS dimensionless
-raw C_ell values retain their original units in artifacts. The comparator
-converts them to CAMB native units using the frozen physical temperature:
-(Tcmb*1e6)^2 for TT/TE/EE/BB, one temperature factor for TP/EP, and none for
-PP. This unit conversion is independent of residuals and performs no fit.
-The combined numerical
-budget is 0.5%, allocated across applicable axes, leaving margin below the
-strictest 2% parity ceiling. These are frozen acceptance bounds, not evidence
-that the current runtime already meets them.
+## Slice Four - establish independent, practical development checks
 
-Physical-input matching remains explicit: species/distributions, primordial
-inputs, recombination, reionization, gauge/sources, units, lensing, and sectors
-must have retained quantitative evidence. In particular the declared
-collapse-source reionization is not CAMB's default tanh history merely because
-both have tau=0.054. Slice Four owns that comparison and any necessary source
-repair for LCDM; Slice Five owns the remaining comparable points. Neither may
-claim parity based on parameter maps alone or defer matching to Slice Nine.
+**Status:** pending. **Entry:** the completed foundation above.
 
-Selectors below name the current modules that own each obligation. Slice Three
-replaces historical slice-named modules with behavior-named successors and
-updates every selector in the same change. Prefix each invocation with
-`source .venv/bin/activate && python -m unittest`.
-
-* Two: `tests.copernican.lib.likelihoods.cmb.runtime.test_planner`,
-  plus `test_adaptive`, `test_convergence`, `test_background`,
-  `test_evolution`, and `test_spectrum_projection` in that runtime package.
-* Three: the focused ownership modules `test_execution`,
-  `test_mode_evolution`, `test_collisions`, `test_line_of_sight`,
-  `test_spectrum_projection`, `test_numerical_controls`,
-  `test_constraint_validation`, and `test_evidence`, plus `test_cmb`,
-  `test_diagnostics`, and `tests.project.lib.test_scientific_acceptance`.
-* Four: the purpose-named public graph regression produced by Slice Three,
-  `tests.project.lib.test_camb_reference`, and
-  `tests.copernican.lib.likelihoods.cmb.test_cmb`.
-* Five: `tests.project.lib.test_camb_reference`,
-  `tests.copernican.lib.likelihoods.cmb.test_diagnostics`, and
-  `tests.copernican.lib.likelihoods.cmb.runtime.test_lensing`.
-* Six: `tests.copernican.lib.likelihoods.cmb.test_cmb`,
-  `tests.copernican.lib.likelihoods.cmb.test_contracts_audit`, and
-  `tests.copernican.lib.likelihoods.cmb.test_diagnostics`.
-* Seven: `tests.copernican.samplers.test_sampler_mcmc`,
-  `tests.copernican.lib.likelihoods.cmb.runtime.test_adaptive`, and
-  `tests.copernican.lib.likelihoods.cmb.runtime.test_cache`.
-* Eight: `tests.copernican.lib.likelihoods.cmb.runtime.test_performance`,
-  `tests.copernican.lib.likelihoods.cmb.runtime.test_cache`, and
-  `tests.project.lib.test_scientific_acceptance`.
-* Nine: `tests.project.lib.test_scientific_acceptance` and the
-  purpose-named public graph regression produced by Slice Three.
-
-G1 is guarded by `CompletionContractTestCase` in
-`tests/copernican/lib/likelihoods/cmb/test_diagnostics.py` and the three
-explicitly synthetic final-report tests in that module. G2 uses
-`CompletionReferenceWindowTestCase` in `test_camb_reference.py`, then the
-ordinary graph regression during Slice Four. G3/G4
-are rejected at the final contract by
-`test_completion_rejects_synthetic_missing_stale_and_unresolved_rows`;
-Slice Two must add actual source-sign/spike and refinement regressions in
-`runtime/test_adaptive.py` and `runtime/test_convergence.py`. G5 remains the
-Slice Seven sampler obligation in `test_sampler_mcmc.py`; no Slice One result
-claims that bypass has been repaired. G6 uses
-`test_retained_artifacts_reject_tampering_missing_and_escape` and
-`CompletionPersistenceTestCase`, plus separate-process baseline readback.
-
-The baseline command is
-`python -m tests.project.lib.scientific_acceptance --baseline` in the active
-venv. It records ell=(2,20,100), TT/TE/EE on the ordinary full-spectrum route,
-without numerical overrides. It deliberately exits 1 for a diagnostic-only
-or failed result; artifact verification uses `--verify-baseline PATH` and
-exits 0 only after all referenced files and current source identity validate.
-
-### Slice One evidence — 2026-10-03
-
-The three primary focused modules passed 74 tests in 103.581 seconds.
-After the unit-conversion and provenance adjustments, the completion,
-reference-window, persistence, and command regressions passed 12 tests in
-0.478 seconds. The focused and completion checks retain no DevCovenant
-runtime artifacts.
-The original synthetic final-report tests now explicitly assert rejection;
-they retain their orchestration assertions without claiming physical success.
-
-The actual ordinary LCDM baseline completed in 252.256 seconds, including
-512-to-1024 k refinement, against `camb:1.6.0`. It was **rejected** for both
-C_ell and D_ell parity in TT, TE, and EE. The independent unit-conversion
-checks passed. Maximum public relative errors over ell=(2,20,100) were
-176.7303% TT, 98.5186% TE, and 90.4770% EE. These are unadjusted diagnostic
-residuals, not matched-history scientific certification. Slices Two and
-Four own the numerical acceptance and physical-input/source comparisons
-needed to resolve them. No amplitude rescaling or tolerance relaxation was
-used to obtain this result.
-
-Persistent evidence is under the configured output root at
-`ccmbs-acceptance/completion-evidence/`. The producer exited before a separate
-`--verify-baseline` invocation successfully reloaded `baseline.json`,
-`completion-contract.json`, and all twelve reference payloads. All 23
-materialized cases match the tracked frozen inventory. Portable identities:
-
-* Baseline report SHA-256:
-  `d1ccb525da6f2d9a68f34eaf564bcc1b46febffd1d884534ab88e1f96a3c70e1`
-* Completion contract SHA-256:
-  `d62cd15f933eb1787138cfce7e819576d264fde4b51af13a7a3c6483ad97fbbe`
-* Source content SHA-256, including uncommitted implementation:
-  `ea038e9e5adc5d37ba2b03ffc4a7b682b6fd5017857a144f330722968fbd6229`
-
-The contract slice and its required workflow confirmation are complete. This
-does not close any physics row.
-
-## Slice Two — repair automatic numerical acceptance
-
-**Status:** complete.
-**Entry:** Slice One's metrics and failure inventory.
-
-**Owners:** CMB `runtime/planner.py`, `runtime/adaptive.py`,
-`runtime/convergence.py`, `runtime/background.py`, `runtime/evolution.py`,
-`runtime/projection.py`, and the corresponding runtime tests.
+**Owners:** `perturbation_contract.py`, direct runtime test owners,
+`tests/project/lib/camb_reference.py`, the existing synthetic fixture,
+application tests, and the existing scientific acceptance runner.
 
 **Work:**
 
-1. Replace permissive source/evolution acceptance with physically justified
-   error budgets. Sample actual recombination/visibility and interaction
-   features, not three fixed fractions labelled as physical epochs. Use
-   independent state and source histories at informative k values and account
-   for errors between sampled anchors and near zeros. Independently measure
-   source-history representation with evolution held fixed, so evolution and
-   interpolation errors cannot be conflated.
-2. Make source refinement materially change resolution. Do not certify it
-   with effectively identical grids or an N-versus-N-minus-one comparison
-   without a validated estimator. Separate time-history, k-history
-   interpolation, and projection-quadrature errors.
-3. Implement actual q and hierarchy refinement or validated truncation bounds
-   for the active declarations. Bind each bound to its assumptions and domain;
-   configured floors alone cannot produce `validated_bound`.
-4. Test and enforce changes to k/eta endpoints, integration start, thermal
-   tails, and lensing support where applicable. Preserve background and drag
-   independence and all raw refinement evidence.
-5. Ensure ordinary planning selects the intended strict refinement algorithm.
-   Remove accidental selection of a diagnostic interpolation comparison by
-   production tolerance values. Refinement continues to its justified bound
-   or returns a typed non-convergence result with the failed products.
-6. Preserve effective nested k refinement and measured-spacing termination.
-   Cold refinement proves new work; warm reuse proves a matching accepted
-   finer calculation. Neither can claim work solely from a nominal count.
+1. Map every starting finding and acceptance obligation to a behavior-named
+   test and source owner. Inspect other-machine staged work if supplied;
+   preserve useful repairs only after reproducing their intended behavior.
+2. Establish independently derived continuity/adiabatic-entropy, gauge/sign,
+   initial-series, collision conservation/damping, polarization-normalization,
+   and unit-conversion regressions. Reproduce the photon metric inconsistency
+   and repair its source plus aligned comments/docstrings/docs. Expectations
+   must not simply copy strings or formulas from the implementation.
+3. Add analytic/manufactured small real evolution and projection cases, with
+   corrupted-sign, shifted-phase, spike, tail, and cache negative controls.
+   Keep equation correctness distinct from the solver's own residual checks.
+4. Freeze compact independent CAMB background/history data with explicit
+   gauge, variable, normalization, version, physical-input, and digest maps.
+   Compare selected k modes and epochs directly; recurring tests do not
+   regenerate full CAMB spectra. Retain an explicit regeneration path.
+5. Add actual bounded application behavior tests using independent small
+   observations and controlled solver outputs: model roles, covariance row
+   order/cross terms, complete requested spectra, typed failures, fixed/free
+   dispatch, summary/CSV/plot consumption, and manifest outcome. Keep parser
+   trust/hash tests separate from large covariance inversions and sampling.
+   Use supported explicit spectrum tables for this initial application
+   surface; reproduce and repair the shipped wide-table defect together in
+   Slice Nine. Do not leave intentionally failing discovery tests between
+   slices.
+6. Give each workload above an exact reproducible test command by selecting
+   existing modules/methods and moving expensive assertions to their owning
+   focused modules where necessary. Measure per-test costs before and after;
+   remove demonstrated duplicate work without dropping physical coverage.
 
-**Focused tests:** the existing planner, adaptive, convergence, background,
-evolution, and projection test modules. Add adversarial sign reversals,
-localized source spikes between anchors, oscillatory aliasing, insufficient
-hierarchy/q support, omitted endpoint contributions, identical effective grids,
-and genuinely finer warm reuse. Each corrupted calculation must fail the
-relevant numerical assertion; well-resolved controls must pass it.
+**Focused owners:** `test_perturbation_contract`, `test_cmb_output`,
+`runtime.test_collisions`, `runtime.test_evolution`,
+`runtime.test_mode_evolution`, `runtime.test_spectrum_projection`,
+`test_run_pipeline`, `test_run_executor`, `test_likelihoods`,
+`test_sampler_mcmc`, and `tests.project.lib.test_camb_reference`.
+Select methods explicitly when a broad module still includes costly solves.
 
-**Closure:** all applicable axes have enforceable evidence rather than status
-labels. Real bounded ordinary requests exercise the revised checks. Their
-measured errors meet justified budgets and request-subset consistency holds.
-No global CAMB parity claim is made before Slice Four.
+**Closure:** independent negative controls detect the named defects; their
+resolved controls pass; the photon inconsistency has a derived repair; actual
+application composition is covered; and the focused/bounded workload commands
+meet their measured targets. This slice establishes a useful development
+loop, not final CAMB parity. Record the human's full-suite confirmation.
 
-Implementation acceptance evidence:
+## Slice Five - align physical inputs and locate first disagreement
 
-* The six focused planner, adaptive, convergence, background, evolution, and
-  projection modules pass 86 tests. They cover localized source spikes, sign
-  reversals, dense resolved controls, physical feature anchors, actual q
-  refinement, hierarchy-bound assumptions, endpoint quadrature, identical
-  grids, cold measured work, and matching warm reuse.
-* Four bounded runtime regressions exercise independent adaptive histories,
-  dense between-anchor drift detection, and the retained final phase-grid
-  floor through real declared execution.
-* The ordinary final-tier production regression runs a compact multi-spectrum
-  graph and its TT request subset. Both calculations report measured
-  background, evolution, source, projection, and physical-limit axes; inactive
-  q and hierarchy axes remain explicitly inapplicable. All adaptive errors
-  meet the planner budgets, the nested k comparison converges with measured
-  work, and the shared TT result agrees to the declared test tolerance.
+**Status:** pending. **Entry:** independent development checks pass.
 
-Slice Two is complete. No CAMB parity or full scientific production result is
-claimed.
-
-## Slice Three — separate CCMBS solver layers and tests
-
-**Status:** implementation complete; awaiting human full-suite confirmation.
-**Entry:** Slice Two's completed numerical acceptance and workflow evidence.
-
-**Owners:** CMB public entrypoints, the `runtime` physics and numerical
-modules, diagnostics and evidence writers/readers, relevant documentation,
-and the corresponding runtime, CMB, project, persistence, and public-route
-tests.
+**Owners:** model declarations, adapter/compiler, `runtime/background.py`,
+initial data, hierarchy/source owners, and independent reference helpers.
 
 **Work:**
 
-1. Characterize the accepted Slice Two behavior before moving code. Retain
-   fixed public requests, direct runtime requests, typed failures,
-   exact-repeat cases, valid and invalid cache reuse, persisted evidence, and
-   bounded ordinary-production requests as the behavior baseline. A source
-   identity change requires fresh evidence identity; it cannot relax any
-   numerical criterion or alter accepted behavior.
-2. Establish one-way ownership: physics owns background, hierarchy evolution,
-   source formation, line-of-sight kernels, and observable assembly; numerical
-   execution owns plans, nested refinement, quadrature, cache identity, work
-   accounting, and typed numerical failures; diagnostics own measurements,
-   comparisons, graph inputs, and decisions; evidence owns serialization,
-   manifests, reload, and tamper detection. Public orchestration composes
-   those layers without becoming another physics or diagnostic owner.
-3. Extract the substantive implementation from the monolithic projection path
-   into focused modules with explicit typed inputs and outputs. Physics must
-   not import diagnostics or evidence. Diagnostics and evidence observe only
-   completed typed products and must not alter their calculation. Remove old
-   internal paths after callers migrate; retain only supported public API
-   contracts.
-4. Reorganize tests as first-class refactor work. Physics tests directly cover
-   each extracted owner and its invariants; numerical tests cover planning,
-   refinement, endpoints, cold work, reuse, and typed failure; diagnostics
-   tests cover measurement and rejection; evidence tests cover persistence,
-   reload, identity, cleanup, and tampering; public-route tests cover their
-   composition. Move historical slice-named test modules to behavior-named
-   homes, separating fixture builders from assertions and plumbing fixtures
-   from physical-reference assertions.
-5. Reduce test cost without reducing fidelity. One necessary calculation may
-   provide raw products, diagnostics, graph inputs, and evidence to multiple
-   assertions only when its declaration, physical point, request, resolved
-   plan, numerical controls, source identity, and execution semantics match.
-   Keep explicit fresh-cold, valid-warm, invalid-reuse, and exact-repeat work
-   tests. Do not save time by reducing resolution, loosening budgets, omitting
-   products or axes, self-generating physical truth, or sharing certificates
-   across non-identical requests.
-6. Measure phase timing, cache hits/misses, and actual work for bounded
-   expensive tests. Remove demonstrated duplicate setup or computation, retain
-   the reason for each required cold solve, and preserve test isolation.
-7. Update comments, docstrings, runtime documentation, test descriptions, and
-   exact documentation mirrors to the resulting ownership boundaries. Remove
-   stale descriptions of the monolith and historical slice-owned test paths.
+1. Resolve the exact LCDM and fixed Planck reference points, including
+   massless versus massive species/distributions, temperatures/densities,
+   primordial amplitudes, recombination/reionization, and physical units.
+   Audit the corresponding distance and drag-ruler definitions as well.
+2. Compare H(a), conformal time, thermal moments, sound horizons, ionization,
+   opacity, visibility shape/normalization, and the full reionization history
+   against physically matched independent references. Resolve the
+   collapse-source/tanh mismatch explicitly. No tau-only matching claim.
+3. Follow selected modes from regular initial conditions through horizon
+   entry and recombination into metric/species histories and source terms.
+   Compare with independent histories in a common gauge and normalization.
+   Repair the earliest mismatch before downstream projection or amplitude.
+4. Test source decomposition, derivatives, collision transitions, and radial
+   kernels independently. Exercise the same repaired behavior through the
+   ordinary executor so diagnostic integration differences cannot mask it.
+5. Derive and record each correction and its observable consequence using
+   bounded reference points and negative controls. Preserve theories' intended
+   equations and parameter semantics; do not turn physics into labels that
+   select reference-like behavior.
 
-**Focused tests:** direct tests for every extracted physics, numerical,
-diagnostic, and evidence owner; the retained Slice Two focused suite; bounded
-ordinary-production and request-subset cases; cold/warm/invalid-reuse and
-exact-repeat cases; public-route graph coverage; and separate-process
-reload/tamper tests.
+**Focused owners:** `test_model_coder`, `test_model_adapter`,
+`test_perturbation_contract`, runtime background/evolution/collision/constraint
+and projection tests, and `tests.project.lib.test_camb_reference`.
 
-**Closure:** the normal public route still enforces every applicable Slice Two
-criterion without relaxed thresholds or missing coverage. Physics, numerical
-execution, diagnostics, and evidence have one-way dependencies and direct
-tests. The monolithic internal path and historical slice-named test paths are
-gone, test ownership mirrors code ownership, and only identity-safe duplicate
-work has been removed. This slice makes no physical-parity claim.
+**Closure:** matched physical histories and selected mode/source comparisons
+pass their independent bounds for both starting reference models. Remaining
+full-spectrum questions are identified by stage and metric, not hidden by
+finer grids. Exact physical inputs and fresh affected regressions are retained.
 
-### Implementation evidence — 2026-10-05
+## Slice Six - make automatic production planning accurate and practical
 
-* The thirteen focused runtime modules passed 91 tests in 0.875 seconds. They
-  directly cover numerical controls, mode evolution, collisions, line-of-sight
-  grids, spectrum projection, constraint validation, evidence identity, and
-  the retained Slice Two owners.
-* Public-route cache, exact-repeat, invalid-reuse, source-history capture,
-  scalar/batch, collision, and request-subset regressions passed after their
-  assertions moved to the extracted owners. The full CMB module exercised 223
-  cases during this refactor; the only migration failures were stale test
-  module targets, each repaired and rerun through its new owner.
-* `tests.project.lib.test_ccmbs_production_graph` passed one bounded ordinary
-  public LambdaCDM graph calculation in 691.749 seconds. It retained the
-  512-to-1024 nested-k calculation and completed both declared evolution and
-  projection phases through `runtime/execution.py`.
+**Status:** pending. **Entry:** matched component physics is established.
 
-The implementation evidence is complete. The human must now confirm the
-separate full `devcovenant run` before this slice is marked closed and the gate
-is closed. No physical-parity claim is made here.
-
-## Slice Four — close actual LCDM physics and graph recovery
-
-**Status:** pending.
-**Entry:** Slice Three's preserved behavior baseline and one-way boundaries.
-
-**Owners:** the extracted background, hierarchy, source, projection, and
-post-processing physics owners responsible for measured disagreement;
-independent CAMB helpers, diagnostics, and the purpose-named public graph
-regression created by Slice Three.
+**Owners:** planner, adaptive/convergence controls, background, mode evolution,
+projection, caches, numerical work accounting, and their direct tests.
 
 **Work:**
 
-1. Execute actual fixed massless-LCDM CCMBS through the normal public route
-   and compare it with the physically matched CAMB reference. Cover the
-   canonical sparse range and Slice One's acoustic, zero-crossing, and damping
-   windows. Use production planning without numerical overrides or diagnostic
-   bypasses.
-2. Find the earliest disagreement in background/recombination, initial data,
-   metric/species evolution, collisions, polarization/ISW sources, transfer
-   projection, normalization, or assembly. Retain aligned intermediate arrays
-   and fix the extracted owning physics module. Do not compensate for an
-   upstream defect with downstream scaling, smoothing, clipping, or
-   model-specific rules, and do not recreate cross-layer implementation in the
-   public orchestrator.
-3. Require accepted TT/TE/EE raw and public comparisons, physically located
-   peaks/troughs, TE signs/zeros, and damping behavior. Restore a meaningful
-   real graph regression reaching acoustic structure and the high-ell regime.
-   Finite, smooth, nonnegative output alone is insufficient.
-4. Feed the same accepted arrays into plotting, likelihood/export checks, and
-   exact-repeat evidence. Use independent synthetic observations for plumbing
-   assertions; never use equality with self-generated observations as physical
-   parity evidence.
-5. Retain the graph and all numerical products outside temporary directories.
-   After the producer exits and temporary workspaces are removed, reload the
-   manifest and its actual payloads in another process and verify decisions.
+1. Profile representative actual production work before another full matrix:
+   compilation, background/calibration, initial data, evolution, projection,
+   internal/outer refinements, diagnostics, serialization, memory, and reuse.
+   Account for every repeated cold mode and distinguish counts from timings.
+2. Resolve scales from the declared background, interaction rates, source
+   features, sectors, kernels, and physical support. Fixed standard-cosmology
+   estimates may initialize the search; measurements must correct them.
+   Use declared roles/distributions, not species-name substrings, to determine
+   momentum support and numerical requirements for novel declarations.
+3. Allocate the combined observable-error budget and validate its propagation.
+   Refine the failing axis/material region, with informative independently
+   evolved samples and explicit endpoints. Test oscillatory aliasing,
+   localized features, near-zero crossings, and insufficient support.
+4. Remove measured duplication between internal checks and outer refinement.
+   Retain compatible base histories during their own refinement lifetime,
+   rather than relying on global cache capacity. Preserve independent new
+   work and every necessary cold/invalid-reuse test; do not merely enlarge
+   caches or borrow certificates from different physical/numerical points.
+5. Optimize the measured owning kernels and schedule partitions. Where
+   justified, separate source-evolution and oscillatory projection grids with
+   independently tested interpolation/phase errors and fresh physical
+   samples. Preserve full effective projection resolution and the declared
+   equations; do not introduce a hidden reduced production path.
+6. Measure ordinary cold, compatible warm, exact-repeat, changed-parameter,
+   changed-request, subset, and batch behavior. Verify useful work survives
+   chunking/cache pressure without changing ordering, failures, or acceptance.
+7. Meet the recorded workload targets on the reference machine. Plan and run
+   individual exact reference cases as needed to validate cost and numerical
+   closure; retain results rather than launching duplicate acceptance jobs.
 
-**Focused tests:** the fixed-LCDM acceptance command, real public graph test,
-reference-input checks, and the direct physics/runtime regressions needed for
-each repair. Retain one cold solve, identity-safe compatible reuse, and
-exact-repeat work accounting; do not perform another cold solve for each graph
-assertion.
+**Focused owners:** all direct runtime numerical/physics tests, public
+`test_cmb` method selectors, cache/performance tests, and the existing
+acceptance runner. Keep scalar CPU results as the comparison authority.
 
-**Closure:** an actual accepted LCDM comparison and durable graph demonstrate
-correct quantitative TT/TE/EE and wave structure. The comparison has executed
-successfully; a command definition or mocked accepted row cannot close this
-slice. Any runtime blocker to obtaining this result is repaired here.
+**Closure:** ordinary requests select and enforce adequate resolution with
+measured/validated bounds, request-subset consistency, and identity-safe reuse.
+Actual cold LCDM and Planck requests meet their practical budgets and retain
+usable products; errors or runtime blockers are repaired here. Finite output
+and a cheap diagnostic path alone cannot close this slice.
 
-## Slice Five — close comparable models and complete observables
+## Slice Seven - demonstrate actual matched CAMB parity
 
-**Status:** pending. **Entry:** accepted actual LCDM evidence from Slice Four.
+**Status:** pending. **Entry:** ordinary execution is accurate and practical.
 
-**Owners:** extracted generic model, background, species, source, lensing, and
-assembly paths; the bounded parity matrix, reference fixtures, and related
-tests.
-
-**Work:**
-
-1. Execute the required Planck2018ref, massive-neutrino, wCDM, and w0wa rows
-   plus the frozen parameter-response points. Match resolved CAMB physics,
-   including mass distributions, radiation bookkeeping, and dark-energy
-   perturbation conventions, rather than relying on model labels.
-2. Validate amplitude response, zero/nonzero mass continuity, and common
-   dark-energy limits. Changing parameters must change the appropriate
-   physical histories and cache identities. Do not borrow another point's
-   refinement or acceptance certificate.
-3. Extend real comparisons to every applicable declared observable: BB, PP,
-   TP, EP, lensing, active sector contributions, and totals. Validate absolute
-   units, signs, physical zeros, remapping support, and covariance bounds.
-   Reference-inapplicable sectors need independent analytic or convergence
-   evidence under Slice Six; they cannot simply disappear from the matrix.
-4. Produce the ordinary Planck2018ref graph from its accepted arrays and
-   verify that comparison rendering retains both model curves. Extend shape
-   assertions and range/subset consistency to the same physical points.
-5. Share compatible work only through Slice Three's complete identity rules
-   and retain all accepted and rejected attempts. Repair generic defects in
-   their extracted owner and rerun affected earlier rows after each fix.
-
-**Focused tests:** actual parity-matrix execution, independent CAMB fixtures,
-full-observable diagnostics, massive-neutrino/background tests, lensing and
-post-processing tests, and public graph/result tests.
-
-**Closure:** every required comparable point/surface has an actual accepted
-comparison, with complete resolved reference identity and numerical evidence.
-The fixed LCDM and Planck2018ref public graphs both pass quantitative and shape
-acceptance. No matrix row is pending because it was called expensive.
-
-## Slice Six — close universal declarations and all active sectors
-
-**Status:** pending. **Entry:** comparable physics and observables accepted.
-
-**Owners:** validator, expression compiler, model adapter, generic CCMBS
-runtime, corpus/full-observable diagnostics, and their existing tests.
+**Owners:** extracted physics/numerical owners for residual defects, existing
+CAMB fixtures, diagnostics, acceptance runner, graph tests, and readers.
 
 **Work:**
 
-1. Execute all ten bundled models through the same ordinary engine route.
-   Reuse accepted comparable rows from Slice Five only when their complete
-   identities remain current. Validate each non-CAMB theory against its own
-   declared equations and invariants, not resemblance to LCDM.
-2. Exercise unrelated names, altered recombination/opacity, additional
-   species/interactions, and nonzero vector/tensor declarations. Validate
-   source/kernel routing, gauge and initial-condition conventions, and all
-   declared auto/cross/total outputs. Repair missing generic compiler/runtime
-   support rather than converting valid declarations to unavailable models.
-3. Validate residuals and conservation, continuous physical limits, initial
-   and boundary conditions, positive auto spectra and allowed cross spectra,
-   and independently refined histories and observables for these requests.
-   Use analytic/manufactured solutions where they provide independent truth.
-4. Keep malformed/incomplete, non-finite, and singular mathematics tests
-   distinct from valid-model execution. Error context identifies the equation,
-   field, axis, and request without hiding failures in discovery or graphs.
-5. Confirm scalar/batch ordering, failure isolation, renamed-model identity,
-   and cache separation across different theories and physical inputs.
-6. Place every new declaration capability in the extracted physics or numerical
-   owner that governs it. Diagnostics and evidence may measure the capability,
-   but may not become a fallback execution path or restore monolithic control.
+1. Extend the existing runner to execute and persist named frozen cases and
+   their complete windows. Resolve sparse-only handoff and completion-contract
+   differences in that owner. Validate exact requests and references before
+   expensive execution; persist each attempt so unaffected work can resume.
+2. Execute massless LCDM first through the ordinary route without numerical
+   overrides. Require quantitative TT/TE/EE raw/public parity, acoustic
+   locations/amplitudes, TE signs/zeros, damping, numerical acceptance, and
+   request-subset consistency. Repair first divergences in their owner.
+3. Execute fixed Planck2018ref next, with its actual massive-neutrino contract
+   and matched physical histories. Keep the two models' curves and identities
+   distinct. Extend to the massive-neutrino and dark-energy response points,
+   amplitude response, zero/nonzero mass continuity, and common limits.
+4. Compare every applicable declared surface, including PP/TP/EP, BB, lensing,
+   sector totals, and lensed products. Retain physical zeros with reasons,
+   cross signs, covariance bounds, and exact C/D conventions. A successful
+   TT/TE/EE row does not certify other declared products.
+5. Feed each accepted execution's arrays into real graph, likelihood/export,
+   and repeat-cache assertions without separate cold solves per assertion.
+   Keep independent observations for plumbing, and persist actual artifacts
+   beyond producer exit and ordinary temporary-directory cleanup.
 
-**Focused tests:** model validator/coder/adapter tests, declared-contract and
-source-graph tests, scalar/vector/tensor runtime cases, and actual bundled and
-novel-declaration matrix execution with full declared-surface accounting.
+**Focused owners:** `tests.project.lib.scientific_acceptance`,
+`test_camb_reference`, `test_ccmbs_production_graph`, CMB diagnostics tests,
+public CMB tests, and direct regressions for every repaired owner.
 
-**Closure:** every valid required declaration executes its complete requested
-surfaces with accepted internal evidence. The corpus contains no unresolved
-engine-capability defect, unclassified outcome, or fabricated physical zero.
-Finite representative coverage supports the completion claim; automatic
-numerical enforcement remains mandatory for future declarations and points.
+**Closure:** all twelve comparable physical points have actual accepted
+matched comparisons for their required surfaces/windows. LCDM and Planck
+have durable quantitative ordinary-route graphs. Independent numerical axes,
+physical matching, raw products, and reload verification pass. Commands,
+mocked reports, and accepted CAMB-versus-CAMB rows cannot close this slice.
 
-## Slice Seven — close sampler and application integration
+## Slice Eight - demonstrate universal declarations and active sectors
 
-**Status:** pending. **Entry:** accepted model and numerical matrix.
+**Status:** pending. **Entry:** comparable physical acceptance passes.
 
-**Owners:** CMB public API/cache/error boundaries, `sampler_mcmc.py`,
-likelihood composition, model comparison, plot/export paths, GUI/CLI, and
-related tests.
+**Owners:** validator/compiler/adapter, generic background/hierarchy/source
+and projection owners, corpus diagnostics, and existing declaration fixtures.
 
 **Work:**
 
-1. Remove unconditional `joint_mcmc` convergence deferral. A proposal obtains
-   its required numerical acceptance or reuses a certificate matching its
-   complete physical point, declaration, request, resolved plan, and execution
-   identity. Validate actual scalar/full-spectrum and proposal-route agreement.
-2. Preserve timeout/cancellation as incomplete execution with evidence, never
-   numerical failure disguised as an ordinary `-inf` posterior. Distinguish
-   genuine prior/physical rejection from engine inability to compute. Prevent
-   incomplete chains or stale results being exported as successful inference.
-3. Test exact, partial, and cross-request reuse without duplicate evolution
-   or cross-parameter certification. Share only products whose dependencies
-   match; preserve result ordering and failure context in batch execution.
-4. Verify independent BAO drag-ruler evaluation with the CMB entrypoint
-   unavailable, and correct SNe/BAO results when CMB fails. CMB failure must
-   remain visible in the combined result and in both GUI and CLI displays.
-5. Drive likelihood, comparison, graph, export, and manifest assembly from
-   the accepted canonical products. Retain real model identities and raw/public
-   conventions. Test the free LCDM and fixed Planck2018ref execution paths;
-   do not invent a sampled chain for a model with no free parameters.
-6. Reuse forward products or numerical certificates only through the complete
-   identity rules established in Slice Three. Application consumers may read
-   diagnostics and evidence but must not change solver outcomes.
+1. Execute the five non-CAMB bundled theories using their own equations and
+   named invariants. Reuse comparable accepted products only under complete
+   current dependency identity. Every required bundled row remains present.
+2. Execute the six auxiliary cases: unrelated names, changed recombination
+   and opacity, extra physical state/interaction, and nonzero vector, tensor,
+   and lensing. Verify conservation, initial/boundary conditions, independent
+   analytic/manufactured limits, physical support, and refined output.
+3. Repair valid grammar/compiler/runtime gaps generically. Do not supply
+   missing model mathematics, compare a novel theory with borrowed LCDM
+   spectra, manufacture a zero, or classify unfamiliar valid physics as
+   unavailable. Keep malformed/singular mathematics negative tests separate.
+4. Verify declaration/parameter dependency separation, changed rates and
+   distributions, nonstandard clocks, gauge/source/kernel routing, scalar
+   versus batch ordering, failure isolation, and cross-theory cache identity.
+5. Preserve all applicable raw/public/sector/lensed surfaces and numerical
+   axes. Document the demonstrated grammar and tested domain honestly:
+   representative coverage supports a general engine, not a theorem that
+   arbitrary mathematical systems are well posed or numerically tractable.
 
-**Focused tests:** sampler timeout/incomplete and proposal-path tests, CMB
-public/cache tests, independent BAO and combined-likelihood tests, model
-comparison, plotting/export, manifest, and GUI/CLI failure tests. Use a small
-real proposal sequence plus bounded fixtures for broad dispatch coverage;
-a long posterior run is not required.
+**Focused owners:** model validator/coder/adapter and perturbation-contract
+modules, runtime source/sector/projection tests, contract audits, diagnostics,
+and the existing completion matrix execution/readback paths.
 
-**Closure:** inference cannot bypass the engine's numerical contract; accepted
-proposal values agree with the corresponding forward calculation. Failures
-remain typed and cannot bias a completed posterior through silent numerical
-rejection. Both model roles and all application consumers use accepted data.
+**Closure:** all 23 required physical/auxiliary cases have complete accepted
+current evidence, with meaningful nonzero sector execution and no unresolved
+engine capability defect. New complete declarations retain automatic
+numerical enforcement; successful renaming alone is insufficient.
 
-## Slice Eight — consolidate durable evidence and execution cost
+## Slice Nine - close application integration and final readiness
 
-**Status:** pending. **Entry:** all required physics and integration rows pass.
+**Status:** pending. **Entry:** accepted forward physics and universal cases.
 
-**Owners:** existing evidence writers/readers, test output lifecycle, runtime
-work accounting and measured bottlenecks, relevant docs and exact mirrors.
+**Owners:** CMB API/likelihood/cache boundaries, both samplers, dataset parser
+and registry, shared executor/pipeline, GUI/CLI, outputs, evidence, and docs.
 
 **Work:**
 
-1. Consolidate the accepted rows into one final manifest linked to the
-   current source/reference/declaration identities. Verify every required
-   matrix entry and retained graph, array, history, grid, and refinement
-   product after producer exit and normal test cleanup. Reject tampering,
-   missing payloads, stale inputs, and disconnected hashes.
-2. Benchmark accepted ordinary cold, warm, exact-repeat, partial-cache, and
-   nearby-parameter requests. Record per-test and per-phase timing, memory
-   where material, actual evolution/projection work, and cache hits/misses.
-   Explain every repeated cold calculation required by independent acceptance.
-   Prove complete identity for every reused product and retain at least one
-   fresh cold execution for each required acceptance path.
-3. Remove demonstrated duplicate work and resolve bottlenecks that make the
-   bounded acceptance or final short comparison impractical. Optimize owning
-   kernels/schedules/caches without changing physics or acceptance. Rerun the
-   affected numerical comparisons after performance changes. Do not reduce
-   resolution, budgets, products, physical coverage, or failure assertions to
-   improve test cost.
-4. Ensure ordinary discovery remains bounded and preserves meaningful real
-   coverage. Retain an explicit reproducible command for any less-frequent
-   acceptance case and its current accepted artifact; do not replace it with
-   an unexecuted handoff. Report measured cost against the development budget.
-5. Reconcile code comments/docstrings, test claims, configuration prose,
-   public docs, and managed mirrors with the demonstrated behavior. Remove
-   stale parity, durability, automatic-device-selection, or old slice-closure
-   claims. Follow canonical doc ownership and keep package docs package-facing.
-6. Review code, tests, docs, config, managed assets/mirrors, consistency,
-   performance, and architecture against this plan. Verify that the Slice
-   Three boundaries still hold; repair remaining completion defects without
-   starting unrelated architecture work.
+1. Remove unconditional `joint_mcmc` convergence deferral. Every proposal
+   obtains numerical acceptance or reuses a certificate for its exact
+   dependency identity. Verify real forward/proposal and scalar/batch
+   equivalence on a small sequence; no long chain is needed for this proof.
+2. Preserve domain rejection versus engine/numerical failure and incomplete
+   cancellation/timeout. Verify worker and serial paths, partial outputs,
+   manifest state, and exported success cannot turn inability to compute into
+   an ordinary rejected posterior or a successful incomplete inference.
+3. Make Planck spectrum rows, full covariance/cross blocks, likelihood
+   selection, diagnostics, graphs, and CSVs agree. Preserve table ordering and
+   repeated/noncontiguous ell semantics. Test with small independent data and
+   separate real parser/hash checks; do not alter observational tables.
+4. Preserve independent SNe intercept treatment and BAO drag-ruler evaluation
+   with CMB unavailable. Keep component failure visible and test both sampler
+   backends through the actual shared pipeline. Reuse accepted physical
+   products for broad output tests with explicit tested identities.
+5. Verify fixed Planck evaluation versus free LCDM sampling, priors/transforms,
+   model role labels, progress, GUI worker dispatch, summary/NetCDF/CSV/plot
+   products, and lifecycle outcomes. Do not describe fixed traces as sampled
+   evidence or assume a validation filename implies the selected model.
+6. Complete dependency-aware product invalidation and durable readback tests.
+   Assemble one final current manifest; rerun affected physical acceptance
+   after implementation changes, while retaining verified unaffected work.
+   Reopen every raw graph/history/refinement after producer exit and cleanup.
+7. Measure full ordinary discovery, affected exact acceptance, nearby proposal
+   work, memory, and cold/warm reuse against the cost contract. Resolve
+   remaining bottlenecks without reducing accuracy, products, or coverage.
+8. Audit code, docs, comments/docstrings, tests, config, managed assets,
+   mirrors, consistency, performance, and architecture against this roadmap.
+   Reconcile stale numerical recipes, historical slice claims, reference
+   descriptions, and documentation audiences through their owning sources.
+   Record the human's successful full workflow and required gate evidence.
 
-**Focused tests:** persistence/reload/tamper and cleanup regressions,
-performance/cache tests, all affected numerical rows, and doc/mirror checks.
-Record the human's complete successful `devcovenant run` and required gate
-results against the final accepted implementation.
+**Focused owners:** sampler/public CMB tests, SNe/BAO/isolation tests, real
+pipeline/executor/worker tests, dataset parsing, comparison/plot/export tests,
+persistence/tamper tests, and all numerical cases invalidated by repairs.
 
-**Closure:** a durable, current accepted manifest proves the entire matrix,
-with no unowned requirement or unexplained execution regression. Reuse is
-identity-safe, required cold work remains demonstrated, and the Slice Three
-boundaries remain intact. Required checks are green; these checks accompany,
-rather than replace, engine evidence.
+**Closure:** inference and application consumers share the accepted numerical
+contract, correct datasets and model roles, explicit failures, coherent
+outputs, practical cost, and durable current evidence. The complete audit
+finds no unresolved requirement; green workflow checks accompany that result
+and do not substitute for it.
 
-## Slice Nine — prepare the 5/10 Copernican demonstration
+## Slice Ten - prepare the ordinary LCDM/Planck 5/10 demonstration
 
-**Status:** pending. **Entry:** Slice Eight's accepted final evidence.
+**Status:** pending. **Entry:** final engine/application readiness accepted.
 
-**Owners:** existing run-manifest/configuration and application launch paths,
-comparison validation, operator documentation, and bounded integration tests.
+**Owners:** existing manifests/configuration, comparison validation, launcher,
+validation documentation, bounded application tests, and final evidence.
 
 **Work:**
 
-1. Prepare a reproducible ordinary Copernican configuration comparing
-   `model_lcdm.yml` with `model_ref_planck2018.yml`, using CCMBS and the
-   human's configured observational inputs. Resolve dataset identities,
-   parser hashes, model roles, seed, supported walker/resource settings,
-   output location, and **5 burn-in / 10 production steps**. Do not invent
-   dataset choices if the repository and human configuration do not supply
-   them; obtain that missing selection before declaring the handoff complete.
-2. Preserve the fixed Planck2018ref parameter semantics. The 5/10 sampler
-   settings govern the free-model sampling path; the fixed reference follows
-   its normal evaluation path. Validate this distinction in the final summary.
-3. Validate the configuration, model/dataset loading, parser integrity,
-   application dispatch, and output contract through existing supported
-   interfaces without launching the human's observational comparison. Any
-   preflight must be proven not to start that solve. Bounded integration tests
-   use identity-matched accepted products and controlled observations.
-4. Record the exact tested launch command and equivalent GUI selections,
-   prerequisites, configuration path, expected output directory, and runtime
-   estimate based on measured accepted forward/proposal work. Include all
-   walker/proposal evaluations in the estimate; 15 steps do not mean 15
-   forward solves. Do not invent a CLI flag or label a dry run as execution.
-5. Define what the human should see: both labelled theory curves, complete
-   requested CMB products, coherent SNe/BAO/CMB summaries where enabled,
-   exported canonical arrays, manifest and numerical provenance, and a
-   correctly classified complete/incomplete run. A missing curve, stale
-   result, hidden convergence failure, or unexplained spiky output is failure.
-6. Record engine acceptance and the demonstration's not-yet-run status
-   separately. The handoff does not require a long scientific production run
-   or a converged posterior from ten samples. Do not launch the demonstration
-   until the human explicitly instructs it.
+1. Prepare a concrete supported configuration for `model_lcdm.yml` control and
+   `model_ref_planck2018.yml` fixed test, CCMBS, seed, dataset identities and
+   hashes, worker/walker settings, output location, and 5 burn-in/10 production
+   steps. Use the human's actual configured observational choices; obtain
+   missing choices rather than inventing them or silently using TORG.
+2. Preserve fixed reference semantics. The free model samples; the reference
+   follows its ordinary fixed evaluation path. Include initialization and all
+   walker/proposal evaluations when estimating runtime; 15 iterations do not
+   mean 15 forward solves. Base estimates on measured accepted work.
+3. Validate configuration, model/data loading, parser trust, dispatch, and
+   output contracts without starting the human's observational comparison.
+   Prove that the preflight cannot start that solve. Existing bounded
+   integration tests may consume accepted products and controlled data.
+4. Record the exact verified CLI launch command, equivalent GUI selections,
+   configuration path, prerequisites, expected output paths, and measured
+   runtime estimate. Do not invent a dry-run flag or call preflight execution.
+5. State expected observations: two correctly labelled theory curves, complete
+   requested spectra, coherent SNe/BAO/CMB summaries, exported canonical
+   arrays, numerical/source provenance, and honest complete/incomplete state.
+   Define missing curves, stale results, unreported failures, or unexplained
+   spikes as failures for follow-up, not a completed demonstration.
+6. Hand off the already accepted engine separately from the unexecuted
+   demonstration. Launch it only when the human explicitly instructs it.
+   Longer inference/scientific campaigns and subsequent polish remain human
+   work; no unresolved bounded engine acceptance is deferred to those runs.
 
-**Focused tests:** manifest/config validation, fixed/free model dispatch,
-bounded end-to-end comparison/output tests, and exact documented launch-path
-validation. If application code changes, rerun its affected numerical and
-integration tests and obtain fresh required workflow confirmation.
-
-**Closure:** the engine evidence remains accepted and current, the final
-configuration and launch procedure are concrete and validated, and the only
-remaining action is the human's explicit launch of the short demonstration.
-No unresolved engine requirement may be relabelled as a production-run input.
+**Closure:** the final accepted evidence remains current; configuration and
+launch instructions are concrete and validated; the only pending action is
+the human's explicit launch of the short observational demonstration.
 
 ## Final completion checklist
 
-CCMBS is complete under this plan only when all of these are demonstrated:
+CCMBS and the application handoff are complete under this roadmap only when:
 
-* every required comparable point and surface has accepted actual independent
-  parity and quantitative shape evidence through the ordinary engine;
-* every required bundled and novel declaration has complete, theory-faithful
-  accepted output, including the tested nonzero sector and lensing paths;
-* every applicable numerical axis is enforced with meaningful measured errors
-  or validated bounds, and adversarial failures are detected;
-* physics, numerical execution, diagnostics, and evidence have maintained
-  one-way ownership boundaries, direct tests, and a normal public route that
-  composes them without a replacement monolith;
-* production, sampler, batch, cache, graph, and export paths share the accepted
-  numerical contract, with correct independent BAO and typed failure behavior;
-* graphs and raw/refined products are retained, reloadable, hash-verified, and
-  tied to the source and reference identities that produced them;
-* runtime evidence accounts for required work, demonstrates identity-safe
-  reuse, retains required cold work, and avoids accuracy reductions or
-  arbitrary wall-clock acceptance;
-* docs, tests, configuration, and mirrored assets agree with the
-  implementation;
-* all focused acceptance and required full-suite/gate checks have passed,
-  with no outstanding defect hidden by a closed slice or deferred command; and
-* the validated LCDM/Planck2018ref 5/10 configuration and exact launch handoff
-  are ready for the human, with its unexecuted status stated honestly.
+* independent inexpensive tests catch the demonstrated physics and
+  application defects, and ordinary discovery remains meaningfully physical;
+* every comparable point has actual matched raw/public CAMB parity and
+  quantitative wave/damping evidence through the ordinary engine;
+* every bundled/auxiliary declaration and nonzero required sector has
+  complete theory-faithful accepted output, without hidden substitutions;
+* automatic engine planning meets the combined observable numerical budget
+  with measured refinement or validated bounds over its declared domain;
+* execution and the development suite meet their measured cost targets,
+  identity-safe reuse preserves necessary cold proof, and no costly job is
+  repeated merely to test another consumer of identical products;
+* samplers, likelihoods, GUI/CLI, manifests, and all result consumers share
+  accepted numerical products and correct complete/incomplete semantics;
+* retained source/reference identities, raw/refined payloads, graphs, and
+  decisions survive process exit and cleanup and reject tampering/staleness;
+* the complete repository review, documentation/mirror reconciliation,
+  focused acceptance, human full workflow, and required gates are successful;
+* the ordinary LCDM/Planck2018ref 5/10 configuration and exact launch handoff
+  are ready, with the demonstration honestly recorded as not yet run.
 
-Only after this checklist is satisfied may the final handoff say:
-
-> CCMBS implementation and bounded engine acceptance are complete. Now we have
-> to run Copernican with 5 burn-in steps and 10 production steps on LCDM versus
-> Planck2018ref, so we can inspect what we built together. That comparison is
-> ready for the human to launch; it has not been run as part of this plan.
+The final report may then state that CCMBS implementation and bounded engine
+acceptance are complete and that the short LCDM/Planck2018ref observational
+comparison is ready for the human to launch. It must not claim a converged
+posterior from ten production steps, universal proof for all mathematics, or
+execution of a demonstration that has not run.

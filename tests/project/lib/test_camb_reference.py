@@ -3,6 +3,7 @@
 import unittest
 from copy import deepcopy
 from pathlib import Path
+from unittest import mock
 
 import numpy
 
@@ -12,6 +13,23 @@ from tests.project.lib import camb_reference
 
 class CambReferenceModuleTestCase(unittest.TestCase):
     """Exercise the independent CAMB reference helper surface."""
+
+    def _assert_rebuilt_spectrum_matches(self, actual, expected):
+        """Compare compiled CAMB outputs with a strict numerical envelope.
+
+        Different Fortran builds need not reproduce floating-point bytes.
+        Retain one-part-per-million relative agreement and a smaller
+        peak-scaled absolute floor for cross spectra near zero. These
+        bounds are separate from the CCMBS scientific parity tolerances.
+        """
+
+        expected = numpy.asarray(expected, dtype=float)
+        numpy.testing.assert_allclose(
+            actual,
+            expected,
+            rtol=1.0e-6,
+            atol=1.0e-8 * float(numpy.max(numpy.abs(expected))),
+        )
 
     def test_describe_camb_configuration_reports_expected_defaults(self):
         """The reference helper should report its default CAMB settings."""
@@ -223,19 +241,66 @@ class CambReferenceModuleTestCase(unittest.TestCase):
             )
 
     def test_full_builder_matches_frozen_fixture(self):
-        """The frozen arrays are reproducible from the pinned CAMB contract."""
+        """Frozen metadata and numerical spectra reproduce across builds."""
 
         frozen = camb_reference.load_lcdm_full_reference_fixture()
         rebuilt = camb_reference.build_lcdm_full_reference_fixture()
-        self.assertEqual(rebuilt["fixture_sha256"], frozen["fixture_sha256"])
+        metadata = {
+            key: value
+            for key, value in rebuilt.items()
+            if key not in {"spectra", "fixture_sha256"}
+        }
+        self.assertEqual(
+            camb_reference._reference_jsonable(metadata),
+            {
+                key: value
+                for key, value in frozen.items()
+                if key not in {"spectra", "fixture_sha256"}
+            },
+        )
+        self.assertEqual(
+            rebuilt["fixture_sha256"],
+            camb_reference.reference_fixture_sha256(
+                {
+                    key: value
+                    for key, value in rebuilt.items()
+                    if key != "fixture_sha256"
+                }
+            ),
+        )
         for name in camb_reference.FIXED_LCDM_FULL_REFERENCE_SPECTRA:
             for representation in ("C_ell", "D_ell"):
-                numpy.testing.assert_allclose(
-                    rebuilt["spectra"][name][representation],
-                    frozen["spectra"][name][representation],
-                    rtol=1.0e-12,
-                    atol=1.0e-30,
-                )
+                with self.subTest(name=name, representation=representation):
+                    self._assert_rebuilt_spectrum_matches(
+                        rebuilt["spectra"][name][representation],
+                        frozen["spectra"][name][representation],
+                    )
+
+    def test_full_fixture_rejects_content_with_a_stale_digest(self):
+        """Numerical rebuild tolerance must not weaken stored integrity."""
+
+        fixture_path = camb_reference.FULL_LCDM_REFERENCE_FIXTURE_PATH
+        content = fixture_path.read_text(encoding="utf-8")
+        corrupted = content.replace('"LambdaCDM"', '"ChangedModel"', 1)
+        self.assertNotEqual(corrupted, content)
+        with mock.patch.object(Path, "read_text", return_value=corrupted):
+            with self.assertRaisesRegex(ValueError, "digest mismatch"):
+                camb_reference.load_lcdm_full_reference_fixture()
+
+    def test_rebuild_comparison_rejects_spectrum_drift_and_nonzero_bb(self):
+        """The platform envelope still catches physical spectrum changes."""
+
+        for expected in (
+            numpy.asarray((1000.0, 250.0, 50.0)),
+            numpy.asarray((1.0e-6, -1.0e-10, 1.0e-9)),
+            numpy.zeros(3),
+        ):
+            with self.subTest(expected=expected):
+                drifted = expected.copy()
+                scale = float(numpy.max(numpy.abs(expected)))
+                drifted[0] += 1.0e-3 * scale if scale else 1.0e-30
+                with self.assertRaises(AssertionError):
+                    self._assert_rebuilt_spectrum_matches(drifted, expected)
 
     def test_direct_helper_supports_every_frozen_observable(self):
         """The direct reference API exposes the complete scalar surface."""
@@ -250,16 +315,11 @@ class CambReferenceModuleTestCase(unittest.TestCase):
         self.assertEqual(
             set(actual), set(camb_reference.FIXED_LCDM_FULL_REFERENCE_SPECTRA)
         )
-        metrics = camb_reference.compare_lcdm_reference_spectra(
-            actual,
-            fixture["spectra"],
-        )
-        self.assertTrue(
-            all(
-                metric["max_fractional"] < 1.0e-12
-                for metric in metrics.values()
-            )
-        )
+        for name in camb_reference.FIXED_LCDM_FULL_REFERENCE_SPECTRA:
+            with self.subTest(name=name):
+                self._assert_rebuilt_spectrum_matches(
+                    actual[name], fixture["spectra"][name]["D_ell"]
+                )
 
     def test_full_comparator_requires_aligned_finite_arrays(self):
         """Comparison reports enforce shape and finite aligned arrays."""

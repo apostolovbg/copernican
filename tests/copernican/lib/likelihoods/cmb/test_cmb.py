@@ -9298,6 +9298,34 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             any("vector" in name for name in scalar_manifest["source_names"])
         )
 
+    def test_declared_vector_spectra_remain_stable_under_phase_refinement(
+        self,
+    ) -> None:
+        """Thomson stiffness must not create finite but explosive spectra."""
+
+        spectra = []
+        for phase_step in (0.5, 0.25):
+            contract = _speedup_contract(_declared_vector_hierarchy_contract())
+            phase_controls = {"evolution_phase_step": phase_step}
+            contract["numerical"].update(phase_controls)
+            contract["perturbations"]["numerics"].update(phase_controls)
+            spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
+                _prepare_declared_contract(contract),
+                numpy.asarray((20, 60, 120), dtype=int),
+                requested_spectra=("TT", "EE", "BB"),
+            )
+            spectra.append(spectrum_data.spectra)
+
+        for name in ("TT", "EE", "BB"):
+            with self.subTest(spectrum=name):
+                metric = convergence.evaluate_control_refinement(
+                    spectra[0][name],
+                    spectra[1][name],
+                    name=f"vector {name} collision/streaming phase",
+                    tolerance=0.005,
+                )
+                convergence.require_convergence(metric)
+
     def test_declared_vector_hierarchy_transfer_payloads_are_finite(
         self,
     ) -> None:

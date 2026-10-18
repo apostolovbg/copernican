@@ -3769,8 +3769,7 @@ def _materialize_declared_vector_hierarchy_contract(
             },
             "rhs": (
                 "-(8.0 / 27.0) * acoustic_k * b_gamma_v3 - "
-                "(1.0 / 3.0) * acoustic_k * e_gamma_v2 - "
-                "collision_rate * b_gamma_v2"
+                "(1.0 / 3.0) * acoustic_k * e_gamma_v2"
             ),
             "role": "vector_polarization_b",
         },
@@ -3807,7 +3806,6 @@ def _materialize_declared_vector_hierarchy_contract(
                     else _vector_temperature_name(moment - 1)
                 ),
                 next_name=next_name,
-                collision_term=f"- collision_rate * {name}",
             ),
             "role": "vector_hierarchy",
         }
@@ -3833,7 +3831,6 @@ def _materialize_declared_vector_hierarchy_contract(
                 next_name=e_next_name,
                 opposite_name=b_name,
                 sign=1,
-                collision_term=f"- collision_rate * {e_name}",
             ),
             "role": "vector_polarization",
         }
@@ -3851,7 +3848,6 @@ def _materialize_declared_vector_hierarchy_contract(
                 next_name=b_next_name,
                 opposite_name=e_name,
                 sign=-1,
-                collision_term=f"- collision_rate * {b_name}",
             ),
             "role": "vector_polarization_b",
         }
@@ -3891,10 +3887,10 @@ def _materialize_declared_vector_hierarchy_contract(
             "collision_rate * ((4.0 / 3.0) * v_b_vector - q_gamma_vector)"
         ),
         "counterpart": "baryon_vector_thomson_drag",
-        "integration_strategy": "implicit",
-        "activation_strategy": "tight_coupling",
+        "integration_strategy": "exact",
+        "activation_strategy": "always",
         "rate_expression": "collision_rate",
-        "linear_block": {
+        "exact_form": {
             "targets": [
                 {"variable": "q_gamma_vector"},
                 {"variable": "v_b_vector"},
@@ -3906,7 +3902,7 @@ def _materialize_declared_vector_hierarchy_contract(
                     "-(4.0 / 3.0) * vector_photon_baryon_loading",
                 ],
             ],
-            "activation_strategy": "tight_coupling",
+            "activation_strategy": "always",
         },
     }
     collision_operator_entries["vector_quadrupole_collision"] = {
@@ -3916,6 +3912,39 @@ def _materialize_declared_vector_hierarchy_contract(
             "collision_rate * (pi_gamma_vector - "
             "vector_polarization_moment)"
         ),
+        # The quadrupoles and higher photon moments remain stiff outside
+        # tight coupling. Integrate their complete Thomson block exactly;
+        # explicit RK streaming must not carry a second damping term.
+        "counterpart": "vector_e_quadrupole_collision",
+        "integration_strategy": "exact",
+        "activation_strategy": "always",
+        "rate_expression": "collision_rate",
+        "exact_form": {
+            "targets": [
+                {"variable": "pi_gamma_vector"},
+                {"variable": "e_gamma_v2"},
+            ],
+            "matrix": [
+                ["-0.9", "0.6"],
+                ["0.1", "-0.4"],
+            ],
+            "damping_targets": [
+                *[
+                    {"variable": _vector_temperature_name(moment)}
+                    for moment in range(3, photon_l_max + 1)
+                ],
+                *[
+                    {"variable": _vector_polarization_e_name(moment)}
+                    for moment in range(3, polarization_l_max + 1)
+                ],
+                *[
+                    {"variable": _vector_polarization_b_name(moment)}
+                    for moment in range(2, polarization_l_max + 1)
+                ],
+            ],
+            "damping_coefficient": "-1.0",
+            "activation_strategy": "always",
+        },
     }
     collision_operator_entries["vector_e_quadrupole_collision"] = {
         "sector": "vector",

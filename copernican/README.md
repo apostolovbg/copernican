@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-10-06
+**Last Updated:** 2026-10-18
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -196,6 +196,10 @@ separate metadata in plots, diagnostics, and long-form CSV output. Runtime
 payloads distinguish computed, unrequested, physically zero, and unavailable
 spectra, while cache identities bind the graph, parameters, numerical grids,
 accuracy controls, requested spectra, and multipole sequence.
+Generated vector hierarchies evolve Thomson drag and polarization with exact
+collision blocks at every epoch. Higher photon moments receive exponential
+damping in those blocks, keeping stiff collisions out of explicit streaming
+steps and preventing spurious transfer growth.
 The shared CMB χ² helper accepts an explicit solver selection for
 deterministic likelihood tests; normal application calls retain the CCMBS
 default.
@@ -298,6 +302,11 @@ CAMB fixture freezes the LCDM parameter point, multipole ordering, `D_ell`
 normalization, TT/TE/EE tolerances, and CAMB provenance. BAO isolation tests
 deliberately make the CMB entrypoint unavailable while requiring identical
 fixed-background values and covariance handling.
+Stored CAMB fixtures retain exact content-digest validation. Rebuilding the
+same fixture on another compiler or platform checks identical metadata and
+numerical spectra within `rtol=1e-6` plus `1e-8` times each reference array's
+peak magnitude. This rebuild envelope preserves exact zero spectra and leaves
+the separate CCMBS scientific parity tolerances unchanged.
 `build_final_cmb_certification_report()` extends that boundary with solver
 and dataset identities, fixture hashes, per-model raw evidence digests, and
 explicit integrity decisions. `assess_bao_cmb_isolation()` compares captured
