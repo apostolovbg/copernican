@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from unittest import mock
 
@@ -16,6 +17,14 @@ import copernican.lib.model_adapter as model_plugin_validation
 import copernican.lib.model_coder as model_coder
 import copernican.lib.model_spec_validator as model_spec_validator
 from copernican.lib.likelihoods.cmb.contracts import CMBResult
+from copernican.lib.likelihoods.cmb.errors import (
+    ContractError,
+    ConvergenceError,
+)
+from tests.project.lib.cmb_solver_fixture import (
+    SyntheticCmbSolver,
+    explicit_cmb_observations,
+)
 
 
 class _SyntheticCmbSolver:
@@ -82,6 +91,78 @@ class TestImportModule(unittest.TestCase):
 
 class LikelihoodTestCase(unittest.TestCase):
     """Validate the standalone likelihood helpers."""
+
+    def test_explicit_cmb_rows_keep_cross_covariance_and_requested_surfaces(
+        self,
+    ):
+        """An independent quadratic form detects row/cross-spectrum loss."""
+
+        observations = explicit_cmb_observations()
+        solver = SyntheticCmbSolver(
+            spectrum_offsets={"TE": -1205, "EE": -1190}
+        )
+        likelihood = likelihoods.CMBLike(
+            observations, self.plugin, cmb_solver=solver
+        )
+        self.assertAlmostEqual(
+            likelihood.loglike(self.plugin.INITIAL_GUESSES), -22.7
+        )
+        self.assertEqual(
+            solver.requests[-1],
+            ((30, 20, 30, 30), ("TE", "TT", "EE"), "joint_mcmc"),
+        )
+        permutation = numpy.asarray((2, 0, 3, 1))
+        reordered = observations.iloc[permutation].copy()
+        covariance = observations.attrs["covariance_matrix_inv"]
+        reordered.attrs["covariance_matrix_inv"] = covariance[
+            numpy.ix_(permutation, permutation)
+        ]
+        permuted_like = likelihoods.CMBLike(
+            reordered, self.plugin, cmb_solver=solver
+        )
+        self.assertAlmostEqual(
+            permuted_like.loglike(self.plugin.INITIAL_GUESSES), -22.7
+        )
+        reordered.attrs["covariance_matrix_inv"] = covariance
+        wrong_rows = likelihoods.CMBLike(
+            reordered, self.plugin, cmb_solver=solver
+        )
+        self.assertNotAlmostEqual(
+            wrong_rows.loglike(self.plugin.INITIAL_GUESSES), -22.7
+        )
+
+    def test_explicit_cmb_rows_reject_missing_spectra_and_numerical_failure(
+        self,
+    ):
+        """An incomplete or uncomputed vector cannot become a likelihood."""
+
+        solver = SyntheticCmbSolver(
+            spectrum_offsets={"TE": -1205, "EE": -1190}
+        )
+        likelihood = likelihoods.CMBLike(
+            explicit_cmb_observations(), self.plugin, cmb_solver=solver
+        )
+        complete = solver.evaluate(
+            {}, (30, 20, 30, 30), spectra=("TE", "TT", "EE"), workload="test"
+        )
+        missing = replace(
+            complete,
+            spectra={
+                name: values
+                for name, values in complete.spectra.items()
+                if name != "EE"
+            },
+        )
+        with mock.patch.object(solver, "evaluate", return_value=missing):
+            with self.assertRaises(ContractError):
+                likelihood.loglike(self.plugin.INITIAL_GUESSES)
+        with mock.patch.object(
+            solver,
+            "evaluate",
+            side_effect=ConvergenceError("manufactured failure"),
+        ):
+            with self.assertRaises(ConvergenceError):
+                likelihood.loglike(self.plugin.INITIAL_GUESSES)
 
     @classmethod
     def setUpClass(cls):

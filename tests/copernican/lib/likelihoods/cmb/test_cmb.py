@@ -5185,26 +5185,37 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             }
         )
         contract = _prepare_declared_contract(contract_data)
-        eta_history, theta_gamma0_history, _ = (
-            _capture_visible_scalar_monopole_history(contract)
-        )
+        integration_times = set()
+        compile_equations = cmb_execution._compile_equation_program
+
+        def observe_equations(*args, **kwargs):
+            program = compile_equations(*args, **kwargs)
+
+            def observe(context, *values):
+                integration_times.add(float(context["eta"]))
+                return program(context, *values)
+
+            return observe
+
+        with mock.patch.object(
+            cmb_execution,
+            "_compile_equation_program",
+            side_effect=observe_equations,
+        ):
+            eta_history, theta_gamma0_history, _ = (
+                _capture_visible_scalar_monopole_history(contract)
+            )
         self.assertGreater(float(eta_history[0]), 20.0)
         self.assertTrue(numpy.isfinite(theta_gamma0_history[0]))
-        physical = cmb_background._resolve_custom_cmb_physical_parameters(
-            contract
-        )
-        neutrino_fraction = physical.Omega_nu0 / max(
-            physical.Omega_gamma0 + physical.Omega_nu0,
-            1.0e-30,
-        )
-        initial_potential = 10.0 / (15.0 + 4.0 * neutrino_fraction)
-        # The first visible sample is taken after the hidden prefix has
-        # already evolved the regular seed.  Require a material displacement
-        # while leaving the stronger early-start tracking assertion below to
-        # bound the actual history.
+        # Observe actual integration support. A minimum monopole displacement
+        # is not an adiabatic invariant and can reward integration error.
+        # The separate early-start comparison bounds the resulting history.
+        self.assertTrue(integration_times)
         self.assertGreater(
-            abs(float(theta_gamma0_history[0]) + 0.5 * initial_potential),
-            0.05,
+            sum(time < eta_history[0] for time in integration_times), 1
+        )
+        self.assertLess(
+            contract_data["numerical"]["k_min"] * min(integration_times), 0.1
         )
 
     def test_declared_scalar_adiabatic_hidden_prefix_tracks_early_start(
@@ -9085,14 +9096,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         self.assertEqual(
             perturbation_data.sources["temperature_quadrupole"].expression,
-            "0.0625 * visibility * polarization_moment",
+            "0.25 * visibility * polarization_moment",
         )
         self.assertEqual(
             perturbation_data.sources[
                 "temperature_quadrupole_derivative"
             ].expression,
-            "0.1875 * visibility_polarization_moment_tau_tau / "
-            "acoustic_k_sq",
+            "0.75 * visibility * polarization_moment",
         )
         self.assertEqual(
             perturbation_data.sources["temperature_monopole"].expression,
@@ -9100,7 +9110,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         self.assertEqual(
             perturbation_data.sources["polarization_source"].expression,
-            "0.1875 * visibility * polarization_moment",
+            "0.75 * visibility * polarization_moment",
         )
         self.assertEqual(
             perturbation_data.sources["lensing_potential"].expression,
@@ -9108,7 +9118,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         self.assertEqual(
             perturbation_data.equations["evolve_theta_gamma0"].rhs,
-            "-acoustic_k * theta_gamma1 - Phi_tau",
+            "-acoustic_k * theta_gamma1 + Phi_tau",
         )
         self.assertIn(
             "- 0.3 * acoustic_k * nu_l3",

@@ -1895,7 +1895,6 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
         theta_b = 0.4
         polarization_moment = 0.05
         tau = 0.7
-        polarization_source_tau_tau = 0.08
         sample = {
             "eta": 1.0,
             "Phi": phi,
@@ -1916,19 +1915,16 @@ class CCMBSDiagnosticTestCase(unittest.TestCase):
             "observable_theta_gamma0": theta_gamma0,
             "observable_theta_b": theta_b,
             "polarization_moment": polarization_moment,
-            "visibility_polarization_moment_tau_tau": (
-                polarization_source_tau_tau
-            ),
             "temperature_monopole": visibility * (theta_gamma0 + psi),
             "temperature_quadrupole": (
-                0.0625 * visibility * polarization_moment
+                0.25 * visibility * polarization_moment
             ),
             "temperature_quadrupole_derivative": (
-                0.1875 * polarization_source_tau_tau / acoustic_k_sq
+                0.75 * visibility * polarization_moment
             ),
             "temperature_doppler": visibility * theta_b / acoustic_k,
             "temperature_isw": numpy.exp(-tau) * (0.4 + psi_tau),
-            "polarization_source": 0.1875 * visibility * polarization_moment,
+            "polarization_source": 0.75 * visibility * polarization_moment,
         }
         audit = audit_source_history_residuals(
             {

@@ -369,7 +369,6 @@ def build_declared_mode_evolution(
             "observable_theta_gamma0",
             "observable_theta_b",
             "polarization_moment",
-            "visibility_polarization_moment_tau_tau",
             "temperature_monopole",
             "temperature_quadrupole",
             "temperature_quadrupole_derivative",
@@ -419,7 +418,6 @@ def build_declared_mode_evolution(
                 "observable_theta_gamma0",
                 "observable_theta_b",
                 "polarization_moment",
-                "visibility_polarization_moment_tau_tau",
                 "temperature_monopole",
                 "temperature_quadrupole",
                 "temperature_quadrupole_derivative",
@@ -1055,6 +1053,16 @@ def build_declared_mode_evolution(
                     continue
                 values = numpy.asarray(value, dtype=float)
                 scalar_context[name] = float(values.reshape(-1)[-1])
+            if "Hconf" not in declared_stage:
+                # H(a) has just been evaluated from the declaration. The
+                # derivative of an independently interpolated a(eta) is a
+                # different numerical approximation; mixing the two drives
+                # an artificial superhorizon Einstein-constraint mode.
+                scalar_context["Hconf"] = (
+                    float(scalar_context["a"])
+                    * float(scalar_context["H"])
+                    / _C_LIGHT_KM_S
+                )
         cached_context = (float(eta_value), scalar_context)
         scalar_background_context_cache[context_key] = cached_context
         return cached_context
@@ -1073,11 +1081,9 @@ def build_declared_mode_evolution(
             return 1.0
         if wrt_name == "a":
             # Evaluate the chain-rule rate from the same stage values that
-            # a declared equation sees.  ``Hconf`` is a linearly sampled
-            # history, while ``a`` and ``H`` are independently interpolated
-            # at Runge--Kutta stages; multiplying ``a * Hconf`` therefore
-            # introduces a mesh-dependent cross-term.  The physical
-            # relation da/deta = a^2 H/c keeps coordinate-equivalent
+            # a declared equation sees. A separately sampled ``Hconf`` can
+            # introduce a mesh-dependent cross-term when paired with ``a``.
+            # The relation da/deta = a^2 H/c keeps equivalent coordinate
             # declarations invariant at every stage.
             scale_factor = float(scalar_context["a"])
             rate = (

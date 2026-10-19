@@ -95,6 +95,32 @@ FULL_LCDM_REFERENCE_FIXTURE_PATH = (
     / "fixtures"
     / "camb_lcdm_reference.json"
 )
+LCDM_HISTORY_REFERENCE_FIXTURE_PATH = (
+    FULL_LCDM_REFERENCE_FIXTURE_PATH.with_name("camb_lcdm_histories.json")
+)
+LCDM_HISTORY_ETA_VALUES = (
+    1.0,
+    2.0,
+    5.0,
+    10.0,
+    50.0,
+    100.0,
+    200.0,
+    300.0,
+    500.0,
+    1000.0,
+)
+LCDM_HISTORY_K_VALUES = (0.0001, 0.02)
+LCDM_HISTORY_VARIABLES = (
+    "delta_baryon",
+    "delta_photon",
+    "delta_neutrino",
+    "pi_photon",
+    "E_2",
+    "E_source",
+    "a",
+    "H",
+)
 _CMB_SPECTRUM_COLUMNS = {"TT": 0, "EE": 1, "BB": 2, "TE": 3}
 _LENSING_SPECTRUM_COLUMNS = {"PP": 0, "TP": 1, "EP": 2}
 
@@ -389,7 +415,11 @@ def compute_camb_scalar_time_evolution(
     frame: str = "Newtonian",
     l_accuracy_boost: int = 4,
 ) -> dict[str, numpy.ndarray]:
-    """Return independent CAMB scalar histories on the requested eta grid."""
+    """Return independent CAMB scalar histories on the requested eta grid.
+
+    Native named density outputs retain CAMB's CDM-comoving synchronous
+    gauge. ``frame`` controls symbolic-expression transformations only.
+    """
 
     k_scalar = _coerce_numeric_scalar(k_value, name="k_value")
     if k_scalar <= 0.0:
@@ -401,7 +431,8 @@ def compute_camb_scalar_time_evolution(
     if int(l_accuracy_boost) < 1:
         raise ValueError("l_accuracy_boost must be positive")
     params = _make_camb_params(contract_or_params, lmax=32)
-    results = camb.get_results(params)
+    # Time evolution needs thermal/background data, not angular spectra.
+    results = camb.get_background(params)
     conformal_age = _coerce_numeric_scalar(
         results.conformal_time(0.0), name="CAMB conformal_age"
     )
@@ -714,6 +745,177 @@ def reference_fixture_sha256(fixture: Mapping[str, Any]) -> str:
         _reference_jsonable(fixture), sort_keys=True, separators=(",", ":")
     ).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
+
+
+def build_lcdm_history_reference_fixture() -> dict[str, Any]:
+    """Freeze compact native CAMB histories without calculating C_ell.
+
+    Named CAMB density outputs stay in the CDM-comoving synchronous gauge;
+    get_time_evolution's frame argument transforms symbolic expressions only.
+    This fixture is independent reference data, not CCMBS parity evidence.
+    """
+
+    params = _make_camb_params(FIXED_LCDM_REFERENCE_CONTRACT, lmax=32)
+    results = camb.get_background(params)
+    eta = numpy.asarray(LCDM_HISTORY_ETA_VALUES)
+    values = numpy.asarray(
+        results.get_time_evolution(
+            LCDM_HISTORY_K_VALUES,
+            eta,
+            vars=list(LCDM_HISTORY_VARIABLES),
+            lAccuracyBoost=4,
+        ),
+        dtype=float,
+    )
+    expected_shape = (
+        len(LCDM_HISTORY_K_VALUES),
+        len(eta),
+        len(LCDM_HISTORY_VARIABLES),
+    )
+    if values.shape != expected_shape or not numpy.all(numpy.isfinite(values)):
+        raise ValueError("CAMB returned invalid compact histories")
+    thermal = results.get_background_time_evolution(
+        eta, vars=["x_e", "opacity", "visibility"]
+    )
+    variables = {
+        name: {
+            "gauge": (
+                "CDM_comoving_synchronous"
+                if name.startswith("delta_")
+                else (
+                    "gauge_invariant"
+                    if name in {"pi_photon", "E_2", "E_source"}
+                    else "background"
+                )
+            ),
+            "units": (
+                "Mpc^-1" if name in {"H", "E_source"} else "dimensionless"
+            ),
+            "normalization": {
+                "delta_baryon": "delta_rho_b/rho_b",
+                "delta_photon": "4*Theta_0 (same gauge)",
+                "delta_neutrino": "delta_rho_massless_nu/rho_massless_nu",
+                "pi_photon": "CAMB brightness quadrupole = 4*Theta_gamma2",
+                "E_2": "CAMB polarization quadrupole = 4*e_gamma2",
+                "E_source": "Temperature E / (k chi)^2; no spin-2 factorial",
+                "a": "scale factor, a_today=1",
+                "H": "conformal H = a*H_physical/c",
+            }[name],
+        }
+        for name in LCDM_HISTORY_VARIABLES
+    }
+    fixture = {
+        "schema_version": 1,
+        "reference_identity": CAMB_REFERENCE_IDENTITY,
+        "contract": FIXED_LCDM_REFERENCE_CONTRACT,
+        "resolved_parameters": resolve_camb_parameters(
+            FIXED_LCDM_REFERENCE_CONTRACT
+        ),
+        "physical_inputs": {
+            "TCMB_K": float(params.TCMB),
+            "YHe": float(params.YHe),
+            "H0_km_s_Mpc": float(params.H0),
+            "omk": float(params.omk),
+            "As": float(params.InitPower.As),
+            "ns": float(params.InitPower.ns),
+            "reionization_model": type(params.Reion).__name__,
+            "optical_depth": float(params.Reion.optical_depth),
+            "delta_redshift": float(params.Reion.delta_redshift),
+            "recombination_model": type(params.Recomb).__name__,
+            "RECFAST_fudge": float(params.Recomb.RECFAST_fudge),
+        },
+        "eta_mpc": list(LCDM_HISTORY_ETA_VALUES),
+        "k_mpc_inv": list(LCDM_HISTORY_K_VALUES),
+        "eta0_mpc": float(results.conformal_time(0.0)),
+        "variables": variables,
+        "l_accuracy_boost": 4,
+        "primordial_normalization": "CAMB unit curvature; no rescaling",
+        "recombination": type(params.Recomb).__name__,
+        "reionization": type(params.Reion).__name__,
+        "thermal_units": {
+            "x_e": "electrons_per_hydrogen_nucleus",
+            "opacity": "Mpc^-1",
+            "visibility": "Mpc^-1",
+        },
+        "thermal": {
+            name: numpy.asarray(array).tolist()
+            for name, array in thermal.items()
+        },
+        "redshift": numpy.asarray(
+            results.redshift_at_conformal_time(eta)
+        ).tolist(),
+        "H_km_s_Mpc": numpy.asarray(
+            results.hubble_parameter(results.redshift_at_conformal_time(eta))
+        ).tolist(),
+        "histories": {
+            name: values[:, :, index].tolist()
+            for index, name in enumerate(LCDM_HISTORY_VARIABLES)
+        },
+        "mapping": {
+            "entropy": "delta_b - 0.75*delta_gamma (gauge invariant)",
+            "absolute_density": "Transform densities to a common gauge first.",
+            "polarization": "theta_gamma2=pi_photon/4; e_gamma2=E_2/4",
+            "polter": "CAMB polter=0.4*(theta_gamma2+6*e_gamma2)",
+        },
+        "source": "https://github.com/cmbant/CAMB/tree/1.6.0",
+    }
+    fixture["fixture_sha256"] = reference_fixture_sha256(fixture)
+    return fixture
+
+
+def write_lcdm_history_reference_fixture(
+    path: str | Path = LCDM_HISTORY_REFERENCE_FIXTURE_PATH,
+) -> Path:
+    """Explicitly regenerate the independent compact reference payload."""
+
+    destination = Path(path)
+    content = json.dumps(
+        build_lcdm_history_reference_fixture(), indent=2, sort_keys=True
+    )
+    # Keep the exact 64-character digest on its own readable JSON line.
+    content = content.replace('"fixture_sha256": ', '"fixture_sha256":\n    ')
+    destination.write_text(content + "\n", encoding="utf-8")
+    return destination
+
+
+def load_lcdm_history_reference_fixture(
+    path: str | Path = LCDM_HISTORY_REFERENCE_FIXTURE_PATH,
+) -> dict[str, Any]:
+    """Read compact histories and enforce their exact stored digest."""
+
+    fixture = json.loads(Path(path).read_text(encoding="utf-8"))
+    digest = fixture.get("fixture_sha256")
+    payload = {
+        name: value
+        for name, value in fixture.items()
+        if name != "fixture_sha256"
+    }
+    if (
+        not isinstance(digest, str)
+        or reference_fixture_sha256(payload) != digest
+    ):
+        raise ValueError("CAMB history fixture digest mismatch")
+    if fixture["reference_identity"] != CAMB_REFERENCE_IDENTITY:
+        raise ValueError("CAMB history fixture version mismatch")
+    eta = _coerce_numeric_array(fixture["eta_mpc"], name="eta_mpc")
+    k_values = _coerce_numeric_array(fixture["k_mpc_inv"], name="k_mpc_inv")
+    if (
+        fixture.get("schema_version") != 1
+        or numpy.any(eta <= 0)
+        or numpy.any(numpy.diff(eta) <= 0)
+        or numpy.any(k_values <= 0)
+        or numpy.any(numpy.diff(k_values) <= 0)
+    ):
+        raise ValueError("CAMB history fixture has an invalid schema or grid")
+    if set(fixture["histories"]) != set(LCDM_HISTORY_VARIABLES):
+        raise ValueError("CAMB history fixture variable set mismatch")
+    for name, values in fixture["histories"].items():
+        array = numpy.asarray(values, dtype=float)
+        if array.shape != (len(k_values), len(eta)) or not numpy.all(
+            numpy.isfinite(array)
+        ):
+            raise ValueError(f"CAMB history fixture has invalid {name} data")
+    return fixture
 
 
 def build_lcdm_reference_fixture(
@@ -1180,6 +1382,9 @@ def compare_lcdm_reference_spectra(
 
 
 __all__ = [
+    "build_lcdm_history_reference_fixture",
+    "load_lcdm_history_reference_fixture",
+    "write_lcdm_history_reference_fixture",
     "CAMB_REFERENCE_IDENTITY",
     "CAMB_PARITY_ELL_VALUES",
     "CAMB_PARITY_RELATIVE_TOLERANCES",

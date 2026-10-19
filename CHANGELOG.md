@@ -80,6 +80,79 @@ suffixes. Follow this template:
 ## Version 12.0.26
 
 - 2026-10-18:
+  Change: Fixed Slice Four constraint cancellation, scalar split-step
+    resolution, and angular quadrupole projection; corrected the prefix
+    evolution test's unsupported amplitude proxy in the active slice.
+  Why: Reproduced three full-workflow errors and added independent numerical
+    controls without relaxing scientific or numerical acceptance bounds.
+  Impact: Preserved the staged development checks and refreshed affected
+    regression evidence for the human's next full workflow run.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_collisions.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_cmb_output.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/test_run_executor.py
+  tests/copernican/lib/test_run_pipeline.py
+  tests/project/fixtures/camb_lcdm_histories.json
+  tests/project/lib/camb_reference.py
+  tests/project/lib/camb_reference_acceptance.py
+  tests/project/lib/cmb_solver_fixture.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-10-18:
+  Change: Added independent CCMBS development checks, compact CAMB histories,
+    and actual pipeline behavior; fixed photon and polarization sources.
+  Why: Reproduced entropy, normalization, and stage-clock inconsistencies
+    and measured focused coverage without repeated angular-reference work.
+  Impact: Preserved scientific thresholds, recorded bounded commands and
+    costs, and completed Slice Four implementation pending the human run.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_collisions.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/test_likelihoods.py
+  tests/copernican/lib/test_cmb_output.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/test_run_executor.py
+  tests/copernican/lib/test_run_pipeline.py
+  tests/project/fixtures/camb_lcdm_histories.json
+  tests/project/lib/camb_reference.py
+  tests/project/lib/camb_reference_acceptance.py
+  tests/project/lib/cmb_solver_fixture.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-10-18:
   Change: Fixed generated vector Thomson evolution and corrected CAMB
     reference rebuild checks across compiler and platform differences.
   Why: Removed unresolved stiff photon damping from explicit streaming and

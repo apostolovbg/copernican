@@ -7,9 +7,13 @@ from pathlib import Path
 from unittest import mock
 
 import numpy
+from scipy.linalg import expm
 
 from copernican.lib.likelihoods.cmb.runtime import background, cache, evolution
 from copernican.lib.perturbation_contract import compile_perturbation_contract
+from tests.copernican.lib.test_perturbation_contract import (
+    _scalar_metadata_only_contract,
+)
 
 
 def _compiled_graph_fixture():
@@ -114,6 +118,131 @@ def _compiled_graph_fixture():
 
 class EvolutionModuleTestCase(unittest.TestCase):
     """Exercise declared evolution helpers directly."""
+
+    def test_split_collisions_refine_against_the_coupled_solution(self):
+        """Exact damping alone cannot certify a split oscillator's accuracy."""
+
+        streaming = numpy.asarray(((0.0, -1.0), (1.0, 0.0)))
+        collision = numpy.diag((0.0, -1.0))
+        initial = numpy.asarray(((1.0, 0.0),))
+        expected = expm(4 * (streaming + collision)) @ initial[0]
+        errors = []
+        for count in (9, 41, 81):
+
+            def rhs(states, **kwargs):
+                return states @ streaming.T
+
+            def damp(states, *, dt, **kwargs):
+                return states * numpy.exp(numpy.diag(collision) * dt)
+
+            _, final, _ = evolution._integrate_batched_rk4(
+                initial,
+                numpy.linspace(0, 4, count),
+                required_substeps=1,
+                active_intervals=numpy.zeros((1, count - 1), dtype=bool),
+                rhs=rhs,
+                pre_step=damp,
+                post_step=damp,
+            )
+            errors.append(float(numpy.max(numpy.abs(final[0] - expected))))
+        self.assertGreater(errors[0], 1e-3)
+        self.assertLess(errors[1], 5e-4)
+        self.assertGreater(errors[1] / errors[2], 3.5)
+
+    def test_manufactured_entropy_evolution_detects_a_wrong_metric_sign(self):
+        """Integrated continuity must match a prescribed changing metric.
+
+        Set Phi=eta^2/10, Theta_1=sin(eta), k=0.2 and theta_b=3kTheta_1.
+        Independently integrating continuity gives Theta_0=Phi+k cos(eta)
+        and delta_b=3Theta_0+0.7. A flipped metric drive breaks both.
+        """
+
+        compiled = compile_perturbation_contract(
+            _scalar_metadata_only_contract(),
+            model_name="ManufacturedEntropy",
+            parameter_names=("H0",),
+            latex_names=("H_0",),
+            background_reference_names=("H0",),
+        )
+        eta = numpy.linspace(0.0, 2.0, 65)
+        expected_photon = eta**2 / 10 + 0.2 * numpy.cos(eta)
+        expected = numpy.stack(
+            (expected_photon, 3 * expected_photon + 0.7), axis=-1
+        )
+        for metric_sign in (1, -1):
+
+            def rhs(states, *, step_index, blend, active):
+                time = eta[step_index] + blend * (
+                    eta[step_index + 1] - eta[step_index]
+                )
+                context = {
+                    "acoustic_k": 0.2,
+                    "theta_gamma1": numpy.sin(time),
+                    "theta_b": 0.6 * numpy.sin(time),
+                    "Phi_tau": time / 5,
+                }
+                photon = evolution._evaluate_compiled_expression_noerr(
+                    compiled.equations["evolve_theta_gamma0"].compiled_rhs,
+                    context,
+                )
+                baryon = evolution._evaluate_compiled_expression_noerr(
+                    compiled.equations["evolve_delta_b"].compiled_rhs, context
+                )
+                if metric_sign < 0:
+                    photon -= 2 * context["Phi_tau"]
+                return numpy.broadcast_to((photon, baryon), states.shape)
+
+            histories, _, stats = evolution._integrate_batched_rk4(
+                expected[:1],
+                eta,
+                required_substeps=1,
+                active_intervals=numpy.zeros((1, eta.size - 1), dtype=bool),
+                rhs=rhs,
+            )
+            error = float(numpy.max(numpy.abs(histories[0] - expected)))
+            if metric_sign > 0:
+                self.assertLess(error, 1.0e-8)
+                numpy.testing.assert_allclose(
+                    histories[0, :, 1] - 3 * histories[0, :, 0],
+                    0.7,
+                    rtol=0.0,
+                    atol=1.0e-12,
+                )
+            else:
+                self.assertGreater(error, 0.5)
+            self.assertEqual(stats.rk_stage_count, 4 * (eta.size - 1))
+
+    def test_acoustic_oscillator_refines_against_an_independent_solution(self):
+        """Actual RK evolution must converge without a phase/amplitude fit."""
+
+        frequencies = numpy.asarray((0.5, 1.5))[:, numpy.newaxis]
+        errors = []
+        for count in (33, 65):
+            eta = numpy.linspace(0.0, 4.0, count)
+
+            def rhs(states, **kwargs):
+                return frequencies * numpy.stack(
+                    (states[:, 1], -states[:, 0]), axis=-1
+                )
+
+            histories, _, _ = evolution._integrate_batched_rk4(
+                numpy.asarray(((1.0, 0.0), (1.0, 0.0))),
+                eta,
+                required_substeps=1,
+                active_intervals=numpy.zeros((2, count - 1), dtype=bool),
+                rhs=rhs,
+            )
+            phase = frequencies * eta[numpy.newaxis, :]
+            expected = numpy.stack(
+                (numpy.cos(phase), -numpy.sin(phase)), axis=-1
+            )
+            errors.append(float(numpy.max(numpy.abs(histories - expected))))
+        self.assertLess(errors[-1], 5.0e-6)
+        self.assertGreater(errors[0] / errors[1], 12.0)
+        for corrupted in (-histories, numpy.roll(histories, 4, axis=1)):
+            self.assertGreater(
+                float(numpy.max(numpy.abs(corrupted - expected))), 0.1
+            )
 
     def test_context_name_rewriter_maps_runtime_names(self):
         """The generated context program must rewrite declared names."""

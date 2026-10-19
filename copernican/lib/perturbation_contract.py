@@ -1504,8 +1504,10 @@ def _materialize_declared_scalar_hierarchy_contract(
     # ``theta_gamma1`` is the temperature dipole.  Its streaming coefficient
     # is k (the photon velocity divergence is the separately derived
     # ``3*k*theta_gamma1``), while the Newtonian-gauge continuity equation
-    # carries the negative curvature-potential derivative.
-    photon_monopole_rhs = "-acoustic_k * theta_gamma1 - Phi_tau"
+    # carries +Phi_tau (Ma & Bertschinger 1995, eq. 64). Together with
+    # delta_b' = -theta_b + 3 Phi_tau this preserves adiabatic entropy
+    # when theta_b = 3*k*theta_gamma1, including time-dependent metrics.
+    photon_monopole_rhs = "-acoustic_k * theta_gamma1 + Phi_tau"
     photon_dipole_rhs = (
         "(acoustic_k / 3.0) * "
         "(theta_gamma0 + Psi - 2.0 * theta_gamma2) + thomson_drag"
@@ -2088,17 +2090,6 @@ def _materialize_declared_scalar_hierarchy_contract(
             ),
             "units": _DIMENSIONLESS_UNITS,
         },
-        "visibility_polarization_moment_tau_tau": {
-            "kind": "scalar_source_time_derivative",
-            "variable": "visibility_polarization_moment",
-            "wrt": "tau",
-            "order": 2,
-            "description": (
-                "Second conformal-time derivative of the visibility-weighted "
-                "scalar polarization source moment."
-            ),
-            "units": _INVERSE_MPC_CUBED_UNITS,
-        },
         "acoustic_k": {
             "expression": "k",
             "description": "Scalar acoustic wave number.",
@@ -2428,10 +2419,14 @@ def _materialize_declared_scalar_hierarchy_contract(
     derived_entries.update(
         {
             "metric_momentum_constraint": {
-                "expression": "Phi_tau + Hconf * Psi",
+                # Substitute the generated Phi_tau equation before floating
+                # evaluation. Subtracting and then adding Hconf*Psi loses
+                # the momentum source on ill-conditioned superhorizon data.
+                "expression": "metric_momentum_source_drive",
                 "description": (
                     "Scalar momentum-constraint combination "
-                    "Phi_tau + Hconf Psi."
+                    "Phi_tau + Hconf Psi, evaluated after eliminating the "
+                    "generated Phi_tau equation to avoid cancellation."
                 ),
                 "units": _INVERSE_MPC_UNITS,
             },
@@ -2837,6 +2832,10 @@ def _materialize_declared_scalar_hierarchy_contract(
             "Visibility-weighted scalar polarization source moment."
         ),
     }
+    # Pi uses temperature multipoles: CAMB's native pig and E2 equal
+    # 4*Theta_2 and 4*e_2, giving polter = 0.4*Pi. Thomson scattering then
+    # gives S_E = 3*g*Pi/4. Temperature projects g*Pi/4 with j_l and
+    # 3*g*Pi/4 with j_l'', avoiding sampled second time derivatives.
     generated_sources = {
         "temperature_monopole": {
             "expression": "visibility * (observable_theta_gamma0 + Psi)",
@@ -2853,7 +2852,7 @@ def _materialize_declared_scalar_hierarchy_contract(
             ),
         },
         "temperature_quadrupole": {
-            "expression": "0.0625 * visibility * polarization_moment",
+            "expression": "0.25 * visibility * polarization_moment",
             "role": "additive",
             "description": (
                 "CAMB scalar polarization quadrupole source carried by the "
@@ -2862,11 +2861,8 @@ def _materialize_declared_scalar_hierarchy_contract(
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
         "temperature_quadrupole_derivative": {
-            "expression": (
-                "0.1875 * visibility_polarization_moment_tau_tau / "
-                "acoustic_k_sq"
-            ),
-            "role": "quadrupole_derivative",
+            "expression": "0.75 * visibility * polarization_moment",
+            "role": "additive_derivative",
             "description": (
                 "CAMB scalar polarization quadrupole source carried by the "
                 "second-derivative spherical-Bessel kernel."
@@ -2894,7 +2890,7 @@ def _materialize_declared_scalar_hierarchy_contract(
             "units": _LINE_OF_SIGHT_SOURCE_UNITS,
         },
         "polarization_source": {
-            "expression": "0.1875 * visibility * polarization_moment",
+            "expression": "0.75 * visibility * polarization_moment",
             "role": "polarization",
             "description": (
                 "CAMB-normalized scalar visibility-weighted E source."
@@ -2923,7 +2919,7 @@ def _materialize_declared_scalar_hierarchy_contract(
             "source_terms": {
                 "monopole": "temperature_monopole",
                 "additive": "temperature_quadrupole",
-                "quadrupole_derivative": "temperature_quadrupole_derivative",
+                "additive_derivative": "temperature_quadrupole_derivative",
                 "doppler": "temperature_doppler",
                 "isw": "temperature_isw",
             },
@@ -7105,7 +7101,7 @@ def validate_generated_scalar_source_graph(contract: Any) -> None:
     required_roles = {
         "monopole",
         "additive",
-        "quadrupole_derivative",
+        "additive_derivative",
         "doppler",
         "isw",
         "polarization",

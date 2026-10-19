@@ -37,11 +37,11 @@ boundaries remain the starting point. They do not establish CAMB parity.
 Historical plans and evidence remain in Git and CHANGELOG.md. Unpushed
 experiments on another machine are not part of this accepted baseline.
 
-**Current state:** Slices One through Three are complete; Slice Four is next.
-Slices Four through Ten below are pending. Replacing this document authorizes
-planning only; implementation proceeds one explicitly authorized slice at a
-time. A green policy gate, a generated report, or a successful mock cannot
-close a physical acceptance requirement.
+**Current state:** Slices One through Three are complete. Slice Four is
+implementation-complete, awaiting the human's fresh full-workflow result.
+Slices Five through Ten remain pending; implementation proceeds one
+explicitly authorized slice at a time. A green policy gate, a generated
+report, or a successful mock cannot close a physical acceptance requirement.
 
 ## Execution principles
 
@@ -94,7 +94,8 @@ close a physical acceptance requirement.
 These are concrete investigation inputs, not claims that every root cause is
 already understood. Reproduce against the current source before repairing.
 
-* **Physics identity:** the generated photon monopole RHS uses `-Phi_tau`,
+* **Physics identity (reproduced and repaired in Slice Four):** the starting
+  generated photon monopole RHS used `-Phi_tau`,
   while baryon and neutrino continuity use positive metric derivatives.
   With the documented variables and equal photon/baryon velocities, the
   declared equations give `(delta_b - 3*Theta_gamma0)' = 6*Phi'`. Establish
@@ -408,7 +409,11 @@ second architecture rewrite.
 
 ## Slice Four - establish independent, practical development checks
 
-**Status:** pending. **Entry:** the completed foundation above.
+**Status:** implementation-complete on 2026-10-18; awaiting the human's
+fresh `devcovenant run` confirmation. **Entry:** the completed foundation
+above. Slice Five has not started.
+The full-workflow follow-up below records the rejected run and its repairs;
+that rejected run is not a full-suite confirmation.
 
 **Owners:** `perturbation_contract.py`, direct runtime test owners,
 `tests/project/lib/camb_reference.py`, the existing synthetic fixture,
@@ -457,6 +462,338 @@ resolved controls pass; the photon inconsistency has a derived repair; actual
 application composition is covered; and the focused/bounded workload commands
 meet their measured targets. This slice establishes a useful development
 loop, not final CAMB parity. Record the human's full-suite confirmation.
+
+### Slice Four findings, source owners, and acceptance mapping
+
+No other-machine staged experiments were supplied. Changes were derived
+from the current checkout and independently reproduced failures. The named
+tests below exist in their indicated owners; pending scientific execution
+remains assigned to its original later slice.
+
+1. **Continuity, initial data, and gauge/sign.**
+   `perturbation_contract.py` owns the repaired photon monopole sign.
+   `test_perturbation_contract` checks
+   `test_photon_baryon_adiabatic_entropy_has_no_metric_source` and
+   `test_adiabatic_initial_series_has_common_density_and_velocity` against
+   independent continuity/regular-series expectations. The wrong sign
+   generates `6 Phi'` in adiabatic entropy. Real manufactured RK4 evolution
+   in `runtime.test_evolution` rejects a flipped metric drive and shifted
+   oscillator phase. `runtime.test_mode_evolution` checks
+   `test_generated_stage_hubble_rate_matches_declared_expansion`.
+   The generated stage background mixed declared H(a) with a different
+   interpolated Hconf; its 0.00563949 inconsistency is now below 1e-12.
+   The ordinary superhorizon bound and
+   `test_declared_scalar_hierarchy_synchronous_matches_newtonian` pass
+   unchanged. `runtime/mode_evolution.py` owns that stage repair.
+2. **Collision conservation, damping, and polarization normalization.**
+   `runtime.test_collisions` checks
+   `test_scalar_thomson_action_conserves_momentum_and_damps_slip` against
+   analytic total momentum, exponential slip, and both quadrupole
+   eigenmodes, with a reversed-sign negative control. Existing vector
+   momentum/damping controls remain in `test_perturbation_contract`.
+   `test_polarization_source_matches_frozen_camb_normalization` and
+   `runtime.test_spectrum_projection`'s
+   `test_integrated_temperature_quadrupole_matches_angular_thomson_source`
+   independently reproduced a factor-of-four source deficit. The owning
+   materializer now uses 1/4 and 3/4 for temperature and 3/4 for E with
+   temperature-normalized Pi. `diagnostics.py`'s closure audit and its
+   regression use the same corrected convention. The angular integral,
+   native CAMB source, spin-2 kernel, and dimensional checks are independent
+   of that audit. Derivations and primary references are in
+   `copernican/docs/cmb_solver.md`, under Development Checks.
+3. **Reference matching and shared physical parameters.**
+   `tests/project/lib/camb_reference.py` owns the new compact fixture's
+   exact massless inputs, native gauge/normalization, thermal histories,
+   and digest.
+   `test_selected_modes_match_frozen_histories_without_angular_spectra`
+   compares selected modes/epochs directly, while the source test above
+   evaluates actual CCMBS expressions on frozen native quadrupoles.
+   `test_fixed_lcdm_parity_rejects_mismatched_physical_inputs` and
+   `test_fixed_lcdm_parity_rejects_massive_camb_defaults` reject mismatched
+   parameter/default controls. They do not prove matched thermal histories.
+   Collapse-source versus tanh reionization, absolute common-gauge histories,
+   and temperature/density/neutrino consistency remain Slice Five work in
+   model declarations, adapter/compiler, and `runtime/background.py`.
+   Existing owner regressions include
+   `test_lcdm_declared_cmb_uses_derived_photon_density`,
+   `test_planck_reference_separates_cdm_and_massive_neutrinos`,
+   `test_sound_horizon_uses_supplied_hubble_curve`, and
+   `test_bao_sound_horizon_uses_drag_epoch_helper`. Slice Five must add
+   physically matched quantitative comparisons, including drag endpoints;
+   these contract tests do not close that obligation.
+4. **Analytic projection, source features, support, and units.**
+   `runtime/spectrum_projection.py`, `background.py`, and the generated
+   sources are exercised by `runtime.test_spectrum_projection`: the
+   sine-integral j0 projection, direct angular Thomson integral, spin-2
+   origin limit, and constant-transfer logarithmic support integral.
+   Wrong signs, a localized spike, and a missing integration tail reject.
+   `test_cmb_output`'s
+   `test_public_units_follow_temperature_and_potential_dimensions` uses
+   independently dimensional TT/TE/EE/BB, PP and TP/EP C/D factors,
+   preserving duplicates/order. No amplitude or phase fit decides parity.
+5. **Automatic resolution, work growth, and numerical error.**
+   The adaptive/convergence owners remain responsible for the 0.5%
+   observable budget, physical tails, hierarchy, evolution/start/coupling,
+   source representation, k/eta grids, endpoints, and lensing.
+   `runtime.test_adaptive` checks
+   `test_nested_phase_grid_refines_measured_spacing_after_count_floor`,
+   `test_phase_requirements_report_uncapped_physical_resolution`,
+   `test_history_convergence_rejects_spikes_between_named_anchors`, and
+   `test_history_convergence_rejects_resolved_sign_reversal`.
+   `runtime.test_convergence` checks
+   `test_q_bound_measures_count_and_both_thermal_tails`,
+   `test_q_bound_rejects_insufficient_support`, and
+   `test_hierarchy_bound_requires_assumptions_domain_and_error`.
+   These now run in the cheap focused command. Actual combined observable
+   bounds, radial work growth, and practical cold production resolution
+   remain Slice Six work, with real parity evidence in Slice Seven.
+6. **Repeated work, exact identities, and diagnostic fidelity.**
+   `runtime.test_cache` checks dependency separation, parameter invalidation,
+   request accounting, and deterministic warm metrics. The bounded command
+   runs `test_declared_spectrum_cache_identity_covers_runtime_inputs`,
+   `test_runtime_cache_state_requires_matching_request_shape`, and
+   `test_batched_declared_evolution_matches_scalar_modes` in `test_cmb`.
+   Its real scalar gauge, metric, and vector refinement cases preserve
+   ordinary-route coverage alongside analytic probes. Production histories,
+   planner and cache owners still owe measured cold/warm/subset reuse,
+   independent new refinement work, and pressure/chunking behavior in
+   Slice Six. Reports retain raw executor counters; some projection phase
+   counters exceed request wall time. Correct counter attribution belongs
+   to Slice Six profiling. Those counters do not decide this slice's cost
+   pass: independently measured workload/test wall clocks do.
+7. **Exact inventory, surfaces, metrics, and sparse/dense acceptance.**
+   `test_diagnostics.CompletionContractTestCase` checks
+   `test_frozen_case_inventory_includes_physical_response_points`,
+   `test_completion_rejects_synthetic_missing_stale_and_unresolved_rows`,
+   `test_surface_metric_rejects_sign_spikes_and_bad_conversion`, and
+   `test_raw_units_convert_potential_and_mixed_correlations`.
+   `test_camb_reference.CompletionReferenceWindowTestCase` checks dense
+   feature-window selection and all frozen physical points. They preserve
+   the 23-case/12-comparable-point contract, all eleven applicable angular
+   surfaces, raw/public units, signs/zeros, two-ell feature displacement,
+   damping windows, and the unchanged 2/3/5% ceilings. The actual dense
+   ordinary-route executions, accepted LCDM/Planck graphs, and complete
+   payloads remain Slice Seven; the historical sparse handoff is not proof.
+8. **Universal equations and active sectors.**
+   Compiler/validator, generic background/evolution and projection own
+   declaration capability. Existing behavior tests in
+   `test_perturbation_contract` and `test_cmb` retain gauge-role validation,
+   source/kernel routing, real modified equations/interactions, scalar
+   versus batch ordering, nonzero vector/tensor/lensing, and malformed
+   contract rejection. The bounded vector refinement test remains real.
+   Theory-faithful execution of the five non-CAMB theories and six auxiliary
+   cases, including extra physical state and intended initial/boundary laws,
+   remains Slice Eight. Neither renaming nor manufactured scalar data
+   certifies the unexecuted 23-case scientific matrix.
+9. **Application covariance, roles, dispatch, and complete outputs.**
+   The existing synthetic solver fixture supplies controlled signed
+   TE/TT/EE predictions; independently chosen long-form observations and
+   cross-covariance give chi-square 45.4. `test_likelihoods` verifies row
+   permutations/cross terms, rejects wrong ordering/missing EE, and
+   propagates a typed numerical failure. The actual
+   `test_real_pipeline_preserves_free_fixed_roles_and_cmb_outputs` checks
+   real free/fixed MCMC, summaries, CSV values/order and CMB plotted curves.
+   `test_manifest_runs_real_pipeline_and_separates_failure_provenance`
+   invokes the same pipeline from the actual manifest executor and checks
+   successful artifacts/provenance versus early numerical failure.
+   Sampler fixed-bound, ordered-batch and timeout/incomplete controls remain
+   in `test_sampler_mcmc`. Application source owners remain likelihoods,
+   samplers, `run_pipeline`, `run_executor`, plotting and CSV/summary writers.
+10. **Shipped data and application completion.**
+    Slice Four deliberately uses supported explicit spectrum tables.
+    Shipped Planck TT-only covariance/wide-table selection and the
+    reference-manifest TORG selection remain Slice Nine owner repairs,
+    together with parser trust/hash separation, complete/incomplete
+    lifecycle, both samplers, GUI/CLI and complete consumer alignment.
+    Existing parser/hash and dispatcher tests remain in discovery; the new
+    explicit-row application checks give an independent consumer control
+    for the later shipped-data regression. No known broken shipped path
+    has been relabeled as passing scientific acceptance here.
+11. **Persistent evidence, tampering, and freshness.**
+    Diagnostics/readers and the existing acceptance runner own artifacts.
+    `test_retained_artifacts_reject_tampering_missing_and_escape`,
+    `test_stale_reference_and_metadata_only_axes_are_rejected`, and
+    `CompletionPersistenceTestCase` reject stale/missing/forged evidence,
+    escaped paths and source changes. They run in the focused command.
+    Development reports explicitly set `scientific_acceptance: false`.
+    Selective physical/comparison/rendering dependency invalidation, resume
+    and persistent full graph payloads remain Slice Nine/Seven obligations;
+    whole-checkout identity does not yet implement selective reuse.
+12. **Broader review and final handoff.**
+    Slice Ten retains the whole-project code/docs/comments/docstrings/tests/
+    configuration/assets/mirror/performance/architecture review and the
+    ordinary LCDM/Planck2018ref 5-burn/10-production handoff. The application
+    behavior test above checks the actual free/fixed roles; it does not
+    replace the final accepted forward-engine inputs or launch a scientific
+    campaign. This slice leaves all later closure criteria unchanged.
+
+### Slice Four reproducible commands and measured cost
+
+From the checkout, run sequentially in the managed CPU environment:
+
+```bash
+source .venv/bin/activate
+python -m tests.project.lib.scientific_acceptance \
+  --development-checks focused
+python -m tests.project.lib.scientific_acceptance \
+  --development-checks bounded
+python -m unittest tests.project.lib.camb_reference_acceptance -v
+```
+
+The first command covers independent equations, all named negative controls,
+compact selected CAMB histories, numerical/contract controls and bounded
+actual application behavior. The second selects real scalar stage/gauge/
+metric and vector refinement plus cache/batch checks. The third explicitly
+rebuilds angular references; it is outside recurring discovery and its six
+original builder/array assertions are preserved. Compact regeneration is:
+
+```bash
+source .venv/bin/activate
+python -m tests.project.lib.scientific_acceptance \
+  --freeze-development-reference
+```
+
+Per-test before/after costs and logs are retained under the configured
+output root's `ccmbs-acceptance/completion-evidence/`:
+`development-before.json`, `development-before.log`,
+`development-before.py`, `development-focused.json`,
+`development-bounded.json`, their sibling logs, and
+`development-cost-comparison.json`. Per-test costs for the explicit six-test
+reference rebuild are in `development-reference.json` and its sibling log;
+`development-reference-costs.py` reproduces that measurement from the checkout.
+The original profiling script preserves
+the initial exact unittest module selections. That 183-test timing sample
+was recorded after the isolated photon repair, before the remaining new
+behavior tests; it is not an unchanged pre-slice scientific baseline.
+The final runner's explicit selections make each current workload
+reproducible without running the expensive matrix.
+
+Measured on the reference machine (Apple M5, macOS 26.3 arm64, ten CPU cores,
+Python 3.11.14, NumPy 1.26.4, SciPy 1.12.0, CAMB 1.6.0; recorded numerical
+thread variables unset):
+
+| Measurement | Tests | Wall seconds | Target seconds |
+| --- | --- | --- | --- |
+| Initial selected-owner timing sample | 183 | 9.397 | Comparison only |
+| Final focused development | 255 | 9.194 | 60 |
+| Final bounded real physics | 10 | 48.300 | 300 |
+| Explicit angular reference rebuild | 6 | 0.886 | Explicit maintenance |
+
+All measured current workload tests passed. Reports record per-test costs,
+peak process RSS, environment, source/reference identities, and actual
+parent-process request contexts/work counters. Caches are cleared at each
+workload's entry; individual tests exercise and may clear their own cold,
+warm and invalid states. Cold execution remains present. Moving six angular
+reference builder/rebuild checks out of recurring reference discovery and
+using a frozen array for the comparator negative control removes measured
+duplicate reference work without discarding its assertions. The common-test
+cost comparison and moved-test timings are in the retained comparison JSON;
+the two different suite totals are not an overall speedup measurement.
+The six moved checks accounted for 1.018 seconds in the initial timing
+sample. Peak process RSS was 408.69 MiB focused and
+1230.41 MiB bounded.
+The compact history fixture's SHA-256 is:
+
+```text
+4addcd1d844590c9b95f495a5705275c113ef5b2b0f64a57d9ce8e008ad97aad
+```
+
+Reproductions retain the original rejected metric-stage and polarization
+logs alongside resolved controls under `development-reproductions/`.
+The affected broad CMB module also passed all 224 tests in 388.230 seconds
+after the metric-stage repair; subsequent polarization changes are covered
+by the final focused/bounded checks and source-audit regression. This is
+distinct from a fresh complete discovery run.
+
+**Workflow handoff:** stage the complete slice after a green
+`gate --verify`, leave the gate open, and await the human's fresh full
+`devcovenant run`. The previous pre-slice full run is not this confirmation.
+No Slice Five implementation, cold full-parity campaign, gate close, commit
+or push is included. Full slice closure remains pending that human result.
+
+### Full-workflow follow-up, 2026-10-18
+
+The human's run `20261018T143051672415Z-run` executed 896 tests in
+1257.919 seconds and reported three errors: scalar hierarchy EE refinement,
+QRSF diagnostic Einstein reconstruction, and production projection TT
+refinement. Its original logs remain under `devcovenant/logs/`; no accepted
+workflow result is inferred from the previous focused checks.
+
+The repairs preserve the existing numerical acceptance thresholds:
+
+* The generated momentum combination substitutes its declared Phi'
+  relation before evaluation, avoiding subtraction/addition cancellation
+  of much larger metric terms. An independent large-dynamic-range test
+  reproduced the lost source and now preserves it. QRSF's original small
+  declared-surface request then succeeds without widening its constraint
+  tolerance or changing the theory.
+* Generated scalar temperature projects the angular Thomson quadrupole
+  through the existing ordinary and second radial Bessel kernels. It no
+  longer twice differentiates sampled visibility/moment histories. The
+  direct angular integral now tests the actual compiled source-role dispatch,
+  including nonzero endpoint moments. Production coarse/fine projection
+  and adaptive transfer projection use the existing positive Simpson rule.
+  Source audits, source-role validation, comments, and docs use that same
+  direct angular representation.
+* Generated scalar exact-collision splitting now caps its phase step at
+  0.1 radians. Exact collision exponentials had masked a streaming/splitting
+  error at the former 0.5-radian ceiling. A coupled oscillator benchmark
+  checks the actual Strang/RK4 integrator against an independent matrix
+  exponential, rejects coarse steps, and verifies second-order refinement.
+  The original 10/12 hierarchy-depth regression keeps its unchanged 1%
+  bound and now also runs in the bounded development selection. No hierarchy
+  closure, reference spectrum, source amplitude, or acceptance bound was
+  adjusted to obtain that pass.
+
+The broader CMB/source-audit sweep passed 229 checks and found an older
+prefix test's invalid minimum-amplitude proxy. That test required at least
+a 5% monopole displacement, although no adiabatic law requires such a
+minimum. The corrected solution's displacement is 0.0226566. The test now
+observes real RHS evaluations before the visible source grid and requires
+their initial `k eta < 0.1`; it no longer rewards numerical amplitude drift.
+The separate early-start history comparison retains both its 5% median and
+maximum error ceilings. Both prefix tests pass together after this correction.
+
+Exact commands used for affected coverage and the original failing owners:
+
+```bash
+source .venv/bin/activate
+python -m unittest \
+  tests.copernican.lib.likelihoods.cmb.test_cmb \
+  tests.copernican.lib.likelihoods.cmb.test_contracts_audit -v
+cmb_owner=tests.copernican.lib.likelihoods.cmb.test_cmb
+cmb_owner+=.CMBCustomRuntimeBehaviorTestCase
+prefix_name=test_declared_scalar_adiabatic_
+python -m unittest \
+  "$cmb_owner.${prefix_name}sources_use_hidden_superhorizon_prefix" \
+  "$cmb_owner.${prefix_name}hidden_prefix_tracks_early_start" -v
+adapter_owner=tests.copernican.lib.test_model_adapter.ModelInterfaceTestCase
+adapter_case=test_declared_cmb_models_execute_finite_declared_surfaces
+python -m unittest "$adapter_owner.$adapter_case" \
+  tests.project.lib.test_ccmbs_production_graph -v
+python -m tests.project.lib.scientific_acceptance \
+  --development-checks focused
+python -m tests.project.lib.scientific_acceptance \
+  --development-checks bounded
+```
+
+Follow-up results: the broader sweep ran 230 tests in 787.016 seconds;
+229 passed before correcting the prefix proxy described above. The two
+prefix regressions then passed together in 8.110 seconds. The original
+model-corpus and production-graph regressions passed together in 257.723
+seconds. Final focused checks passed all 257 tests in 15.501 seconds against
+their 60-second target; bounded checks passed all 11 tests in 110.581
+seconds against their 300-second target. Both development reports match
+the final tested source identity. The new focused/bounded JSON reports
+and sibling logs retain per-test costs, request work, and environment
+metadata at the same configured evidence root.
+Pre-fix reproducers and the affected-owner logs are retained under
+`development-reproductions/`. Earlier timings above remain historical
+observations; these follow-up measurements use the repaired source.
+
+The complete slice remains staged with a green policy verify and an open
+gate for a fresh human workflow run. No full-suite pass, Slice Five work,
+gate close, commit, or push is claimed by this follow-up.
 
 ## Slice Five - align physical inputs and locate first disagreement
 

@@ -6,10 +6,36 @@ import numpy
 import pandas
 
 from copernican.lib import cmb_output
+from copernican.lib.likelihoods.cmb.orchestrators import ccmbs
 
 
 class CMBOutputTestCase(unittest.TestCase):
     """Exercise exact spectrum naming and row-preserving block assembly."""
+
+    def test_public_units_follow_temperature_and_potential_dimensions(self):
+        """CMB carries T^2, potential carries no T, and cross carries T."""
+
+        ell = numpy.asarray((2, 30, 2), dtype=float)
+        angular = ell * (ell + 1)
+        temperature = 2.7e6
+        for name, expected in {
+            "TT": angular / (2 * numpy.pi) * temperature**2,
+            "TE": angular / (2 * numpy.pi) * temperature**2,
+            "EE": angular / (2 * numpy.pi) * temperature**2,
+            "BB": angular / (2 * numpy.pi) * temperature**2,
+            "PP": angular**2 / (2 * numpy.pi),
+            "TP": angular**1.5 / (2 * numpy.pi) * temperature,
+            "EP": angular**1.5 / (2 * numpy.pi) * temperature,
+        }.items():
+            with self.subTest(spectrum=name):
+                actual = ccmbs._power_spectrum_scale_factor(
+                    None,
+                    name,
+                    ell_factor=angular / (2 * numpy.pi),
+                    t_cmb_muK=temperature,
+                    lensing_mode=False,
+                )
+                numpy.testing.assert_allclose(actual, expected, rtol=1e-12)
 
     def test_public_symbols_are_exposed(self) -> None:
         """The canonical CMB output API must remain importable."""

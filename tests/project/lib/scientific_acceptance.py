@@ -3,10 +3,16 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import copy
 import hashlib
 import json
+import logging
+import os
+import platform
+import sys
 import time
+import unittest
 from pathlib import Path
 from typing import Any
 
@@ -16,11 +22,269 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     read_cmb_parity_matrix_report,
     run_fixed_lcdm_cmb_parity,
 )
+from copernican.lib.likelihoods.cmb.runtime import cache
 from copernican.workflow import _output_root
 from tests.project.lib import camb_reference
 from tests.project.lib.test_ccmbs_production_graph import _read_source_revision
 
 _MODEL_FILENAME = "model_lcdm.yml"
+_CMB_BEHAVIOR_OWNER = (
+    "tests.copernican.lib.likelihoods.cmb.test_cmb."
+    "CMBCustomRuntimeBehaviorTestCase."
+)
+
+# These are explicit unittest selections, not replacement acceptance claims.
+DEVELOPMENT_WORKLOADS = {
+    "focused": (
+        "tests.copernican.lib.test_perturbation_contract",
+        "tests.copernican.lib.likelihoods.cmb.runtime.test_collisions",
+        "tests.copernican.lib.likelihoods.cmb.runtime.test_evolution",
+        "tests.copernican.lib.likelihoods.cmb.runtime."
+        "test_spectrum_projection",
+        "tests.copernican.lib.likelihoods.cmb.runtime.test_cache",
+        "tests.copernican.lib.likelihoods.cmb.runtime.test_adaptive",
+        "tests.copernican.lib.likelihoods.cmb.runtime.test_convergence",
+        "tests.copernican.lib.likelihoods.cmb.test_diagnostics."
+        "CompletionContractTestCase",
+        "tests.copernican.lib.likelihoods.cmb.test_diagnostics."
+        "CompletionPersistenceTestCase",
+        "tests.copernican.lib.likelihoods.cmb.test_diagnostics."
+        "CCMBSDiagnosticTestCase."
+        "test_source_history_audit_recomputes_all_declared_closures",
+        "tests.copernican.lib.likelihoods.cmb.test_diagnostics."
+        "CCMBSDiagnosticTestCase."
+        "test_fixed_lcdm_parity_rejects_mismatched_physical_inputs",
+        "tests.copernican.lib.likelihoods.cmb.test_diagnostics."
+        "CCMBSDiagnosticTestCase."
+        "test_fixed_lcdm_parity_rejects_massive_camb_defaults",
+        _CMB_BEHAVIOR_OWNER
+        + "test_declared_scalar_hierarchy_materializes_generated_hierarchy",
+        "tests.copernican.lib.test_cmb_output",
+        "tests.copernican.lib.test_run_pipeline",
+        "tests.copernican.lib.test_run_executor",
+        "tests.copernican.lib.likelihoods.test_likelihoods",
+        "tests.copernican.samplers.test_sampler_mcmc",
+        "tests.project.lib.test_camb_reference",
+        "tests.project.lib.test_scientific_acceptance",
+    ),
+    "bounded": (
+        "tests.copernican.lib.likelihoods.cmb.runtime.test_mode_evolution",
+        _CMB_BEHAVIOR_OWNER
+        + "test_generated_scalar_superhorizon_metric_seed_stays_regular",
+        _CMB_BEHAVIOR_OWNER
+        + "test_declared_scalar_hierarchy_synchronous_matches_newtonian",
+        _CMB_BEHAVIOR_OWNER
+        + "test_declared_scalar_hierarchy_depth_converges_at_anchor_surface",
+        _CMB_BEHAVIOR_OWNER
+        + "test_declared_vector_spectra_remain_stable_under_phase_refinement",
+        _CMB_BEHAVIOR_OWNER
+        + "test_declared_spectrum_cache_identity_covers_runtime_inputs",
+        _CMB_BEHAVIOR_OWNER
+        + "test_runtime_cache_state_requires_matching_request_shape",
+        _CMB_BEHAVIOR_OWNER
+        + "test_batched_declared_evolution_matches_scalar_modes",
+    ),
+}
+DEVELOPMENT_COST_TARGETS = {"focused": 60.0, "bounded": 300.0}
+
+
+class _TimedDevelopmentResult(unittest.TextTestResult):
+    """Record each real unittest outcome and observed parent-process work."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.rows = []
+        self.requests = []
+
+    def startTest(self, test):
+        self.started = time.perf_counter()
+        self.request_start = len(self.requests)
+        self.current_outcome = "passed"
+        super().startTest(test)
+
+    def addFailure(self, test, error):
+        self.current_outcome = "failed"
+        super().addFailure(test, error)
+
+    def addError(self, test, error):
+        self.current_outcome = "failed"
+        super().addError(test, error)
+
+    def addSubTest(self, test, subtest, error):
+        if error is not None:
+            self.current_outcome = "failed"
+        super().addSubTest(test, subtest, error)
+
+    def addSkip(self, test, reason):
+        self.current_outcome = "skipped"
+        super().addSkip(test, reason)
+
+    def addExpectedFailure(self, test, error):
+        self.current_outcome = "expected_failure"
+        super().addExpectedFailure(test, error)
+
+    def addUnexpectedSuccess(self, test):
+        self.current_outcome = "unexpected_success"
+        super().addUnexpectedSuccess(test)
+
+    def stopTest(self, test):
+        self.rows.append(
+            {
+                "test": test.id(),
+                "seconds": time.perf_counter() - self.started,
+                "outcome": self.current_outcome,
+                "ccmbs_requests": self.requests[self.request_start :],
+            }
+        )
+        super().stopTest(test)
+
+
+def run_development_checks(workload: str, output_path: str | Path) -> dict:
+    """Measure selected development tests without starting scientific runs.
+
+    Cost overruns are development blockers, not physical theory rejections.
+    Spawned-worker work remains covered by its owning tests; telemetry here
+    records parent-process requests, including cold/warm states and phases.
+    """
+
+    import numpy
+    import scipy
+
+    if workload not in DEVELOPMENT_WORKLOADS:
+        raise ValueError(f"Unknown development workload: {workload}")
+    destination = Path(output_path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    log_path = destination.with_suffix(".log")
+    result_holder = []
+
+    def make_result(*args, **kwargs):
+        result = _TimedDevelopmentResult(*args, **kwargs)
+        result_holder.append(result)
+        return result
+
+    original_record = cache.record_cmb_performance
+
+    def observe_request(*args, **kwargs):
+        record = original_record(*args, **kwargs)
+        if result_holder:
+            result_holder[-1].requests.append(
+                {
+                    key: record[key]
+                    for key in (
+                        "workload",
+                        "cache_state",
+                        "phase_seconds",
+                        "work_units",
+                        "outcome",
+                        "context",
+                    )
+                }
+            )
+        return record
+
+    cache.clear_cmb_caches()
+    started = time.perf_counter()
+    with log_path.open("w", encoding="utf-8") as stream:
+        with (
+            contextlib.ExitStack() as handlers,
+            contextlib.redirect_stdout(stream),
+            contextlib.redirect_stderr(stream),
+        ):
+            suite = unittest.defaultTestLoader.loadTestsFromNames(
+                DEVELOPMENT_WORKLOADS[workload]
+            )
+            # Existing console handlers retain their original stream across
+            # redirect_stderr. Keep their output in the same retained log
+            # without disabling logging or interfering with assertLogs.
+            loggers = [logging.getLogger()] + [
+                logger
+                for logger in logging.Logger.manager.loggerDict.values()
+                if isinstance(logger, logging.Logger)
+            ]
+            for logger in loggers:
+                for handler in logger.handlers:
+                    if isinstance(handler, logging.StreamHandler) and (
+                        handler.stream is sys.__stderr__
+                        or handler.stream is sys.__stdout__
+                    ):
+                        previous_stream = handler.stream
+                        handler.setStream(stream)
+                        handlers.callback(handler.setStream, previous_stream)
+            cache.record_cmb_performance = observe_request
+            try:
+                result = unittest.TextTestRunner(
+                    stream=stream, verbosity=2, resultclass=make_result
+                ).run(suite)
+            finally:
+                cache.record_cmb_performance = original_record
+    elapsed = time.perf_counter() - started
+    try:
+        import resource
+    except ImportError:
+        peak_rss_bytes = None
+    else:
+        peak_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        peak_rss_bytes = int(
+            peak_rss if sys.platform == "darwin" else peak_rss * 1024
+        )
+    reference_fixture = camb_reference.load_lcdm_history_reference_fixture()
+    report = {
+        "schema_version": 1,
+        "kind": "ccmbs_development_checks",
+        "workload": workload,
+        "selections": list(DEVELOPMENT_WORKLOADS[workload]),
+        "scientific_acceptance": False,
+        "source_revision": _read_source_revision(),
+        "source_identity": diagnostics.cmb_completion_source_identity(),
+        "reference_fixture_sha256": reference_fixture["fixture_sha256"],
+        "environment": {
+            "system": platform.system(),
+            "machine": platform.machine(),
+            "cpu": platform.processor(),
+            "cpu_count": os.cpu_count(),
+            "python": platform.python_version(),
+            "numpy": numpy.__version__,
+            "scipy": scipy.__version__,
+            "camb": camb_reference.camb.__version__,
+            "threads": {
+                key: os.environ.get(key)
+                for key in (
+                    "OMP_NUM_THREADS",
+                    "OPENBLAS_NUM_THREADS",
+                    "MKL_NUM_THREADS",
+                    "VECLIB_MAXIMUM_THREADS",
+                    "NUMEXPR_NUM_THREADS",
+                )
+            },
+        },
+        "initial_ccmbs_cache_state": "cleared",
+        "telemetry_scope": (
+            "observed parent-process requests; tests may clear caches"
+        ),
+        "phase_timing_scope": (
+            "raw executor counters; use elapsed_seconds for wall costs"
+        ),
+        "elapsed_seconds": elapsed,
+        "peak_process_rss_bytes": peak_rss_bytes,
+        "cost_target_seconds": DEVELOPMENT_COST_TARGETS[workload],
+        "within_cost_target": elapsed <= DEVELOPMENT_COST_TARGETS[workload],
+        "tests_run": result.testsRun,
+        "failures": len(result.failures),
+        "errors": len(result.errors),
+        "skipped": len(result.skipped),
+        "expected_failures": len(result.expectedFailures),
+        "unexpected_successes": len(result.unexpectedSuccesses),
+        "passed": result.wasSuccessful()
+        and result.testsRun > 0
+        and not result.skipped
+        and not result.expectedFailures,
+        "tests": result.rows,
+        "test_log": log_path.name,
+    }
+    destination.write_text(
+        json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    return report
 
 
 def run_fixed_lcdm_scientific_acceptance(
@@ -511,6 +775,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument(
+        "--development-checks",
+        choices=tuple(DEVELOPMENT_WORKLOADS),
+        help="run measured focused or bounded development tests",
+    )
+    group.add_argument(
+        "--freeze-development-reference",
+        action="store_true",
+        help="explicitly regenerate compact CAMB background/history data",
+    )
+    group.add_argument(
         "--output",
         type=Path,
         help="write a new fixed-LCDM acceptance report",
@@ -536,6 +810,30 @@ def main(argv: list[str] | None = None) -> int:
         default=_output_root() / "ccmbs-acceptance" / "completion-evidence",
     )
     args = parser.parse_args(argv)
+    if args.freeze_development_reference:
+        path = camb_reference.write_lcdm_history_reference_fixture()
+        print(path.relative_to(Path.cwd()))
+        return 0
+    if args.development_checks:
+        report = run_development_checks(
+            args.development_checks,
+            args.evidence_root / f"development-{args.development_checks}.json",
+        )
+        print(
+            json.dumps(
+                {
+                    key: report[key]
+                    for key in (
+                        "workload",
+                        "passed",
+                        "tests_run",
+                        "elapsed_seconds",
+                        "within_cost_target",
+                    )
+                }
+            )
+        )
+        return 0 if report["passed"] and report["within_cost_target"] else 1
     if args.baseline or args.verify_baseline:
         path = args.verify_baseline or args.evidence_root / "baseline.json"
         report = (

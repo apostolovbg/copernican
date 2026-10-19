@@ -854,7 +854,7 @@ class PerturbationContractTestCase(unittest.TestCase):
         source_names = (
             "monopole",
             "additive",
-            "quadrupole_derivative",
+            "additive_derivative",
             "doppler",
             "isw",
             "polarization",
@@ -2239,6 +2239,157 @@ class PerturbationContractTestCase(unittest.TestCase):
         self.assertNotIn("Omega_nu0 * observable_theta_nu", momentum_source)
         self.assertNotIn("Omega_nu0 * sigma_nu", shear_source)
 
+    def test_photon_baryon_adiabatic_entropy_has_no_metric_source(self):
+        """MB (1995), equations 64/67: equal velocities conserve entropy.
+
+        Delta_gamma = 4 Theta_0 and theta_gamma = 3 k Theta_1 imply
+        (delta_b - 3 Theta_0)' = theta_gamma - theta_b. The metric terms
+        cancel for arbitrary Phi', including a time-dependent potential.
+        """
+
+        compiled = self._compile(_scalar_metadata_only_contract())
+        for phi_tau in (-0.7, 0.0, 0.4):
+            for slip in (0.0, 0.03):
+                with self.subTest(phi_tau=phi_tau, slip=slip):
+                    context = {
+                        "acoustic_k": 0.2,
+                        "theta_gamma1": 0.5,
+                        "theta_b": 0.3 + slip,
+                        "Phi_tau": phi_tau,
+                    }
+                    photon_rhs = float(
+                        evaluate_compiled_expression(
+                            compiled.equations[
+                                "evolve_theta_gamma0"
+                            ].compiled_rhs,
+                            context,
+                        )
+                    )
+                    baryon_rhs = float(
+                        evaluate_compiled_expression(
+                            compiled.equations["evolve_delta_b"].compiled_rhs,
+                            context,
+                        )
+                    )
+                    self.assertAlmostEqual(baryon_rhs - 3 * photon_rhs, -slip)
+
+    def test_adiabatic_initial_series_has_common_density_and_velocity(self):
+        """Radiation-era densities and velocities obey MB eq. 98 ratios."""
+
+        compiled = self._compile(_scalar_metadata_only_contract())
+        for lapse in (-0.6, 0.8):
+            context = {
+                "scalar_lapse_seed": lapse,
+                "acoustic_k": 0.02,
+                "acoustic_k_sq": 0.02**2,
+                "scalar_initial_conformal_time": 0.5,
+            }
+            seeds = {
+                name: float(
+                    evaluate_compiled_expression(
+                        compiled.initial_conditions[
+                            name + "_seed"
+                        ].compiled_expression,
+                        context,
+                    )
+                )
+                for name in (
+                    "delta_b",
+                    "delta_nu",
+                    "theta_gamma0",
+                    "theta_gamma1",
+                    "theta_b",
+                    "theta_nu",
+                )
+            }
+            with self.subTest(lapse=lapse):
+                self.assertAlmostEqual(seeds["delta_b"], -1.5 * lapse)
+                self.assertAlmostEqual(seeds["theta_gamma0"], -0.5 * lapse)
+                self.assertAlmostEqual(
+                    seeds["delta_nu"], 4 * seeds["theta_gamma0"]
+                )
+                self.assertAlmostEqual(
+                    seeds["delta_b"], 3 * seeds["theta_gamma0"]
+                )
+                self.assertAlmostEqual(
+                    seeds["theta_b"], 3 * 0.02 * seeds["theta_gamma1"]
+                )
+                self.assertAlmostEqual(seeds["theta_nu"], seeds["theta_b"])
+
+    def test_polarization_source_matches_frozen_camb_normalization(self):
+        """Native CAMB E_source fixes the temperature normalization."""
+
+        from tests.project.lib import camb_reference
+
+        fixture = camb_reference.load_lcdm_history_reference_fixture()
+        compiled = self._compile(_scalar_metadata_only_contract())
+        selection = numpy.asarray(fixture["eta_mpc"]) >= 300
+        chi = (
+            fixture["eta0_mpc"] - numpy.asarray(fixture["eta_mpc"])[selection]
+        )
+        for index, k_value in enumerate(fixture["k_mpc_inv"]):
+            histories = fixture["histories"]
+            context = {
+                "theta_gamma2": numpy.asarray(histories["pi_photon"])[
+                    index, selection
+                ]
+                / 4,
+                "e_gamma2": numpy.asarray(histories["E_2"])[index, selection]
+                / 4,
+                "visibility": numpy.asarray(fixture["thermal"]["visibility"])[
+                    selection
+                ],
+            }
+            context["polarization_moment"] = evaluate_compiled_expression(
+                compiled.derived["polarization_moment"].compiled_expression,
+                context,
+            )
+            actual = numpy.asarray(
+                evaluate_compiled_expression(
+                    compiled.sources[
+                        "polarization_source"
+                    ].compiled_expression,
+                    context,
+                )
+            )
+            expected = (
+                numpy.asarray(histories["E_source"])[index, selection]
+                * (k_value * chi) ** 2
+            )
+            with self.subTest(k=k_value):
+                numpy.testing.assert_allclose(
+                    actual,
+                    expected,
+                    rtol=1e-6,
+                    atol=1e-12 * float(numpy.max(numpy.abs(expected))),
+                )
+
+    def test_momentum_combination_preserves_a_small_einstein_source(self):
+        """Eliminating the declared Phi' keeps a small momentum combination."""
+
+        compiled = self._compile(_scalar_metadata_only_contract())
+        context = {
+            "einstein_gravity_strength": 2 / 3,
+            "total_momentum_source": 1.0,
+            "acoustic_k_sq": 1.0,
+            "Hconf": float(2**20),
+            "Psi": float(2**60),
+        }
+        for name in ("metric_momentum_source_drive", "Phi_tau"):
+            context[name] = evaluate_compiled_expression(
+                compiled.derived[name].compiled_expression, context
+            )
+        # The exact source is (3/2)*(2/3)*1/1 = 1. Forming a rounded
+        # Phi' before adding Hconf*Psi loses it at this dynamic range.
+        self.assertEqual(
+            context["Phi_tau"] + context["Hconf"] * context["Psi"], 0
+        )
+        actual = evaluate_compiled_expression(
+            compiled.derived["metric_momentum_constraint"].compiled_expression,
+            context,
+        )
+        self.assertEqual(float(actual), 1.0)
+
     def test_scalar_hierarchy_uses_time_dependent_einstein_sources(
         self,
     ) -> None:
@@ -2654,26 +2805,16 @@ class PerturbationContractTestCase(unittest.TestCase):
             "theta_gamma2 + 6.0 * e_gamma2",
         )
         self.assertEqual(
-            compiled.derived[
-                "visibility_polarization_moment_tau_tau"
-            ].variable,
-            "visibility_polarization_moment",
-        )
-        self.assertEqual(
-            compiled.derived["visibility_polarization_moment_tau_tau"].order,
-            2,
-        )
-        self.assertEqual(
             compiled.sources["temperature_quadrupole"].expression,
-            "0.0625 * visibility * polarization_moment",
+            "0.25 * visibility * polarization_moment",
         )
         self.assertEqual(
             compiled.sources["temperature_quadrupole_derivative"].expression,
-            "0.1875 * visibility_polarization_moment_tau_tau / acoustic_k_sq",
+            "0.75 * visibility * polarization_moment",
         )
         self.assertEqual(
             compiled.sources["polarization_source"].expression,
-            "0.1875 * visibility * polarization_moment",
+            "0.75 * visibility * polarization_moment",
         )
         self.assertEqual(
             compiled.sources["temperature_doppler"].expression,

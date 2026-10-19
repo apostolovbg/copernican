@@ -7,7 +7,18 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+import yaml
+
 from copernican.lib import run_executor
+from copernican.lib.likelihoods.cmb.errors import CMBError, ConvergenceError
+from tests.copernican.lib.test_run_pipeline import (
+    bounded_pipeline_inputs,
+    patch_unrelated_pipeline_plots,
+)
+from tests.project.lib.cmb_solver_fixture import (
+    SyntheticCmbSolver,
+    explicit_cmb_observations,
+)
 
 
 class FakeDataset:
@@ -19,6 +30,147 @@ class FakeDataset:
 
 class TestRunExecutor(unittest.TestCase):
     """Exercise manifest execution and persistence behavior."""
+
+    def test_manifest_runs_real_pipeline_and_separates_failure_provenance(
+        self,
+    ):
+        """Pipeline completion and early numerical failure stay distinct."""
+
+        for fail in (False, True):
+            with self.subTest(fail=fail):
+                control, reference, sne, comparison, plan = (
+                    bounded_pipeline_inputs()
+                )
+                manifest = self._base_manifest()
+                manifest["selection"]["models"] = [
+                    "model_lcdm",
+                    "model_ref_planck2018",
+                ]
+                manifest["selection"]["comparison"]["test"] = {
+                    "name": "model_ref_planck2018",
+                    "filename": reference.MODEL_FILENAME,
+                }
+                manifest["datasets"] = {
+                    "sne/small": {
+                        "name": "Small SNe",
+                        "type": "sne",
+                        "version": "1",
+                    },
+                    "cmb/small": {
+                        "name": "Small CMB",
+                        "type": "cmb",
+                        "version": "1",
+                    },
+                }
+                manifest["configuration"]["run_settings"].update(plan)
+                manifest["configuration"]["run_settings"][
+                    "display_progress"
+                ] = False
+                solver = SyntheticCmbSolver(
+                    spectrum_offsets={"TE": -1205, "EE": -1190}
+                )
+                with (
+                    tempfile.TemporaryDirectory() as directory,
+                    contextlib.ExitStack() as stack,
+                ):
+                    patch_unrelated_pipeline_plots(stack)
+                    stack.enter_context(
+                        mock.patch.object(
+                            run_executor.run_pipeline.plotter,
+                            "plot_cmb_spectrum",
+                        )
+                    )
+                    stack.enter_context(
+                        mock.patch.object(
+                            run_executor.dataset_registry,
+                            "load_sne_data",
+                            return_value=sne,
+                        )
+                    )
+                    stack.enter_context(
+                        mock.patch.object(
+                            run_executor.dataset_registry,
+                            "load_cmb_data",
+                            return_value=explicit_cmb_observations(),
+                        )
+                    )
+                    plugins = {
+                        control.MODEL_FILENAME: control,
+                        reference.MODEL_FILENAME: reference,
+                    }
+                    stack.enter_context(
+                        mock.patch.object(
+                            run_executor,
+                            "_build_plugin_from_path",
+                            side_effect=lambda path: plugins[path.name],
+                        )
+                    )
+                    stack.enter_context(
+                        mock.patch.object(
+                            run_executor,
+                            "resolve_cmb_solver",
+                            return_value=solver,
+                        )
+                    )
+                    run_executor._PLUGIN_CACHE.clear()
+                    if fail:
+                        stack.enter_context(
+                            mock.patch.object(
+                                solver,
+                                "evaluate",
+                                side_effect=ConvergenceError(
+                                    "manufactured incomplete computation"
+                                ),
+                            )
+                        )
+                        with self.assertRaises(CMBError):
+                            run_executor.execute_run_from_manifest(
+                                manifest,
+                                script_dir=Path.cwd(),
+                                output_root=Path(directory),
+                                run_start_ts="20261018_000001",
+                            )
+                    else:
+                        run_executor.execute_run_from_manifest(
+                            manifest,
+                            script_dir=Path.cwd(),
+                            output_root=Path(directory),
+                            run_start_ts="20261018_000001",
+                        )
+                    (manifest_path,) = Path(directory).glob(
+                        "run_manifest_*.yml"
+                    )
+                    stored = yaml.safe_load(manifest_path.read_text())
+                    self.assertEqual(
+                        stored["selection"]["comparison"],
+                        comparison.as_manifest(),
+                    )
+                    if fail:
+                        self.assertNotIn(
+                            "sampling", stored.get("provenance", {})
+                        )
+                        self.assertFalse(
+                            list(
+                                Path(directory).glob("parameter-summary*.json")
+                            )
+                        )
+                    else:
+                        self.assertEqual(
+                            stored["provenance"]["cmb_solver"]["solver_id"],
+                            solver.solver_id,
+                        )
+                        self.assertEqual(
+                            set(stored["provenance"]["sampling"]),
+                            {"control", "test"},
+                        )
+                        self.assertTrue(
+                            list(
+                                Path(directory).glob("parameter-summary*.json")
+                            )
+                        )
+                        self.assertTrue(
+                            list(Path(directory).glob("cmb-data*.csv"))
+                        )
 
     def setUp(self) -> None:
         self.console_write_patch = mock.patch.object(

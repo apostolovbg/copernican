@@ -103,8 +103,8 @@ from .spectrum_projection import (
     _integrate_power_spectrum,
     _primordial_power_grid_for_observable,
     _projection_ell_limit_for_mode,
+    _simpson_weights,
     _slice_projection_kernel_batch,
-    _trapezoid_weights,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -1566,7 +1566,7 @@ def _compute_custom_cmb_spectrum_data_impl(
     adaptive_source_history_rows: dict[
         tuple[str, str], list[numpy.ndarray]
     ] = {}
-    eta_integration_weights = _trapezoid_weights(source_grids["eta"])
+    eta_integration_weights = _simpson_weights(source_grids["eta"])
     split_collision_runtimes = _compile_split_collision_operator_runtimes(
         perturbation_data=perturbation_data,
         runtime_spec=runtime_spec,
@@ -1605,11 +1605,15 @@ def _compute_custom_cmb_spectrum_data_impl(
     )
     if exact_collision_phase_cap:
         # Strang splitting is second order in the streaming/collision phase.
-        # Keep its explicit RK phase budget at or below half a radian even for
-        # bounded diagnostic contracts; otherwise changing a legacy phase
-        # request changes TE/EE at the percent level despite exact collision
-        # exponentials.  This is an engine stability bound, not a model knob.
-        generated_final_phase_step = min(generated_final_phase_step, 0.5)
+        # Exact collision exponentials do not remove its commutator error.
+        # A half-radian ceiling leaves generated scalar E histories
+        # under-resolved and contaminates independent hierarchy comparisons.
+        # Keep the scalar ceiling at a tenth of a radian; refinement remains
+        # necessary to establish a particular request's numerical accuracy.
+        phase_ceiling = 0.1 if generated_scalar_hierarchy else 0.5
+        generated_final_phase_step = min(
+            generated_final_phase_step, phase_ceiling
+        )
     if (
         generated_scalar_hierarchy
         and declared_accuracy_controls.get("accuracy_tier") == "final"
@@ -2162,7 +2166,7 @@ def _compute_custom_cmb_spectrum_data_impl(
             raise RuntimeError(
                 "Projection refinement grids are not materially nested"
             )
-        projection_coarse_weights = _trapezoid_weights(
+        projection_coarse_weights = _simpson_weights(
             source_grids["eta"][projection_eta_indices]
         )
         coarse_projection_components = {
@@ -4100,9 +4104,7 @@ def _compute_custom_cmb_spectrum_data_impl(
             source_grids["eta"][adaptive_eta_indices],
             dtype=float,
         )
-        adaptive_eta_integration_weights = _trapezoid_weights(
-            adaptive_eta_grid
-        )
+        adaptive_eta_integration_weights = _simpson_weights(adaptive_eta_grid)
         adaptive_source_histories = {
             key: numpy.asarray(rows, dtype=float)[:, adaptive_eta_indices]
             for key, rows in adaptive_source_history_rows.items()

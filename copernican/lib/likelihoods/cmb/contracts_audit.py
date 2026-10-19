@@ -24,7 +24,7 @@ _COMMON_GENERATED_SOURCE_ROLES = frozenset(
     {
         "monopole",
         "additive",
-        "quadrupole_derivative",
+        "additive_derivative",
         "doppler",
         "isw",
         "polarization",
@@ -323,7 +323,7 @@ def _audit_source_graph_plugin(plugin: Any) -> CMBSourceGraphAudit:
         required_roles = {
             "monopole",
             "additive",
-            "quadrupole_derivative",
+            "additive_derivative",
             "doppler",
             "isw",
             "polarization",

@@ -516,10 +516,24 @@ bias of a trapezoid rule. Material negative auto-spectrum lobes still fall
 back to the positive trapezoid rule. Fixed-point
 diagnostics also record ordered TT peaks and troughs, damping, TE sign
 changes, and EE peaks directly from raw arrays before plotting.
-The generated scalar hierarchy uses CAMB's `Pi = Theta_gamma,2 +
-6 E_gamma,2` collision moment, whose `polter = Pi / 10` normalization gives
-the `3/16` E-source coefficient. Temperature's integrated quadrupole source
-uses the matching `1/16` ordinary and `3/16` second-derivative coefficients.
+The generated scalar hierarchy uses the temperature-normalized moment
+`Pi = Theta_gamma,2 + 6 E_gamma,2`. CAMB's native quadrupoles equal four
+times these temperature multipoles, giving `polter = 0.4 Pi` and the `3/4`
+E-source coefficient. Temperature's integrated quadrupole source
+uses the matching `1/4` ordinary and `3/4` second radial derivative
+coefficients. CCMBS applies both to the undifferentiated visibility-weighted
+moment, avoiding noisy second time derivatives of sampled histories.
+The photon continuity equation uses `+Phi'`, preserving adiabatic
+photon-baryon entropy for equal velocities. At integration stages the
+generated conformal Hubble rate is evaluated from the same declared `H(a)`
+as the coordinate conversion. Independent entropy, angular Thomson,
+compact CAMB history, and actual application composition regressions cover
+these conventions; see the
+[CCMBS development checks](copernican/docs/cmb_solver.md#development-checks).
+The generated momentum combination eliminates its declared metric derivative
+before floating-point evaluation to preserve small source terms under
+cancellation. Exact scalar collision splitting uses a 0.1-radian phase
+ceiling; exact collision exponentials alone do not control splitting error.
 Coarsened projection batches preserve zero-width optional vector and tensor
 sectors without indexing absent kernels, so scalar refinement remains warning
 free under NumPy's strict empty-axis rules.

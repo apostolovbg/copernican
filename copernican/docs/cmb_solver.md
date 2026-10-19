@@ -191,8 +191,8 @@ the five comparable bundled cosmologies and retains raw `C_ell`/`D_ell`
 surfaces, contract and numerical-plan digests, and artifact hashes. The
 fail-closed comparator rejects a changed raw surface. Canonical
 CCMBS-versus-CAMB acceptance at the bounded scientific handoff remains
-assigned to Slice Nineteen; CAMB-only rows are never reported as canonical
-parity.
+assigned to Slice Seven of the current `PLAN.md`; CAMB-only rows are never
+reported as canonical parity.
 The bounded parity tier uses the sparse ell grid `(2, 20, 100, 200, 500,
 800, 1200, 1500, 2000, 2500)`. `build_cmb_parity_matrix_report()` retains
 exact surface, fixture, tolerance, and refinement decisions and rejects
@@ -205,8 +205,8 @@ cannot report parity until the retained comparisons pass.
 arrays and its integrity digest, for reload verification in another process.
 Named fixed-point contracts and CAMB rows are supported for response points;
 each point receives its own ordinary-route execution and parity decision.
-`run_fixed_lcdm_cmb_parity()` is the Slice Nineteen scientific handoff
-command. It defines fixed massless-neutrino LCDM TT/TE/EE on the canonical
+`run_fixed_lcdm_cmb_parity()` is the historical sparse scientific handoff.
+It defines fixed massless-neutrino LCDM TT/TE/EE on the canonical
 sparse grid, rejects mismatched declared and resolved CAMB inputs, and
 requires complete raw surfaces, source/evolution convergence, exact cache
 identity, solver/backend provenance, and a quantitative decision. The
@@ -596,8 +596,10 @@ For the generated scalar hierarchy, `polarization_moment` means
 polarization_moment = Theta_gamma,2 + 6 E_gamma,2
 ```
 
-This is ten times CAMB's scalar `polter` source moment. Vector and tensor
-contracts may declare their own sector-specific moment normalization.
+CAMB's native `pi_photon` and `E_2` histories equal four times these
+temperature multipoles. Consequently its scalar source moment is
+`polter = 0.4 * polarization_moment`. Vector and tensor contracts may declare
+their own sector-specific moment normalization.
 
 `polarization_b_mode_seed` is the declared odd-parity transfer seed carried
 through exact lensing when a model declares primordial or sourced `B`.
@@ -738,7 +740,7 @@ Vector temperature uses the two flat-space radial families
 `sqrt(3l(l+1)/2) (j_l'(x)/x - j_l(x)/x^2)`; vector E and B use
 the corresponding spin-1 radial limits.
 The generated scalar E-mode line-of-sight source is
-`3/16 * visibility * polarization_moment` before the declared spin-2
+`3/4 * visibility * polarization_moment` before the declared spin-2
 projection. The scalar radial window carries the standard spin-2 factorial
 prefactor and `j_l / x^2`.
 
@@ -1040,7 +1042,7 @@ leave a numerical free-electron floor in the post-recombination tail.
 ### Photon Temperature Hierarchy
 
 ```text
-Theta_gamma,0' = -k Theta_gamma,1 - Phi'
+Theta_gamma,0' = -k Theta_gamma,1 + Phi'
 Theta_gamma,1' = k (Theta_gamma,0 + Psi - 2 Theta_gamma,2) / 3
                  - tau_dot (Theta_gamma,1 - v_b / 3)
 Theta_gamma,2' = 2 k Theta_gamma,1 / 5
@@ -1198,12 +1200,13 @@ contract preparation rather than selecting a hidden fallback.
 The generated scalar source decomposition is:
 
 ```text
-S_T = g (Theta_gamma,0 + Psi)
-    + g Pi / 16 + 3/(16 k^2) d^2/d eta^2 [g Pi]
-    + d/d eta [g v_b] / k
-    + exp(-tau) (Phi' + Psi')
+Delta_T = integral d eta [
+    g (Theta_gamma,0 + Psi) j_l
+    + g Pi j_l / 4 + 3 g Pi j_l'' / 4
+    + g v_b j_l'
+    + exp(-tau) (Phi' + Psi') j_l ]
 
-S_E = 3 g polarization_moment / 16
+S_E = 3 g polarization_moment / 4
 
 S_B = 0 for scalar modes
 
@@ -1214,14 +1217,22 @@ The declared photon multipoles use the same temperature and polarization
 normalization as the generated hierarchy. The generated scalar source uses
 the factors above, and the photon contribution to the Einstein shear source
 is `4 Omega_gamma0 Theta_gamma,2 / a^2`.
+Radial primes on `j_l` differentiate its argument `k chi`; potential primes
+differentiate conformal time. Equivalently, integrating the quadrupole by
+parts gives `g Pi/4 + 3 (g Pi)''/(4 k^2)` with the ordinary Bessel kernel.
+The runtime evaluates the angular Thomson source directly through radial
+kernels, so sampling irregularities do not become amplified second time
+derivatives. Its equivalence to the time-derivative form requires vanishing
+boundary terms. The direct angular form retains endpoint contributions even
+when a declaration's initial visibility is nonzero.
 
 The source-role contract is the authoritative dispatch table for these
 terms. Monopole, ISW, additive, and quadrupole_derivative roles use the
-ordinary spherical-Bessel window. The quadrupole derivative source is the
-second conformal-time derivative of the visibility-weighted polarization
-moment, so it is projected as an independent integrated source history;
-`additive_derivative` remains available for explicitly declared graphs that
-need the generic second radial-derivative window. Doppler uses the first
+ordinary spherical-Bessel window. An explicit graph can use
+`quadrupole_derivative` for an already differentiated source history.
+Generated scalar temperature instead binds its undifferentiated quadrupole
+to `additive_derivative`, selecting the second radial-derivative window.
+Doppler uses the first
 radial derivative. The temperature projection does not infer a role from a
 source name and does not combine unbound source histories. E polarization
 uses the declared spin-2 E kernel, while a potential role uses the signed
@@ -1266,12 +1277,11 @@ arrays.
 The generated scalar Doppler source uses the baryon velocity
 `v_b = theta_b / k` and projects `g v_b` through the derivative spherical-
 Bessel kernel. The polarization contribution is carried once in the
-temperature transfer as `g Pi / 16` plus
-`3 (g Pi)'' / (16 k^2)`, where `Pi` is the declared
+temperature transfer as `g Pi / 4` with the ordinary kernel and
+`3 g Pi / 4` with the second radial derivative, where `Pi` is the declared
 `polarization_moment`. The same CAMB-normalized moment is used by the
-`3 g Pi / 16` E source. The ordinary-Bessel and second-time-derivative
-histories are explicit, preventing a second copy of the polarization source
-from entering the temperature transfer.
+`3 g Pi / 4` E source. The two declared bindings distinguish the ordinary
+and second radial kernels, preventing duplicate polarization contributions.
 
 During tight coupling, the declared hierarchy evolves one photon-baryon
 velocity by the declared momentum-weighted combination of the photon and
@@ -1840,8 +1850,8 @@ independent reference RMS so their sign changes and zero crossings remain
 well-defined.
 
 The generated scalar source uses the independent-reference coefficients
-`1 / 16` and `3 / 16` for the integrated polarization-quadrupole terms and
-`3 / 16` for the E source. The declared `polarization_moment` uses the same
+`1 / 4` and `3 / 4` for the integrated polarization-quadrupole terms and
+`3 / 4` for the E source. The declared `polarization_moment` uses the same
 normalization as the generated hierarchy, so no post-projection conversion is
 applied.
 
@@ -1905,6 +1915,151 @@ fixture establishes the declared unlensed and lensed `TT`, `EE`, and `BB`
 ten-percent median boundary. Scalar, lensing-potential, massive-neutrino,
 gauge, and vector acceptance use their own declared surfaces and thresholds
 in `PLAN.md`.
+
+## Development Checks
+
+Slice Four's development loop separates independently derived equation and
+application tests from bounded real solver execution. Neither workload
+certifies complete CAMB parity. Run from the repository checkout in its
+managed environment:
+
+```bash
+source .venv/bin/activate
+python -m tests.project.lib.scientific_acceptance \
+  --development-checks focused
+python -m tests.project.lib.scientific_acceptance \
+  --development-checks bounded
+```
+
+The existing runner selects explicit unittest modules/methods and writes
+`development-focused.json` and `development-bounded.json`, with sibling
+test logs, under the configured output root's
+`ccmbs-acceptance/completion-evidence/` directory. `--evidence-root PATH`
+overrides that destination. Reports retain each test's wall time, outcome,
+source revision/content identity, compact reference digest, numerical-library
+versions, hardware/thread settings, process peak RSS, and observed
+parent-process request telemetry. Workers remain covered by their owning
+tests; their internal phase counters are not separately instrumented here.
+Raw executor phase counters can overlap or exceed request wall time; use
+the measured workload/test wall clocks for the 60/300-second cost limits.
+Resolving that counter attribution belongs to the production profiling work
+in Slice Six. A test failure, skip, expected failure, empty selection, or
+exceeded cost target fails the development command. A time limit here is a
+development-cost blocker, not a physical rejection of a theory.
+
+### Independent Equations And Negative Controls
+
+With `delta_gamma = 4 Theta_0` and `theta_gamma = 3 k Theta_1`, the
+Newtonian continuity equations give
+`Theta_0' = -theta_gamma/3 + Phi'` and
+`delta_b' = -theta_b + 3 Phi'`. Therefore
+`(delta_b - 3 Theta_0)' = theta_gamma - theta_b` for arbitrary `Phi'`.
+Equal velocities preserve adiabatic entropy. A negative photon metric term
+instead introduces `6 Phi'`, which the independent numerical regression
+reproduced before the materializer repair. The convention follows
+[Ma and Bertschinger, equations 64, 67 and 98](https://arxiv.org/html/astro-ph/9506072v1).
+The leading regular initial series checks the common photon, baryon, and
+neutrino density ratios and velocities without copying generated strings.
+
+At every generated scalar integration stage, `Hconf = a H(a)/c` now uses
+the declared expansion evaluated at that same scale factor. Mixing it
+with a separately differentiated interpolation of `a(eta)` produced a
+0.564% disagreement and an artificial superhorizon metric mode. The
+stage-identity regression and unchanged ordinary superhorizon metric bound
+both pass after the repair. An explicitly declared `Hconf` stays authoritative.
+
+The polarization checks fix the temperature-multipole scale independently:
+native CAMB `pi_photon = 4 Theta_2`, `E_2 = 4 e_2`, and hence
+`polter = 0.4 Pi` for `Pi = Theta_2 + 6 e_2`.
+[CAMB 1.6.0's scalar source](https://github.com/cmbant/CAMB/blob/1.6.0/fortran/equations.f90)
+gives `E_source = 3 g Pi / (4 (k chi)^2)`. The frozen native source
+agrees at three post-recombination epochs for both selected modes. The
+previous generated E source was a factor of four too small. Independently
+integrating the angular Thomson term `-g Pi P_2(mu)/2` gives the temperature
+terms `g Pi/4 + 3 (g Pi)''/(4 k^2)` when boundary terms vanish. A numerical
+Gauss-Legendre angular integral tests that result against the actual compiled
+source and radial projection, without reading their coefficients.
+
+The complete workflow exposed two further numerical issues in this surface.
+The generated momentum combination now substitutes its declared
+`Phi' = momentum_drive - Hconf Psi` before evaluation; subtracting and then
+adding large metric terms had erased part of the small source drive in
+QRSF's diagnostic reconstruction. A large-dynamic-range control detects that
+loss without widening the constraint tolerance. The scalar exact-collision
+phase ceiling is now 0.1 radians: half-radian Strang steps contaminated the
+hierarchy-depth comparison after the E-source normalization repair. A real
+split oscillator is compared with its independent coupled matrix exponential,
+and the unchanged 1% depth-refinement regression remains in the bounded
+workload. These ceilings do not replace independent convergence evidence.
+
+The focused checks also cover exact photon-baryon momentum conservation,
+exponential velocity-slip damping, both polarization collision eigenmodes,
+spin-2 radial normalization, analytic sine-integral projection and logarithmic
+power integration, manufactured RK4 trajectories, and dimensional C/D
+conversions. Wrong collision/source signs, phase shifts, localized spikes,
+truncated support, wrong covariance permutations, missing spectra, and stale
+cache identities have rejecting controls alongside passing controls.
+
+### Compact Independent CAMB Data
+
+`tests/project/fixtures/camb_lcdm_histories.json` freezes CAMB 1.6.0 at
+`k = (0.0001, 0.02) Mpc^-1` and
+`eta = (1,2,5,10,50,100,200,300,500,1000) Mpc`. The test-owned builder calls
+`get_background` and `get_time_evolution` with `lAccuracyBoost=4`, without
+computing angular spectra. It records `a`, conformal H, physical H and
+redshift, ionization/opacity/visibility, native density/quadrupole/source
+histories, exact physical/resolved inputs, gauge and unit maps, and SHA-256.
+The massless point has H0=75, ombh2=0.0309375, omch2=0.18, Neff=3,
+As=2.1e-9, ns=0.965, YHe=0.245 and tau=0.054. Explicit metadata records
+the CAMB temperature, Recfast and tanh reionization defaults. This is the
+massless development point, not the fixed massive Planck2018 point.
+
+Named CAMB densities remain in the CDM-comoving synchronous gauge;
+`get_time_evolution(frame=...)` transforms symbolic expressions, not those
+native named outputs. The fixture compares gauge-invariant baryon/photon
+entropy and quadrupoles. Absolute density comparison with Newtonian CCMBS
+requires an explicit common-gauge transformation in Slice Five. Equal tau
+does not match the declaration's collapse-source reionization to CAMB tanh.
+Selected mode/epoch values are compared directly with frozen data, while
+the independent source test evaluates CCMBS expressions on native quadrupoles.
+Neither test claims that full CCMBS histories already match CAMB.
+
+Regenerate compact data only by explicit request:
+
+```bash
+source .venv/bin/activate
+python -m tests.project.lib.scientific_acceptance \
+  --freeze-development-reference
+```
+
+The recurring reference tests load digest-verified frozen angular spectra
+for integrity, unit, and comparator checks. Live angular-reference builder
+checks retain their assertions in an explicit non-discovery owner:
+
+```bash
+source .venv/bin/activate
+python -m unittest tests.project.lib.camb_reference_acceptance -v
+```
+
+Other existing physical solver/reference regressions remain in ordinary
+discovery. No engine cold-path proof is replaced by fixture integrity.
+
+### Actual Application Composition
+
+The bounded application fixture supplies independently chosen long-form
+TE/TT/EE rows, duplicate ells, signed cross power, and a dense covariance
+with cross terms. Its hand-computable chi-square is 45.4. The actual
+likelihood preserves row/covariance ordering and rejects incomplete requested
+spectra or typed numerical failure. A real small free/fixed MCMC pipeline
+then consumes those values in summaries, CSV, and a real CMB figure. Its
+SNe inputs are small and independent; posterior and Hubble figures are
+outside this focused CMB behavior check. The manifest executor calls that
+same pipeline and persists model roles and completed sampling provenance;
+an early numerical failure produces no successful sampling provenance.
+These are controlled application checks, separate from statistical or
+scientific acceptance. The shipped Planck wide-table parser/covariance,
+reference-manifest mismatch, complete/incomplete lifecycle, GUI/CLI, and
+final sampler integration remain explicit Slice Nine obligations.
 
 ## References
 The canonical meanings and target equations above follow the standard
