@@ -704,6 +704,14 @@ def _compile_declared_cmb_runtime_impl(
         raise ValueError(
             "cmb.background.recombination.roles must be a mapping"
         )
+    prescription = recombination_section.get("prescription")
+    if prescription not in (None, "effective_three_level"):
+        raise ValueError("Unknown declared recombination prescription")
+    if prescription and (recombination_quantities or recombination_roles):
+        raise ValueError(
+            "A recombination prescription cannot also supply rate or role "
+            "equations"
+        )
     invalid_roles = set(str(name) for name in recombination_roles) - set(
         _RECOMBINATION_ROLE_NAMES
     )
@@ -1039,6 +1047,101 @@ def _register_generated_callable(func, *, name_hint: str | None = None):
     func.__qualname__ = candidate
     func.__module__ = module.__name__
     return func
+
+
+class _DeclaredBackgroundGeometry:
+    """Share a declared physical background with distance and ruler calls."""
+
+    def __init__(self, model_data):
+        """Compile the same immutable background carried by the CMB plugin."""
+
+        from .model_adapter import CMBParameterEvaluator
+
+        parameters = model_data["parameters"]
+        self.parameter_names = tuple(
+            parameter["python_var"] for parameter in parameters
+        )
+        latex_names = tuple(
+            parameter.get("latex_name", "") for parameter in parameters
+        )
+        declaration = model_data["cmb"]
+        self.constants = dict(declaration.get("model_parameters", {}))
+        self.evaluator = CMBParameterEvaluator(
+            self.parameter_names, latex_names, declaration["param_map"]
+        )
+        self.runtime = compile_declared_cmb_runtime(
+            model_name=model_data["model_name"],
+            parameter_names=self.parameter_names,
+            latex_names=latex_names,
+            cmb_contract=declaration,
+        )
+        self.last_binding = None
+
+    def bound_contract(self, parameters):
+        """Retain one complete parameter binding without mixing requests."""
+
+        values = tuple(float(value) for value in parameters)
+        binding = self.last_binding
+        if binding is None or binding[0] != values:
+            model_parameters = dict(self.constants)
+            model_parameters.update(zip(self.parameter_names, values))
+            binding = (
+                values,
+                self.runtime.build_contract(
+                    model_parameters=model_parameters,
+                    param_map=self.evaluator(values),
+                ),
+            )
+            self.last_binding = binding
+        return binding[1]
+
+    def __call__(self, redshift, *parameters):
+        """Evaluate H(z) through the shared declared density/thermal graph."""
+
+        from .likelihoods.cmb.runtime.background import (
+            _resolve_declared_background_context,
+        )
+
+        values = numpy.asarray(redshift, dtype=float)
+        if not numpy.all(numpy.isfinite(values)) or numpy.any(values <= -1):
+            raise ValueError("Background geometry requires finite z > -1")
+        if values.size == 0:
+            return values.copy()
+        context = _resolve_declared_background_context(
+            self.bound_contract(parameters),
+            a_values=1.0 / (1.0 + values),
+            z_values=values,
+        )
+        hubble = numpy.broadcast_to(numpy.asarray(context["H"]), values.shape)
+        return float(hubble) if values.ndim == 0 else hubble.copy()
+
+    def background(self, parameters):
+        """Return the native refined recombination and drag background."""
+
+        from .likelihoods.cmb.runtime import background
+
+        contract = self.bound_contract(parameters)
+        return background._build_custom_cmb_background(
+            contract,
+            background._resolve_custom_cmb_physical_parameters(contract),
+            background._resolve_custom_cmb_numerics(contract),
+        )
+
+
+class _DeclaredBackgroundSoundHorizon:
+    """Expose the physical recombination or drag endpoint to BAO callers."""
+
+    def __init__(self, geometry, endpoint):
+        """Retain the shared background and the requested physical ruler."""
+
+        self.geometry = geometry
+        self.endpoint = endpoint
+
+    def __call__(self, *parameters):
+        """Read the accepted native ruler rather than a separate H(z) fit."""
+
+        background = self.geometry.background(parameters)
+        return float(getattr(background, self.endpoint))
 
 
 class _ComovingDistance:
@@ -1905,6 +2008,16 @@ def _generate_callables_impl(cache_path):
     funcs = {}
     code_dict = {}
 
+    geometry_source = model_data.get("geometry")
+    if geometry_source not in (None, "cmb.background"):
+        raise ValueError("geometry must name the declared cmb.background")
+    if geometry_source and (
+        model_data.get("Hz_expression") or model_data.get("rs_expression")
+    ):
+        raise ValueError(
+            "Declared background geometry cannot also declare separate "
+            "Hz_expression or rs_expression"
+        )
     hz_expr_str = model_data.get("Hz_expression")
     if hz_expr_str:
         try:
@@ -2123,6 +2236,31 @@ def _generate_callables_impl(cache_path):
             msg = f"Failed to parse Hz_expression: {e}"
             error_handler.report_error(msg)
             raise ValueError(msg) from e
+    elif geometry_source:
+        hz_fn = _DeclaredBackgroundGeometry(model_data)
+        dm_fn = _ComovingDistance(hz_fn)
+        funcs.update(
+            get_Hz_per_Mpc=hz_fn,
+            get_comoving_distance_Mpc=dm_fn,
+            get_luminosity_distance_Mpc=_LuminosityDistance(dm_fn),
+            get_angular_diameter_distance_Mpc=_AngularDiameterDistance(dm_fn),
+            get_DV_Mpc=_VolumeAveragedDistance(dm_fn, hz_fn),
+            get_sound_horizon_rs_Mpc=_DeclaredBackgroundSoundHorizon(
+                hz_fn, "sound_horizon_mpc"
+            ),
+            get_sound_horizon_rs_rec_Mpc=_DeclaredBackgroundSoundHorizon(
+                hz_fn, "sound_horizon_mpc"
+            ),
+            get_sound_horizon_rs_drag_Mpc=_DeclaredBackgroundSoundHorizon(
+                hz_fn, "drag_sound_horizon_mpc"
+            ),
+            get_bao_drag_redshift=_DeclaredBackgroundSoundHorizon(
+                hz_fn, "drag_redshift"
+            ),
+        )
+        model_data["bao_sound_horizon_epoch"] = "drag"
+        code_dict.update({name: "cmb.background" for name in funcs})
+        model_data["valid_for_distance_metrics"] = True
     else:
         console.write(
             "\u26a0\ufe0f  Model does not define H(z). Distance-based "

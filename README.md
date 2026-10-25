@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-10-18
+**Last Updated:** 2026-10-25
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -210,6 +210,17 @@ signs, and records proved physical-zero states. Exact lensed remapping uses a
 bounded cache keyed by its scaled inputs, output convention, sampling factor,
 and ell grid, so an exact repeat reuses the lensing intermediate rather than
 rerunning the remapper.
+
+CCMBS `runtime/mode_evolution.py` retains the declared integration choice
+when collecting diagnostic evidence. The accuracy control
+`continuous_collision_solver: true` explicitly selects coupled BDF collision
+integration for supported declarations. Its error control normalizes each
+state by its initial amplitude or propagated initial physical drive, so small
+velocity and shear moments retain their gravitational effect. Compatible
+small batches keep their computed histories rather than repeating every mode
+through a different scalar solver. Focused early-time regressions compare
+independently refined RK and BDF histories before late evolution or spectrum
+projection.
 
 Declared CMB validation records the resolved numerical envelope in each run
 manifest. The named final tier requires bounded background, transfer,
@@ -479,8 +490,77 @@ engine continues through a bounded refinement ladder instead of treating a
 single theoretical node count as convergence. The accepted finer background
 becomes the production background. Each attempt measures endpoints, opacity,
 visibility normalization, electron fraction, sound speed, drag quantities,
-and massive-neutrino density and pressure when active; drag remains an
-independent baryon-opacity quantity.
+and massive-neutrino density and pressure when active. The background owner
+`runtime/background.py` integrates baryon drag as opacity divided by
+`R = 3 rho_b / (4 rho_gamma)` through the complete remaining recombination
+tail. The independently evolved late reionization component is excluded
+from that ruler. The drag integral continues beyond the visibility peak;
+the recombination and drag epochs retain distinct sound horizons.
+Declared reionization rates evaluate `z = 1/a - 1` at their actual endpoint
+and midpoint stages, so equivalent scale-factor and redshift laws agree.
+
+The standard `model_lcdm.yml` and fixed `model_ref_planck2018.yml`
+declarations explicitly use tanh reionization, with hydrogen width 0.5 in
+redshift and a second helium transition at redshift 3.5 with width 0.4.
+The declared midpoint is calibrated to optical depth 0.054. These are
+reference-model assumptions, not a model-name rule in CCMBS. Alternative
+models retain their declared ionization-rate laws. The background also
+accepts a declared total `electron_fraction` expression; contradictory rate
+and fraction inputs or fractions outside physical bounds are rejected.
+The resolved calibration is retained in background evidence.
+
+Both reference models fix the measured blackbody temperature at 2.7255 K.
+Photon density follows the blackbody law, proportional to temperature to
+the fourth power divided by the square of H0, in distance, sound-horizon
+and CMB declarations. Photon density is no longer an independent fitted
+parameter in these two models. Other theories retain their own explicit
+radiation and reionization declarations.
+
+The reference declarations select `geometry: cmb.background`. The compiler
+in `model_coder.py` derives distances and both recombination/drag sound
+horizons from the same native expansion and atomic histories as CMB.
+A separately fitted recombination-redshift parameter and duplicate symbolic
+H(z)/sound-horizon formulas are removed from these two models. Other models
+can retain their symbolic geometry or explicitly select the shared route.
+
+Their `effective_three_level` recombination prescription uses coupled
+hydrogen, helium and gas-temperature evolution in `runtime/recombination.py`,
+including helium escape/continuum/triplet channels and Compton scattering.
+Custom atomic quantities and generic recombination roles remain separate
+explicit prescriptions. No production background calls CAMB.
+
+The Planck declaration specifies thermal neutrino heating with
+`standard_neutrino_neff: 3.044`, three degenerate masses totaling 0.06 eV,
+and the corresponding Fermi-Dirac density. Expansion and kinetic perturbations
+share that temperature and density, leaving no additional massless 0.044
+component. Automatically planned momentum grids generate q-resolved scalar
+states with physical energy, momentum and shear normalization.
+
+The scalar hierarchy in `perturbation_contract.py` evolves the curvature
+potential with the Einstein energy equation. This avoids dividing the
+velocity source by k squared during superhorizon evolution. The momentum
+equation remains an independent constraint; initial radiation-density
+projection closes both constraints while preserving the primordial metric.
+`runtime/mode_evolution.py` retains the evolved metric and source histories.
+Velocity-isocurvature density seeds use the independent momentum source,
+so they resolve before any provisional state exists. `contracts_audit.py`
+uses the runtime's generated source-graph validator, including every energy
+equation input. Public massive-neutrino velocity and shear use the physical
+enthalpy density (rho plus pressure) at each epoch; normalized q moments
+remain separate. BAO data comparisons use the baryon drag sound horizon.
+
+The explicit `tests.project.lib.native_history_acceptance` command compares
+both reference models' native modes and source terms before angular work.
+Its `--refine` option additionally checks measured changes under finer
+resolution. Reports retain the physical inputs, source identity and verdict.
+This component check and the full scientific acceptance remain outside
+ordinary discovery and `devcovenant run`.
+
+Fast collision equilibrium must hold relative to both streaming and
+expansion: the tight-coupling criterion in `runtime/evolution.py` uses
+`max(abs(k), abs(Hconf))`. This prevents very long wavelength modes from
+remaining on an instantaneous polarization equilibrium after decoupling.
+
 Massive-neutrino density and pressure histories are retained
 from the same q quadrature used by perturbation evolution, including the
 continuous zero-mass limit.
@@ -530,6 +610,12 @@ as the coordinate conversion. Independent entropy, angular Thomson,
 compact CAMB history, and actual application composition regressions cover
 these conventions; see the
 [CCMBS development checks](copernican/docs/cmb_solver.md#development-checks).
+The explicit `scientific_acceptance --development-checks` commands report
+test correctness and measured cost separately. Exceeding a historical cost
+target remains visible in telemetry and does not fail passing tests. Failed,
+skipped or missing tests still fail the command; the separate scientific
+acceptance calculation remains outside ordinary discovery and DevCovenant
+workflow runs.
 The generated momentum combination eliminates its declared metric derivative
 before floating-point evaluation to preserve small source terms under
 cancellation. Exact scalar collision splitting uses a 0.1-radian phase

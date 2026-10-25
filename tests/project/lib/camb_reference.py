@@ -201,6 +201,8 @@ def _make_camb_params(
         model_kwargs["tau"] = _use_scalar("tau")
     if "YHe" in param_map:
         model_kwargs["YHe"] = _use_scalar("YHe")
+    if "TCMB" in param_map:
+        model_kwargs["TCMB"] = _use_scalar("TCMB")
     if "theta_H0_range" in param_map:
         theta_range = _coerce_numeric_array(
             param_map["theta_H0_range"], name="theta_H0_range"
@@ -414,6 +416,7 @@ def compute_camb_scalar_time_evolution(
     ),
     frame: str = "Newtonian",
     l_accuracy_boost: int = 4,
+    accuracy_boost: float = 1.0,
 ) -> dict[str, numpy.ndarray]:
     """Return independent CAMB scalar histories on the requested eta grid.
 
@@ -430,7 +433,11 @@ def compute_camb_scalar_time_evolution(
         raise ValueError("variables must not be empty")
     if int(l_accuracy_boost) < 1:
         raise ValueError("l_accuracy_boost must be positive")
+    accuracy = _coerce_numeric_scalar(accuracy_boost, name="accuracy_boost")
+    if accuracy < 1.0:
+        raise ValueError("accuracy_boost must be at least one")
     params = _make_camb_params(contract_or_params, lmax=32)
+    params.Accuracy.AccuracyBoost = accuracy
     # Time evolution needs thermal/background data, not angular spectra.
     results = camb.get_background(params)
     conformal_age = _coerce_numeric_scalar(
@@ -464,6 +471,65 @@ def compute_camb_scalar_time_evolution(
     return {
         name: numpy.asarray(values[:, index], dtype=float)
         for index, name in enumerate(variable_names)
+    }
+
+
+def camb_histories_in_newtonian_gauge(
+    native: Mapping[str, Any],
+    k_value: float,
+    *,
+    curvature_sign: int = 1,
+) -> dict[str, numpy.ndarray]:
+    """Transform native CAMB histories without compiling custom Fortran.
+
+    CAMB 1.6.0 equations.f90 exports V_c=-k*sigma/Hconf and
+    Weyl=k^2*(Phi+Psi)/2. Its synchronous densities transform by
+    delta_N=delta_sync-3*(1+w)*Hconf*sigma/k. Photon brightness and
+    polarization quadrupoles are four times temperature multipoles.
+    Use curvature_sign=-1 for the declared seed Phi-Theta0=+1; CAMB's
+    native unit-curvature seed has Phi-Theta0=-1. This fixed convention
+    change does not fit amplitudes or phases to the computed histories.
+    """
+
+    k = _coerce_numeric_scalar(k_value, name="k_value")
+    if k <= 0.0 or curvature_sign not in (-1, 1):
+        raise ValueError("Newtonian histories require k>0 and sign +/-1")
+    fields = {
+        name: _coerce_numeric_array(native[name], name=name)
+        for name in (
+            "H",
+            "etak",
+            "Weyl",
+            "v_newtonian_cdm",
+            "v_newtonian_baryon",
+            "delta_cdm",
+            "delta_baryon",
+            "delta_photon",
+            "delta_neutrino",
+            "pi_photon",
+            "E_2",
+        )
+    }
+    if len({array.shape for array in fields.values()}) != 1:
+        raise ValueError("Native CAMB history grids must match")
+    hubble = fields["H"]
+    shift = (hubble / k) ** 2 * fields["v_newtonian_cdm"]
+    phi = fields["etak"] / k + shift
+    histories = {
+        "Phi": phi,
+        "Psi": 2.0 * fields["Weyl"] / k**2 - phi,
+        "delta_b": fields["delta_baryon"] + 3.0 * shift,
+        "delta_c": fields["delta_cdm"] + 3.0 * shift,
+        "delta_nu": fields["delta_neutrino"] + 4.0 * shift,
+        "theta_gamma0": fields["delta_photon"] / 4.0 + shift,
+        "theta_b": -hubble * fields["v_newtonian_baryon"],
+        "theta_c": -hubble * fields["v_newtonian_cdm"],
+        "theta_gamma2": fields["pi_photon"] / 4.0,
+        "e_gamma2": fields["E_2"] / 4.0,
+    }
+    return {
+        name: float(curvature_sign) * values
+        for name, values in histories.items()
     }
 
 
@@ -1405,6 +1471,7 @@ __all__ = [
     "compare_scalar_history_waves",
     "compute_camb_background_observables",
     "compute_camb_scalar_time_evolution",
+    "camb_histories_in_newtonian_gauge",
     "compute_cmb_spectrum_from_camb_contract",
     "describe_camb_configuration",
     "load_lcdm_full_reference_fixture",

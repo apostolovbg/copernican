@@ -25,6 +25,100 @@ def _evaluate_generated_callable(generated_callable):
     return generated_callable(1)
 
 
+def _evaluate_declared_geometry(request):
+    """Evaluate a geometry callable after its real spawn serialization."""
+
+    geometry, redshift, parameters = request
+    return geometry(redshift, *parameters)
+
+
+class DeclaredBackgroundGeometryTestCase(unittest.TestCase):
+    """Distances and rulers consume the actual declared background."""
+
+    def test_shared_geometry_matches_native_expansion_and_spawn(self):
+        import numpy
+
+        from copernican.lib.likelihoods.cmb.runtime import background
+        from tests.copernican.lib.test_model_adapter import (
+            DeclaredLCDMModelTestCase,
+        )
+
+        for filename in ("model_lcdm.yml", "model_ref_planck2018.yml"):
+            plugin = DeclaredLCDMModelTestCase._build_plugin(filename)
+            values = plugin.INITIAL_GUESSES
+            geometry = plugin.get_Hz_per_Mpc
+            self.assertIsInstance(
+                geometry, model_coder._DeclaredBackgroundGeometry
+            )
+            redshift = numpy.asarray((0.0, 1.0, 100.0, 1000.0, 1e5))
+            expected = background._resolve_declared_background_context(
+                plugin.get_cmb_declared_runtime(values),
+                a_values=1 / (1 + redshift),
+                z_values=redshift,
+            )["H"]
+            numpy.testing.assert_allclose(
+                geometry(redshift, *values), expected
+            )
+            with multiprocessing_module.get_context("spawn").Pool(1) as pool:
+                restored_values = pool.apply(
+                    _evaluate_declared_geometry,
+                    ((geometry, redshift, values),),
+                )
+            numpy.testing.assert_array_equal(
+                restored_values, geometry(redshift, *values)
+            )
+            bound = geometry.bound_contract(values)
+            self.assertIs(geometry.bound_contract(values), bound)
+            for index, value in enumerate(redshift):
+                self.assertAlmostEqual(
+                    geometry(float(value), *values) / expected[index],
+                    1.0,
+                    places=14,
+                )
+            self.assertEqual(geometry(numpy.asarray([]), *values).size, 0)
+            for invalid in (-1.0, numpy.nan):
+                with self.assertRaises(ValueError):
+                    geometry(invalid, *values)
+            changed = list(values)
+            changed[0] *= 1.01
+            self.assertNotEqual(
+                geometry(0.0, *values), geometry(0.0, *changed)
+            )
+            self.assertIsNot(geometry.bound_contract(changed), bound)
+            self.assertAlmostEqual(
+                geometry(0.0, *values), values[0], places=12
+            )
+
+    def test_shared_sound_horizons_retain_the_physical_endpoints(self):
+        from copernican.lib.likelihoods.cmb.runtime import cache
+        from tests.copernican.lib.test_model_adapter import (
+            DeclaredLCDMModelTestCase,
+        )
+
+        self.addCleanup(cache.clear_cmb_caches)
+        plugin = DeclaredLCDMModelTestCase._build_plugin()
+        values = plugin.INITIAL_GUESSES
+        physical = plugin.get_Hz_per_Mpc.background(values)
+        self.assertIsInstance(
+            plugin.get_sound_horizon_rs_Mpc,
+            model_coder._DeclaredBackgroundSoundHorizon,
+        )
+        self.assertEqual(
+            plugin.get_sound_horizon_rs_rec_Mpc(*values),
+            physical.sound_horizon_mpc,
+        )
+        self.assertEqual(
+            plugin.get_sound_horizon_rs_drag_Mpc(*values),
+            physical.drag_sound_horizon_mpc,
+        )
+        self.assertEqual(
+            plugin.get_bao_drag_redshift(*values), physical.drag_redshift
+        )
+        self.assertGreater(
+            physical.drag_sound_horizon_mpc, physical.sound_horizon_mpc
+        )
+
+
 class TestModelCoderSecurity(unittest.TestCase):
     """Ensure potentially dangerous expressions are not executed."""
 

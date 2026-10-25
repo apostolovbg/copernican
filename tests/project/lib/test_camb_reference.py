@@ -1,5 +1,6 @@
 """Focused tests for the independent CAMB reference helper."""
 
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -12,6 +13,247 @@ from tests.project.lib import camb_reference
 
 class CambReferenceModuleTestCase(unittest.TestCase):
     """Exercise the independent CAMB reference helper surface."""
+
+    def test_newtonian_history_mapping_preserves_entropy_and_curvature(self):
+        """Gauge changes retain entropy and the fixed seed convention."""
+
+        k = 1.0e-4
+        names = (
+            "H",
+            "etak",
+            "Weyl",
+            "v_newtonian_cdm",
+            "v_newtonian_baryon",
+            "delta_cdm",
+            "delta_baryon",
+            "delta_photon",
+            "delta_neutrino",
+            "pi_photon",
+            "E_2",
+        )
+        native = camb_reference.compute_camb_scalar_time_evolution(
+            camb_reference.FIXED_LCDM_REFERENCE_CONTRACT,
+            k,
+            (1.0, 2.0, 5.0),
+            variables=names,
+        )
+        mapped = camb_reference.camb_histories_in_newtonian_gauge(
+            native, k, curvature_sign=-1
+        )
+        numpy.testing.assert_allclose(
+            mapped["delta_b"] - 3 * mapped["theta_gamma0"],
+            -(native["delta_baryon"] - 0.75 * native["delta_photon"]),
+            rtol=0.0,
+            atol=2e-15,
+        )
+        numpy.testing.assert_allclose(
+            mapped["Phi"] - mapped["theta_gamma0"],
+            1.0,
+            rtol=1e-6,
+        )
+        numpy.testing.assert_allclose(
+            mapped["Phi"] + mapped["Psi"],
+            -2 * native["Weyl"] / k**2,
+            rtol=1e-14,
+        )
+        numpy.testing.assert_array_equal(
+            mapped["theta_gamma2"], -native["pi_photon"] / 4
+        )
+        with self.assertRaisesRegex(ValueError, "grids must match"):
+            camb_reference.camb_histories_in_newtonian_gauge(
+                {**native, "H": native["H"][:1]}, k
+            )
+        with self.assertRaisesRegex(ValueError, "sign"):
+            camb_reference.camb_histories_in_newtonian_gauge(
+                native, k, curvature_sign=0
+            )
+
+    def test_bundled_reionization_and_drag_match_independent_backgrounds(self):
+        """Both declarations match full late ionization and drag histories."""
+
+        from copernican.lib import (
+            model_adapter,
+            model_coder,
+            model_spec_validator,
+        )
+        from copernican.lib.likelihoods.cmb.runtime import background, cache
+
+        self.addCleanup(cache.clear_cmb_caches)
+        model_root = Path(__file__).resolve().parents[3] / "copernican/models"
+        for filename in ("model_lcdm.yml", "model_ref_planck2018.yml"):
+            with self.subTest(model=filename):
+                with tempfile.TemporaryDirectory() as directory:
+                    validated = model_spec_validator.validate_and_cache_model(
+                        model_root / filename, directory
+                    )
+                    functions, model_data = model_coder.generate_callables(
+                        validated
+                    )
+                plugin = model_adapter.build_plugin(model_data, functions)
+                contract = plugin.get_cmb_declared_runtime(
+                    plugin.INITIAL_GUESSES
+                )
+                physical = background._resolve_custom_cmb_physical_parameters(
+                    contract
+                )
+                summary = (
+                    background._summarize_declared_background_manifest_summary(
+                        contract
+                    )["recombination_runtime"]
+                )
+                self.assertFalse(summary["reionization_ode"])
+                self.assertEqual(
+                    summary["reionization_history"],
+                    "declared_electron_fraction",
+                )
+                actual = background._build_custom_cmb_background_impl(
+                    contract,
+                    physical,
+                    background._CustomCMBNumerics(eta_sample_count=2048),
+                )
+                parameters = dict(contract["param_map"])
+                parameters.setdefault("mnu", 0.0)
+                parameters.setdefault("num_massive_neutrinos", 0)
+                parameters["TCMB"] = physical.Tcmb_K
+                reference = camb_reference.camb.get_background(
+                    camb_reference._make_camb_params(
+                        {
+                            "backend": "camb",
+                            "param_map": parameters,
+                            "grids": {},
+                            "values": {},
+                            "calls": [],
+                        }
+                    )
+                )
+                redshift = numpy.linspace(0.0, 25.0, 251)
+                thermal = reference.get_background_redshift_evolution(
+                    redshift,
+                    vars=("x_e", "opacity"),
+                )
+                eta = actual.eta_of_a(1.0 / (1.0 + redshift))
+                electrons = actual.x_e_of_eta(eta)
+                numpy.testing.assert_allclose(
+                    electrons,
+                    thermal["x_e"],
+                    rtol=0.0,
+                    atol=0.01,
+                    err_msg=filename,
+                )
+                opacity = -actual.tau_dot_of_eta(eta)
+                ionized = thermal["x_e"] > 0.02
+                numpy.testing.assert_allclose(
+                    opacity[ionized],
+                    thermal["opacity"][ionized],
+                    rtol=0.01,
+                    atol=0.0,
+                    err_msg=filename,
+                )
+                self.assertAlmostEqual(actual.reionization_tau, 0.054, 10)
+                self.assertGreater(
+                    actual.resolution_evidence[
+                        "reionization_calibration_value"
+                    ],
+                    0.0,
+                )
+                # These are native histories: no external opacity or metric
+                # is supplied to the engine. Bounds precede angular parity.
+                redshift_early = numpy.geomspace(100.0, 5000.0, 151)
+                scale = 1.0 / (1.0 + redshift_early)
+                early = reference.get_background_redshift_evolution(
+                    redshift_early,
+                    vars=("x_e", "opacity", "visibility", "T_b"),
+                )
+                eta_early = actual.eta_of_a(scale)
+                expansion = background._resolve_declared_background_context(
+                    contract, a_values=scale, z_values=redshift_early
+                )["H"]
+                numpy.testing.assert_allclose(
+                    expansion,
+                    reference.hubble_parameter(redshift_early),
+                    rtol=2e-4,
+                    atol=0.0,
+                )
+                numpy.testing.assert_allclose(
+                    eta_early,
+                    reference.conformal_time(redshift_early),
+                    rtol=5e-4,
+                    atol=0.0,
+                )
+                numpy.testing.assert_allclose(
+                    actual.x_e_of_eta(eta_early),
+                    early["x_e"],
+                    rtol=1e-3,
+                    atol=1e-7,
+                )
+                numpy.testing.assert_allclose(
+                    actual.matter_temperature_of_eta(eta_early),
+                    early["T_b"],
+                    rtol=5e-3,
+                    atol=0.0,
+                )
+                native_visibility = actual.visibility_of_eta(eta_early)
+                self.assertLess(
+                    float(
+                        numpy.max(
+                            numpy.abs(native_visibility - early["visibility"])
+                        )
+                    )
+                    / float(numpy.max(early["visibility"])),
+                    0.005,
+                )
+                finer = background._build_custom_cmb_background_impl(
+                    contract,
+                    physical,
+                    background._CustomCMBNumerics(eta_sample_count=4096),
+                )
+                finer_eta = finer.eta_of_a(scale)
+                numpy.testing.assert_allclose(
+                    actual.x_e_of_eta(eta_early),
+                    finer.x_e_of_eta(finer_eta),
+                    rtol=5e-4,
+                    atol=1e-7,
+                )
+                numpy.testing.assert_allclose(
+                    actual.matter_temperature_of_eta(eta_early),
+                    finer.matter_temperature_of_eta(finer_eta),
+                    rtol=5e-4,
+                    atol=0.0,
+                )
+                reference = reference.get_derived_params()
+                self.assertLess(
+                    abs(actual.sound_horizon_mpc / reference["rstar"] - 1),
+                    0.002,
+                )
+                self.assertGreater(
+                    actual.drag_sound_horizon_mpc, actual.sound_horizon_mpc
+                )
+                self.assertLess(actual.drag_redshift, actual.z_rec)
+                self.assertLess(
+                    abs(
+                        actual.drag_sound_horizon_mpc / reference["rdrag"] - 1
+                    ),
+                    0.002,
+                )
+                self.assertLess(
+                    abs(actual.drag_redshift / reference["zdrag"] - 1),
+                    0.005,
+                )
+                self.assertAlmostEqual(
+                    actual.resolution_evidence[
+                        "drag_remaining_depth_at_transition"
+                    ],
+                    1.0,
+                    places=10,
+                )
+
+    def test_camb_reference_uses_explicit_nonstandard_temperature(self):
+        """An independent reference cannot silently revert to default T."""
+
+        contract = dict(camb_reference.FIXED_LCDM_REFERENCE_CONTRACT)
+        contract["param_map"] = dict(contract["param_map"], TCMB=3.0)
+        parameters = camb_reference._make_camb_params(contract)
+        self.assertEqual(parameters.TCMB, 3.0)
 
     def test_compact_histories_keep_native_gauges_and_adiabatic_entropy(self):
         """The frozen reference checks invariant initial ratios per mode."""

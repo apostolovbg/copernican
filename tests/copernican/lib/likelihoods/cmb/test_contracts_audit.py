@@ -1,6 +1,7 @@
 """Tests for the bundled CCMBS contract inventory audit."""
 
 import unittest
+from dataclasses import replace
 from types import SimpleNamespace
 
 from copernican.lib.likelihoods.cmb.contracts_audit import (
@@ -15,6 +16,9 @@ from copernican.lib.likelihoods.cmb.contracts_audit import (
     audit_bundled_cmb_contracts,
     audit_bundled_cmb_declarations,
     audit_bundled_cmb_source_graphs,
+)
+from copernican.lib.perturbation_contract import (
+    validate_generated_scalar_source_graph,
 )
 
 
@@ -187,6 +191,48 @@ class CMBContractAuditTestCase(unittest.TestCase):
         self.assertFalse(audit.valid)
         self.assertIn("Phi_history_tau", " ".join(audit.issues))
         self.assertTrue(callable(_audit_source_graph_plugin))
+
+    def test_source_graph_audit_shares_runtime_metric_requirements(self):
+        """Audits and execution reject each missing Einstein energy input."""
+
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        contract = test_cmb._prepare_declared_contract(
+            test_cmb._declared_scalar_hierarchy_contract()
+        )
+        perturbation_data = contract["perturbation_data"]
+        plugin = SimpleNamespace(
+            MODEL_FILENAME="generated.yml",
+            CMB_PERTURBATION_DATA=perturbation_data,
+        )
+        self.assertTrue(_audit_source_graph_plugin(plugin).valid)
+        validate_generated_scalar_source_graph(perturbation_data)
+        for dependency in (
+            "acoustic_k_sq",
+            "Phi",
+            "Hconf",
+            "Psi",
+            "einstein_gravity_strength",
+            "total_density_source",
+        ):
+            with self.subTest(dependency=dependency):
+                derived = dict(perturbation_data.derived)
+                derivative = derived["Phi_tau"]
+                derived["Phi_tau"] = replace(
+                    derivative,
+                    dependencies=tuple(
+                        name
+                        for name in derivative.dependencies
+                        if name != dependency
+                    ),
+                )
+                broken = replace(perturbation_data, derived=derived)
+                plugin.CMB_PERTURBATION_DATA = broken
+                with self.assertRaisesRegex(ValueError, dependency):
+                    validate_generated_scalar_source_graph(broken)
+                audit = _audit_source_graph_plugin(plugin)
+                self.assertFalse(audit.valid)
+                self.assertIn(dependency, " ".join(audit.issues))
 
 
 if __name__ == "__main__":

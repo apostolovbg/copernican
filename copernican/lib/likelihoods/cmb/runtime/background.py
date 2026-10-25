@@ -32,6 +32,7 @@ _CACHE_PRECISION = 15
 _G_NEWTON_SI = 6.674_30e-11
 _MPC_M = 3.085_677_581_491_3673e22
 _PROTON_MASS_KG = 1.672_621_923_69e-27
+_HYDROGEN_MASS_KG = 1.673_532_838e-27
 _LEGACY_DECLARED_EVOLUTION_COORDINATES = {"eta", "tau"}
 _PHYSICAL_QUANTITY_ALIASES = {
     "H0_km_s_Mpc": (
@@ -237,6 +238,39 @@ _BACKGROUND_PROVENANCE_ROLE_KEYS = {
         "tensor_spectral_index",
     ),
 }
+
+
+def _remaining_baryon_drag_depth(
+    eta: numpy.ndarray,
+    opacity: numpy.ndarray,
+    baryon_loading: numpy.ndarray,
+) -> numpy.ndarray:
+    """Integrate remaining baryon drag with R=3 rho_b/(4 rho_gamma).
+
+    The baryon Euler rate is opacity/R. Integrating backwards from today
+    retains the post-visibility tail and avoids subtracting two large early
+    optical depths. Inputs use conformal Mpc and positive inverse-Mpc rates.
+    """
+
+    eta = numpy.asarray(eta, dtype=float)
+    opacity = numpy.asarray(opacity, dtype=float)
+    baryon_loading = numpy.asarray(baryon_loading, dtype=float)
+    if (
+        eta.ndim != 1
+        or eta.size < 2
+        or opacity.shape != eta.shape
+        or baryon_loading.shape != eta.shape
+        or not numpy.all(numpy.isfinite(eta))
+        or not numpy.all(numpy.isfinite(opacity))
+        or not numpy.all(numpy.isfinite(baryon_loading))
+        or numpy.any(numpy.diff(eta) <= 0.0)
+        or numpy.any(opacity < 0.0)
+        or numpy.any(baryon_loading <= 0.0)
+    ):
+        raise ValueError("Baryon drag requires finite ordered physical grids")
+    return -cumulative_trapezoid(
+        (opacity / baryon_loading)[::-1], eta[::-1], initial=0.0
+    )[::-1]
 
 
 def _normalise_value(entry_value: Any) -> Any:
@@ -466,15 +500,18 @@ def _resolve_declared_background_context(
             exact_density = q_context.get("massive_neutrino_density_fraction")
             if exact_density is not None and "Omega_nu_massive0" in resolved:
                 exact_array = numpy.asarray(exact_density, dtype=float)
-                exact_present = float(exact_array.reshape(-1)[-1])
+                # A requested epoch or the final array element need not be
+                # today. The q owner retains its actual a=1 normalization.
+                exact_present = float(
+                    q_context["massive_neutrino_density_today"]
+                )
                 old_massive = float(resolved["Omega_nu_massive0"])
                 resolved["Omega_nu_massive0"] = exact_present
-                # The q moment is the present density of the represented
-                # massive family; retaining the historical key as an alias
-                # keeps the closure explicit without introducing a second
-                # density normalization.
+                # Keep rest energy distinct from the full kinetic moment.
                 if "Omega_nu_massive_nr0" in resolved:
-                    resolved["Omega_nu_massive_nr0"] = exact_present
+                    resolved["Omega_nu_massive_nr0"] = float(
+                        q_context["massive_neutrino_rest_density_today"]
+                    )
                 transition = resolved.get("massive_neutrino_transition_a")
                 hubble_history = resolved.get("H")
                 qrsf_normalization = resolved.get(
@@ -1548,14 +1585,24 @@ def _summarize_declared_background_manifest_summary(
         },
         "recombination_runtime": {
             "hydrogen_model": (
-                "peebles_case_b_ode"
+                recombination.get("prescription", "peebles_case_b_ode")
                 if not recombination_roles
                 else "declaration_role_graph"
             ),
             "declared_quantity_names": recombination_names,
             "declared_role_map": dict(recombination_roles),
             "helium_electron_contribution": True,
-            "reionization_ode": True,
+            "reionization_ode": bool(reionization_names)
+            and "electron_fraction" not in reionization_names,
+            "reionization_history": (
+                "declared_electron_fraction"
+                if "electron_fraction" in reionization_names
+                else (
+                    "declared_ionization_rates"
+                    if reionization_names
+                    else "none"
+                )
+            ),
         },
     }
 
@@ -1641,6 +1688,7 @@ class _CustomCMBBackgroundData:
     tau_dot_grid: numpy.ndarray
     visibility_grid: numpy.ndarray
     x_e_grid: numpy.ndarray
+    matter_temperature_grid: numpy.ndarray
     n_e_grid: numpy.ndarray
     n_H_grid: numpy.ndarray
     sound_speed_grid: numpy.ndarray
@@ -1661,6 +1709,7 @@ class _CustomCMBBackgroundData:
     tau_dot_of_eta: PchipInterpolator
     visibility_of_eta: PchipInterpolator
     x_e_of_eta: PchipInterpolator
+    matter_temperature_of_eta: PchipInterpolator
     sound_speed_of_eta: PchipInterpolator
     baryon_sound_speed_sq_of_eta: PchipInterpolator
     dark_energy_audit: Mapping[str, Any] = field(default_factory=dict)
@@ -1693,6 +1742,9 @@ class _CustomCMBBackgroundData:
                 self.visibility_of_eta(eta_arr), dtype=float
             ),
             "x_e": numpy.asarray(self.x_e_of_eta(eta_arr), dtype=float),
+            "matter_temperature": numpy.asarray(
+                self.matter_temperature_of_eta(eta_arr), dtype=float
+            ),
             "sound_speed": numpy.asarray(
                 self.sound_speed_of_eta(eta_arr), dtype=float
             ),
@@ -3220,7 +3272,7 @@ def _resolve_custom_cmb_physical_parameters(
         )
     elif n_H_entry is not None:
         hydrogen_fraction = max(1.0 - YHe, 1.0e-12)
-        rho_b0 = n_H_entry[0] * _PROTON_MASS_KG / hydrogen_fraction
+        rho_b0 = n_H_entry[0] * _HYDROGEN_MASS_KG / hydrogen_fraction
         _record_quantity("n_H0_m3", n_H_entry[1])
         _record_quantity(
             "rho_b0_kg_m3",
@@ -3282,11 +3334,11 @@ def _resolve_custom_cmb_physical_parameters(
     else:
         n_b0_m3 = n_b_entry[0]
     if "n_H0_m3" not in quantity_provenance:
-        n_H0_m3 = n_b0_m3 * max(0.0, 1.0 - YHe)
+        n_H0_m3 = rho_b0 * max(0.0, 1.0 - YHe) / _HYDROGEN_MASS_KG
         _record_quantity(
             "n_H0_m3",
-            quantity_provenance["n_b0_m3"],
-            derived_suffix="n_b0_m3",
+            quantity_provenance["rho_b0_kg_m3"],
+            derived_suffix="rho_b0_kg_m3",
         )
     else:
         n_H0_m3 = n_H_entry[0]
@@ -3557,9 +3609,15 @@ def _build_custom_cmb_background_impl(
     planck_j_s = 6.626_070_15e-34
     electron_mass_kg = 9.109_383_7015e-31
     proton_mass_kg = 1.672_621_923_69e-27
+    recombination_section = _get_declared_recombination_section(contract)
+    coupled_thermal = (
+        recombination_section.get("prescription") == "effective_three_level"
+    )
+    helium_mass_ratio = 3.971425883512839 if coupled_thermal else 4.0
     helium_number_ratio = max(
         0.0,
-        physical_params.YHe / (4.0 * max(1.0 - physical_params.YHe, 1.0e-6)),
+        physical_params.YHe
+        / (helium_mass_ratio * max(1.0 - physical_params.YHe, 1.0e-6)),
     )
     recombination_window = numpy.geomspace(
         1.0 / 5_000.0,
@@ -4093,7 +4151,7 @@ def _build_custom_cmb_background_impl(
     x_h_grid = numpy.empty_like(z_grid, dtype=float)
     if saha_break_index > 0:
         x_h_grid[:saha_break_index] = hydrogen_saha_grid[:saha_break_index]
-    if saha_break_index < z_grid.size:
+    if saha_break_index < z_grid.size and not coupled_thermal:
         initial_fraction = float(hydrogen_saha_grid[saha_break_index])
         # The recombination ODE must not inherit first-order interpolation
         # error from the outer background grid.  Smooth monotone interpolants
@@ -4165,6 +4223,38 @@ def _build_custom_cmb_background_impl(
         )
         helium_electron_grid[index] = helium_fraction
         x_e_recomb_grid[index] = total_fraction
+
+    coupled_matter_temperature = None
+    if coupled_thermal:
+        from .recombination import evolve_thermal_history
+
+        # Begin below HeIII recombination on a temperature surface, so
+        # changing the declared photon temperature moves the atomic epoch.
+        thermal_scale = physical_params.Tcmb_K / (3501.0 * 2.7255)
+        thermal_start = int(numpy.searchsorted(a_grid, thermal_scale))
+        thermal_history = evolve_thermal_history(
+            a_grid[thermal_start:],
+            hydrogen_rate_grid[thermal_start:],
+            hydrogen_today=physical_params.n_H0_m3,
+            temperature_today=physical_params.Tcmb_K,
+            helium_ratio=helium_number_ratio,
+            initial_hydrogen=float(x_h_grid[thermal_start]),
+            initial_helium=min(
+                float(helium_electron_grid[thermal_start])
+                / max(helium_number_ratio, 1e-30),
+                1.0,
+            ),
+        )
+        x_h_grid[thermal_start:] = thermal_history.hydrogen_fraction
+        helium_electron_grid[thermal_start:] = thermal_history.helium_electrons
+        x_e_recomb_grid[thermal_start:] = (
+            thermal_history.hydrogen_fraction
+            + thermal_history.helium_electrons
+        )
+        coupled_matter_temperature = physical_params.Tcmb_K * (1.0 + z_grid)
+        coupled_matter_temperature[thermal_start:] = (
+            thermal_history.matter_temperature
+        )
 
     reionization_section = _get_declared_reionization_section(contract)
     calibration_section = reionization_section.get("calibration", {}) or {}
@@ -4392,7 +4482,7 @@ def _build_custom_cmb_background_impl(
         if declared_quantities is None:
             reionization_context = _resolve_stage_reionization_quantities(
                 a_value=float(a_value),
-                z_value=z_value,
+                z_value=1.0 / float(a_value) - 1.0,
                 n_h_value=n_h_value,
                 x_h_floor=floor_h,
                 helium_electron_floor=floor_he,
@@ -4485,15 +4575,10 @@ def _build_custom_cmb_background_impl(
         cached = reionization_stage_grid_cache.get(calibration_value)
         if cached is not None:
             return cached
-        stage_z_values = numpy.full_like(
-            a_grid,
-            float(z_grid[-1]),
-            dtype=float,
-        )
         endpoint_values = _resolve_declared_reionization_quantity_grids(
             contract,
             a_values=a_grid,
-            z_values=stage_z_values,
+            z_values=z_grid,
             n_h_values=n_H_grid,
             x_h_floor_values=x_h_grid,
             helium_electron_floor_values=helium_floor_grid,
@@ -4507,7 +4592,7 @@ def _build_custom_cmb_background_impl(
         midpoint_values = _resolve_declared_reionization_quantity_grids(
             contract,
             a_values=0.5 * (a_grid[:-1] + a_grid[1:]),
-            z_values=stage_z_values[:-1],
+            z_values=2.0 / (a_grid[:-1] + a_grid[1:]) - 1.0,
             n_h_values=0.5 * (n_H_grid[:-1] + n_H_grid[1:]),
             x_h_floor_values=0.5 * (x_h_grid[:-1] + x_h_grid[1:]),
             helium_electron_floor_values=0.5
@@ -4525,6 +4610,35 @@ def _build_custom_cmb_background_impl(
         reionization_stage_grid_cache[calibration_value] = cached
         return cached
 
+    def _complete_reionization_history(
+        reionization_xe_grid: numpy.ndarray,
+    ) -> tuple[numpy.ndarray, float, float]:
+        """Integrate the declared extra electrons and retain their midpoint."""
+
+        tau_reion_grid = -cumulative_trapezoid(
+            (a_grid * n_H_grid * reionization_xe_grid * SIGMA_T_M2 * MPC_M)[
+                ::-1
+            ],
+            eta_grid[::-1],
+            initial=0.0,
+        )[::-1]
+        ionization_progress = numpy.maximum.accumulate(reionization_xe_grid)
+        midpoint_electrons = 0.5 * float(ionization_progress[-1])
+        midpoint_z = 0.0
+        if midpoint_electrons > 0.0:
+            midpoint_z = float(
+                numpy.interp(
+                    midpoint_electrons,
+                    ionization_progress,
+                    z_grid,
+                )
+            )
+        return (
+            numpy.asarray(reionization_xe_grid, dtype=float),
+            float(tau_reion_grid[0]),
+            midpoint_z,
+        )
+
     def _integrate_reionization_history(
         calibration_value: float | None,
     ) -> tuple[numpy.ndarray, float, float]:
@@ -4539,6 +4653,28 @@ def _build_custom_cmb_background_impl(
         endpoint_quantities, midpoint_quantities = (
             _reionization_stage_quantity_grids(calibration_value)
         )
+        if "electron_fraction" in reionization_quantities:
+            rate_names = (
+                "hydrogen_ionization_rate",
+                "helium_ionization_rate",
+                "helium_double_ionization_rate",
+            )
+            if any(name in reionization_quantities for name in rate_names):
+                raise ValueError(
+                    "Declare either reionization electron_fraction or "
+                    "ionization rates, not both"
+                )
+            electrons = endpoint_quantities["electron_fraction"]
+            if numpy.any(electrons < x_e_recomb_grid - 1.0e-10) or numpy.any(
+                electrons > 1.0 + 2.0 * helium_number_ratio + 1.0e-10
+            ):
+                raise ValueError(
+                    "Declared reionization electron_fraction must lie "
+                    "between the recombination floor and full ionization"
+                )
+            return _complete_reionization_history(
+                numpy.maximum(electrons - x_e_recomb_grid, 0.0)
+            )
         state_quantity_names = (
             "hydrogen_ionization_rate",
             "helium_ionization_rate",
@@ -4660,29 +4796,7 @@ def _build_custom_cmb_background_impl(
         reionization_xe_grid = (
             delta_h_grid + delta_he_single_grid + 2.0 * delta_he_double_grid
         )
-        tau_reion_grid = -cumulative_trapezoid(
-            (a_grid * n_H_grid * reionization_xe_grid * SIGMA_T_M2 * MPC_M)[
-                ::-1
-            ],
-            eta_grid[::-1],
-            initial=0.0,
-        )[::-1]
-        ionization_progress = numpy.maximum.accumulate(reionization_xe_grid)
-        midpoint_electrons = 0.5 * float(ionization_progress[-1])
-        midpoint_z = 0.0
-        if midpoint_electrons > 0.0:
-            midpoint_z = float(
-                numpy.interp(
-                    midpoint_electrons,
-                    ionization_progress,
-                    z_grid,
-                )
-            )
-        return (
-            numpy.asarray(reionization_xe_grid, dtype=float),
-            float(tau_reion_grid[0]),
-            midpoint_z,
-        )
+        return _complete_reionization_history(reionization_xe_grid)
 
     reionization_history_cache: dict[
         float | None, tuple[numpy.ndarray, float, float]
@@ -4699,6 +4813,7 @@ def _build_custom_cmb_background_impl(
             )
         return reionization_history_cache[calibration_value]
 
+    chosen_calibration: float | None = None
     if target_reionization_tau is not None:
         calibration_seed_key = (
             _freeze_for_cache(reionization_section),
@@ -4716,7 +4831,6 @@ def _build_custom_cmb_background_impl(
                 - target_reionization_tau
             )
 
-        chosen_calibration: float | None = None
         warm_seed = cache.get_reionization_calibration_seed(
             calibration_seed_key
         )
@@ -4836,6 +4950,8 @@ def _build_custom_cmb_background_impl(
         photon_temperature_grid,
         decoupling_temperature * ((1.0 + z_grid) / (1.0 + decoupling_z)) ** 2,
     )
+    if coupled_matter_temperature is not None:
+        matter_temperature_grid = coupled_matter_temperature
     if generic_recombination_histories.get("matter_temperature") is not None:
         matter_temperature_grid = generic_recombination_histories[
             "matter_temperature"
@@ -4890,45 +5006,30 @@ def _build_custom_cmb_background_impl(
     # reaches unity at ``a_drag``.  This is independent of the CMB
     # likelihood entry point and remains valid for a declared non-standard
     # recombination law whenever it supplies a physical opacity history.
-    photon_to_baryon_ratio = (
-        4.0
-        * float(physical_params.Omega_gamma0)
-        / (
-            3.0
-            * max(float(physical_params.Omega_b0), 1.0e-30)
-            * numpy.maximum(a_grid, 1.0e-30)
-        )
+    baryon_loading = (
+        3.0
+        * float(physical_params.Omega_b0)
+        * a_grid
+        / (4.0 * float(physical_params.Omega_gamma0))
     )
-    drag_rate = numpy.divide(
-        numpy.maximum(-tau_dot_grid, 0.0),
-        numpy.maximum(photon_to_baryon_ratio, 1.0e-30),
+    # Use the recombination opacity, excluding the separately evolved late
+    # reionization component. Never terminate the drag integral at the
+    # visibility peak: baryon decoupling can occur after photon last scatter.
+    # Planck 2013 XVI, section 2.2, defines tau_d = integral opacity/R.
+    drag_opacity = (
+        -tau_dot_grid
+        if generic_recombination_histories
+        else a_grid * n_H_grid * x_e_recomb_grid * SIGMA_T_M2 * MPC_M
     )
-    drag_depth = cumulative_trapezoid(
-        drag_rate,
-        eta_grid,
-        initial=0.0,
+    remaining_drag_depth = _remaining_baryon_drag_depth(
+        eta_grid, drag_opacity, baryon_loading
     )
-    # Reionization creates a second, late opacity episode that is irrelevant
-    # to the baryon-drag epoch.  The drag optical depth is therefore closed
-    # on the pre-recombination interval ending at the visibility peak.
-    drag_upper_index = int(peak_index)
-    pre_drag_depth = float(drag_depth[drag_upper_index])
-    remaining_drag_depth = pre_drag_depth - drag_depth
-    remaining_drag_depth[drag_upper_index + 1 :] = 0.0
-    if (
-        not numpy.all(numpy.isfinite(remaining_drag_depth))
-        or float(remaining_drag_depth[-1]) < 0.0
-    ):
-        raise ValueError("Baryon-drag optical depth is non-finite")
-    crossing = numpy.flatnonzero(
-        (numpy.arange(a_grid.size) <= drag_upper_index)
-        & (remaining_drag_depth <= 1.0)
-    )
-    if crossing.size == 0:
+    crossing = numpy.flatnonzero(remaining_drag_depth <= 1.0)
+    if float(remaining_drag_depth[0]) < 1.0:
         # A model with optically thin photons has no finite drag transition;
         # its BAO ruler is the complete acoustic integral to a=1.
-        drag_index = drag_upper_index
-        a_drag = float(a_grid[drag_upper_index])
+        drag_index = a_grid.size - 1
+        a_drag = float(a_grid[-1])
         drag_status = "optically_thin"
     else:
         drag_index = int(crossing[0])
@@ -4971,11 +5072,17 @@ def _build_custom_cmb_background_impl(
         "global_nodes": int(global_count),
         "recombination_nodes": int(recombination_count),
         "reionization_nodes": int(reionization_count),
+        "reionization_calibration_symbol": calibration_symbol,
+        "reionization_calibration_value": chosen_calibration,
         "background_nodes": int(a_grid.size),
         "drag_transition": drag_status,
         "drag_transition_index": int(drag_index),
-        "drag_pre_recombination_depth": float(pre_drag_depth),
-        "drag_remaining_depth_at_transition": 1.0,
+        "drag_remaining_depth_at_visibility_peak": float(
+            remaining_drag_depth[peak_index]
+        ),
+        "drag_remaining_depth_at_transition": float(
+            numpy.interp(a_drag, a_grid, remaining_drag_depth)
+        ),
     }
 
     eta_of_a = PchipInterpolator(a_grid, eta_grid, extrapolate=True)
@@ -5020,6 +5127,7 @@ def _build_custom_cmb_background_impl(
         tau_dot_grid=tau_dot_grid,
         visibility_grid=visibility_grid,
         x_e_grid=x_e_grid,
+        matter_temperature_grid=matter_temperature_grid,
         n_e_grid=n_e_grid,
         n_H_grid=n_H_grid,
         sound_speed_grid=sound_speed_grid,
@@ -5040,6 +5148,9 @@ def _build_custom_cmb_background_impl(
         tau_dot_of_eta=tau_dot_of_eta,
         visibility_of_eta=visibility_of_eta,
         x_e_of_eta=x_e_of_eta,
+        matter_temperature_of_eta=PchipInterpolator(
+            eta_grid, matter_temperature_grid, extrapolate=True
+        ),
         sound_speed_of_eta=sound_speed_of_eta,
         baryon_sound_speed_sq_of_eta=baryon_sound_speed_sq_of_eta,
         dark_energy_audit=dark_energy_audit,

@@ -3,6 +3,7 @@
 import ast
 import unittest
 from dataclasses import replace
+from itertools import product
 from pathlib import Path
 from unittest import mock
 
@@ -118,6 +119,69 @@ def _compiled_graph_fixture():
 
 class EvolutionModuleTestCase(unittest.TestCase):
     """Exercise declared evolution helpers directly."""
+
+    def test_generated_scalar_seeds_resolve_without_provisional_states(self):
+        """All scalar families resolve before any state values exist."""
+
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        gauges = ("conformal_newtonian", "synchronous", "gauge_invariant")
+        modes = (
+            "adiabatic_scalar",
+            "baryon_isocurvature",
+            "cdm_isocurvature",
+            "neutrino_density_isocurvature",
+            "neutrino_velocity_isocurvature",
+        )
+        for gauge, massive, mode in product(gauges, (False, True), modes):
+            with self.subTest(gauge=gauge, massive=massive, mode=mode):
+                contract = test_cmb._prepare_declared_contract(
+                    test_cmb._declared_scalar_hierarchy_contract(
+                        gauge=gauge,
+                        initial_mode=mode,
+                        include_massive_neutrino=massive,
+                    )
+                )
+                perturbation_data = contract["perturbation_data"]
+                plan = evolution._compile_declared_graph_execution_plan(
+                    perturbation_data
+                )
+                physical = background._resolve_custom_cmb_physical_parameters(
+                    contract
+                )
+                numerics = background._resolve_custom_cmb_numerics(contract)
+                context = evolution._build_declared_base_context(
+                    perturbation_data=perturbation_data,
+                    model_parameters=contract["param_map"],
+                    physical_params=physical,
+                    numerics=numerics,
+                    k_value=1.0e-4,
+                    eta_value=1.0,
+                    background_scalars={
+                        "a": 1.0e-5,
+                        "eta": 1.0,
+                        "Hconf": 1.0,
+                        "Hconf_tau": -1.0,
+                        "collision_rate": 100.0,
+                        "sound_horizon": 1.0,
+                        "sound_speed_sq": 1.0 / 3.0,
+                        "free_streaming": 1.0,
+                    },
+                )
+                state_names = {
+                    slot.variable for slot in plan.runtime_spec.state_slots
+                }
+                self.assertFalse(state_names.intersection(context))
+                state, targets = evolution._evaluate_declared_initial_state(
+                    perturbation_data=perturbation_data,
+                    execution_plan=plan,
+                    base_context=context,
+                )
+                self.assertTrue(numpy.all(numpy.isfinite(state)))
+                self.assertEqual(
+                    set(targets),
+                    set(plan.runtime_spec.state_index_by_key),
+                )
 
     def test_split_collisions_refine_against_the_coupled_solution(self):
         """Exact damping alone cannot certify a split oscillator's accuracy."""
@@ -448,6 +512,49 @@ class EvolutionModuleTestCase(unittest.TestCase):
         self.assertEqual(len(calls), stats.rk_stage_count)
         numpy.testing.assert_allclose(histories, second[0])
         numpy.testing.assert_allclose(final_states, second[1])
+
+    def test_tight_coupling_requires_fast_relaxation_relative_to_expansion(
+        self,
+    ):
+        """Small k cannot keep slow collisions in equilibrium."""
+
+        for k in (1e-4, 1e-8):
+            with self.subTest(k=k):
+                self.assertFalse(
+                    evolution._tight_coupling_is_active(
+                        active=True,
+                        collision_rate=0.03,
+                        k_value=k,
+                        expansion_rate=0.01,
+                        tight_coupling_ratio=50.0,
+                    )
+                )
+                self.assertTrue(
+                    evolution._tight_coupling_is_active(
+                        active=False,
+                        collision_rate=1.0,
+                        k_value=k,
+                        expansion_rate=0.01,
+                        tight_coupling_ratio=50.0,
+                    )
+                )
+        self.assertTrue(
+            evolution._tight_coupling_is_active(
+                active=True,
+                collision_rate=0.03,
+                k_value=1e-4,
+                expansion_rate=0.0,
+                tight_coupling_ratio=50.0,
+            )
+        )
+        with self.assertRaisesRegex(ValueError, "scales must be finite"):
+            evolution._tight_coupling_is_active(
+                active=True,
+                collision_rate=0.03,
+                k_value=1e-4,
+                expansion_rate=numpy.nan,
+                tight_coupling_ratio=50.0,
+            )
 
 
 if __name__ == "__main__":  # pragma: no cover

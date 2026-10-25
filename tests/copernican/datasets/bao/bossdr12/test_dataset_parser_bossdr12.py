@@ -82,13 +82,16 @@ class BossDR12ParserTestCase(unittest.TestCase):
                 "H_0": 67.66,
                 "Omega_m0": 0.31,
                 "Omega_b": 0.041,
-                "Omega_gamma": 5e-5,
                 "Neff": 3.044,
-                "z_rec": 1090,
             }
         )
         params = tuple(values[name] for name in self.plugin.PARAMETER_NAMES)
-        sound_horizon_mpc = self.plugin.get_sound_horizon_rs_Mpc(*params)
+        # BOSS ratios use the baryon drag ruler, not last scattering.
+        sound_horizon_mpc = self.plugin.get_sound_horizon_rs_drag_Mpc(*params)
+        self.assertGreater(
+            sound_horizon_mpc,
+            self.plugin.get_sound_horizon_rs_Mpc(*params),
+        )
         redshifts_array = bossdr12_dataframe["redshift"].to_numpy(dtype=float)
         observable_types_array = bossdr12_dataframe[
             "observable_type"
@@ -145,6 +148,11 @@ class BossDR12ParserTestCase(unittest.TestCase):
             predicted_values[row_mask] = volume_distance / sound_horizon_mpc
 
         residual_values = observable_values_array - predicted_values
+        self.assertAlmostEqual(
+            chi2,
+            float(residual_values @ cov_inv @ residual_values),
+            places=10,
+        )
         self.assertLess(
             numpy_module.max(numpy_module.abs(residual_values)),
             1.0,

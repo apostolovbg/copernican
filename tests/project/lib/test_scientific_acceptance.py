@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,6 +14,60 @@ from tests.project.lib import scientific_acceptance
 
 class ScientificAcceptanceHandoffTestCase(unittest.TestCase):
     """Keep the handoff wiring durable without running the scientific solve."""
+
+    def test_completion_reference_retains_declared_temperature(self):
+        """Reference input resolution follows the actual physical contract."""
+
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+        from tests.project.lib import camb_reference
+
+        raw = test_cmb._declared_scalar_hierarchy_contract()
+        raw["model_parameters"]["Tcmb_K"] = 3.0
+        contract = test_cmb._prepare_declared_contract(raw)
+        reference = scientific_acceptance.completion_reference_contract(
+            contract
+        )
+        self.assertEqual(reference["param_map"]["TCMB"], 3.0)
+        self.assertEqual(camb_reference._make_camb_params(reference).TCMB, 3.0)
+
+    def test_development_cli_reports_cost_without_rejecting_passing_tests(
+        self,
+    ):
+        """A passing test retains cost telemetry and CLI success."""
+
+        selection = (
+            "tests.copernican.lib.test_cmb_output.CMBOutputTestCase."
+            "test_public_units_follow_temperature_and_potential_dimensions",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                mock.patch.dict(
+                    scientific_acceptance.DEVELOPMENT_WORKLOADS,
+                    {"focused": selection},
+                ),
+                mock.patch.dict(
+                    scientific_acceptance.DEVELOPMENT_COST_TARGETS,
+                    {"focused": 0.0},
+                ),
+                mock.patch("builtins.print"),
+            ):
+                status = scientific_acceptance.main(
+                    [
+                        "--development-checks",
+                        "focused",
+                        "--evidence-root",
+                        directory,
+                    ]
+                )
+            report = json.loads(
+                (Path(directory) / "development-focused.json").read_text()
+            )
+            self.assertEqual(status, 0)
+            self.assertTrue(report["passed"])
+            self.assertFalse(report["within_cost_target"])
+            self.assertGreater(report["elapsed_seconds"], 0.0)
+            self.assertEqual(report["tests_run"], 1)
+            self.assertFalse(report["scientific_acceptance"])
 
     def test_development_runner_measures_tests_without_scientific_solves(
         self,
@@ -50,14 +105,26 @@ class ScientificAcceptanceHandoffTestCase(unittest.TestCase):
                 self.assertEqual(1, 2, "manufactured negative control")
 
         with tempfile.TemporaryDirectory() as directory:
-            with mock.patch.object(
-                unittest.defaultTestLoader,
-                "loadTestsFromNames",
-                return_value=unittest.TestSuite((FaultyProbe(),)),
+            with (
+                mock.patch.object(
+                    unittest.defaultTestLoader,
+                    "loadTestsFromNames",
+                    return_value=unittest.TestSuite((FaultyProbe(),)),
+                ),
+                mock.patch("builtins.print"),
             ):
-                report = scientific_acceptance.run_development_checks(
-                    "focused", Path(directory) / "negative.json"
+                status = scientific_acceptance.main(
+                    [
+                        "--development-checks",
+                        "focused",
+                        "--evidence-root",
+                        directory,
+                    ]
                 )
+            report = json.loads(
+                (Path(directory) / "development-focused.json").read_text()
+            )
+            self.assertEqual(status, 1)
             self.assertFalse(report["passed"])
             self.assertEqual(report["failures"], 1)
             self.assertEqual(report["tests"][0]["outcome"], "failed")

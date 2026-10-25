@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-10-18
+**Last Updated:** 2026-10-25
 **Project Version:** 12.0.26
 
 ## Overview
@@ -61,6 +61,24 @@ convention used by the declared graph compiler and the declared line-of-sight
 integrator.
 
 ## Fixed-Parameter Diagnostics
+
+Diagnostic source audits retain the same declared integration choice as
+ordinary requests. Set the perturbation accuracy control
+`continuous_collision_solver: true` to request coupled BDF collision
+integration for supported declarations. The runtime envelope records the
+resolved choice. BDF normalizes each state using its initial amplitude or
+its initial drive over a local expansion/streaming time, and applies the
+declared `ode_rtol` and `ode_atol` in those coordinates. This preserves tiny
+regular shear and velocity seeds without a machine-specific absolute
+tolerance. Initially zero states use their initial drive when available;
+initially unseeded states inherit scales through their driving couplings.
+Only states with no detected initial drive or coupling retain unit scale.
+Centered Jacobian differences use normalized coordinates to resolve tiny
+moments and constant states without vanishing raw-coordinate probes.
+Small compatible batches retain their RK histories without an unconditional
+scalar rerun.
+An early-prefix regression compares refined RK and explicit BDF solutions
+before paying for late evolution and projection.
 
 The public CMB diagnostics helpers provide a sampler- and plot-independent
 scientific evidence path. `discover_cmb_model_records()` enumerates every
@@ -631,18 +649,22 @@ those effects as CDM.
 - `nu_l3`, `nu_l4`, ...
   Higher multipoles `F_nu,l`. Units: dimensionless.
 
-The scalar anisotropic-stress state is the declared `F_nu,2` hierarchy
-member. Its hierarchy therefore starts with
-`sigma_nu' = 4 theta_nu / 15 - 3 k nu_l3 / 5` and
-`nu_l3' = 3 k sigma_nu / 7 - 4 k nu_l4 / 7`. The same normalization is used
+The scalar anisotropic-stress state is `sigma_nu = F_nu,2 / 2`. Its hierarchy
+therefore starts with
+`sigma_nu' = 4 theta_nu / 15 - 3 k nu_l3 / 10` and
+`nu_l3' = 6 k sigma_nu / 7 - 4 k nu_l4 / 7`. The same normalization is used
 by the metric shear source and the generated initial series.
 
 ### Massive Neutrinos
 The canonical massive-neutrino momentum variable is the dimensionless
 comoving momentum label `q = p / T_nu0`, treated as one resolved
 momentum-grid coordinate. For a photon temperature `Tcmb_K`, the present
-neutrino temperature is `T_nu0 = (4/11)^(1/3) Tcmb_K`, expressed in eV for
-the runtime mass conversion. The canonical energy in the grid convention is
+neutrino temperature is `T_nu0 = (4/11)^(1/3) Tcmb_K` by default,
+expressed in eV for the runtime mass conversion. An explicitly declared
+`standard_neutrino_neff` multiplies that temperature by
+`(standard_neutrino_neff/3)^(1/4)` and the available effective count by
+`standard_neutrino_neff/3`. The Planck reference declares 3.044. The canonical
+energy in the grid convention is
 
 ```text
 epsilon(q, a) = sqrt(q^2 + (a m_nu / T_nu0)^2)
@@ -657,23 +679,48 @@ The declared background splits the neutrino density into the residual
 massless fraction and the q-resolved massive fraction. A smooth transition
 expression provides the model's algebraic baseline, then the background
 runtime replaces that term with the same q-resolved Fermi-Dirac density
-moment used by the hierarchy. The present-day normalization is derived from
-the declared radiation density and the q-integrated energy moment, and
-remains continuous at zero mass. With standard thermal photon and neutrino
-densities this reduces to the familiar `sum_mnu / (93.14 h^2)` convention.
-The effective massive-species count is `min(N_eff, num_massive_neutrinos)` in
-algebraic form, leaving a non-negative residual massless fraction even below
-three species. `Omega_c0` is derived after subtracting the massive component,
-so the Friedmann source counts each component exactly once.
+moment used by the hierarchy. The rest-mass normalization uses an explicit
+declared `omnuh2` when
+provided, otherwise the existing mass-sum density convention; an exactly
+massless family uses its radiation density. The Planck reference declares
+`omnuh2 = sum_mnu/94.06410581217612*(3.044/3)**0.75*(Tcmb_K/2.7255)**3`,
+the Fermi-Dirac number-density integral with its explicit heating convention.
+The available massive effective count includes that heating, and only its
+nonnegative remainder contributes massless gravity. The total energy retains
+its kinetic contribution: the present full energy moment is divided by
+`(m/T_nu0)*integral(q**2*f(q), dq)` when converting rest-mass density.
+Normalizing it to the full energy integral instead wrongly suppresses the
+early radiation density. `Omega_c0` subtracts rest-mass density once. The q
+owner retains its actual present normalization,
+so scalar, permuted and subset epoch requests cannot redefine today's density.
+
+Automatically supplied grid names resolve before scalar graph generation.
+The evolved bin states are `Psi_0`, `v*Psi_1`, `Psi_2` and higher multipoles.
+Their integrals obey `(rho+P)*theta = k*I_1` and
+`(rho+P)*sigma = 2*I_2/3` (Ma and Bertschinger, 1995, equation 55).
+In the relativistic limit they reduce to the massless velocity and shear.
+The regular dipole and quadrupole seeds use coefficients 1/6 and 1/30
+multiplying the logarithmic distribution derivative. Generated partial sums
+respect the expression parser's size and depth limits without relaxing them.
+
 
 The engine owns the background grid. It partitions one physical scale-factor
 budget across the early radiation scaffold, the recombination visibility
 feature, and the late reionization interval, then rebuilds the complete
 history on a doubled budget. The accepted finer background retains relative
 errors for its endpoints, conformal age, both sound horizons, opacity,
-visibility, ionization, and sound speed. The BAO drag transition is found
-from the pre-recombination opacity depth and is exposed separately from the
-recombination visibility ruler. For massive neutrinos, the comparison and
+visibility, ionization, and sound speed. `runtime/background.py` finds the
+BAO drag transition where the remaining integral of opacity divided by
+`R = 3 rho_b/(4 rho_gamma)` reaches unity. It integrates backwards from
+today, retaining the post-visibility recombination tail and avoiding
+subtraction of large early optical depths. Separately evolved reionization
+electrons are excluded from this recombination ruler. See
+[Planck 2013 XVI, section 2.2](https://doi.org/10.1051/0004-6361/201321591).
+Analytic constant-rate/loading tests distinguish the reciprocal-rate error
+and a truncated tail; both bundled LCDM/Planck drag rulers are compared with
+independent CAMB thermal backgrounds. Drag evidence retains the measured
+remaining depth at the visibility peak and interpolated drag transition.
+For massive neutrinos, the comparison and
 background payload retain density and pressure histories from the same q
 quadrature that supplies the perturbation weights.
 
@@ -1002,11 +1049,24 @@ the metric system through `massive_neutrino_density_source`,
 thermally weighted physical `q` integrals, including their time-dependent
 background fractions, without renaming the public Einstein-input surface.
 
-The generated hierarchy evolves `Phi` from the Einstein momentum equation
-and reconstructs `Psi` from the shear constraint. Its
-`metric_constraint_scale = k^2` is therefore the exact Fourier-space scale,
-not an algebraic low-k bridge. The energy equation remains available through
-`einstein_energy_residual` as an independent runtime diagnostic.
+The generated hierarchy evolves `Phi` from the Einstein energy equation
+and reconstructs `Psi` from the shear constraint:
+
+```text
+Phi' = -Hconf*Psi
+       - (k^2*Phi + 1.5*(H0/c)^2*total_density_source)/(3*Hconf)
+```
+
+On constraint-satisfying data this is equivalent to the momentum equation.
+It avoids a `1/k^2` velocity-source division in the evolved derivative,
+which amplified small numerical errors into a spurious superhorizon mode.
+`metric_constraint_scale = k^2` remains the exact shear scale, with no
+low-k bridge. The momentum residual remains an independent physical check;
+the energy residual is algebraic for this evolution choice. Finite-difference
+history audits additionally check that evolution follows the declared RHS.
+The initial photon-density correction evaluates 00 using the independent
+0i source, then validates both constraints while retaining the metric seed.
+A manufactured wrong-velocity control rejects through the 0i residual.
 The shear diagnostic evaluates the equivalent declared
 `metric_constraint_scale * metric_shear_correction` term rather than
 subtracting nearly equal `Phi` and `Psi` values, so the constraint check does
@@ -1127,11 +1187,15 @@ twice. The tight-coupling threshold controls the declaration-driven
 fast-manifold projection:
 
 ```text
-collision_rate >= k * tight_coupling_ratio
+collision_rate >= max(abs(k), abs(Hconf)) * tight_coupling_ratio
 ```
 
 with hysteretic exit at
-`collision_rate <= k * tight_coupling_ratio * tight_coupling_exit_ratio`.
+`collision_rate <= max(abs(k), abs(Hconf)) * tight_coupling_ratio
+* tight_coupling_exit_ratio`. Expansion and collision rates use conformal
+inverse-Mpc units. Streaming alone would keep very small-k polarization
+on an instantaneous equilibrium after collisions become slow relative to
+expansion. Scalar, batch and diagnostic regime checks use the same rule.
 
 The entry and exit multipliers are selected by the engine planner from the
 collision-rate and wave-number histories. They are recorded in runtime
@@ -1941,11 +2005,15 @@ versions, hardware/thread settings, process peak RSS, and observed
 parent-process request telemetry. Workers remain covered by their owning
 tests; their internal phase counters are not separately instrumented here.
 Raw executor phase counters can overlap or exceed request wall time; use
-the measured workload/test wall clocks for the 60/300-second cost limits.
+the measured workload/test wall clocks for cost reporting.
 Resolving that counter attribution belongs to the production profiling work
-in Slice Six. A test failure, skip, expected failure, empty selection, or
-exceeded cost target fails the development command. A time limit here is a
-development-cost blocker, not a physical rejection of a theory.
+in Slice Six. A test failure, skip, expected failure or empty selection fails
+the development command. The historical 60/300-second targets remain in
+`cost_target_seconds` and `within_cost_target`; exceeding them does not
+change test correctness or the CLI exit code. Slow recurring work still
+requires profiling without weakening coverage or physical acceptance.
+The runner's regression executes both a real passing test over its timing
+target and an actual faulty negative control to verify their distinct exits.
 
 ### Independent Equations And Negative Controls
 
@@ -1981,10 +2049,11 @@ Gauss-Legendre angular integral tests that result against the actual compiled
 source and radial projection, without reading their coefficients.
 
 The complete workflow exposed two further numerical issues in this surface.
-The generated momentum combination now substitutes its declared
-`Phi' = momentum_drive - Hconf Psi` before evaluation; subtracting and then
-adding large metric terms had erased part of the small source drive in
-QRSF's diagnostic reconstruction. A large-dynamic-range control detects that
+The generated momentum combination substitutes its declared energy
+expression before evaluation; subtracting and then adding large metric terms
+would erase a small combination at large dynamic range. The independent
+momentum source remains separate from this algebraic combination. A large
+dynamic-range control detects that
 loss without widening the constraint tolerance. The scalar exact-collision
 phase ceiling is now 0.1 radians: half-radian Strang steps contaminated the
 hierarchy-depth comparison after the E-source normalization repair. A real
@@ -2018,8 +2087,22 @@ Named CAMB densities remain in the CDM-comoving synchronous gauge;
 `get_time_evolution(frame=...)` transforms symbolic expressions, not those
 native named outputs. The fixture compares gauge-invariant baryon/photon
 entropy and quadrupoles. Absolute density comparison with Newtonian CCMBS
-requires an explicit common-gauge transformation in Slice Five. Equal tau
-does not match the declaration's collapse-source reionization to CAMB tanh.
+uses `camb_histories_in_newtonian_gauge` in the test-owned reference helper.
+It derives the gauge shift from native CDM velocity, reconstructs both
+metric potentials from curvature and Weyl data, and converts velocities and
+quadrupoles to the documented state convention. The curvature sign is fixed
+by the initial-mode convention, with no amplitude fitting.
+A controlled scalar/batch polarization regression supplies independent CAMB
+opacity to isolate the collision transition. It retains the same 2%
+E-polarization moment bound and rejects the old streaming-only equilibrium
+rule. This controlled
+thermal input does not certify CCMBS recombination or full native histories.
+
+The two standard reference declarations now explicitly specify tanh
+reionization and temperature-derived blackbody photon densities. Independent
+background checks compare the complete redshift 0--25 ionization transition
+and opacity as well as the drag ruler at both physical points. Equal tau
+alone remains insufficient. Other declarations retain their own rate laws.
 Selected mode/epoch values are compared directly with frozen data, while
 the independent source test evaluates CCMBS expressions on native quadrupoles.
 Neither test claims that full CCMBS histories already match CAMB.
@@ -2070,3 +2153,101 @@ first-order CMB perturbation literature used by CAMB and CLASS:
 - Seljak and Zaldarriaga (1996) for line-of-sight source decomposition;
 - Lewis and Challinor (2006) and the CAMB correlation-remapping convention
   for exact curved-sky lensing normalization.
+
+### Explicit Reference Reionization And Radiation
+
+`model_lcdm.yml` and `model_ref_planck2018.yml` declare a smooth tanh
+transition in `(1+z)**1.5`, hydrogen redshift width 0.5 and a second helium
+transition at redshift 3.5 with width 0.4. The calibrated midpoint is a
+physical declaration parameter; calibration solves its declared optical
+depth target and retains the resulting value. These assumptions match the
+standard Planck reference convention; they do not imply that tanh is a
+unique astrophysical prediction of LambdaCDM. See
+[Planck 2018 VI](https://doi.org/10.1051/0004-6361/201833910).
+
+The generic `background.reionization.quantities.electron_fraction`
+expression declares total electrons per hydrogen nucleus, including the
+provided `x_e_floor`. It must stay between that recombination floor and
+full hydrogen/helium ionization. It is mutually exclusive with ionization
+rates. Rate-based collapse-source models continue through their physical
+rate equations. CCMBS never chooses between these laws from a model label
+or agreement with reference spectra.
+
+The standard models remove the independent photon-density parameter and
+fix `Tcmb_K=2.7255`. Their shared distance, sound-horizon and CMB backgrounds
+all derive `Omega_gamma` using the same blackbody coefficient:
+`Omega_gamma*h**2 = 2.472975328714087e-5*(Tcmb_K/2.7255)**4`.
+The coefficient follows from Planck's law and SI constants:
+`rho_gamma = pi**2*k_B**4*T**4/(15*hbar**3*c**5)` and
+`rho_crit = 3*H0_SI**2/(8*pi*G)`. The reference helper accepts an explicit
+CAMB temperature so alternative temperatures cannot silently use its default.
+Both models select `geometry: cmb.background`; `model_coder.py` binds their
+H(z), distances, recombination ruler, drag ruler and drag redshift to the same
+native background. Independent recombination-redshift fit parameters and
+separate approximate distance/sound-horizon formulas are removed.
+
+### Native Coupled Atomic And Thermal Histories
+
+`background.recombination.prescription: effective_three_level` selects a
+native H/He effective atom with coupled gas-temperature evolution. Its
+case-B rates, line escape, hydrogen continuum absorption, helium triplet
+channel and Compton heat exchange follow the effective prescriptions of
+[Seager, Sasselov and Scott (1999)](https://doi.org/10.1086/312250) and
+[Wong, Moss and Scott (2008)](https://arxiv.org/abs/0711.1357), including
+the RECFAST 1.5.2 hydrogen escape corrections. This is an explicit physical
+approximation, not a model-name dispatch or an external solver call.
+Hydrogen number density uses the atomic hydrogen mass; the helium number
+ratio includes the helium/hydrogen mass ratio. A temperature-defined early
+surface joins Saha helium to coupled neutral/singly-ionized evolution.
+The ODE retains matter temperature and rejects nonfinite or unphysical
+solutions. Generic roles and explicit custom-rate prescriptions remain
+supported and cannot be mixed ambiguously with this prescription.
+
+The two native reference backgrounds are independently checked against CAMB
+for expansion, conformal time, ionization, opacity, visibility, matter
+temperature and rulers, including a doubled native background grid.
+Gas-temperature controls separately test Compton equilibrium and exact
+adiabatic cooling, with a zero-scattering negative control.
+
+### Bounded Native Component Acceptance
+
+Generated velocity-isocurvature density seeds use the independently measured
+Einstein momentum source. The evolved energy equation cannot supply this
+initial density without a circular dependency. Initial-state controls check
+all five scalar families in Newtonian, synchronous and invariant gauges,
+with and without massive neutrinos, starting without provisional states.
+`contracts_audit.py` calls the same generated source-graph validator as the
+runtime; missing energy inputs are rejected by both. Massive-neutrino
+velocity and shear regressions independently integrate the q stress tensor
+and normalize by rho plus pressure across relativistic and cold epochs.
+
+Run the actual hierarchy/source boundary with matched native atomic and
+expansion histories for LCDM and Planck, without angular spectra:
+
+```bash
+source .venv/bin/activate
+python -m tests.project.lib.native_history_acceptance \
+  --refine --output ../ccmbs-native-components.json
+```
+
+Choose an output path outside the checkout. The sample sibling path is
+explicit; no machine-specific output location is assumed. This command
+compares both metric potentials, baryon/CDM density and velocity, photon
+monopole/quadrupole, E quadrupole, the physically active neutrino density,
+E and Weyl sources, and native temperature monopole, quadrupole, Doppler
+and ISW terms. CAMB's massive density is transformed with its independent
+background equation of state; inactive massless density is not certified.
+The curvature sign is fixed, with no fitted amplitude. Weyl derivatives
+and native E-source normalization supply independent source checks.
+
+Comparison uses k=0.0001 and 0.02 Mpc^-1 at 105 epochs through eta=1100 Mpc.
+The real solver integrates its regular early prefix and continues past the
+last comparison epoch; only this test's late-time domain ends at 1250 Mpc.
+Its equations, collision operators and metric histories remain native.
+A 2% peak-normalized component bound and 0.5% measured refinement bound
+are fixed; costs are telemetry. Finer temporal and hierarchy controls are
+checked against the same physical inputs. Both source identity and runner
+hash are retained, and source changes during the measurement reject it.
+Missing arrays, nonfinite values, narrow spikes and forged error summaries
+have independent rejecting controls. Component acceptance is explicitly
+separate from full scientific acceptance and remains outside discovery.

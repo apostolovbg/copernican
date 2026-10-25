@@ -68,6 +68,128 @@ _SCALAR_SUPERHORIZON_PREFIX_KETA = 5.5e-3
 _SCALAR_INITIAL_SOLVE_NUMERICAL_TOLERANCE = 1.0e-9
 
 
+def _apply_batched_collision_damping(
+    states: numpy.ndarray,
+    row_indices: numpy.ndarray,
+    slot_indices: numpy.ndarray,
+    damping: numpy.ndarray,
+) -> None:
+    """Retain exact moment damping in the selected accepted state rows."""
+
+    selected = numpy.ix_(row_indices, slot_indices)
+    # Advanced indexing returns a copy; write the damped moments back.
+    moments = states[selected]
+    moments *= damping[:, numpy.newaxis]
+    states[selected] = moments
+
+
+def _integrate_scaled_continuous_history(
+    rhs: Callable[..., numpy.ndarray],
+    initial_state: numpy.ndarray,
+    eta_values: numpy.ndarray,
+    *,
+    initial_time_scale: float,
+    rtol: float,
+    atol: float,
+) -> numpy.ndarray:
+    """Integrate declared states with component-scaled BDF error control.
+
+    Regular initial data can mix order-one metric potentials with shear
+    and velocity moments many orders of magnitude smaller. An absolute
+    error budget in the raw coordinates can erase those moments even when
+    their contribution to the metric is large. Normalize each coordinate
+    by its initial amplitude or its initial drive over a physical time
+    scale, then propagate scales through coupled initially zero states.
+    Only unseeded coordinates with no detected initial coupling retain
+    unit scale. This avoids unbalanced Jacobians in higher-moment chains.
+    """
+
+    initial = numpy.asarray(initial_state, dtype=float)
+    eta = numpy.asarray(eta_values, dtype=float)
+    initial_drive = numpy.asarray(rhs(float(eta[0]), initial), dtype=float)
+    scales = numpy.maximum(
+        numpy.abs(initial),
+        float(initial_time_scale) * numpy.abs(initial_drive),
+    )
+    pending = list(numpy.flatnonzero(scales > 0.0))
+    while pending and numpy.any(scales == 0.0):
+        unresolved = scales == 0.0
+        driven_scales = numpy.zeros_like(scales)
+        for index in pending:
+            probe = initial.copy()
+            probe[index] += math.copysign(scales[index], initial[index])
+            response = numpy.asarray(rhs(float(eta[0]), probe), dtype=float)
+            driven_scales = numpy.maximum(
+                driven_scales,
+                float(initial_time_scale) * abs(response - initial_drive),
+            )
+        discovered = unresolved & (driven_scales > 0.0)
+        scales[discovered] = driven_scales[discovered]
+        pending = list(numpy.flatnonzero(discovered))
+    if not numpy.all(numpy.isfinite(scales)):
+        raise ValueError("Declared continuous initial scales are non-finite")
+    scales = numpy.where(scales > 0.0, scales, 1.0)
+
+    def scaled_rhs(
+        eta_value: float,
+        scaled_state: numpy.ndarray,
+    ) -> numpy.ndarray:
+        """Evaluate the same declared equations in normalized coordinates."""
+
+        return numpy.asarray(rhs(eta_value, scaled_state * scales)) / scales
+
+    def scaled_jacobian(
+        eta_value: float,
+        scaled_state: numpy.ndarray,
+    ) -> numpy.ndarray:
+        """Resolve derivatives without perturbing tiny raw states by atol.
+
+        Centered differences use the cube-root roundoff step in normalized
+        coordinates. In particular, initially zero or identically constant
+        moments do not trigger vanishing forward-difference probes.
+        """
+
+        steps = numpy.cbrt(numpy.finfo(float).eps) * numpy.maximum(
+            numpy.abs(scaled_state), 1.0
+        )
+        jacobian = numpy.empty((initial.size, initial.size), dtype=float)
+        for index, step in enumerate(steps):
+            above = scaled_state.copy()
+            below = scaled_state.copy()
+            above[index] += step
+            below[index] -= step
+            jacobian[:, index] = (
+                scaled_rhs(eta_value, above) - scaled_rhs(eta_value, below)
+            ) / (2.0 * step)
+        return jacobian
+
+    solution = solve_ivp(
+        scaled_rhs,
+        (float(eta[0]), float(eta[-1])),
+        initial / scales,
+        method="BDF",
+        jac=scaled_jacobian,
+        t_eval=eta,
+        rtol=float(rtol),
+        atol=float(atol),
+    )
+    if not solution.success:
+        raise ValueError(
+            "Declared CMB continuous evolution failed: " f"{solution.message}"
+        )
+    if solution.y.shape != (initial.size, eta.size):
+        raise ValueError(
+            "Declared CMB continuous evolution returned an "
+            "incomplete state history"
+        )
+    history = numpy.asarray(solution.y * scales[:, numpy.newaxis], dtype=float)
+    if not numpy.all(numpy.isfinite(history)):
+        raise ValueError(
+            "Declared CMB continuous evolution produced non-finite states"
+        )
+    return history
+
+
 def _can_batch_declared_evolution(
     *,
     generated_scalar_hierarchy: bool,
@@ -299,6 +421,33 @@ def build_declared_mode_evolution(
     )
     transfer_component_observables = inputs.transfer_component_observables
 
+    continuous_collision_control = declared_accuracy_controls.get(
+        "continuous_collision_solver"
+    )
+    if continuous_collision_control is not None and not isinstance(
+        continuous_collision_control, bool
+    ):
+        raise ValueError(
+            "cmb.perturbations.accuracy_controls."
+            "continuous_collision_solver must be a boolean"
+        )
+    # Auditing a history must not select a different differential solver.
+    # Continuous collision integration is an explicit declaration shared by
+    # the scalar and batch capability decisions.
+    continuous_collision_solver = bool(
+        continuous_collision_control
+        and split_collision_runtimes
+        and "massive_neutrino"
+        not in set(manifest_summary.get("hierarchy_family_names", ()))
+        and all(
+            runtime.integration_strategy in {"exact", "implicit"}
+            for runtime in split_collision_runtimes
+        )
+    )
+    runtime_envelope["continuous_collision_solver"] = (
+        continuous_collision_solver
+    )
+
     def _record_source_history_residual_samples(
         mode_k_value: float,
         context: Mapping[str, Any],
@@ -525,6 +674,7 @@ def build_declared_mode_evolution(
                 active=False,
                 collision_rate=float(active_grids["collision_rate"][index]),
                 k_value=float(mode_k_value),
+                expansion_rate=float(active_grids["Hconf"][index]),
                 tight_coupling_ratio=float(numerics.tight_coupling_ratio),
                 exit_ratio=float(numerics.tight_coupling_exit_ratio),
             )
@@ -667,14 +817,28 @@ def build_declared_mode_evolution(
             )
         expected_phi_tau = None
         if {
-            "metric_momentum_source_drive",
+            "acoustic_k_sq",
+            "Phi",
             "Hconf",
             "Psi",
+            "einstein_gravity_strength",
+            "total_density_source",
         }.issubset(context):
-            expected_phi_tau = numpy.asarray(
-                context["metric_momentum_source_drive"], dtype=float
-            ) - numpy.asarray(context["Hconf"], dtype=float) * numpy.asarray(
-                context["Psi"], dtype=float
+            hubble = numpy.asarray(context["Hconf"], dtype=float)
+            wavenumber_sq = numpy.asarray(
+                context["acoustic_k_sq"], dtype=float
+            )
+            gravity_strength = float(context["einstein_gravity_strength"])
+            density_source = numpy.asarray(
+                context["total_density_source"], dtype=float
+            )
+            psi_history = numpy.asarray(context["Psi"], dtype=float)
+            energy_source = (
+                wavenumber_sq * phi_history
+                + 1.5 * gravity_strength * density_source
+            )
+            expected_phi_tau = -hubble * psi_history - energy_source / (
+                3.0 * hubble
             )
             if expected_phi_tau.shape != eta_values.shape or not numpy.all(
                 numpy.isfinite(expected_phi_tau)
@@ -2085,11 +2249,21 @@ def build_declared_mode_evolution(
             photon_index = runtime_spec.state_index_by_key[
                 ("theta_gamma0", "tau", 0)
             ]
-            energy_residual = float(
-                initial_state_context.get("einstein_energy_residual", 0.0)
-            )
             gravity = float(
                 initial_state_context.get("einstein_gravity_strength", 0.0)
+            )
+            # Phi' now uses the 00 equation. Its algebraic energy residual
+            # cannot decide this initial projection: form 00 with the
+            # independent 0i source so both constraints are closed.
+            energy_residual = (
+                float(initial_state_context["acoustic_k_sq"])
+                * float(initial_state_context["Phi"])
+                + 3.0
+                * float(initial_state_context["Hconf"])
+                * float(initial_state_context["metric_momentum_source_drive"])
+                + 1.5
+                * gravity
+                * float(initial_state_context["total_density_source"])
             )
             omega_gamma = float(initial_state_context.get("Omega_gamma0", 0.0))
             scale_factor = float(initial_background["a"])
@@ -3396,34 +3570,6 @@ def build_declared_mode_evolution(
                 if slot.order == 0
             }
             state = numpy.asarray(initial_state, dtype=float).copy()
-            continuous_collision_control = declared_accuracy_controls.get(
-                "continuous_collision_solver"
-            )
-            if continuous_collision_control is not None and not isinstance(
-                continuous_collision_control, bool
-            ):
-                raise ValueError(
-                    "cmb.perturbations.accuracy_controls."
-                    "continuous_collision_solver must be a boolean"
-                )
-            continuous_collision_solver = bool(
-                (
-                    continuous_collision_control
-                    or (
-                        diagnostic_source_audit
-                        and not contract_or_params.get(
-                            "_diagnostic_matrix_fast_path", False
-                        )
-                    )
-                )
-                and split_collision_runtimes
-                and "massive_neutrino"
-                not in set(manifest_summary.get("hierarchy_family_names", ()))
-                and all(
-                    runtime.integration_strategy in {"exact", "implicit"}
-                    for runtime in split_collision_runtimes
-                )
-            )
             if not split_collision_runtimes or continuous_collision_solver:
                 eta_values = numpy.asarray(active_grids["eta"], dtype=float)
 
@@ -3461,44 +3607,35 @@ def build_declared_mode_evolution(
                         ),
                     )
 
-                solution = solve_ivp(
+                _, initial_background = _scalar_background_context(0, 0.0)
+                inverse_time_scale = max(
+                    abs(float(k_value)),
+                    abs(float(initial_background.get("Hconf", 0.0))),
+                    1.0 / float(eta_values[-1] - eta_values[0]),
+                )
+                continuous_history = _integrate_scaled_continuous_history(
                     _continuous_rhs,
-                    (float(eta_values[0]), float(eta_values[-1])),
                     state,
-                    method="BDF",
-                    t_eval=eta_values,
+                    eta_values,
+                    initial_time_scale=1.0 / inverse_time_scale,
                     rtol=float(numerics.ode_rtol),
                     atol=float(numerics.ode_atol),
                 )
-                if not solution.success:
-                    raise ValueError(
-                        "Declared CMB continuous evolution failed: "
-                        f"{solution.message}"
-                    )
-                if solution.y.shape[1] != eta_values.size:
-                    raise ValueError(
-                        "Declared CMB continuous evolution returned an "
-                        "incomplete state history"
-                    )
                 histories = {
                     slot.variable: numpy.asarray(
-                        solution.y[slot.index],
+                        continuous_history[slot.index],
                         dtype=float,
                     )
                     for slot in runtime_spec.state_slots
                     if slot.order == 0
                 }
-                final_state = numpy.asarray(solution.y[:, -1], dtype=float)
-                if not numpy.all(numpy.isfinite(final_state)):
-                    raise ValueError(
-                        "Declared CMB continuous evolution produced "
-                        "non-finite state values"
-                    )
+                final_state = continuous_history[:, -1].copy()
                 return histories, final_state
             tight_coupling_active = _tight_coupling_is_active(
                 active=False,
                 collision_rate=float(active_grids["collision_rate"][0]),
                 k_value=float(k_value),
+                expansion_rate=float(active_grids["Hconf"][0]),
                 tight_coupling_ratio=float(numerics.tight_coupling_ratio),
                 exit_ratio=float(numerics.tight_coupling_exit_ratio),
             )
@@ -3531,6 +3668,9 @@ def build_declared_mode_evolution(
                     active=tight_coupling_active,
                     collision_rate=end_collision_rate,
                     k_value=float(k_value),
+                    expansion_rate=float(
+                        active_grids["Hconf"][step_index + 1]
+                    ),
                     tight_coupling_ratio=float(numerics.tight_coupling_ratio),
                     exit_ratio=float(numerics.tight_coupling_exit_ratio),
                 )
@@ -3718,6 +3858,21 @@ def build_declared_mode_evolution(
                 name: numpy.asarray(history, dtype=float).copy()
                 for name, history in histories.items()
             }
+            # Retain derived quantities on the evolved metric itself. This
+            # diagnostic product must not inherit the optional algebraic
+            # reconstruction used by a separate source comparison.
+            native_context = _build_array_context(
+                histories, k_value=float(k_value)
+            )
+            history_sink["native_context"] = {
+                name: numpy.asarray(values, dtype=float).copy()
+                for name, values in native_context.items()
+                if isinstance(values, numpy.ndarray)
+                and values.shape == active_grids["eta"].shape
+            }
+            history_sink["native_sources"] = _evaluate_declared_sources(
+                native_context, k_value=float(k_value)
+            )
         if active_grids["eta"].shape != source_grids[
             "eta"
         ].shape or not numpy.array_equal(
@@ -3749,6 +3904,10 @@ def build_declared_mode_evolution(
             history_sink["source_histories"] = {
                 name: numpy.asarray(history, dtype=float).copy()
                 for name, history in source_histories.items()
+            }
+            history_sink["source_arrays"] = {
+                name: numpy.asarray(values, dtype=float).copy()
+                for name, values in source_arrays.items()
             }
         state_history_max_abs_by_k[f"{float(k_value):.12g}"] = {
             name: float(numpy.max(numpy.abs(history), initial=0.0))
@@ -3867,27 +4026,6 @@ def build_declared_mode_evolution(
         nonlocal scalar_base_context_cache
         nonlocal scalar_background_context_cache
 
-        continuous_collision_control = declared_accuracy_controls.get(
-            "continuous_collision_solver"
-        )
-        if continuous_collision_control is not None and not isinstance(
-            continuous_collision_control,
-            bool,
-        ):
-            raise ValueError(
-                "cmb.perturbations.accuracy_controls."
-                "continuous_collision_solver must be a boolean"
-            )
-        continuous_collision_solver = bool(
-            continuous_collision_control
-            and split_collision_runtimes
-            and "massive_neutrino"
-            not in set(manifest_summary.get("hierarchy_family_names", ()))
-            and all(
-                runtime.integration_strategy in {"exact", "implicit"}
-                for runtime in split_collision_runtimes
-            )
-        )
         k_values_batch = numpy.asarray(mode_k_values, dtype=float)
         if k_values_batch.ndim != 1 or not numpy.all(
             numpy.isfinite(k_values_batch)
@@ -3933,12 +4071,17 @@ def build_declared_mode_evolution(
         def _mode_schedule_values(
             mode_k_value: float,
             eta_values: numpy.ndarray,
+            hconf_values: numpy.ndarray,
         ) -> numpy.ndarray:
             """Return the phase schedule required by one mode."""
 
-            eta_signature = hashlib.sha256(
+            grid_hasher = hashlib.sha256(
                 numpy.asarray(eta_values, dtype=numpy.float64).tobytes()
-            ).hexdigest()
+            )
+            grid_hasher.update(
+                numpy.asarray(hconf_values, dtype=numpy.float64).tobytes()
+            )
+            eta_signature = grid_hasher.hexdigest()
             schedule_cache_key = schedule_cache_prefix + (
                 eta_signature,
                 float(mode_k_value),
@@ -3975,7 +4118,9 @@ def build_declared_mode_evolution(
                 1,
                 numpy.ceil(
                     numpy.abs(dt_values)
-                    * abs(float(mode_k_value))
+                    * numpy.maximum(
+                        abs(float(mode_k_value)), numpy.abs(hconf_values)
+                    )
                     / numpy.maximum(phase_steps, 1.0e-12)
                 ).astype(int),
             )
@@ -3994,19 +4139,17 @@ def build_declared_mode_evolution(
         # Modes with adjacent k values have schedules that differ only at
         # isolated phase thresholds.  Requiring byte-identical schedules
         # would turn almost every production mode into a scalar evolution.
-        # Build bounded compatibility groups instead: a group may contain
-        # only rows whose per-interval powers-of-two schedules differ by at
-        # most one refinement level, and its width is capped so vectorized
-        # work remains cache-friendly.  The batch integrator still receives
-        # each row's exact required schedule; the bound limits, rather than
-        # hides, any additional stages imposed by the group maximum.
+        # Small requests retain each scalar schedule exactly, including
+        # one-row batches. Large requests bound the extra work from their
+        # common schedule to one refinement level. Neither path re-evolves
+        # completed modes merely to replace a shared-grid trajectory.
         grouped_modes: list[dict[str, Any]] = []
         batched_collision_eigendecomposition_cache: dict[
             tuple[tuple[int, ...], bytes],
             tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray] | None,
         ] = {}
         schedule_group_width = 256
-        force_small_generated_batch = bool(
+        allow_single_mode_batch = bool(
             generated_scalar_hierarchy and k_values_batch.size <= 32
         )
         for mode_index, mode_k_value in enumerate(k_values_batch):
@@ -4015,6 +4158,7 @@ def build_declared_mode_evolution(
             schedule_values = _mode_schedule_values(
                 float(mode_k_value),
                 eta_values,
+                numpy.asarray(mode_grids[0]["Hconf"][:-1], dtype=float),
             )
             compatible_group = None
             for candidate in grouped_modes:
@@ -4022,11 +4166,13 @@ def build_declared_mode_evolution(
                     continue
                 if candidate["eta_signature"] != eta_values.tobytes():
                     continue
-                if force_small_generated_batch:
-                    compatible_group = candidate
-                    break
                 candidate_min = candidate["schedule_min"]
                 candidate_max = candidate["schedule_max"]
+                if allow_single_mode_batch:
+                    if numpy.array_equal(schedule_values, candidate_min):
+                        compatible_group = candidate
+                        break
+                    continue
                 if numpy.all(schedule_values <= 2 * candidate_min) and (
                     numpy.all(candidate_max <= 2 * schedule_values)
                 ):
@@ -4055,7 +4201,7 @@ def build_declared_mode_evolution(
 
         results: dict[int, dict[str, numpy.ndarray]] = {}
         for group in grouped_modes:
-            if len(group["indices"]) < 2 and not force_small_generated_batch:
+            if len(group["indices"]) < 2 and not allow_single_mode_batch:
                 continue
             (
                 active_grids,
@@ -4079,7 +4225,6 @@ def build_declared_mode_evolution(
             validate_batch_collision_invariants = bool(
                 diagnostic_source_audit or mode_count <= 128
             )
-            last_record_active: numpy.ndarray | None = None
 
             base_context_cache: dict[tuple[int, float], dict[str, Any]] = {}
             momentum_grid_context_cache: dict[float, dict[str, Any]] = {}
@@ -4565,10 +4710,9 @@ def build_declared_mode_evolution(
                             * damping_coefficients[nonzero_rows]
                             * float(dt)
                         )
-                        damping_target = relaxed[
-                            numpy.ix_(nonzero_rows, damping_indices)
-                        ]
-                        damping_target *= damping[:, numpy.newaxis]
+                        _apply_batched_collision_damping(
+                            relaxed, nonzero_rows, damping_indices, damping
+                        )
                 return relaxed
 
             def _project_fast_collision_state(
@@ -4753,22 +4897,16 @@ def build_declared_mode_evolution(
             ) -> numpy.ndarray:
                 """Record a finite grid state after its fast projection."""
 
-                nonlocal last_record_active
                 active_array = numpy.asarray(active, dtype=bool)
-                active_changed = (
-                    last_record_active is None
-                    or not numpy.array_equal(active_array, last_record_active)
+                # Match the scalar interval boundary, including its
+                # declaration-defined fast projection. An unchanged active
+                # mask does not make a state-dependent projection redundant.
+                projected = _project_fast_collision_state(
+                    state_rows,
+                    step_index=step_index,
+                    blend=blend,
+                    active=active_array,
                 )
-                if active_changed:
-                    projected = _project_fast_collision_state(
-                        state_rows,
-                        step_index=step_index,
-                        blend=blend,
-                        active=active_array,
-                    )
-                else:
-                    projected = numpy.asarray(state_rows, dtype=float)
-                last_record_active = active_array.copy()
                 if validate_batch_collision_invariants:
                     _validate_batch_collision_invariants(
                         projected,
@@ -4788,6 +4926,7 @@ def build_declared_mode_evolution(
                     active=False,
                     collision_rate=float(active_grids["collision_rate"][0]),
                     k_value=float(mode_k_value),
+                    expansion_rate=float(active_grids["Hconf"][0]),
                     tight_coupling_ratio=float(numerics.tight_coupling_ratio),
                     exit_ratio=float(numerics.tight_coupling_exit_ratio),
                 )
@@ -4799,6 +4938,9 @@ def build_declared_mode_evolution(
                             active_grids["collision_rate"][step_index + 1]
                         ),
                         k_value=float(mode_k_value),
+                        expansion_rate=float(
+                            active_grids["Hconf"][step_index + 1]
+                        ),
                         tight_coupling_ratio=float(
                             numerics.tight_coupling_ratio
                         ),
@@ -4960,13 +5102,9 @@ def build_declared_mode_evolution(
                 int(runtime_envelope["batched_max_substeps"]),
                 int(batch_stats.maximum_substeps),
             )
-            # Every group above is bounded to one powers-of-two schedule
-            # level per interval.  The batch integrator retains each row's
-            # exact required substep count, so re-evolving rows whose local
-            # schedule is below the group maximum would duplicate the cold
-            # evolution that this compatibility partition is designed to
-            # eliminate.
-            schedule_correction_required = bool(force_small_generated_batch)
+            # A shared schedule can refine a row beyond its scalar budget.
+            # Keep that resolved history rather than duplicating evolution
+            # and replacing it with a different scalar trajectory.
             history_names = tuple(
                 slot.variable
                 for slot in runtime_spec.state_slots
@@ -5063,12 +5201,9 @@ def build_declared_mode_evolution(
                                 numpy.max(numpy.abs(e_values), initial=0.0)
                             ),
                         }
-                if schedule_correction_required or (
-                    not common_schedule_allowed
-                    and not numpy.array_equal(
-                        scalar_substeps[row_index],
-                        batch_substeps,
-                    )
+                if not common_schedule_allowed and not numpy.array_equal(
+                    scalar_substeps[row_index],
+                    batch_substeps,
                 ):
                     runtime_envelope[
                         "batched_schedule_correction_mode_count"

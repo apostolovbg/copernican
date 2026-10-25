@@ -41,16 +41,6 @@ parameters:
     type: uniform
     lower: 0.01
     upper: 0.1
-- name: Photon density
-  bounds:
-  - 1.0e-05
-  - 0.0001
-  latex_name: Omega_{gamma}
-  definition: Photon density used by the distance and sound-horizon model.
-  prior:
-    type: uniform
-    lower: 1.0e-05
-    upper: 0.0001
 - name: Effective neutrino species
   python_var: Neff
   bounds:
@@ -62,16 +52,6 @@ parameters:
     type: uniform
     lower: 2.5
     upper: 3.5
-- name: Recombination redshift
-  bounds:
-  - 1000.0
-  - 1200.0
-  latex_name: z_{rec}
-  definition: Redshift used by the distance-model sound-horizon integral.
-  prior:
-    type: uniform
-    lower: 1000.0
-    upper: 1200.0
 - name: CMB temperature
   python_var: Tcmb_K
   bounds:
@@ -83,12 +63,7 @@ parameters:
   prior:
     type: fixed
     value: 2.7255
-Hz_expression: >-
-  H(z) = H_0 * sqrt(
-    Omega_{m0}*(1 + z)**3
-    + Omega_{gamma}*(1 + 0.2271 * Neff)*(1 + z)**4
-    + (1 - Omega_{m0} - Omega_{gamma}*(1 + 0.2271 * Neff))
-  )
+geometry: cmb.background
 equations:
   sne:
   - d_L(z) = (1+z) \int_0^z \frac{c\,dz'}{H(z')}
@@ -97,18 +72,6 @@ equations:
   - D_M(z) = \int_0^z \frac{c\,dz'}{H(z')}
   - D_H(z) = \frac{c}{H(z)}
   - D_V(z) = [D_M(z)**2 * D_H(z)]**(1/3)
-rs_expression: >-
-  r_s = Integral(
-    299792.458 / sqrt(
-      3 * (1 + 3 * Omega_b / (4 * Omega_{gamma}) / (1 + z))
-    ) / (
-      H_0 * sqrt(
-        Omega_{m0} * (1 + z)**3
-        + Omega_{gamma} * (1 + 0.2271 * Neff) * (1 + z)**4
-        + (1 - Omega_{m0} - Omega_{gamma} * (1 + 0.2271 * Neff))
-      )
-    ), (z, z_{rec}, oo)
-  )
 skip_bao: false
 valid_for_bao: true
 valid_for_distance_metrics: true
@@ -135,7 +98,7 @@ cmb:
       Tcmb: Tcmb_K
       Omega_b0: ombh2 / (h * h)
       Omega_c0: omch2 / (h * h)
-      Omega_gamma0: 2.469e-5 * ((Tcmb_K / 2.7255)**4) / (h * h)
+      Omega_gamma0: 2.472975328714087e-5 * ((Tcmb_K / 2.7255)**4) / (h * h)
       Omega_nu0: 0.22710731766 * Neff * Omega_gamma0
       Omega_r0: Omega_gamma0 + Omega_nu0
       Omega_m0: Omega_b0 + Omega_c0
@@ -147,36 +110,30 @@ cmb:
           + Omega_k0 / (a ** 2)
           + Omega_de0
         )
+    recombination:
+      prescription: effective_three_level
+    # Explicit phenomenological reference history; no solver model-name switch.
     reionization:
       calibration:
-        symbol: reionization_log10_amplitude
+        symbol: reionization_midpoint_redshift
         target_optical_depth: tau
-        lower: -24.0
-        upper: 32.0
+        lower: 0.0
+        upper: 50.0
       quantities:
-        stellar_temperature_K: 5.0e4
-        quasar_temperature_K: 1.5e5
-        hydrogen_temperature_K: 1.0e4
-        helium_temperature_K: 1.0e4
-        helium_double_temperature_K: 2.0e4
-        collapse_threshold: 1.686
-        collapse_source: exp(-collapse_threshold / (a + 1.0e-6))
-        hard_source: collapse_source * collapse_source
-        stellar_helium_hardness: >-
-          exp(-((24.587387 - 13.605693122994) * 1.602176634e-19)
-          / (1.380649e-23 * stellar_temperature_K))
-        quasar_helium_hardness: >-
-          exp(-((54.417763 - 13.605693122994) * 1.602176634e-19)
-          / (1.380649e-23 * quasar_temperature_K))
-        hydrogen_ionization_rate: >-
-          (10 ** reionization_log10_amplitude) * H_SI * collapse_source
-        helium_ionization_rate: >-
-          hydrogen_ionization_rate * stellar_helium_hardness
-        helium_double_ionization_rate: >-
-          (10 ** reionization_log10_amplitude)
-          * H_SI
-          * hard_source
-          * quasar_helium_hardness
+        hydrogen_width_redshift: 0.5
+        helium_midpoint_redshift: 3.5
+        helium_width_redshift: 0.4
+        hydrogen_transition: >-
+          0.5 * (1.0 + tanh(
+            ((1.0 + reionization_midpoint_redshift)**1.5 - (1.0 + z)**1.5)
+            / (1.5 * sqrt(1.0 + reionization_midpoint_redshift)
+            * hydrogen_width_redshift)))
+        helium_transition: >-
+          0.5 * (1.0 + tanh(
+            (helium_midpoint_redshift - z) / helium_width_redshift))
+        electron_fraction: >-
+          x_e_floor + (1.0 + helium_number_ratio - x_e_floor)
+          * hydrogen_transition + helium_number_ratio * helium_transition
   perturbations:
     contract_version: 2
     gauge: conformal_newtonian

@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-10-18
+**Last Updated:** 2026-10-25
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -37,8 +37,9 @@ boundaries remain the starting point. They do not establish CAMB parity.
 Historical plans and evidence remain in Git and CHANGELOG.md. Unpushed
 experiments on another machine are not part of this accepted baseline.
 
-**Current state:** Slices One through Three are complete. Slice Four is
-implementation-complete, awaiting the human's fresh full-workflow result.
+**Current state:** Slices One through Four are complete. The human confirmed
+the successful full workflow and gate close on 2026-10-21; Slice Four's
+closure record below identifies the tested state and its remaining scope.
 Slices Five through Ten remain pending; implementation proceeds one
 explicitly authorized slice at a time. A green policy gate, a generated
 report, or a successful mock cannot close a physical acceptance requirement.
@@ -101,9 +102,10 @@ already understood. Reproduce against the current source before repairing.
   declared equations give `(delta_b - 3*Theta_gamma0)' = 6*Phi'`. Establish
   the independent continuity/entropy invariant and repair the owning
   materializer, comments, documentation, and regression together.
-* **Reference matching:** the LCDM declarations specify a collapse-source
-  reionization history; CAMB 1.6.0's default is tanh. Equal `tau` and parameter
-  maps do not establish equal opacity, visibility, or source histories.
+* **Reference matching:** the starting LCDM declarations specified a
+  collapse-source reionization history; CAMB 1.6.0 uses tanh. Slice Five now
+  explicitly declares tanh for the two standard reference models and tests
+  their full late ionization histories. Equal `tau` alone is insufficient.
 * **Parameter consistency:** audit distance/sound-horizon and CMB background
   uses of shared parameters, including photon density, temperature, matter,
   neutrino bookkeeping, and recombination versus drag endpoints. Preserve
@@ -116,9 +118,11 @@ already understood. Reproduce against the current source before repairing.
   checks. Adaptive production controls disable transfer-cache reuse, and
   source histories have a 1,024-entry/128 MiB cache. Measure actual reuse and
   recomputation; do not assume matching nodes survived or remained reusable.
-* **Diagnostic fidelity:** stage diagnostics can select different integration
-  behavior. An informative diagnostic comparison must be followed by an
-  ordinary-route regression before it can support production acceptance.
+* **Diagnostic fidelity (reproduced and repaired in Slice Four):** diagnostic
+  collection implicitly selected a different integration method. Integration
+  choice is now explicit, and independent refined RK/BDF prefixes exercise
+  the small-state error control. Preserve ordinary-route regressions beside
+  diagnostic comparisons; neither alone establishes full physical parity.
 * **Acceptance coverage:** the existing fixed-LCDM `--output` command targets
   the historical sparse-only request. The graph regression stops at ell 100,
   supplies numerical overrides, compares a model with itself, and deletes
@@ -149,32 +153,45 @@ collision block, an incorrect likelihood vector, or a stale numerical cache.
 Use the following workloads, each with an explicit claim and reproducible
 command. Extend existing test owners and the existing acceptance runner.
 
-| Workload | Required evidence | Working cost target |
+| Workload | Required evidence | Historical cost target |
 | --- | --- | --- |
-| Focused development | Independent math and app behavior | At most 60 s |
-| Bounded real physics | Histories, kernels, refinement | At most 5 min |
-| Ordinary discovery | Broad tests and production smoke | At most 15 min |
-| Cold LCDM acceptance | Full frozen physical parity request | At most 15 min |
-| Cold Planck acceptance | Matched massive-neutrino point | At most 30 min |
+| Focused development | Independent math and app behavior | 60 s |
+| Bounded real physics | Histories, kernels, refinement | 5 min |
+| Ordinary discovery | Broad tests and production smoke | 15 min |
+| Cold LCDM acceptance | Full frozen physical parity request | 15 min |
+| Cold Planck acceptance | Matched massive-neutrino point | 30 min |
 
-These are implementation targets on one recorded reference machine using the
-managed CPU environment, not claimed present measurements or physical
+The human has relaxed fixed time limits while retaining the requirement for
+reasonable execution times. The numbers above preserve the original
+reference-machine optimization targets, not active deadlines or scientific
 validity cutoffs. Record hardware, interpreter, numerical libraries, thread
 settings, cold/warm state, per-test and per-phase timings, peak memory when
-material, and actual evolved/projected work. Record fixed budgets for the
-remaining required cases from measured component costs before launching them.
+material, and actual evolved/projected work. Estimate remaining cases from
+measured component work before launching them; identify the estimate's scope
+and uncertainty instead of promising an unmeasured total runtime.
 
-An exceeded target is a performance blocker to investigate in the slice that
-needs the calculation. Do not repeatedly launch a multi-hour matrix to learn
-that one component is still wrong. Profile representative bounded work,
-retain rejected attempts, and repair the measured cause. A valid slow theory
-is not scientifically rejected by a clock. Any revision of these completion
-budgets requires an explicit human decision with measurements; do not weaken
-physics or silently redefine completion to meet them.
+Correctness and performance have separate outcomes. Passing a clock cannot
+excuse a failed assertion; exceeding an old target cannot reject valid
+physics or alone prevent slice closure. Unreasonable recurring cost still
+requires profiling and a repair in its owning slice. Do not repeatedly
+launch a multi-hour matrix to discover the same early defect. Preserve
+negative controls, independent cold/refinement work, and all physical and
+numerical thresholds while removing demonstrated duplicate work.
+
+Slice Five removed the development runner's time-only failure: passing tests
+return success even above the historical 60/300-second targets. Actual
+failures, skips, empty selections and rejecting controls retain their
+semantics, while timing remains telemetry. Its tests and documentation now
+agree with that behavior.
+Slice Six owns measured solver/suite performance improvements; Slice Nine
+verifies final application and suite cost. A completed Slice Four does not
+claim that the full discovery suite is already reasonably fast on Intel.
 
 Ordinary discovery must keep real solver composition and adversarial coverage.
-Move expensive exact acceptance to explicit focused execution only while
-retaining its assertions, commands, and actual current evidence. Do not hide
+Scientific acceptance remains explicit and outside `devcovenant run` and
+ordinary unittest discovery. Keep expensive exact cases in their explicit
+execution owners, retaining assertions, commands and actual current evidence.
+Do not hide
 hard cases with skip flags or replace every physical test with mocks. Freeze
 independently generated, versioned, digest-verified CAMB products for recurring
 comparisons; regenerate them explicitly when their physical/reference inputs
@@ -372,8 +389,10 @@ wiring or transfer it to the human's later scientific campaign.
 A new blocker belongs to the earliest unmet obligation it violates. Later
 changes reopen affected earlier evidence rather than repeating unrelated
 work. No automated stage may quietly expand to the entire observational
-campaign. This plan replacement requires policy verification only; it makes
-no claim that the implementation slices below have executed.
+campaign. The 2026-10-21 amendment records the already tested Slice Four
+implementation and reconciles the remaining roadmap. It changes no engine,
+test, reference, metric, or acceptance payload; its policy verification is
+separate from the successful implementation workflow recorded below.
 
 ## Preserved completed foundation
 
@@ -409,11 +428,10 @@ second architecture rewrite.
 
 ## Slice Four - establish independent, practical development checks
 
-**Status:** implementation-complete on 2026-10-18; awaiting the human's
-fresh `devcovenant run` confirmation. **Entry:** the completed foundation
-above. Slice Five has not started.
-The full-workflow follow-up below records the rejected run and its repairs;
-that rejected run is not a full-suite confirmation.
+**Status:** complete, closed on 2026-10-21 after the human's successful
+full workflow and gate close. **Entry:** the completed foundation above.
+Slice Five has not started. The dated follow-ups retain rejected attempts,
+their repairs, focused evidence, and the final successful closure record.
 
 **Owners:** `perturbation_contract.py`, direct runtime test owners,
 `tests/project/lib/camb_reference.py`, the existing synthetic fixture,
@@ -459,9 +477,12 @@ Select methods explicitly when a broad module still includes costly solves.
 
 **Closure:** independent negative controls detect the named defects; their
 resolved controls pass; the photon inconsistency has a derived repair; actual
-application composition is covered; and the focused/bounded workload commands
-meet their measured targets. This slice establishes a useful development
-loop, not final CAMB parity. Record the human's full-suite confirmation.
+application composition is covered; and focused/bounded commands retain
+their passing behavioral evidence and measured hardware-specific costs.
+The successful full-suite run and gate close are recorded below. Historical
+time targets are no longer hard closure limits. This slice establishes the
+development checks; final CAMB parity and production/suite performance remain
+explicit later obligations.
 
 ### Slice Four findings, source owners, and acceptance mapping
 
@@ -557,10 +578,13 @@ remains assigned to its original later slice.
    ordinary-route coverage alongside analytic probes. Production histories,
    planner and cache owners still owe measured cold/warm/subset reuse,
    independent new refinement work, and pressure/chunking behavior in
-   Slice Six. Reports retain raw executor counters; some projection phase
+   Slice Six. The October 20-21 follow-up also covers explicit diagnostic
+   integration, tiny-state scaling, batch damping writeback, compatible
+   schedules, once-only evolution, and refined RK/BDF physical prefixes.
+   Reports retain raw executor counters; some projection phase
    counters exceed request wall time. Correct counter attribution belongs
-   to Slice Six profiling. Those counters do not decide this slice's cost
-   pass: independently measured workload/test wall clocks do.
+   to Slice Six profiling. Measure workload/test wall costs independently;
+   raw counters alone cannot establish either practical cost or correctness.
 7. **Exact inventory, surfaces, metrics, and sparse/dense acceptance.**
    `test_diagnostics.CompletionContractTestCase` checks
    `test_frozen_case_inventory_includes_physical_response_points`,
@@ -616,16 +640,19 @@ remains assigned to its original later slice.
     `CompletionPersistenceTestCase` reject stale/missing/forged evidence,
     escaped paths and source changes. They run in the focused command.
     Development reports explicitly set `scientific_acceptance: false`.
-    Selective physical/comparison/rendering dependency invalidation, resume
-    and persistent full graph payloads remain Slice Nine/Seven obligations;
-    whole-checkout identity does not yet implement selective reuse.
+    Dependency validation, safe resume and persistent physical/graph
+    payloads are prerequisites within Slice Seven, before relying on reused
+    acceptance cases. Slice Nine extends that distinction to final consumer
+    and rendering invalidation. Whole-checkout identity alone does not yet
+    implement selective reuse.
 12. **Broader review and final handoff.**
-    Slice Ten retains the whole-project code/docs/comments/docstrings/tests/
-    configuration/assets/mirror/performance/architecture review and the
-    ordinary LCDM/Planck2018ref 5-burn/10-production handoff. The application
-    behavior test above checks the actual free/fixed roles; it does not
+    Slice Nine retains the whole-project code/docs/comments/docstrings/tests/
+    configuration/assets/mirror/performance/architecture review. Slice Ten
+    prepares the ordinary LCDM/Planck2018ref 5-burn/10-production handoff.
+    The application behavior test above checks the actual free/fixed roles;
+    it does not
     replace the final accepted forward-engine inputs or launch a scientific
-    campaign. This slice leaves all later closure criteria unchanged.
+    campaign. The later physical thresholds and case inventory remain intact.
 
 ### Slice Four reproducible commands and measured cost
 
@@ -665,22 +692,25 @@ The original profiling script preserves
 the initial exact unittest module selections. That 183-test timing sample
 was recorded after the isolated photon repair, before the remaining new
 behavior tests; it is not an unchanged pre-slice scientific baseline.
-The final runner's explicit selections make each current workload
+The runner's explicit selections make each workload
 reproducible without running the expensive matrix.
 
-Measured on the reference machine (Apple M5, macOS 26.3 arm64, ten CPU cores,
+Historical implementation measurements on 2026-10-18 used the reference
+machine (Apple M5, macOS 26.3 arm64, ten CPU cores,
 Python 3.11.14, NumPy 1.26.4, SciPy 1.12.0, CAMB 1.6.0; recorded numerical
 thread variables unset):
 
-| Measurement | Tests | Wall seconds | Target seconds |
+| Measurement | Tests | Wall seconds | Historical target seconds |
 | --- | --- | --- | --- |
 | Initial selected-owner timing sample | 183 | 9.397 | Comparison only |
-| Final focused development | 255 | 9.194 | 60 |
-| Final bounded real physics | 10 | 48.300 | 300 |
+| Initial implementation focused development | 255 | 9.194 | 60 |
+| Initial implementation bounded real physics | 10 | 48.300 | 300 |
 | Explicit angular reference rebuild | 6 | 0.886 | Explicit maintenance |
 
-All measured current workload tests passed. Reports record per-test costs,
-peak process RSS, environment, source/reference identities, and actual
+All tests in those measured workloads passed at their recorded source state.
+Those reports are not new measurements of the October 21 implementation.
+Reports record per-test costs, peak process RSS, environment,
+source/reference identities, and actual
 parent-process request contexts/work counters. Caches are cleared at each
 workload's entry; individual tests exercise and may clear their own cold,
 warm and invalid states. Cold execution remains present. Moving six angular
@@ -705,11 +735,10 @@ after the metric-stage repair; subsequent polarization changes are covered
 by the final focused/bounded checks and source-audit regression. This is
 distinct from a fresh complete discovery run.
 
-**Workflow handoff:** stage the complete slice after a green
-`gate --verify`, leave the gate open, and await the human's fresh full
-`devcovenant run`. The previous pre-slice full run is not this confirmation.
-No Slice Five implementation, cold full-parity campaign, gate close, commit
-or push is included. Full slice closure remains pending that human result.
+**Historical implementation handoff, 2026-10-18:** the slice was staged
+after policy verification and handed to the human for a fresh full workflow.
+The dated follow-ups below supersede that pending state. No Slice Five work
+or cold full-parity campaign was included in that handoff.
 
 ### Full-workflow follow-up, 2026-10-18
 
@@ -784,25 +813,168 @@ model-corpus and production-graph regressions passed together in 257.723
 seconds. Final focused checks passed all 257 tests in 15.501 seconds against
 their 60-second target; bounded checks passed all 11 tests in 110.581
 seconds against their 300-second target. Both development reports match
-the final tested source identity. The new focused/bounded JSON reports
+their October 18 tested source identity, not the later October 21 repairs.
+The then-current focused/bounded JSON reports
 and sibling logs retain per-test costs, request work, and environment
 metadata at the same configured evidence root.
 Pre-fix reproducers and the affected-owner logs are retained under
 `development-reproductions/`. Earlier timings above remain historical
 observations; these follow-up measurements use the repaired source.
 
-The complete slice remains staged with a green policy verify and an open
-gate for a fresh human workflow run. No full-suite pass, Slice Five work,
-gate close, commit, or push is claimed by this follow-up.
+At that follow-up's handoff the slice remained staged with a green policy
+verify and an open gate for a fresh human workflow run. That historical
+state did not claim a full-suite pass or gate close. The closure record below
+supersedes it; Slice Five remains unstarted.
+
+### Intel numerical and workflow follow-up, 2026-10-20 and 2026-10-21
+
+Run `20261020T140907362173Z-run` exposed a regular-mode failure on the Intel
+checkout: the early scalar metric Phi was -0.3903786167, violating the
+existing positive regular-mode bound. The previously passing M5 checks did
+not establish portability of that numerical path. Reproduction identified
+an implicit diagnostic switch to BDF and raw absolute error control that
+under-resolved tiny shear/velocity states with significant metric coupling.
+
+The owning `runtime/mode_evolution.py` repairs preserve the declared graph:
+
+* Diagnostic collection no longer changes integration selection. The
+  explicit `continuous_collision_solver` accuracy control selects supported
+  coupled BDF integration; scalar and batch capability checks agree on it.
+* BDF evolves normalized coordinates derived from initial amplitudes and
+  physical drives. Scale propagation includes initially zero, indirectly
+  driven moments; a centered numerical Jacobian uses the same normalized
+  coordinates. Histories return in physical units. There is no Intel-only
+  branch or fixed replacement tolerance chosen for this one request.
+* Batched high-moment collision damping writes the updated selected moments
+  back into the accepted state array. An independent exponential-law test
+  checks selected moments and preservation of all other entries.
+* Schedules include both streaming and conformal-expansion requirements.
+  Small generated batches retain identical scalar schedules, including
+  one-row batches; larger requests retain bounded schedule compatibility.
+  Cache identity covers the full evolution grid and expansion history.
+* Batch interval-boundary projections match the scalar implementation.
+  Accepted batch histories are retained without unconditional scalar replay.
+  Independently computed scalar/batch spectra retain their existing
+  comparison tolerances; neither result is replaced just to obtain a pass.
+
+Run `20261021T034248903198Z-run` then passed all other tests and exposed a
+stale assertion requiring exactly one batch. Its request now correctly
+partitions 18 modes into 17 compatible batches. The corrected regression
+does not hardcode that partition count: it requires one contract/model/
+request preparation, positive bounded batch count equal to schedule groups,
+complete once-only mode evolution, zero small-request schedule inflation,
+zero corrective scalar replay, finite spectra, and exact cached repetition.
+
+Direct regression ownership is `runtime.test_mode_evolution` and the public
+`test_cmb.CMBCustomRuntimeBehaviorTestCase`. The analytic tests verify unit
+changes across 42 orders of magnitude, zero and indirectly driven states,
+the normalized RHS/Jacobian, and exact damping. The real physical prefix
+test runs the compiled hierarchy and collision operators through the first
+visible source epoch, independently refines RK phase steps and BDF error
+tolerances, and checks their regular-mode agreement. It stops after that
+measured prefix, before unnecessary late evolution and projection. This
+does not replace the full ordinary-route regular-mode regression, whose
+positive sign and minimum-amplitude assertions remain unchanged.
+
+Reproduce the affected checks without launching full discovery:
+
+```bash
+source .venv/bin/activate
+runtime_owner=tests.copernican.lib.likelihoods.cmb.runtime
+mode_owner=$runtime_owner.test_mode_evolution.ModeEvolutionTestCase
+cmb_owner=tests.copernican.lib.likelihoods.cmb.test_cmb
+cmb_owner+=.CMBCustomRuntimeBehaviorTestCase
+python -m unittest -v \
+  "$mode_owner.test_batched_damping_updates_selected_accepted_moments" \
+  "$mode_owner.test_scalar_early_metric_agrees_between_refined_rk_and_bdf" \
+  "$runtime_owner.test_execution" \
+  "$cmb_owner.test_generated_scalar_superhorizon_metric_seed_stays_regular"
+callback_case=test_continuous_callbacks_match_independent_normalized_generator
+python -m unittest -v \
+  "$mode_owner.test_continuous_history_is_invariant_under_state_unit_changes" \
+  "$mode_owner.$callback_case" \
+  "$mode_owner.test_continuous_history_scales_initially_zero_driven_states" \
+  "$mode_owner.test_continuous_history_resolves_indirectly_driven_tiny_states"
+python -m unittest -v \
+  "$cmb_owner.test_batched_declared_evolution_matches_scalar_modes" \
+  "$cmb_owner.test_declared_generated_modes_use_declared_graph_evolution"
+```
+
+The ordinary bounded development selection already includes the direct
+`runtime.test_mode_evolution` module, the full regular-mode test and the
+scalar/batch spectrum comparison. The explicit commands above also isolate
+the updated generated-mode accounting test. Do not rerun them merely to
+rewrite this closure record; the successful full workflow below includes
+all of their test owners.
+
+Recorded local environment: macOS 26.2 x86_64, Python 3.11.14,
+NumPy 1.26.4 and SciPy 1.12.0 with OpenBLAS. The following measurements
+overlap; they must not be summed or compared with M5 totals as a speedup:
+
+| Measurement | Tests | Wall seconds | Outcome |
+| --- | --- | --- | --- |
+| Damping, RK/BDF prefix, execution and ordinary metric | 8 | 159.706 | Pass |
+| Scalar/batch spectrum equivalence | 1 | 141.956 | Pass |
+| Generated-mode accounting and exact-repeat cache | 1 | 79.453 | Pass |
+| Final ordinary discovery | 897 | 8360.995 | Pass |
+
+The complete workflow command wall time was 8366.539 seconds. Full discovery
+is still about two hours nineteen minutes on this machine. Slice Four's
+closure records its behavioral success, not a claim that this recurring
+cost is satisfactory. Slice Six must profile the measured test/solver work
+and remove duplication while preserving coverage; Slice Nine verifies the
+final suite cost. Earlier M5 workload reports remain historical evidence
+for their own source identities; no new current-source M5 run is claimed.
+
+### Slice Four closure evidence, 2026-10-21
+
+The human confirmed the successful full workflow and gate close. Their
+repository-relative artifact paths are:
+
+* Policy verification:
+  `devcovenant/logs/20261021T144013477213Z-gate/summary.txt`.
+* Full workflow, exit code 0:
+  `devcovenant/logs/20261021T144348665452Z-run/summary.txt`.
+  Its `tail.txt` records all 897 tests passing in 8360.995 seconds;
+  `workflow_profile.txt` records the full command wall time.
+* Gate close, exit code 0:
+  `devcovenant/logs/20261021T174128595777Z-gate/summary.txt`.
+
+These records describe the implementation tested before this documentation
+amendment, including its then-uncommitted runtime/test/doc changes. Preserve
+that provenance; do not relabel old reports as executions of a later source
+state. The amendment's new policy verification records only its own checks.
+Local logs are evidence references, not a promise that ignored artifacts are
+available in every clone. Retain the measured outcomes here independently of
+local runtime-registry availability; do not fabricate replacement workflow
+or scientific records.
+
+Slice Four is closed for independent development checks, repaired numerical
+regressions and bounded application composition. At that handoff Slice Five
+was in progress; its closure below supersedes that checkpoint. Slices Six
+through Ten remain pending. Full matched CCMBS/CAMB histories and
+dense spectra, the 23-case accepted scientific matrix, automatic production
+performance and the final application/demo handoff have not been certified
+by this run.
 
 ## Slice Five - align physical inputs and locate first disagreement
 
-**Status:** pending. **Entry:** independent development checks pass.
+**Status:** closed (2026-10-25). **Entry:** Slice Four is closed and its
+independent development checks pass. No new full discovery run is required
+merely to begin bounded diagnosis from the recorded successful
+implementation state.
 
 **Owners:** model declarations, adapter/compiler, `runtime/background.py`,
-initial data, hierarchy/source owners, and independent reference helpers.
+initial data, hierarchy/source owners, independent reference helpers, and
+the existing development runner and its direct tests/documentation.
 
 **Work:**
+
+The development runner's legacy time-only failure is removed. Passing tests
+return success even above historical cost targets; actual failures, skips,
+empty selections and negative controls retain their semantics. Timing and
+performance-target telemetry remain in reports. Scientific acceptance stays
+outside ordinary discovery and `devcovenant run`.
 
 1. Resolve the exact LCDM and fixed Planck reference points, including
    massless versus massive species/distributions, temperatures/densities,
@@ -816,9 +988,13 @@ initial data, hierarchy/source owners, and independent reference helpers.
    entry and recombination into metric/species histories and source terms.
    Compare with independent histories in a common gauge and normalization.
    Repair the earliest mismatch before downstream projection or amplitude.
+   Preserve the tiny-state scaling and independently refined regular-prefix
+   controls. Check actual state histories before an expensive spectrum solve.
 4. Test source decomposition, derivatives, collision transitions, and radial
    kernels independently. Exercise the same repaired behavior through the
    ordinary executor so diagnostic integration differences cannot mask it.
+   Collecting diagnostics must retain the selected integration method;
+   explicit alternative methods need separate refined physical comparisons.
 5. Derive and record each correction and its observable consequence using
    bounded reference points and negative controls. Preserve theories' intended
    equations and parameter semantics; do not turn physics into labels that
@@ -827,15 +1003,284 @@ initial data, hierarchy/source owners, and independent reference helpers.
 **Focused owners:** `test_model_coder`, `test_model_adapter`,
 `test_perturbation_contract`, runtime background/evolution/collision/constraint
 and projection tests, and `tests.project.lib.test_camb_reference`.
+Include `tests.project.lib.test_scientific_acceptance` for runner outcomes.
 
 **Closure:** matched physical histories and selected mode/source comparisons
 pass their independent bounds for both starting reference models. Remaining
 full-spectrum questions are identified by stage and metric, not hidden by
 finer grids. Exact physical inputs and fresh affected regressions are retained.
+Development command correctness is independent of elapsed time, with costs
+reported separately. No later physical ceiling is relaxed to obtain closure.
+
+### Implementation evidence retained so far
+
+The human approved explicit tanh histories for `model_lcdm.yml` and
+`model_ref_planck2018.yml`, with temperature as the authoritative blackbody
+input. Both declarations now fix 2.7255 K and derive photon density from
+Planck's law and H0. Their independent photon-density parameters are removed.
+Distance, sound-horizon and CMB helpers now consume the same native
+background through `geometry: cmb.background`. Alternative theories retain
+their declared radiation and rate laws;
+there is no model-label selection or hidden reference substitution.
+
+The tanh hydrogen width is 0.5 in redshift, with second helium midpoint
+3.5 and width 0.4. The declared midpoint is calibrated to tau=0.054 and
+retained in background evidence. A generic total-electron-fraction
+expression supports this prescription; simultaneous rate/fraction inputs
+and unphysical fractions are rejected. Rate-based collapse histories remain
+supported. Independent CAMB checks compare the complete late ionization
+and opacity histories over redshifts 0--25 for both actual physical points,
+not merely their integrated optical depths. Electron fractions have a 0.01
+absolute bound; opacity has a 1% relative bound where reference x_e>0.02.
+These checks do not certify precise residual-ionization thermal histories.
+
+The drag owner now integrates opacity/R, with R=3*rho_b/(4*rho_gamma),
+through the complete remaining recombination tail. The former inverse
+loading and visibility-peak truncation were both wrong. Independent drag
+rulers are checked within 0.2% and drag redshifts within 0.5% at both points.
+Equivalent scale-factor/redshift ionization laws now agree because endpoint
+and midpoint evaluations receive their actual stage redshifts.
+
+The tight-coupling regime now compares opacity with both streaming and
+expansion rates. A streaming-only decision kept long wavelength E
+polarization on instantaneous equilibrium after decoupling. Direct regime
+checks and an independent-opacity scalar/batch polarization control isolate
+this repair. The latter retains a 2% E-quadrupole bound and rejects the old
+criterion; its supplied reference opacity is explicit test input, not
+production evidence or a certification of native recombination.
+
+The independent helper converts CAMB's native synchronous densities and
+velocities to the Newtonian state convention, with an explicit fixed
+curvature sign and no fitted amplitude. No frozen reference was regenerated.
+
+The initial physical-input checkpoint did not close this slice. Its
+exploratory native long-wavelength quadrupoles still differed by roughly
+3.6%/2.3%, and the controlled-opacity test did not certify native thermal
+physics. The following native closure work supersedes that pending state;
+no historical report is relabeled as a later source execution.
+
+### Focused verification of the physical-input changes
+
+The 80-test focused physics/reference/background/evolution suite passed in
+687.883 seconds on this checkout, including the prior scalar-seed and
+scalar/batch/accounting regressions with their existing assertions.
+The 27 prior, contract and automatic-planner consumer checks passed in
+4.447 seconds. Subsequent owning checks passed for reference temperature
+(7 tests), history/provenance (17 tests), and independent photon inputs
+(1 test). Repeated owner checks are not additional scientific cases.
+
+Logs and a source-hashed development manifest are retained under the
+configured output root at
+`ccmbs-acceptance/completion-evidence/physical-inputs-20261023/`.
+The manifest records actual unittest IDs and per-group counts/times. These
+are focused development results, with `scientific_acceptance=false`.
+No full discovery or scientific acceptance was launched for this handoff.
+
+
+### Native closure repairs and acceptance, 2026-10-23
+
+The remaining work was executed against the actual LCDM and Planck model
+files, not the reduced synthetic declaration or supplied reference opacity.
+
+1. **One expansion and ruler source.** `model_coder.py` supports the explicit
+   `geometry: cmb.background` declaration. Both standard models use it for
+   H(z), distances, recombination/drag rulers and drag redshift. Their
+   duplicate approximate H(z)/sound-horizon expressions and independent
+   recombination-redshift parameters are removed. Scalar, ordered, permuted
+   and parameter-rebound expansion calls retain the same native density
+   normalization; the final requested epoch cannot stand in for today.
+   Pickling and both physical ruler endpoints are covered by owner tests.
+2. **Native atomic and gas evolution.** `runtime/recombination.py` implements
+   an explicitly selected effective three-level H/He prescription, including
+   helium escape/continuum/triplet channels, hydrogen escape corrections and
+   coupled Compton gas-temperature evolution. It uses the declared H(a),
+   atomic hydrogen mass and helium/hydrogen number ratio. Published effective
+   atomic coefficients are physical prescription inputs, not fitted spectrum
+   corrections. Custom rate/role declarations retain their separate routes.
+   Native matter temperature is retained and used in baryon pressure.
+3. **Actual kinetic Planck neutrinos.** Automatic momentum-grid naming now
+   resolves before scalar graph materialization. Previously the planner
+   supplied a grid while the graph silently omitted its kinetic states.
+   Generated quadrature sums obey the existing parser size/depth limits.
+   Physical velocity, anisotropic stress, Einstein weights and regular q-bin
+   seeds obey the relativistic moment identities. The explicit 3.044 heating
+   convention matches the reference's three degenerate masses totaling
+   0.06 eV. The Fermi-Dirac density keeps kinetic energy in addition to the
+   declared rest-mass density; treating rest density as total energy had
+   suppressed early radiation. Independent quadrature expectations now
+   normalize to rest energy, including the very light-mass anchor.
+4. **Stable metric evolution with independent constraints.** The generated
+   scalar graph advances Phi using Einstein 00, avoiding the 0i velocity
+   division by k squared. The momentum equation remains an independent
+   diagnostic. The initial photon-density correction forms 00 using that
+   independent momentum source, so it closes both constraints while retaining
+   the declared metric seed. Source graph validation, source derivative
+   audits, comments and cancellation controls follow this equation choice.
+   Wrong velocity data still reject through the momentum residual. No
+   post-processed metric or reference histories decide native parity.
+5. **Fresh selected histories and sources.** The explicit test-owned
+   `native_history_acceptance` runner exercises the actual executor before
+   angular projection, with ordinary collision integration and source
+   reconstruction disabled. It compares two k values at 105 epochs from
+   eta=10 through 1100 Mpc, integrating the early prefix and continuing to the
+   test's eta<=1250 Mpc boundary. Both metric potentials, baryon/CDM density
+   and velocity, photon monopole/quadrupole, E quadrupole and active neutrino
+   density are compared in one gauge and fixed curvature normalization.
+   Native E/Weyl and temperature monopole, quadrupole, Doppler and ISW sources
+   have independent comparisons. Massive density uses CAMB's own background
+   equation of state for the gauge shift. No amplitude or phase is fitted.
+
+The independent native background checks cover H(a), conformal time,
+ionization, opacity, visibility, gas temperature, late tanh reionization and
+rulers at both points, with a doubled background grid. Fixed bounds include
+0.02% expansion, 0.05% conformal time, 0.1% recombination electron fraction,
+0.5% gas temperature/visibility, and the previously retained late-ionization
+and drag bounds. Native modes/sources retain a fixed 2% peak-normalized bound;
+independent finer temporal/hierarchy controls must change each measured
+component by <=0.5%. Time is recorded as telemetry.
+
+The fresh native component command passed with `accepted=true`,
+`refinement_accepted=true`, and `unchanged_sources=true`, in 360.838 seconds.
+Its actual scalar state counts grew from 89 to 169 for LCDM and from 1145 to
+2249 for Planck, demonstrating that the finer graphs were executed.
+
+| Native comparison | LCDM | Planck2018 reference |
+| --- | --- | --- |
+| Largest finer component error | 1.218% E2 | 0.417% E2 |
+| Largest finer source discrepancy | 0.132% Weyl | 0.141% Doppler |
+| Largest coarse/fine change | 0.187% massless density | 0.218% Doppler |
+
+These are selected component measurements; dense angular spectra and the
+full 23-case scientific matrix remain Slice Seven/Eight work. In particular,
+passing the component check does not certify late-time free streaming,
+full support, lensing remapping or combined production error budgets.
+Slice Six must establish those numerical/performance obligations using the
+repaired physical graph, before the unchanged later angular ceilings apply.
+
+The native command is reproducible from the checkout:
+
+```bash
+source .venv/bin/activate
+python -m tests.project.lib.native_history_acceptance \
+  --refine --output ../ccmbs-native-components.json
+```
+
+Choose a report destination outside the checkout. Scientific/component
+acceptance stays outside ordinary discovery and `devcovenant run`. Its cheap
+verdict tests reject incomplete/nonfinite arrays, spikes, forged zero-error
+claims, changed physical inputs and insufficient refinement agreement.
+The actual native report, with full sampled arrays, physical inputs,
+refinement results, source identity and runner digest, is retained under the
+configured output root at
+`ccmbs-acceptance/completion-evidence/native-components/` as
+`native-components-20261023.json`. Kernel source identity is
+`afac36a692ff58cea87f2e8f55d22fe2dca89c13a38a30c572210e45bc3ed876`.
+The preceding 354.445-second accepted measurement is preserved as
+`native-components-20261023-before-policy.json`; it is not relabeled with
+the final source identity. Earlier diagnostic probes are not closure evidence.
+
+Affected verification also passed: 157 focused compiler, geometry, atomic,
+evolution, collision, constraint, background, verdict and physical-binding
+checks in 94.507 seconds; 30 native reference, runner, refined RK/BDF-prefix
+and preserved-metric controls in 197.033 seconds; and the corrected
+scalar/batch regression in 158.660 seconds. Nine spawn/callback/binding
+follow-ups and two ruler/verdict checks also passed. The massive-density
+regression now checks the kinetic correction against an independent
+Fermi-Dirac integral rather than incorrectly equating total and rest energy.
+An earlier runtime-owner selection exposed the initial
+projection's dependence on the old metric equation; that defect was fixed
+and the unchanged failing regression then passed. Repeated tests and
+counterfactual diagnostic probes are not additional scientific cases.
+The final `verification-20261023.json` manifest records retained logs and
+reproducible commands without claiming a new full discovery or DevCovenant
+workflow run.
+
+### 2026-10-24 full-run regression repairs
+
+The first subsequent human workflow ran 908 tests and failed with four
+failures and three errors. A focused local reproduction retained exactly
+those seven failures in 547.847 seconds. The October 23 focused evidence
+above did not cover these failing assertions and did not establish a green
+full workflow.
+
+Velocity-isocurvature initialization had become circular after the metric
+energy-equation change: its photon density seed depended on the density it
+was calculating. It now uses the independent momentum source. A state-free
+initialization matrix checks all five scalar families in all three gauges,
+with and without massive neutrinos. A direct compiler regression checks
+that this seed retains the independent source.
+
+The bundled graph audit now uses the runtime's generated graph validator
+instead of requiring the old momentum-driven metric equation. Six missing
+energy-input controls must fail in both audit and runtime validation. The
+repository integrity audit therefore retains its declaration checks.
+Massive-neutrino regressions independently integrate density, pressure,
+momentum and shear across four epochs; public velocity and shear normalize
+by rho plus pressure, distinct from normalized q moments. BOSS comparisons
+use the native baryon drag ruler, retaining the original chi-square and
+residual bounds and checking the covariance quadratic form independently.
+
+The refreshed native component and refinement command passed in 383.069
+seconds with unchanged sources. Its report is
+`native-components-20261024.json` in the same configured evidence directory.
+The accepted kernel identity is
+`1020ff5d1144144d9f652eab2bdea2280201ace67cdf940ba36c77214ac30fd9`.
+The previous dated reports remain intact. This is bounded native component
+evidence, separate from full angular scientific acceptance.
+
+The affected regression selection ran 124 tests in 763.465 seconds: 123
+passed, while a further obsolete dipole-seed assertion was exposed behind
+the original q-materializer failure. That assertion now evaluates the
+regular Fermi-Dirac dipole numerically across momenta and both potential
+signs; its complete regression passed on rerun in 0.088 seconds. The final
+state-free matrix and rejecting audit controls also passed after policy
+formatting. All seven originally failing cases therefore have passing
+results. Import-only discovery collected 909 tests without errors.
+`verification-20261024.json` retains the failed selection, successful
+reruns, latest per-test verdict, current component evidence and gate result;
+it does not relabel the selection as a single green full workflow.
+
+### 2026-10-25 final closure after the successful full workflow
+
+The human's subsequent `devcovenant run` passed with exit code 0. Ordinary
+discovery executed 909 tests in 12,740.633 seconds and reported `OK`.
+The complete workflow took 12,754.66 seconds; its successful result was
+recorded on 2026-10-24 at 20:25 UTC. The retained run directory is
+`devcovenant/logs/20261024T165231254579Z-run/`, containing `summary.txt`,
+`summary.json`, `tail.txt`, full logs and workflow profiling artifacts.
+
+Final Slice Five closure is confirmed on 2026-10-25 using that passing full
+workflow together with the source-bound native component and refinement
+acceptance recorded above. The October 23 focused handoff, October 24 failed
+workflow and subsequent repairs remain historical evidence; none is
+relabeled as the successful full run. The closure date at this slice's
+heading supersedes the premature October 23 status.
+
+The measured full-suite cost is approximately 3.5 hours on this machine.
+Correctness passed, but that cost is the repaired-graph baseline for Slice
+Six profiling and reuse work. No physical or test threshold is relaxed.
+Dense angular spectra, the full scientific matrix and later production
+obligations remain in their existing slices; this workflow pass does not
+claim that those later tasks are complete.
 
 ## Slice Six - make automatic production planning accurate and practical
 
-**Status:** pending. **Entry:** matched component physics is established.
+**Status:** pending. **Entry:** matched component physics and the repaired
+full-discovery workflow both pass.
+
+Use the accepted native component report above as the physical baseline.
+Profile the restored q-resolved Planck graph and coupled atomic background;
+old Planck timings from the omitted kinetic graph are not a valid cold-cost
+baseline. Include shared distance/ruler background reuse, scalar/batch
+execution and compilation costs. Keep the independent momentum constraint
+and native source histories intact while optimizing. The bounded component
+command is available for early failure diagnosis before angular work.
+
+Use the successful Slice Five run above as the current full-suite cost
+baseline: 909 tests in 12,740.633 seconds on this machine. Its retained
+workflow profiles supplement the earlier Slice Four timing evidence.
+Measure solver work and test orchestration separately before removing
+duplication; retain necessary independent cold and refinement checks.
 
 **Owners:** planner, adaptive/convergence controls, background, mode evolution,
 projection, caches, numerical work accounting, and their direct tests.
@@ -846,6 +1291,10 @@ projection, caches, numerical work accounting, and their direct tests.
    compilation, background/calibration, initial data, evolution, projection,
    internal/outer refinements, diagnostics, serialization, memory, and reuse.
    Account for every repeated cold mode and distinguish counts from timings.
+   Include schedule fragmentation, repeated graph preparation, collision
+   work, diagnostic overhead and duplicate test solves. Profile the Intel
+   discovery baselines recorded under Slices Four and Five as well as forward
+   requests.
 2. Resolve scales from the declared background, interaction rates, source
    features, sectors, kernels, and physical support. Fixed standard-cosmology
    estimates may initialize the search; measurements must correct them.
@@ -865,12 +1314,24 @@ projection, caches, numerical work accounting, and their direct tests.
    independently tested interpolation/phase errors and fresh physical
    samples. Preserve full effective projection resolution and the declared
    equations; do not introduce a hidden reduced production path.
+   Preserve scaled-state and collision-damping controls, boundary projection
+   semantics and scalar/batch parity. A fixed batch count is not acceptance;
+   compatible grouping must justify its accuracy and measured work savings.
 6. Measure ordinary cold, compatible warm, exact-repeat, changed-parameter,
    changed-request, subset, and batch behavior. Verify useful work survives
    chunking/cache pressure without changing ordering, failures, or acceptance.
-7. Meet the recorded workload targets on the reference machine. Plan and run
-   individual exact reference cases as needed to validate cost and numerical
-   closure; retain results rather than launching duplicate acceptance jobs.
+7. Demonstrate reasonable measured workload costs on each recorded machine;
+   historical targets guide optimization without imposing time-only failure.
+   Plan and run individual exact reference cases as needed to validate cost
+   and numerical closure; retain results instead of duplicating acceptance.
+8. Repair heartbeat attribution and remaining-time estimates. Distinguish
+   phase, subtask and request elapsed time; count actual scheduled work once
+   and update denominators when adaptive work grows. Base estimates on
+   measured weighted work for the stated scope, not RK interval count or a
+   previous phase's elapsed time. Mark unresolved future adaptive work as
+   unknown instead of presenting a phase estimate as total request time.
+   Test changing totals, unequal interval costs, batching, cache hits and
+   phase transitions; completed work must not exceed its stated total.
 
 **Focused owners:** all direct runtime numerical/physics tests, public
 `test_cmb` method selectors, cache/performance tests, and the existing
@@ -878,9 +1339,10 @@ acceptance runner. Keep scalar CPU results as the comparison authority.
 
 **Closure:** ordinary requests select and enforce adequate resolution with
 measured/validated bounds, request-subset consistency, and identity-safe reuse.
-Actual cold LCDM and Planck requests meet their practical budgets and retain
-usable products; errors or runtime blockers are repaired here. Finite output
-and a cheap diagnostic path alone cannot close this slice.
+Actual cold LCDM and Planck requests have reasonable measured costs and retain
+usable products; errors or runtime blockers are repaired here. Heartbeats
+and scoped estimates agree with completed work and phase attribution.
+Finite output and a cheap diagnostic path alone cannot close this slice.
 
 ## Slice Seven - demonstrate actual matched CAMB parity
 
@@ -895,6 +1357,11 @@ CAMB fixtures, diagnostics, acceptance runner, graph tests, and readers.
    their complete windows. Resolve sparse-only handoff and completion-contract
    differences in that owner. Validate exact requests and references before
    expensive execution; persist each attempt so unaffected work can resume.
+   Before relying on resume, implement and test physical/reference/numerical
+   dependency identities, payload validation and durable readback after
+   producer exit. Reject stale/missing/tampered cases and distinguish whole
+   checkout provenance from reusable product dependencies. Do not defer
+   these prerequisites to Slice Nine or relabel old payload identities.
 2. Execute massless LCDM first through the ordinary route without numerical
    overrides. Require quantitative TT/TE/EE raw/public parity, acoustic
    locations/amplitudes, TE signs/zeros, damping, numerical acceptance, and
@@ -988,7 +1455,9 @@ and registry, shared executor/pipeline, GUI/CLI, outputs, evidence, and docs.
    model role labels, progress, GUI worker dispatch, summary/NetCDF/CSV/plot
    products, and lifecycle outcomes. Do not describe fixed traces as sampled
    evidence or assume a validation filename implies the selected model.
-6. Complete dependency-aware product invalidation and durable readback tests.
+6. Extend Slice Seven's validated physical-product identity/readback to
+   application comparisons, consumers and rendering invalidation. A pure
+   rendering change must not trigger fresh unchanged physical evolution.
    Assemble one final current manifest; rerun affected physical acceptance
    after implementation changes, while retaining verified unaffected work.
    Reopen every raw graph/history/refinement after producer exit and cleanup.
@@ -1062,7 +1531,8 @@ CCMBS and the application handoff are complete under this roadmap only when:
   complete theory-faithful accepted output, without hidden substitutions;
 * automatic engine planning meets the combined observable numerical budget
   with measured refinement or validated bounds over its declared domain;
-* execution and the development suite meet their measured cost targets,
+* execution and the development suite have reasonable measured costs,
+  with independent correctness decisions and informative work accounting;
   identity-safe reuse preserves necessary cold proof, and no costly job is
   repeated merely to test another consumer of identical products;
 * samplers, likelihoods, GUI/CLI, manifests, and all result consumers share

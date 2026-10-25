@@ -93,6 +93,7 @@ _RUNTIME_REFERENCE_NAMES = {
     "neutrino_temperature_eV",
     "massive_neutrino_mass_fraction",
     "massive_neutrino_density_fraction",
+    "massive_neutrino_effective_neff",
     "massive_neutrino_momentum_fraction",
     "massive_neutrino_pressure_fraction",
     "massive_neutrino_shear_fraction",
@@ -610,9 +611,11 @@ def _scalar_hierarchy_base_seed_expressions(
     neutrino_velocity_divergence = "acoustic_k * seed"
     neutrino_velocity_dipole = "seed / 3.0"
     neutrino_velocity_quadrupole = f"({k_eta} / 6.0) * seed"
+    # Use independent momentum data here. Substituting the evolved energy
+    # equation would require the photon density before its seed is known.
     neutrino_velocity_density_constraint = (
         "-(acoustic_k_sq * Phi + 3.0 * Hconf * "
-        "metric_momentum_constraint) * a * a / "
+        "metric_momentum_source_drive) * a * a / "
         "(6.0 * einstein_gravity_strength * Omega_gamma0)"
     )
     adiabatic_seed = "scalar_lapse_seed"
@@ -1096,12 +1099,19 @@ def _materialize_bounded_derived_sum(
     if not active_names:
         return "0.0"
     level = 0
-    while len(active_names) > 32:
+    # Each name contributes Load/Name nodes and each addition a BinOp/Add.
+    # Keep sums below both the 100-node and 20-level parser budgets.
+    chunk_size = 16
+    while len(active_names) > chunk_size:
         partial_names: list[str] = []
-        for chunk_index, start in enumerate(range(0, len(active_names), 32)):
+        for chunk_index, start in enumerate(
+            range(0, len(active_names), chunk_size)
+        ):
             partial_name = f"{name_prefix}_level{level}_{chunk_index}"
             derived_entries[partial_name] = {
-                "expression": " + ".join(active_names[start : start + 32]),
+                "expression": " + ".join(
+                    active_names[start : start + chunk_size]
+                ),
                 "description": description,
                 "units": units,
             }
@@ -1226,7 +1236,7 @@ def _materialize_declared_scalar_hierarchy_contract(
         momentum_grid_name = str(
             hierarchy_families.get("massive_neutrino", {}).get(
                 "momentum_grid",
-                "",
+                "massive_neutrino_default",
             )
         ).strip()
         momentum_grid_defs = numerics.get("momentum_grids", {}) or {}
@@ -1979,8 +1989,7 @@ def _materialize_declared_scalar_hierarchy_contract(
         massless_fraction_expression = "Omega_nu0"
     if has_massive_neutrino and massive_neutrino_grid_count > 0:
         effective_massive_neutrino_expression = (
-            "0.5 * (Neff + num_massive_neutrinos - "
-            "abs(Neff - num_massive_neutrinos))"
+            "massive_neutrino_effective_neff"
         )
         massless_fraction_expression = (
             "Omega_nu0 * (Neff - " f"{effective_massive_neutrino_name}) / Neff"
@@ -2277,8 +2286,8 @@ def _materialize_declared_scalar_hierarchy_contract(
                 },
                 "massive_neutrino_momentum_source": {
                     "expression": (
-                        "(4.0 / 3.0) * a * a * "
-                        "massive_neutrino_momentum_fraction * "
+                        "a * a * (massive_neutrino_density_fraction + "
+                        "massive_neutrino_pressure_fraction) * "
                         "observable_theta_nu_massive"
                     ),
                     "description": (
@@ -2323,7 +2332,7 @@ def _materialize_declared_scalar_hierarchy_contract(
         derived_entries["total_shear_source"] = {
             "expression": (
                 total_shear_source_expression
-                + " + 2.0 * massive_neutrino_shear_source"
+                + " + massive_neutrino_shear_source"
             ),
             "description": (
                 "Total shear source for the scalar Einstein system."
@@ -2381,7 +2390,11 @@ def _materialize_declared_scalar_hierarchy_contract(
                 },
                 "Phi_tau": {
                     "kind": "metric_potential_time_derivative",
-                    "expression": "metric_momentum_source_drive - Hconf * Psi",
+                    "expression": (
+                        "-Hconf * Psi - (acoustic_k_sq * Phi + "
+                        "1.5 * einstein_gravity_strength * "
+                        "total_density_source) / (3.0 * Hconf)"
+                    ),
                     "description": (
                         "Observable-basis curvature-potential derivative."
                     ),
@@ -2394,7 +2407,11 @@ def _materialize_declared_scalar_hierarchy_contract(
             {
                 "Phi_tau": {
                     "kind": "metric_potential_time_derivative",
-                    "expression": "metric_momentum_source_drive - Hconf * Psi",
+                    "expression": (
+                        "-Hconf * Psi - (acoustic_k_sq * Phi + "
+                        "1.5 * einstein_gravity_strength * "
+                        "total_density_source) / (3.0 * Hconf)"
+                    ),
                     "description": (
                         "Gauge-invariant curvature-potential derivative."
                     ),
@@ -2407,7 +2424,11 @@ def _materialize_declared_scalar_hierarchy_contract(
             {
                 "Phi_tau": {
                     "kind": "metric_potential_time_derivative",
-                    "expression": "metric_momentum_source_drive - Hconf * Psi",
+                    "expression": (
+                        "-Hconf * Psi - (acoustic_k_sq * Phi + "
+                        "1.5 * einstein_gravity_strength * "
+                        "total_density_source) / (3.0 * Hconf)"
+                    ),
                     "description": (
                         "Scalar Einstein-system relation for the curvature "
                         "potential time derivative."
@@ -2419,10 +2440,14 @@ def _materialize_declared_scalar_hierarchy_contract(
     derived_entries.update(
         {
             "metric_momentum_constraint": {
-                # Substitute the generated Phi_tau equation before floating
-                # evaluation. Subtracting and then adding Hconf*Psi loses
-                # the momentum source on ill-conditioned superhorizon data.
-                "expression": "metric_momentum_source_drive",
+                # Eliminate Phi_tau using the energy equation before adding
+                # Hconf*Psi. Keep the independently measured momentum source
+                # separate, so its residual remains a physical check.
+                "expression": (
+                    "-(acoustic_k_sq * Phi + "
+                    "1.5 * einstein_gravity_strength * "
+                    "total_density_source) / (3.0 * Hconf)"
+                ),
                 "description": (
                     "Scalar momentum-constraint combination "
                     "Phi_tau + Hconf Psi, evaluated after eliminating the "
@@ -2658,14 +2683,24 @@ def _materialize_declared_scalar_hierarchy_contract(
                     "units": _DIMENSIONLESS_UNITS,
                 },
                 "theta_nu_massive": {
-                    "expression": "massive_neutrino_metric_momentum",
+                    "expression": (
+                        "massive_neutrino_metric_momentum * "
+                        "massive_neutrino_momentum_fraction / "
+                        "(massive_neutrino_density_fraction + "
+                        "massive_neutrino_pressure_fraction)"
+                    ),
                     "description": (
                         "Q-integrated massive-neutrino momentum divergence."
                     ),
                     "units": _INVERSE_MPC_UNITS,
                 },
                 "sigma_nu_massive": {
-                    "expression": "massive_neutrino_metric_shear",
+                    "expression": (
+                        "(2.0 / 3.0) * massive_neutrino_metric_shear * "
+                        "massive_neutrino_shear_fraction / "
+                        "(massive_neutrino_density_fraction + "
+                        "massive_neutrino_pressure_fraction)"
+                    ),
                     "description": (
                         "Q-integrated massive-neutrino anisotropic stress."
                     ),
@@ -3165,6 +3200,9 @@ def _materialize_declared_scalar_hierarchy_contract(
                     q_index
                 )
             )
+            q_streaming_speed_name = (
+                _scalar_massive_neutrino_q_streaming_speed_name(q_index)
+            )
             q_delta_name = _scalar_massive_neutrino_q_name(
                 q_index,
                 0,
@@ -3182,7 +3220,7 @@ def _materialize_declared_scalar_hierarchy_contract(
                     f"0.5 * scalar_lapse_seed * {q_log_derivative_name}"
                 )
                 q_theta_expression = (
-                    "-(acoustic_k * scalar_initial_conformal_time / 8.0) "
+                    "-(acoustic_k * scalar_initial_conformal_time / 6.0) "
                     "* scalar_lapse_seed * "
                     f"{q_log_derivative_name} * "
                     f"{q_streaming_speed_name}"
@@ -3190,7 +3228,7 @@ def _materialize_declared_scalar_hierarchy_contract(
                 q_sigma_expression = (
                     "-(acoustic_k * scalar_initial_conformal_time) * "
                     "(acoustic_k * scalar_initial_conformal_time) * "
-                    "scalar_lapse_seed / 60.0 * "
+                    "scalar_lapse_seed / 30.0 * "
                     f"{q_log_derivative_name}"
                 )
             else:
@@ -7036,7 +7074,14 @@ def validate_generated_scalar_source_graph(contract: Any) -> None:
         if not str(getattr(phi_tau, "expression", "") or "").strip():
             issues.append("Phi_tau must have an explicit graph expression")
         phi_tau_dependencies = set(getattr(phi_tau, "dependencies", ()) or ())
-        for dependency in ("metric_momentum_source_drive", "Hconf", "Psi"):
+        for dependency in (
+            "acoustic_k_sq",
+            "Phi",
+            "Hconf",
+            "Psi",
+            "einstein_gravity_strength",
+            "total_density_source",
+        ):
             if dependency not in phi_tau_dependencies:
                 issues.append(
                     "Phi_tau must depend on the declared "

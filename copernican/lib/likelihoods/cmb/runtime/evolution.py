@@ -1905,8 +1905,16 @@ def _declared_momentum_grid_context(
             return float(array_value)
         return array_value
 
+    standard_neff = float(model_parameters.get("standard_neutrino_neff", 3.0))
+    if not numpy.isfinite(standard_neff) or standard_neff <= 0.0:
+        raise ValueError(
+            "Thermal neutrino heating must be finite and positive"
+        )
+    temperature_ratio = (standard_neff / 3.0) ** 0.25
     neutrino_temperature_eV = (
-        float(physical_params.Tcmb_K) * _NEUTRINO_TEMPERATURE_EV_PER_K
+        float(physical_params.Tcmb_K)
+        * _NEUTRINO_TEMPERATURE_EV_PER_K
+        * temperature_ratio
     )
     neutrino_temperature_eV = max(neutrino_temperature_eV, 1.0e-12)
     context["neutrino_temperature_eV"] = neutrino_temperature_eV
@@ -1932,13 +1940,14 @@ def _declared_momentum_grid_context(
         total_mass_eV: float,
         density_moment_today: float,
     ) -> float:
-        """Return the q-integrated present massive density fraction.
+        """Return present total energy from the declared rest-mass density.
 
         The q-integrated moment supplies the smooth relativistic-to-matter
         evolution, while the declared total mass fixes the present massive
-        density whenever a non-zero mass is declared.  This preserves the
-        standard ``sum(m_nu)/93.14`` normalization even for very light
-        non-zero species; an exactly massless declaration remains radiation.
+        density whenever a non-zero mass is declared. The mass-sum or
+        omnuh2 convention fixes rest energy, not rest plus kinetic energy.
+        Normalizing the full integral to rest energy suppresses the early
+        radiation density and perturbs the regular Einstein mode.
         """
 
         neutrino_count = max(
@@ -1949,10 +1958,33 @@ def _declared_momentum_grid_context(
             float(physical_params.Neff or neutrino_count),
             1.0e-30,
         )
-        effective_massive_species = min(effective_neff, neutrino_count)
+        available_neff = neutrino_count * standard_neff / 3.0
+        effective_massive_species = min(effective_neff, available_neff)
         if effective_massive_species <= 0.0:
             return 0.0
         if total_mass_eV > 0.0:
+            rest_moment = (
+                float(runtime.mass_eV)
+                / neutrino_temperature_eV
+                * float(
+                    numpy.sum(
+                        runtime.weights
+                        * _thermal_fermi_dirac_distribution(runtime.points)
+                        * numpy.power(runtime.points, 3.0)
+                    )
+                )
+            )
+            if rest_moment <= 0.0:
+                raise ValueError("Positive mass requires a massive q energy")
+            kinetic_factor = float(density_moment_today) / rest_moment
+            if "omnuh2" in model_parameters:
+                return (
+                    float(model_parameters["omnuh2"])
+                    / max(float(physical_params.hubble_ratio) ** 2, 1.0e-30)
+                    * effective_massive_species
+                    / available_neff
+                    * kinetic_factor
+                )
             return (
                 effective_massive_species
                 / neutrino_count
@@ -1961,6 +1993,7 @@ def _declared_momentum_grid_context(
                     _NEUTRINO_DENSITY_EV_H2
                     * max(float(physical_params.hubble_ratio) ** 2, 1.0e-30)
                 )
+                * kinetic_factor
             )
         massless_density_moment = float(
             numpy.sum(
@@ -2210,6 +2243,25 @@ def _declared_momentum_grid_context(
             "massive_neutrino" in family_name
             for family_name in runtime.family_names
         ):
+            available_neff = (
+                float(model_parameters.get("num_massive_neutrinos", 1.0))
+                * standard_neff
+                / 3.0
+            )
+            context["massive_neutrino_effective_neff"] = min(
+                float(physical_params.Neff), available_neff
+            )
+            context["massive_neutrino_density_today"] = (
+                context.get("massive_neutrino_density_today", 0.0)
+                + massive_omega0
+            )
+            context["massive_neutrino_rest_density_today"] = (
+                context.get("massive_neutrino_rest_density_today", 0.0)
+                + massive_omega0
+                * mass_ratio_today
+                * float(numpy.sum(density_weight_base))
+                / density_moment_today
+            )
             for name in (
                 "mass_eV",
                 "massless_density_moment",
@@ -2437,21 +2489,30 @@ def _tight_coupling_is_active(
     active: bool,
     collision_rate: float,
     k_value: float,
+    expansion_rate: float,
     tight_coupling_ratio: float,
     exit_ratio: float = 0.1,
 ) -> bool:
-    """Return the updated tight-coupling regime with hysteresis."""
+    """Require fast collisions relative to streaming and expansion.
+
+    Small k alone cannot justify instantaneous collision equilibrium:
+    expansion and evolving opacity remain dynamical on superhorizon modes.
+    Both frequencies use the same conformal inverse-Mpc time convention.
+    """
 
     if not numpy.isfinite(collision_rate) or collision_rate <= 0.0:
         return False
+    if not numpy.isfinite(k_value) or not numpy.isfinite(expansion_rate):
+        raise ValueError("Tight-coupling dynamical scales must be finite")
+    dynamical_rate = max(abs(float(k_value)), abs(float(expansion_rate)))
     if active:
         return collision_rate > _tight_coupling_exit_rate(
-            k_value=k_value,
+            k_value=dynamical_rate,
             tight_coupling_ratio=tight_coupling_ratio,
             exit_ratio=exit_ratio,
         )
     return collision_rate >= _tight_coupling_entry_rate(
-        k_value=k_value,
+        k_value=dynamical_rate,
         tight_coupling_ratio=tight_coupling_ratio,
     )
 

@@ -1547,17 +1547,27 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
         plugin = self._build_plugin("model_ref_planck2018.yml")
         contract = plugin.get_cmb_contract(plugin.INITIAL_GUESSES)
         self.assertIn("omnuh2", contract["param_map"])
+        # Thermal Fermi-Dirac density with the explicit 3.044 heating law.
+        expected_omnuh2 = 0.06 / 94.06410581217612 * (3.044 / 3.0) ** 0.75
         self.assertAlmostEqual(
             float(contract["param_map"]["omnuh2"]),
-            0.06 / 93.14,
+            expected_omnuh2,
         )
         expected_omch2 = (0.3111 - 0.04897) * (67.66 / 100.0) ** 2
-        expected_omch2 -= 0.06 / 93.14
+        expected_omch2 -= expected_omnuh2
         self.assertAlmostEqual(
             float(contract["param_map"]["omch2"]),
             expected_omch2,
         )
         runtime = plugin.get_cmb_declared_runtime(plugin.INITIAL_GUESSES)
+        present = cmb_background._resolve_declared_background_context(
+            runtime, a_values=1.0, z_values=0.0
+        )
+        expected_rest = expected_omnuh2 / (67.66 / 100.0) ** 2
+        self.assertAlmostEqual(
+            present["Omega_nu_massive_nr0"], expected_rest, places=14
+        )
+        self.assertGreater(present["Omega_nu_massive0"], expected_rest)
         controls = runtime["perturbation_data"].accuracy_controls
         self.assertEqual(controls["accuracy_tier"], "final")
         self.assertTrue(controls["phase_aware_k_quadrature"])
@@ -1572,7 +1582,7 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
             runtime
         )
         hubble_ratio = float(runtime["param_map"]["H0"]) / 100.0
-        expected_gamma = 2.469e-5 / (hubble_ratio * hubble_ratio)
+        expected_gamma = 2.472975328714087e-5 / hubble_ratio**2
         provenance = dict(physical.quantity_provenance)
 
         self.assertAlmostEqual(
@@ -1590,8 +1600,60 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
             places=15,
         )
 
+    def test_reference_photons_follow_one_blackbody_temperature(self):
+        """Temperature determines the same density in all declared routes."""
+
+        from scipy import constants
+
+        mpc = 3.0856775814913673e22
+        for filename in ("model_lcdm.yml", "model_ref_planck2018.yml"):
+            plugin = self._build_plugin(filename)
+            self.assertNotIn("Omega_gamma", plugin.PARAMETER_NAMES)
+            for temperature, hubble in ((2.7255, 67.66), (3.0, 75.0)):
+                values = list(plugin.INITIAL_GUESSES)
+                values[plugin.PARAMETER_NAMES.index("Tcmb_K")] = (
+                    temperature
+                )
+                values[plugin.PARAMETER_NAMES.index("H_0")] = (
+                    hubble
+                )
+                runtime = plugin.get_cmb_declared_runtime(values)
+                physical = (
+                    cmb_background._resolve_custom_cmb_physical_parameters(
+                        runtime
+                    )
+                )
+                rho_gamma = (
+                    numpy.pi**2 * constants.k**4 * temperature**4
+                    / (15 * constants.hbar**3 * constants.c**5)
+                )
+                rho_crit = (
+                    3 * (hubble * 1000 / mpc)**2
+                    / (8 * numpy.pi * constants.G)
+                )
+                self.assertAlmostEqual(physical.Tcmb_K, temperature)
+                self.assertAlmostEqual(
+                    physical.Omega_gamma0 / (rho_gamma / rho_crit), 1.0,
+                    places=13,
+                )
+                if filename == "model_lcdm.yml":
+                    redshift = numpy.asarray((0.0, 10.0, 1000.0, 1e5))
+                    context = (
+                        cmb_background._resolve_declared_background_context(
+                            runtime, a_values=1 / (1 + redshift),
+                            z_values=redshift,
+                        )
+                    )
+                    numpy.testing.assert_allclose(
+                        plugin.get_Hz_per_Mpc(redshift, *values),
+                        context["H"], rtol=1e-13,
+                    )
+
     def test_lcdm_mnu_background_splits_dynamic_neutrino_density(self) -> None:
         """The massive-neutrino background must close at every scale factor."""
+
+        from scipy.constants import Boltzmann, electron_volt
+        from scipy.integrate import quad
 
         plugin = self._build_plugin("model_lcdm_mnu.yml")
         runtime = plugin.get_cmb_declared_runtime(plugin.INITIAL_GUESSES)
@@ -1645,10 +1707,48 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
             float(plugin.INITIAL_GUESSES[0]),
             places=10,
         )
+        physical = cmb_background._resolve_custom_cmb_physical_parameters(
+            runtime
+        )
+        # The mass sum fixes rest density; expansion also retains kinetic
+        # energy, independently checked by the Fermi-Dirac energy integral.
+        count = float(runtime["param_map"]["num_massive_neutrinos"])
+        expected_rest = (
+            float(runtime["param_map"]["sum_mnu"])
+            / (93.14 * physical.hubble_ratio**2)
+            * min(float(physical.Neff), count) / count
+        )
         self.assertAlmostEqual(
+            float(context["Omega_nu_massive_nr0"]), expected_rest, places=15
+        )
+        temperature_ev = (
+            physical.Tcmb_K * (4 / 11)**(1 / 3) * Boltzmann / electron_volt
+        )
+        mass_ratio = (
+            float(context["massive_neutrino_mass_eV"]) / temperature_ev
+        )
+        number_moment = quad(
+            lambda momentum: momentum**2 * numpy.exp(-momentum)
+            / (1 + numpy.exp(-momentum)), 0.0, numpy.inf,
+        )[0]
+        energy_moment = quad(
+            lambda momentum: (
+                momentum**2 * numpy.hypot(momentum, mass_ratio)
+                * numpy.exp(-momentum) / (1 + numpy.exp(-momentum))
+            ),
+            0.0, numpy.inf,
+        )[0]
+        expected_total = (
+            float(context["Omega_nu_massive_nr0"])
+            * energy_moment / (mass_ratio * number_moment)
+        )
+        self.assertGreater(
             float(context["Omega_nu_massive0"]),
             float(context["Omega_nu_massive_nr0"]),
-            places=15,
+        )
+        self.assertAlmostEqual(
+            float(context["Omega_nu_massive0"]) / expected_total,
+            1.0, delta=1e-9,
         )
 
     def test_lcdm_mnu_zero_mass_limit_remains_finite(self) -> None:

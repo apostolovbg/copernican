@@ -35,6 +35,7 @@ from copernican.lib.likelihoods.cmb.runtime import (
     mode_evolution,
     spectrum_projection,
 )
+from copernican.lib.perturbation_contract import evaluate_compiled_expression
 from tests.project.lib import camb_reference
 
 
@@ -3293,6 +3294,8 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
                         factor = 1.0 / (3.0 * epsilon)
                     elif denominator == "inverse_epsilon":
                         factor = 1.0 / epsilon
+                    elif denominator == "unit":
+                        factor = 1.0
                     else:  # pragma: no cover - fixture-only guard
                         raise AssertionError(denominator)
                     return (
@@ -3309,7 +3312,9 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
                     )[0]
                 )
 
-            density_today = _moment(1.0, 3.0, "epsilon")
+            # The mass sum fixes rest energy; retain kinetic energy in the
+            # full density integral, including for relativistic light masses.
+            rest_density_today = mass_ratio_today * _moment(1.0, 3.0, "unit")
             result: dict[str, numpy.ndarray] = {}
             for name, power, denominator in (
                 ("density_fraction", 3.0, "epsilon"),
@@ -3324,7 +3329,7 @@ class CMBScientificReferenceValidationTestCase(unittest.TestCase):
                     ],
                     dtype=float,
                 )
-                result[name] = moment_values / density_today
+                result[name] = moment_values / rest_density_today
             return result
 
         fixed_cosmologies = (
@@ -4936,6 +4941,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 active=False,
                 collision_rate=1.01 * entry_rate,
                 k_value=0.2,
+                expansion_rate=0.0,
                 tight_coupling_ratio=50.0,
             )
         )
@@ -4944,6 +4950,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 active=True,
                 collision_rate=0.5 * (entry_rate + exit_rate),
                 k_value=0.2,
+                expansion_rate=0.0,
                 tight_coupling_ratio=50.0,
             )
         )
@@ -4952,6 +4959,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 active=True,
                 collision_rate=0.99 * exit_rate,
                 k_value=0.2,
+                expansion_rate=0.0,
                 tight_coupling_ratio=50.0,
             )
         )
@@ -4971,6 +4979,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 active=True,
                 collision_rate=0.5 * (declared_exit_rate + entry_rate),
                 k_value=0.2,
+                expansion_rate=0.0,
                 tight_coupling_ratio=50.0,
                 exit_ratio=declared_exit_ratio,
             )
@@ -4980,6 +4989,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 active=True,
                 collision_rate=0.99 * declared_exit_rate,
                 k_value=0.2,
+                expansion_rate=0.0,
                 tight_coupling_ratio=50.0,
                 exit_ratio=declared_exit_ratio,
             )
@@ -7990,7 +8000,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_declared_generated_modes_use_declared_graph_evolution(
         self,
     ) -> None:
-        """Generated modes should use one finite declared-graph runtime."""
+        """Generated modes share preparation across compatible RK schedules."""
 
         cache.clear_cmb_caches()
         contract = _prepare_declared_contract(
@@ -8008,10 +8018,18 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertEqual(int(envelope["contract_static_preparations"]), 1)
         self.assertEqual(int(envelope["model_static_preparations"]), 1)
         self.assertEqual(int(envelope["request_specific_preparations"]), 1)
-        self.assertEqual(int(envelope["batch_count"]), 1)
+        mode_count = int(envelope["k_sample_count"])
+        batch_count = int(envelope["batch_count"])
+        # Different mode schedules may require separate batches, but every
+        # mode must retain its schedule and evolve exactly once.
+        self.assertGreater(batch_count, 0)
+        self.assertLessEqual(batch_count, mode_count)
+        self.assertEqual(batch_count, int(envelope["schedule_group_count"]))
+        self.assertEqual(int(envelope["batch_mode_count"]), mode_count)
+        self.assertEqual(int(envelope["evolution_modes_evolved"]), mode_count)
+        self.assertEqual(int(envelope["schedule_forced_overintegration"]), 0)
         self.assertEqual(
-            int(envelope["batch_mode_count"]),
-            int(envelope["k_sample_count"]),
+            int(envelope["batched_schedule_correction_mode_count"]), 0
         )
         self.assertGreater(int(envelope["batched_rk_stage_count"]), 0)
         self.assertTrue(
@@ -10161,11 +10179,18 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "massive_neutrino_q0_streaming_speed"
             ].expression,
         )
-        self.assertIn(
-            "(4.0 / 3.0) * a * a",
-            perturbation_data.derived[
-                "massive_neutrino_momentum_source"
-            ].expression,
+        self.assertEqual(
+            set(
+                perturbation_data.derived[
+                    "massive_neutrino_momentum_source"
+                ].dependencies
+            ),
+            {
+                "a",
+                "massive_neutrino_density_fraction",
+                "massive_neutrino_pressure_fraction",
+                "observable_theta_nu_massive",
+            },
         )
         self.assertIn(
             "massive_neutrino_shear_source",
@@ -10235,12 +10260,22 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "massive_neutrino_metric_density",
         )
         self.assertEqual(
-            perturbation_data.derived["theta_nu_massive"].expression,
-            "massive_neutrino_metric_momentum",
+            set(perturbation_data.derived["theta_nu_massive"].dependencies),
+            {
+                "massive_neutrino_metric_momentum",
+                "massive_neutrino_momentum_fraction",
+                "massive_neutrino_density_fraction",
+                "massive_neutrino_pressure_fraction",
+            },
         )
         self.assertEqual(
-            perturbation_data.derived["sigma_nu_massive"].expression,
-            "massive_neutrino_metric_shear",
+            set(perturbation_data.derived["sigma_nu_massive"].dependencies),
+            {
+                "massive_neutrino_metric_shear",
+                "massive_neutrino_shear_fraction",
+                "massive_neutrino_density_fraction",
+                "massive_neutrino_pressure_fraction",
+            },
         )
         self.assertIn(
             "massive_neutrino_metric_l3_q0",
@@ -10268,12 +10303,30 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 "delta_nu_massive_q0_seed"
             ].expression,
         )
-        self.assertIn(
-            "acoustic_k * scalar_initial_conformal_time / 8.0",
-            perturbation_data.initial_conditions[
-                "theta_nu_massive_q0_seed"
-            ].expression,
-        )
+        dipole_seed = perturbation_data.initial_conditions[
+            "theta_nu_massive_q0_seed"
+        ].compiled_expression
+        for point in (0.1, 1.0, 5.0, 15.0):
+            for lapse in (-0.6, 0.8):
+                speed = point / numpy.sqrt(point**2 + 0.001**2)
+                occupation_slope = point / (1.0 + numpy.exp(-point))
+                seeded_dipole = evaluate_compiled_expression(
+                    dipole_seed,
+                    {
+                        "acoustic_k": 0.02,
+                        "scalar_initial_conformal_time": 0.5,
+                        "scalar_lapse_seed": lapse,
+                        "massive_neutrino_q0_distribution_log_derivative": (
+                            -occupation_slope
+                        ),
+                        "massive_neutrino_q0_streaming_speed": speed,
+                    },
+                )
+                self.assertAlmostEqual(
+                    float(seeded_dipole),
+                    0.02 * 0.5 * lapse * occupation_slope * speed / 6.0,
+                    places=14,
+                )
         self.assertNotIn(
             "massive_neutrino_q0_velocity_ratio",
             perturbation_data.initial_conditions[
@@ -10320,30 +10373,74 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                     float(moment) + 1.0
                 )
 
-        context = _resolved_declared_scalar_context(
-            contract,
-            state_updates=state_updates,
-        )
-
-        self.assertAlmostEqual(
-            float(context["massive_neutrino_metric_density"]), 1.0
-        )
-        self.assertAlmostEqual(
-            float(context["massive_neutrino_metric_pressure"]), 1.0
-        )
-        self.assertAlmostEqual(
-            float(context["massive_neutrino_metric_momentum"]),
-            0.2,
-        )
-        self.assertAlmostEqual(
-            float(context["massive_neutrino_metric_shear"]), 3.0
-        )
-        self.assertAlmostEqual(float(context["delta_nu_massive"]), 1.0)
-        self.assertAlmostEqual(float(context["theta_nu_massive"]), 0.2)
-        self.assertAlmostEqual(float(context["sigma_nu_massive"]), 3.0)
-        self.assertAlmostEqual(float(context["nu_massive_l3"]), 4.0)
-        self.assertAlmostEqual(float(context["nu_massive_l4"]), 5.0)
-        self.assertAlmostEqual(float(context["nu_massive_l5"]), 6.0)
+        for scale_factor in (1.0e-6, 0.01, 0.5, 1.0):
+            with self.subTest(scale_factor=scale_factor):
+                context = _resolved_declared_scalar_context(
+                    contract,
+                    a_value=scale_factor,
+                    state_updates=state_updates,
+                )
+                # Integrate the stress tensor directly in d(log q). The
+                # public velocity and shear divide by rho+P, not the
+                # separately normalized q-moment weights.
+                points = numpy.asarray(
+                    [
+                        context[f"massive_neutrino_q{index}_point"]
+                        for index in range(q_count)
+                    ]
+                )
+                weights = numpy.asarray(
+                    [
+                        context[f"massive_neutrino_q{index}_weight"]
+                        for index in range(q_count)
+                    ]
+                ) / (numpy.exp(points) + 1.0)
+                mass_ratio = (
+                    scale_factor
+                    * float(context["massive_neutrino_mass_eV"])
+                    / float(context["neutrino_temperature_eV"])
+                )
+                energy = numpy.sqrt(points**2 + mass_ratio**2)
+                density = numpy.sum(weights * points**3 * energy)
+                pressure = numpy.sum(weights * points**5 / (3.0 * energy))
+                momentum = numpy.sum(weights * points**4 / (points / energy))
+                shear = numpy.sum(weights * points**5 / energy)
+                expected_theta = (
+                    2.0
+                    * float(context["acoustic_k"])
+                    * momentum
+                    / (density + pressure)
+                )
+                expected_sigma = 2.0 * shear / (density + pressure)
+                for name, expected in (
+                    ("massive_neutrino_metric_density", 1.0),
+                    ("massive_neutrino_metric_pressure", 1.0),
+                    ("massive_neutrino_metric_momentum", 0.2),
+                    ("massive_neutrino_metric_shear", 3.0),
+                    ("delta_nu_massive", 1.0),
+                    ("theta_nu_massive", expected_theta),
+                    ("sigma_nu_massive", expected_sigma),
+                    ("nu_massive_l3", 4.0),
+                    ("nu_massive_l4", 5.0),
+                    ("nu_massive_l5", 6.0),
+                ):
+                    self.assertAlmostEqual(
+                        float(context[name]),
+                        float(expected),
+                        places=12,
+                        msg=name,
+                    )
+                # With a uniform dipole the unnormalized momentum integral
+                # equals the density integral at every particle mass.
+                self.assertAlmostEqual(
+                    float(context["massive_neutrino_momentum_source"])
+                    / (
+                        scale_factor**2
+                        * float(context["massive_neutrino_density_fraction"])
+                    ),
+                    0.2,
+                    places=12,
+                )
 
     def test_declared_scalar_hierarchy_metric_sources_respond_to_inputs(
         self,
@@ -10556,6 +10653,15 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
 
         self.assertGreater(early_phi, 0.0)
         self.assertGreater(early_phi, 0.3)
+        self.assertFalse(
+            spectrum_data.runtime_envelope["continuous_collision_solver"]
+        )
+        self.assertEqual(
+            spectrum_data.runtime_envelope[
+                "batched_schedule_correction_mode_count"
+            ],
+            0,
+        )
 
     def test_projection_k_grid_rejects_undeclared_high_k_request(
         self,

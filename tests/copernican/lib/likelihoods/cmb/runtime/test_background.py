@@ -15,6 +15,87 @@ from copernican.lib.likelihoods.cmb.runtime import (
 class BackgroundModuleTestCase(unittest.TestCase):
     """Exercise declared background helpers directly."""
 
+    def test_drag_depth_uses_euler_loading_and_complete_remaining_tail(self):
+        """Constant opacity/R has its exact integral through the endpoint."""
+
+        eta = numpy.linspace(0.0, 10.0, 21)
+        opacity = numpy.full_like(eta, 2.0)
+        loading = numpy.full_like(eta, 0.5)
+        actual = background._remaining_baryon_drag_depth(eta, opacity, loading)
+        numpy.testing.assert_allclose(actual, 4.0 * (10.0 - eta))
+        numpy.testing.assert_allclose(
+            background._remaining_baryon_drag_depth(
+                eta, opacity, 2.0 * loading
+            ),
+            actual / 2.0,
+        )
+        # A last-scattering peak at eta=5 must not erase the later tail.
+        self.assertEqual(actual[10], 20.0)
+        self.assertEqual(actual[-1], 0.0)
+
+    def test_drag_depth_rejects_nonphysical_or_disconnected_grids(self):
+        """Invalid inputs cannot masquerade as an optically thin history."""
+
+        for eta, opacity, loading in (
+            ([0.0, 0.0], [1.0, 1.0], [1.0, 1.0]),
+            ([0.0, 1.0], [1.0], [1.0, 1.0]),
+            ([0.0, 1.0], [-1.0, 1.0], [1.0, 1.0]),
+            ([0.0, 1.0], [1.0, 1.0], [0.0, 1.0]),
+            ([0.0, 1.0], [1.0, numpy.nan], [1.0, 1.0]),
+        ):
+            with self.subTest(eta=eta, opacity=opacity, loading=loading):
+                with self.assertRaisesRegex(ValueError, "physical grids"):
+                    background._remaining_baryon_drag_depth(
+                        eta, opacity, loading
+                    )
+
+    def test_reionization_redshift_and_scale_factor_laws_agree(self):
+        """Equivalent a/z declarations see the actual stage redshifts."""
+
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        self.addCleanup(cache.clear_cmb_caches)
+        histories = []
+        for expression in ("exp(-0.5 / a)", "exp(-0.5 * (1.0 + z))"):
+            raw = test_cmb._speedup_contract(test_cmb._custom_contract())
+            reionization = raw["background"]["reionization"]
+            reionization["calibration"] = {}
+            reionization["quantities"].update(
+                hydrogen_ionization_rate=f"20.0 * H_SI * {expression}",
+                helium_ionization_rate=0.0,
+                helium_double_ionization_rate=0.0,
+            )
+            contract = test_cmb._prepare_declared_contract(raw)
+            summary = (
+                background._summarize_declared_background_manifest_summary(
+                    contract
+                )["recombination_runtime"]
+            )
+            self.assertTrue(summary["reionization_ode"])
+            self.assertEqual(
+                summary["reionization_history"], "declared_ionization_rates"
+            )
+            physical = background._resolve_custom_cmb_physical_parameters(
+                contract
+            )
+            history = background._build_custom_cmb_background_impl(
+                contract,
+                physical,
+                background._CustomCMBNumerics(eta_sample_count=128),
+            )
+            histories.append(history)
+        numpy.testing.assert_allclose(
+            histories[0].x_e_grid,
+            histories[1].x_e_grid,
+            rtol=2.0e-12,
+            atol=1.0e-13,
+        )
+        self.assertAlmostEqual(
+            histories[0].reionization_tau,
+            histories[1].reionization_tau,
+            places=12,
+        )
+
     def test_structural_cache_identity_ignores_model_label(self):
         """Renaming a theory must not duplicate background work."""
 
@@ -33,6 +114,41 @@ class BackgroundModuleTestCase(unittest.TestCase):
             background._contract_structural_cache_view(contract),
             background._contract_structural_cache_view(renamed),
         )
+
+    def test_declared_electron_history_rejects_conflicts_and_invalid_bounds(
+        self,
+    ):
+        """Supplied histories cannot be silently clipped or mixed."""
+
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        self.addCleanup(cache.clear_cmb_caches)
+        for quantities, message in (
+            ({"electron_fraction": "x_e_floor - 0.1"}, "floor"),
+            ({"electron_fraction": 2.0}, "full ionization"),
+            (
+                {
+                    "electron_fraction": "x_e_floor",
+                    "hydrogen_ionization_rate": 0.0,
+                },
+                "not both",
+            ),
+        ):
+            with self.subTest(quantities=quantities):
+                raw = test_cmb._speedup_contract(test_cmb._custom_contract())
+                raw["background"]["reionization"] = {
+                    "quantities": quantities,
+                }
+                contract = test_cmb._prepare_declared_contract(raw)
+                physical = background._resolve_custom_cmb_physical_parameters(
+                    contract
+                )
+                with self.assertRaisesRegex(ValueError, message):
+                    background._build_custom_cmb_background_impl(
+                        contract,
+                        physical,
+                        background._CustomCMBNumerics(eta_sample_count=128),
+                    )
 
     def test_manifest_summary_tracks_declared_background_metadata(self):
         """Manifest summaries should report declared background details."""
@@ -59,6 +175,10 @@ class BackgroundModuleTestCase(unittest.TestCase):
             "peebles_case_b_ode",
         )
         self.assertTrue(hasattr(background._CustomCMBBackgroundData, "sample"))
+        self.assertFalse(summary["recombination_runtime"]["reionization_ode"])
+        self.assertEqual(
+            summary["recombination_runtime"]["reionization_history"], "none"
+        )
 
     def test_custom_spectrum_accessors_return_named_payloads(self):
         """Spectrum payload accessors should expose stable arrays."""

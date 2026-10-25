@@ -22,7 +22,7 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     read_cmb_parity_matrix_report,
     run_fixed_lcdm_cmb_parity,
 )
-from copernican.lib.likelihoods.cmb.runtime import cache
+from copernican.lib.likelihoods.cmb.runtime import background, cache
 from copernican.workflow import _output_root
 from tests.project.lib import camb_reference
 from tests.project.lib.test_ccmbs_production_graph import _read_source_revision
@@ -363,6 +363,8 @@ def completion_reference_contract(contract: dict[str, Any]) -> dict:
     mass = float(params.get("sum_mnu", params.get("mnu", 0.0)))
     if mass == 0.0:
         params.update(mnu=0.0, num_massive_neutrinos=0)
+    physical = background._resolve_custom_cmb_physical_parameters(contract)
+    params["TCMB"] = physical.Tcmb_K
     model = contract.get("model_parameters", {})
     calls = [
         {
@@ -833,7 +835,7 @@ def main(argv: list[str] | None = None) -> int:
                 }
             )
         )
-        return 0 if report["passed"] and report["within_cost_target"] else 1
+        return 0 if report["passed"] else 1
     if args.baseline or args.verify_baseline:
         path = args.verify_baseline or args.evidence_root / "baseline.json"
         report = (

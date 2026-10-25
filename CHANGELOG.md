@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-10-18
+**Last Updated:** 2026-10-25
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,200 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-10-25:
+  Change: Closed Slice Five against the successful 909-test full workflow
+    and updated documentation dates after the UTC rollover.
+  Why: Recorded final closure separately from the earlier focused handoff,
+    failed workflow and repaired regressions without relabeling history.
+  Impact: Preserved scientific thresholds and retained the measured suite
+    cost as the current Slice Six profiling and reuse baseline.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_ref_planck2018.yml
+  tests/copernican/datasets/bao/bossdr12/test_dataset_parser_bossdr12.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_model_coder.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/native_history_acceptance.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_native_history_acceptance.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-10-24:
+  Change: Fixed circular velocity-isocurvature initialization and aligned
+    declaration audits with the runtime's generated energy equation checks.
+  Why: Resolved full-run failures from the seed dependency and stale BAO
+    ruler, massive-neutrino source and q-alias expectations.
+  Impact: Added state-free scalar seed and rejecting audit controls, and
+    verified physical q normalization and the drag ruler at existing limits.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/contracts_audit.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_ref_planck2018.yml
+  tests/copernican/datasets/bao/bossdr12/test_dataset_parser_bossdr12.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_contracts_audit.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_model_coder.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/native_history_acceptance.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_native_history_acceptance.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-10-24:
+  Change: Updated date rollover metadata and verified the completed Slice
+    Five changes in the open work session.
+  Why: Preserved the original implementation entry while adding today's
+    verification record and refreshing touched documentation dates.
+  Impact: Retained the scientific implementation and its existing test
+    evidence while aligning the work session with the current UTC date.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_ref_planck2018.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_model_coder.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/native_history_acceptance.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_native_history_acceptance.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-10-23:
+  Change: Added shared native geometry and coupled H/He thermal evolution,
+    restored kinetic neutrinos and stabilized scalar metric evolution.
+  Why: Resolved inconsistent radiation/reionization inputs, drag depth,
+    missing q states, energy normalization and superhorizon numerical drift.
+  Impact: Closed matched native component work with independent histories,
+    sources and refinement checks, and retained separate scientific runs.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_ref_planck2018.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_model_coder.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/project/lib/camb_reference.py
+  tests/project/lib/native_history_acceptance.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_native_history_acceptance.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-10-21:
+  Change: Closed Slice Four in the plan using the successful human workflow
+    and gate close, and documented its numerical repairs and regressions.
+  Why: Reconciled stale pending states, hardware-specific timing evidence,
+    relaxed time limits and later diagnostic, performance and resume work.
+  Impact: Preserved the tested runtime repairs and scientific thresholds,
+    and clarified remaining slice ownership without rerunning discovery.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+
+- 2026-10-21:
+  Change: Corrected generated-mode regression accounting for compatible RK
+    batches alongside the continuous-scaling and batch-evolution repairs.
+  Why: Diagnosed the full-run failure as an obsolete single-batch assertion
+    after preserving distinct mode schedules without duplicate scalar solves.
+  Impact: Added checks for shared preparation, complete once-only evolution,
+    unchanged small-mode schedules, finite spectra, and exact cache reuse.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+
+- 2026-10-21:
+  Change: Fixed continuous hierarchy error scaling and made diagnostic
+    integration selection explicit; removed duplicate small-batch evolution
+    and aligned its schedules, boundary projections, and moment damping.
+  Why: Reproduced the reported Intel metric-seed failure and identified raw
+    absolute tolerances that under-resolved gravitationally important states.
+  Impact: Preserved the regular-mode assertion and added analytic unit-change
+    checks and independently refined physical RK/BDF prefix regressions.
+  Files:
+  CHANGELOG.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
 
 - 2026-10-18:
   Change: Fixed Slice Four constraint cancellation, scalar split-step

@@ -1630,6 +1630,11 @@ class PerturbationContractTestCase(unittest.TestCase):
             compiled.initial_conditions["sigma_nu_seed"].expression,
             "(acoustic_k * scalar_initial_conformal_time / 6.0) * seed",
         )
+        density_dependencies = set(
+            compiled.initial_conditions["theta_gamma0_seed"].dependencies
+        )
+        self.assertIn("metric_momentum_source_drive", density_dependencies)
+        self.assertNotIn("metric_momentum_constraint", density_dependencies)
 
     def test_vector_metadata_contract_materializes_runtime_graph(self) -> None:
         """Metadata-only vector contracts should expand into graph entries."""
@@ -2273,6 +2278,65 @@ class PerturbationContractTestCase(unittest.TestCase):
                     )
                     self.assertAlmostEqual(baryon_rhs - 3 * photon_rhs, -slip)
 
+    def test_automatic_massive_grid_has_physical_relativistic_moments(self):
+        """An unnamed planned q grid must generate the actual kinetic graph.
+
+        MB (1995) eq. 55 gives (rho+P)theta=k I_1 and
+        (rho+P)sigma=2 I_2/3. In the relativistic limit I_1=4rho theta/3
+        and I_2=2rho sigma. These identities fix the Einstein coefficients.
+        """
+
+        contract = _scalar_metadata_only_contract()
+        contract["species"]["massive_neutrino"] = {
+            "sector": "scalar",
+            "hierarchy_family": "massive_neutrino",
+            "background_reference": "Omega_nu0",
+        }
+        contract["hierarchy_families"]["massive_neutrino"] = {
+            "sector": "scalar",
+            "species": ["massive_neutrino"],
+            "closure": "free_streaming_scalar",
+            "default_l_max": 4,
+            "multipole_symbol": "nu_massive_l",
+        }
+        contract["numerics"]["momentum_grids"] = {
+            "massive_neutrino_default": {
+                "count": 32,
+                "q_min": 0.02,
+                "q_max": 24.0,
+                "mass_parameter": 0.06,
+            }
+        }
+        compiled = self._compile(contract)
+        self.assertIn("delta_nu_massive_q31", compiled.variables)
+        self.assertNotIn("evolve_delta_nu_massive", compiled.equations)
+        rho, theta, sigma, scale = 2.3, 0.04, 0.007, 0.02
+        context = {
+            "massive_neutrino_density_fraction": rho,
+            "massive_neutrino_pressure_fraction": rho / 3,
+            "massive_neutrino_momentum_fraction": rho,
+            "massive_neutrino_shear_fraction": rho,
+            "massive_neutrino_metric_momentum": 4 * theta / 3,
+            "massive_neutrino_metric_shear": 2 * sigma,
+            "observable_theta_nu_massive": theta,
+            "a": scale,
+        }
+        expected = {
+            "theta_nu_massive": theta,
+            "sigma_nu_massive": sigma,
+            "massive_neutrino_momentum_source": scale**2 * 4 * rho * theta / 3,
+            "massive_neutrino_shear_source": scale**2 * 2 * rho * sigma,
+        }
+        for name, value in expected.items():
+            self.assertAlmostEqual(
+                float(
+                    evaluate_compiled_expression(
+                        compiled.derived[name].compiled_expression, context
+                    )
+                ),
+                value,
+            )
+
     def test_adiabatic_initial_series_has_common_density_and_velocity(self):
         """Radiation-era densities and velocities obey MB eq. 98 ratios."""
 
@@ -2374,6 +2438,8 @@ class PerturbationContractTestCase(unittest.TestCase):
             "acoustic_k_sq": 1.0,
             "Hconf": float(2**20),
             "Psi": float(2**60),
+            "Phi": -3.0 * float(2**20),
+            "total_density_source": 0.0,
         }
         for name in ("metric_momentum_source_drive", "Phi_tau"):
             context[name] = evaluate_compiled_expression(
@@ -2389,6 +2455,37 @@ class PerturbationContractTestCase(unittest.TestCase):
             context,
         )
         self.assertEqual(float(actual), 1.0)
+
+    def test_energy_metric_evolution_retains_independent_momentum_check(self):
+        """Einstein 00 determines Phi'; 0i must reject a wrong velocity."""
+
+        compiled = self._compile(_scalar_metadata_only_contract())
+        for k_squared in (1e-12, 0.1):
+            context = {
+                "Phi": 0.7,
+                "Psi": 0.6,
+                "Hconf": 2.0,
+                "einstein_gravity_strength": 0.4,
+                "acoustic_k_sq": k_squared,
+                "total_density_source": -(k_squared * 0.7 + 6 * 1.5) / 0.6,
+                "total_momentum_source": k_squared * 1.5 / 0.6,
+            }
+            context["Phi_tau"] = evaluate_compiled_expression(
+                compiled.derived["Phi_tau"].compiled_expression, context
+            )
+            self.assertAlmostEqual(float(context["Phi_tau"]), 0.3)
+            residual = compiled.derived[
+                "einstein_momentum_residual"
+            ].compiled_expression
+            self.assertAlmostEqual(
+                float(evaluate_compiled_expression(residual, context)), 0.0
+            )
+            context["total_momentum_source"] += k_squared
+            self.assertAlmostEqual(
+                float(evaluate_compiled_expression(residual, context))
+                / k_squared,
+                -0.6,
+            )
 
     def test_scalar_hierarchy_uses_time_dependent_einstein_sources(
         self,
@@ -2488,7 +2585,7 @@ class PerturbationContractTestCase(unittest.TestCase):
             "Phi - metric_shear_correction",
         )
         self.assertIn(
-            "metric_momentum_source_drive",
+            "total_density_source",
             compiled.derived["Phi_tau"].expression,
         )
         self.assertIsNone(compiled.derived["Psi_tau"].expression)

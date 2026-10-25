@@ -11,6 +11,10 @@ import math
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping
 
+from copernican.lib.perturbation_contract import (
+    validate_generated_scalar_source_graph,
+)
+
 _SUPPORTED_GAUGES = {"conformal_newtonian", "synchronous"}
 _REQUIRED_SPECTRA = {"TT", "TE", "EE"}
 _REQUIRED_NUMERICS = (
@@ -253,22 +257,14 @@ def _audit_source_graph_plugin(plugin: Any) -> CMBSourceGraphAudit:
             issues.append(
                 "missing generated metric derivative(s): " + ", ".join(missing)
             )
-    phi_tau = derived.get("Phi_tau")
-    if generated_scalar and phi_tau is not None:
-        if not str(getattr(phi_tau, "expression", "") or "").strip():
-            issues.append("Phi_tau must have an explicit graph expression")
-        if (
-            str(getattr(phi_tau, "kind", ""))
-            != "metric_potential_time_derivative"
-        ):
-            issues.append("Phi_tau must be typed as a metric derivative")
-        dependencies = set(getattr(phi_tau, "dependencies", ()) or ())
-        for dependency in ("metric_momentum_source_drive", "Hconf", "Psi"):
-            if dependency not in dependencies:
-                issues.append(
-                    "Phi_tau must depend on the declared "
-                    f"{dependency} source"
-                )
+    if generated_scalar:
+        # Audits and execution must enforce the same generated equations.
+        # In particular, Phi' uses the energy equation while the momentum
+        # equation remains an independent constraint, not its RHS.
+        try:
+            validate_generated_scalar_source_graph(perturbation_data)
+        except ValueError as exc:
+            issues.append(str(exc))
     psi_tau = derived.get("Psi_tau")
     if generated_scalar and psi_tau is not None:
         if (
