@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-10-25
+**Last Updated:** 2026-11-08
 **Project Version:** 12.0.26
 
 ## Overview
@@ -61,6 +61,241 @@ convention used by the declared graph compiler and the declared line-of-sight
 integrator.
 
 ## Fixed-Parameter Diagnostics
+
+The `runtime/performance.py` timer charges each interval to its innermost
+phase. Projection adds each mode's own quadrature interval, rather than
+repeated prefixes of the complete projection span. Outer k refinement shares
+the request clock and contributes its phase times and scoped work records.
+Heartbeat `elapsed` is accumulated exclusive phase time; `scope_elapsed`
+is wall time since that subtask began; `request_elapsed` includes the whole
+request. `estimated_scope_remaining_wall_time` extrapolates only explicitly
+weighted scheduled work. It does not predict unplanned adaptive rounds.
+RK weights count the actual power-of-two substeps for every mode row;
+projection weights count ell/eta cells. Scalar adaptive integration reports
+RHS activity with unknown remaining work. Cache hits do not supply an
+estimated compute rate, and counters cannot exceed or silently reset their
+scope totals.
+
+The evolution owner plans its native history independently of projection.
+Large batched RK trajectories use scoped temporary mappings; chunk sizing
+bounds live RK working arrays rather than thinning saved states. Runtime
+accounting separates resident ndarray cells, logical mapped history cells
+and the operating system's file cache. Request-owned raw source retention in
+`runtime/history_store.py` survives global LRU eviction through refinements.
+It spills exact arrays to digest-checked bundles, released on success or
+failure. Physical parameters, equations, source grids, phase-space laws and
+effective controls identify compatible work. Planner labels and Fourier
+sampling counts do not identify a fixed mode. The store carries no acceptance
+certificates. Repeated scope names archive their previous attempts rather
+than silently resetting accounting.
+
+`runtime/equation_kernel.py` batches equal validated arithmetic trees across
+both equations and modes. It preserves the declared operands, expression
+order, context rebinding and coordinate rates. Scalar evaluation remains the
+comparison authority. Collision schedules measure the spectral radius of the
+absolute declared rate/coefficient operator; unlike a raw matrix row norm,
+this scale is invariant under diagonal changes of state units. A
+state-dependent operator uses adaptive continuous integration rather than an
+invented fixed future split schedule.
+A stiff block without a declared fast manifold uses component-scaled local
+BDF integration of its full authoritative matrix and forcing. The interval
+owner retains activation, conservation and boundary projection semantics.
+Nonstiff split intervals retain RK phase control; failures stop at floating
+point resolution rather than an arbitrary substep-count ceiling. Momentum
+binding caches include only the actual law/temperature/mass dependencies;
+an unrelated primordial amplitude does not invalidate kinetic quadrature.
+
+Parameter-scoped resolution hints retain accepted starting controls for the
+same physical/numerical intent and Fourier support. Observation sampling
+labels do not identify that physical domain. Hints skip obsolete failed grid
+searches but carry no acceptance certificate; current requests still check
+all applicable axes. Result-cache clearing preserves these controls, while
+parameter-cache clearing removes them. Grouped scalar arithmetic is checked
+against the independent ungrouped CPU equation program, which remains the
+reference in the scalar/batch regression.
+One pending compatible physical mode retains the shared executor instead
+of switching ODE methods when other rows came from cache. Singleton
+independent-reference partitions retain that executor too. Independently
+required transfer nodes also use bounded compatible batches. Their counts
+are recorded separately from primary-mode work, and incompatible contracts
+retain their scalar path. Kinetic single/pair and original ungrouped scalar
+TT/TE/EE comparisons cover these execution choices under LRU pressure.
+Joint-budget searches retain measured before/after axis contributions.
+An unproductive source-grid trial yields to another material contributor;
+a tiny remaining error cannot monopolize the search. The total budget,
+including normalized cross errors, still decides acceptance. Stagnation
+comparisons keep failure kinds and error measures consistent.
+Source/projection promotion raises the measured LOS ladder minima without
+changing the physical background seed. Native event searches use physical
+background samples. Pilot/reference reuse identities include physical inputs,
+compiled equations, momentum weights, integration controls and exact native
+background/coordinate/rate arrays. Source-only sampling changes therefore
+reuse raw states while freshly evaluating sources, constraints and comparison
+errors. Changed integration controls require a new solve. The existing
+request-owned spill store bounds retention and verifies loaded arrays;
+no certificate is stored with the native histories. Primary state statistics
+remain distinct from independent-reference diagnostics.
+`background_minimum_nodes` resolves only the background's numerical seed.
+Promotions use the accepted background refinement control, not the original
+LOS seed; a separate regression requires a genuinely different actual
+background mesh while preserving the LOS seed. The observable-budget failure
+retains that accepted background control for the next planning decision.
+`stage_background.py` evaluates the same physical interpolants and declared
+background graph at every already scheduled RK coordinate in bounded vector
+blocks. It introduces no surrogate mesh. Field-by-field comparisons against
+the independent scalar owner cover both LCDM and the kinetic Planck graph.
+Background-stage work has its own exclusive phase and weighted progress scope.
+Constant momentum bindings and varying columns are classified once per batch,
+preserving their original values while avoiding repeated metadata work.
+The grouped equation program gathers interior state operands directly and
+inserts only declared boundary or rebound values from the context. RHS
+contexts bind the state dependencies actually consumed by that graph;
+diagnostics, collisions and custom coordinates retain their full contexts.
+Independent scalar comparisons cover mixed bindings and numeric promotion.
+Before ordinary generated-scalar evolution, `numerical_controls.py` can
+propose active grid densities from the accepted physical background's actual
+sample count: evolution starts at that density, and LOS products start at
+paired density to sample background/state products and their derivatives.
+The orchestrator treats `InitialResolutionCandidate` solely as
+a starting proposal, then performs the full native, physical-axis, angular
+and finer-grid acceptance. It never publishes a candidate as a spectrum.
+Existing finer controls and disabled sections are preserved. This one-time
+proposal does not couple subsequent background and LOS refinements, or alter
+diagnostic requests. Accepted results retain the original request's exact
+cache identity together with their effective numerical controls.
+The historical ordinary LCDM and kinetic Planck measurements each pass cold,
+exact-repeat, warm, changed-request, subset, changed-parameter and ordered
+batch checks under the same final accuracy requirements. Their retained
+source-bound reports include complete products, combined budgets, spill/reuse
+work and machine costs. On the recorded Intel machine, cold costs are
+617.956 and 3053.376 seconds. `PLAN.md` records the detailed measured scope;
+this numerical evidence does not replace matched external angular parity or
+demonstrate full-discovery performance. The later workflow exposed failures
+and excessive all-mode projection retention; the slice is reopened.
+
+All angular requests now consume and release one mode chunk of radial kernels
+before preparing another, including adaptive requests below ell=500.
+Independent evolution, source/geometry uncertainties and coarse projection
+still run. Bessel recurrence columns are partitioned, with byte-bounded
+input/value caches. Memory partitioning retains all physical nodes and
+equations. `projection_peak_kernel_bytes`, `projection_peak_live_modes` and
+`projection_peak_bessel_cells` report measured array work rather than a
+constant advertised as a measured peak.
+
+The dense graph physics case is retained in
+`tests.project.lib.ccmbs_production_graph.ProductionGraphTestCase` for explicit
+invocation with `python -m unittest -v` in the managed environment. Its
+physical-shape, TE-wave, final-accuracy, exact-repeat and artifact assertions
+are preserved. Ordinary discovery tests supplied wave rendering, corruption
+rejection and fresh-process reload without another production calculation.
+Alias-routing fixtures bind diagnostic sampling and role-based hierarchy
+controls after preparation, preserving their original physical graph through
+public replanning. They check finite, nonzero spectra and every requested
+alias. Independent physics/refinement tests retain their original domains and
+thresholds. A separate compiler check enters the expanded public graph and
+compares all Jacobian probe columns with the scalar RHS before integration.
+Phase-space law dependencies are checked before numerical planning, so an
+undeclared thermal constant cannot fail only after expensive evolution.
+For continuous stiff intervals, the compiler can prove affine dependence
+from the actual equation/value/derivative/collision graph. Such systems
+evaluate Jacobian coefficient probes together while keeping the original
+scalar trajectory RHS, tolerances and interval projections. Collision matrix
+products retain each scalar column's reduction order to preserve cancelling
+conservation rows. Nonlinear dependence keeps the centered general Jacobian.
+An actual vector graph compares every probe column with its scalar owner;
+an independent stiff analytic solution retains its tiny 1e-20 forced state.
+Projected local intervals use L-stable Radau collocation, avoiding repeated
+BDF startup at every output boundary while preserving all projections and
+error tolerances. Whole-history integration retains BDF. Independent analytic
+stiff solutions compare both methods, including initially zero driven states;
+the affine initial-scale probes share the same scalar-equivalent graph.
+Continuous integration selects dense or sparse LU storage from the initial
+Jacobian density and keeps that format throughout the solve. Sparse storage
+retains every nonzero entry, including new entries at later times; it applies
+no coefficient threshold or hierarchy truncation. This avoids dense LU work
+for expanded hierarchies whose moments couple only to a few neighbors.
+Independent exact stiff trajectories test both BDF and Radau with amplitudes
+down to 1e-25 and a matrix that becomes dense after sparse startup.
+
+Families declare their `physical_role`; a kinetic family additionally declares
+its `phase_space` distribution or occupation/log-derivative expressions,
+physical mass/multiplicity parameters and present temperature ratio.
+Nonstandard populations declare their density parameter. `phase_space.py`
+measures support expansion and quadrature density independently using
+positive relativistic/nonrelativistic moments. Names cannot assign an
+undeclared thermal distribution. Bound distributions participate in runtime
+and source-cache identities.
+
+For ordinary final requests, actual independent background, hierarchy-depth
+and momentum refinements evolve informative modes including both endpoints.
+The background comparison must use a distinct accepted grid; a different seed
+ending on the same adaptive grid is insufficient. Generated hierarchy/q
+comparisons must materialize more states. Their actual compiled source
+errors join independently measured evolution and source-sampling errors.
+Theoretical free-streaming tail estimates initialize candidate depth; they
+are not measured acceptance evidence.
+
+`runtime/error_budget.py` propagates each per-source pointwise uncertainty
+through absolute LOS operators, then bounds transfer products using the
+absolute weights of the actual not-a-knot spline integral. The quadratic
+error term includes every cross-axis transfer product, allocated equally to
+its contributing axes. Final closure retains the larger measured axis bound
+from the coarse and finer Fourier calculations. Background geometry/kernel
+changes remain explicit. Axis bounds add without cancellation; normalized
+cross spectra also include uncertain
+auto-spectrum denominators. Geometry/operator changes multiply the entire
+source uncertainty, including other axes. Zero or unscalable source histories
+retain absolute error envelopes instead of multiplying a normalized error
+by zero. Projection and nested Fourier differences join that combined
+observable budget. The source envelopes use the maximum
+normalized discrepancy measured on informative independently evolved modes;
+this is an explicitly recorded sampled-domain assumption, not a universal
+analytic error theorem. Failures promote the responsible engine axis with
+unchanged final tolerances; measured stagnation fails explicitly.
+
+Adaptive observation subsets can accept different meshes. Numerical
+consistency compares both raw and public products on their common multipoles
+against the sum of both propagated absolute uncertainties. A separate fixed
+roundoff cutoff is inappropriate for different accepted discretizations.
+Exact repeats retain their cached products exactly. The numerical workload
+recorder's `--assess-only` mode preserves the original report and records a
+fresh reader digest beside its input digest; it cannot relabel the producer
+or accept measurements from a changed solver source.
+
+Adaptive hierarchy evolution adds its mandatory early prefix to the requested
+late-time sampling. Coarse and intermediate meshes remain separate from the
+shared fine mesh. The planner measures opacity, expansion and visibility
+interpolation on the actual background, retains rate-transition events, and
+resolves the largest evolved Fourier phase. Selected native histories and
+their compiled sources are compared before the rest of the modes run.
+Resolved pilot arrays are production work and are reused; their convergence
+certificates are not copied from a different trajectory. Automatic evolution
+refinement preserves the accuracy thresholds, grows the unresolved control,
+and reports measured stagnation rather than accepting it. An exact repeat
+retains the original request's accepted result with its effective controls.
+
+History-amplitude normalization applies independently to every state or
+source. Its absolute allowance is also applied per state/sample, so a tiny
+high moment cannot borrow another state's scale or cause a false rejection
+by combining unrelated absolute and relative maxima. Local relative error,
+the worst named history, and its physical eta remain available for diagnosis.
+Source and final observable convergence checks remain separate obligations.
+After tight coupling ends, split integration resolves the collision rate as
+well as streaming and expansion. In the analytic forced-damping limit, exact
+exponentials with a large optical step can be stable and still miss nearly
+all of the driven equilibrium. The governed scalar and batch schedules now
+resolve that optical phase without imposing it on an active fast manifold.
+
+Source-grid states use a C1 shape-preserving cubic Hermite interpolant of
+the native evolved states. Stable weighted harmonic slopes avoid reciprocal
+overflow for tiny kinetic moments. Metric source derivatives still belong to
+the evolved histories; they are not replaced by an algebraic metric or a
+reference engine. Smooth interpolation removes the artificial corners that
+arise when a dense source grid differentiates a piecewise linear potential.
+Independent evolution comparisons include the compiled source arrays.
+Matching raw coarse/intermediate histories and their sources can be retained
+within the request, while their comparison is evaluated afresh. Numerical
+certificates are not stored in that raw-history owner.
 
 Diagnostic source audits retain the same declared integration choice as
 ordinary requests. Set the perturbation accuracy control
@@ -1478,28 +1713,17 @@ Coarsened projection batches preserve zero-width optional vector and tensor
 sectors without indexing absent kernels, so scalar refinement remains warning
 free under NumPy's strict empty-axis rules.
 
-When a generated scalar hierarchy declares the `final` accuracy tier, CCMBS
-promotes its Fourier ladder to at least the physical radial/acoustic phase
-requirement, with 512 modes as the minimum floor when that requirement is
-smaller. This is a quadrature-resolution safeguard, not a new physical source
-or a post-projection smoothing step. The same final route
-uses a quarter-cycle explicit-RK phase target through recombination, where the
-acoustic transfer is formed, and returns to the declared phase target for the
-late integrated Sachs-Wolfe tail. The runtime envelope records the effective
-k-grid size so provenance exposes this promotion. The bundled final LambdaCDM
-contract also declares 2048 k, eta, and evolution nodes plus a bounded
-phase-aware line-of-sight grid. A final route with an explicit phase-aware
-line-of-sight section raises the retained generated hierarchy history to that
-section's maximum eta-node budget. This prevents a sparse evolution history
-from being interpolated onto a dense LOS grid and aliasing acoustic sources
-before projection. For ordinary generated scalar requests, the engine also
-retains one common physical evolution mesh with its dense early-time prefix;
-a request-local node budget cannot erase the super-horizon history. CCMBS
-records whether the LOS grid was applied, its node
-bounds, the effective eta-node count, the evolution-history floor, and its
-smallest and largest spacing in the raw runtime envelope. Contracts without
-the explicit section retain their declared LOS grid and do not inherit this
-production multiplier.
+For generated scalar requests at the `final` tier, Fourier sampling resolves
+actual radial/acoustic phase and is checked against a distinct nested finer
+calculation. No fixed 512-mode floor replaces that measurement. Production
+LOS planning resolves the measured visibility profile and Fourier phase;
+the allowed search size does not force every interval to subdivide. The fine
+projection mesh halves the actual coarse intervals. Evolution separately
+samples the physical background's opacity, expansion and visibility, so
+projection thinning cannot erase a native dynamical feature. Independently
+evolved sources and projected spectra must still satisfy their unchanged
+accuracy thresholds. Runtime evidence retains actual counts, spacings,
+operator bounds and all automatically promoted controls.
 
 Single-sector declared routes also expose matching component aliases such as
 `scalar_TT`, `vector_BB`, `tensor_BB`, and `total_TT`.

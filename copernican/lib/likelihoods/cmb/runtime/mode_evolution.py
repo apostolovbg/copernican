@@ -11,6 +11,7 @@ from typing import Any, Callable, Iterable, Mapping
 import numpy
 from scipy.integrate import solve_ivp
 from scipy.optimize import least_squares
+from scipy.sparse import csc_matrix
 
 from ....perturbation_contract import (
     _evaluate_compiled_expression_noerr,
@@ -18,6 +19,7 @@ from ....perturbation_contract import (
 )
 from ..errors import ConstraintViolationError, NonFiniteEvolutionError
 from . import cache
+from .adaptive import rate_transition_eta_nodes, resolve_feature_eta_grid
 from .background import (
     _C_LIGHT_KM_S,
     _LEGACY_DECLARED_EVOLUTION_COORDINATES,
@@ -33,10 +35,16 @@ from .collisions import (
     _solve_batched_small_declared_collision_target,
     _solve_declared_fast_collision_target,
     _structured_collision_components,
+    declared_collision_phase_rates,
 )
 from .constraint_validation import (
     _validate_declared_conservation_rules,
     _validate_scalar_constraint_histories,
+)
+from .equation_kernel import (
+    compile_grouped_equation_program,
+    evaluate_scalar_equations,
+    is_affine_state_system,
 )
 from .evolution import (
     _build_declared_base_context,
@@ -48,18 +56,22 @@ from .evolution import (
     _declared_runtime_seed,
     _evaluate_declared_initial_state,
     _integrate_batched_rk4,
+    _interpolate_declared_histories,
     _nonuniform_gradient,
     _resolve_declared_graph_context,
     _resolve_declared_graph_context_ordered,
     _scalar_einstein_constraint_metrics,
+    _split_collision_phase_scale,
     _tight_coupling_is_active,
     _validate_generated_scalar_initial_constraints,
     _validate_generated_tensor_initial_constraints,
     _validate_generated_vector_initial_constraints,
 )
+from .history_store import with_native_history_storage
 from .line_of_sight import sample_eta_background_grids
 from .numerical_controls import _densify_eta_grid, _limit_eta_grid
 from .spectrum_projection import _bind_declared_source_histories
+from .stage_background import sample_declared_stage_contexts
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -91,8 +103,11 @@ def _integrate_scaled_continuous_history(
     initial_time_scale: float,
     rtol: float,
     atol: float,
+    affine_system: bool = False,
+    vectorized_rhs=None,
+    method: str = "BDF",
 ) -> numpy.ndarray:
-    """Integrate declared states with component-scaled BDF error control.
+    """Integrate declared states with component-scaled stiff error control.
 
     Regular initial data can mix order-one metric potentials with shear
     and velocity moments many orders of magnitude smaller. An absolute
@@ -115,14 +130,31 @@ def _integrate_scaled_continuous_history(
     while pending and numpy.any(scales == 0.0):
         unresolved = scales == 0.0
         driven_scales = numpy.zeros_like(scales)
-        for index in pending:
-            probe = initial.copy()
-            probe[index] += math.copysign(scales[index], initial[index])
-            response = numpy.asarray(rhs(float(eta[0]), probe), dtype=float)
-            driven_scales = numpy.maximum(
-                driven_scales,
-                float(initial_time_scale) * abs(response - initial_drive),
+        if affine_system and vectorized_rhs is not None:
+            probes = numpy.repeat(initial[:, None], len(pending), axis=1)
+            for column, index in enumerate(pending):
+                probes[index, column] += math.copysign(
+                    scales[index], initial[index]
+                )
+            responses = numpy.asarray(
+                vectorized_rhs(float(eta[0]), probes), dtype=float
             )
+            driven_scales = numpy.max(
+                float(initial_time_scale)
+                * abs(responses - initial_drive[:, None]),
+                axis=1,
+            )
+        else:
+            for index in pending:
+                probe = initial.copy()
+                probe[index] += math.copysign(scales[index], initial[index])
+                response = numpy.asarray(
+                    rhs(float(eta[0]), probe), dtype=float
+                )
+                driven_scales = numpy.maximum(
+                    driven_scales,
+                    float(initial_time_scale) * abs(response - initial_drive),
+                )
         discovered = unresolved & (driven_scales > 0.0)
         scales[discovered] = driven_scales[discovered]
         pending = list(numpy.flatnonzero(discovered))
@@ -144,11 +176,33 @@ def _integrate_scaled_continuous_history(
     ) -> numpy.ndarray:
         """Resolve derivatives without perturbing tiny raw states by atol.
 
-        Centered differences use the cube-root roundoff step in normalized
-        coordinates. In particular, initially zero or identically constant
-        moments do not trigger vanishing forward-difference probes.
+        Nonlinear systems use centered differences with the cube-root
+        roundoff step in normalized coordinates. Initially zero or
+        identically constant moments do not trigger vanishing probes.
         """
 
+        if affine_system and vectorized_rhs is not None:
+            probes = numpy.column_stack(
+                (numpy.zeros(initial.size), numpy.eye(initial.size))
+            )
+            derivatives = (
+                numpy.asarray(
+                    vectorized_rhs(eta_value, probes * scales[:, None])
+                )
+                / scales[:, None]
+            )
+            return derivatives[:, 1:] - derivatives[:, :1]
+        if affine_system:
+            # For a compiler-proven affine system, coefficient probes at
+            # zero avoid subtracting tiny perturbations of a large current
+            # trajectory. No sampled linearity assumption is used.
+            origin = scaled_rhs(eta_value, numpy.zeros(initial.size))
+            matrix = numpy.empty((initial.size, initial.size))
+            for index in range(initial.size):
+                probe = numpy.zeros(initial.size)
+                probe[index] = 1.0
+                matrix[:, index] = scaled_rhs(eta_value, probe) - origin
+            return matrix
         steps = numpy.cbrt(numpy.finfo(float).eps) * numpy.maximum(
             numpy.abs(scaled_state), 1.0
         )
@@ -163,12 +217,29 @@ def _integrate_scaled_continuous_history(
             ) / (2.0 * step)
         return jacobian
 
+    use_sparse_jacobian = None
+
+    def solver_jacobian(eta_value, scaled_state):
+        """Choose LU storage once, retaining every nonzero coefficient.
+
+        Hierarchy Jacobians couple few neighboring moments. Sparse LU
+        avoids factoring their large zero regions. The storage decision
+        stays fixed because SciPy binds its dense/sparse backend at startup;
+        coefficients and the nonzero pattern may still change with time.
+        """
+
+        nonlocal use_sparse_jacobian
+        matrix = scaled_jacobian(eta_value, scaled_state)
+        if use_sparse_jacobian is None:
+            use_sparse_jacobian = numpy.count_nonzero(matrix) * 4 < matrix.size
+        return csc_matrix(matrix) if use_sparse_jacobian else matrix
+
     solution = solve_ivp(
         scaled_rhs,
         (float(eta[0]), float(eta[-1])),
         initial / scales,
-        method="BDF",
-        jac=scaled_jacobian,
+        method=method,
+        jac=solver_jacobian,
         t_eval=eta,
         rtol=float(rtol),
         atol=float(atol),
@@ -212,13 +283,14 @@ def _can_batch_declared_evolution(
     The batch path preserves the scalar executor for contracts with adaptive
     histories, non-shared grids, transformed coordinates, or conditional
     collision activation.  Those contracts require independently staged
-    scalar control rather than a common explicit schedule.
+    scalar control rather than a common explicit schedule. One pending row
+    keeps its compatible schedule when cache reuse supplies the other rows.
     """
 
     if not (
         generated_scalar_hierarchy
         and shared_mode_grids_enabled
-        and int(mode_count) > 1
+        and int(mode_count) > 0
     ):
         return False
     if has_end_boundaries or continuous_collision_solver:
@@ -320,6 +392,9 @@ class DeclaredModeEvolutionRuntime:
     record_stage_diagnostic_histories: Callable[..., Any]
     scalar_initial_constraint_preflight: Any
     snapshot: Callable[[], dict[str, Any]]
+    mode_grids_for_k: Callable[..., Any]
+    history_capture_k_values: set[float]
+    resample_mode_history: Callable[..., Any]
 
 
 def build_declared_mode_evolution(
@@ -373,6 +448,19 @@ def build_declared_mode_evolution(
     required_source_names = inputs.required_source_names
     runtime_envelope = inputs.runtime_envelope
     runtime_spec = inputs.runtime_spec
+    state_context_names = tuple(
+        (
+            slot.variable
+            if slot.order == 0
+            else f"__d{slot.order}_{slot.variable}_{slot.wrt}"
+        )
+        for slot in runtime_spec.state_slots
+    )
+    scalar_rhs_calls = 0
+    scalar_work_scope = "scalar_preflight"
+    history_capture_k_values: set[float] = set()
+    mode_grid_cache: dict[tuple[float, int | None], Any] = {}
+    coupling_transition_nodes: numpy.ndarray | None = None
     scalar_background_context_cache = inputs.scalar_background_context_cache
     scalar_base_context_cache = inputs.scalar_base_context_cache
     scalar_constraint_diagnostic_projection_count = (
@@ -1352,13 +1440,69 @@ def build_declared_mode_evolution(
             )
         source_eta_start = float(source_grids["eta"][0])
 
+        maximum_mode_k = (
+            max(abs_k, float(numpy.max(numpy.abs(k_values), initial=abs_k)))
+            if shared_generated_mode_grids_enabled
+            else abs_k
+        )
+        mode_grid_key = (maximum_mode_k, evolution_sample_count_override)
+
         nonlocal shared_generated_mode_grids
+        nonlocal coupling_transition_nodes
         if (
-            evolution_sample_count_override is None
-            and shared_generated_mode_grids_enabled
-            and shared_generated_mode_grids is not None
+            shared_generated_mode_grids_enabled
+            and mode_grid_key in mode_grid_cache
         ):
-            return shared_generated_mode_grids
+            return mode_grid_cache[mode_grid_key]
+        if (
+            adaptive_controls.evolution_enabled
+            and coupling_transition_nodes is None
+        ):
+
+            def _evaluate_transition_rates(
+                probe_eta: numpy.ndarray,
+            ) -> tuple[numpy.ndarray, numpy.ndarray]:
+                """Evaluate the declared background at shared event probes."""
+
+                unique_eta, inverse = numpy.unique(
+                    numpy.concatenate(
+                        (source_grids["eta"][[0, -1]], probe_eta)
+                    ),
+                    return_inverse=True,
+                )
+                inverse = inverse[2:]
+                sampled = sample_eta_background_grids(
+                    unique_eta,
+                    background=background,
+                    physical_params=physical_params,
+                    contract_or_params=contract_or_params,
+                )[0]
+                return (
+                    sampled["collision_rate"][inverse],
+                    sampled["Hconf"][inverse],
+                )
+
+            # A source sampling change is not a different physical event.
+            # Seed event searches on the accepted physical background so
+            # source-only refinements retain the same native evolution grid.
+            physical_grids = sample_eta_background_grids(
+                numpy.asarray(background.eta_grid),
+                background=background,
+                physical_params=physical_params,
+                contract_or_params=contract_or_params,
+            )[0]
+            coupling_transition_nodes = rate_transition_eta_nodes(
+                physical_grids["eta"],
+                physical_grids["collision_rate"],
+                physical_grids["Hconf"],
+                numpy.asarray(k_values),
+                ratios=(
+                    float(numerics.tight_coupling_ratio),
+                    float(numerics.tight_coupling_ratio)
+                    * float(numerics.tight_coupling_exit_ratio),
+                ),
+                evaluate_rates=_evaluate_transition_rates,
+            )
 
         def _evolution_eta_grid(
             eta_floor: float,
@@ -1429,7 +1573,14 @@ def build_declared_mode_evolution(
             keep[0] = True
             keep[-1] = True
             limited = _limit_eta_grid(
-                numpy.asarray(base_grid[keep], dtype=float),
+                numpy.unique(
+                    numpy.concatenate(
+                        (
+                            numpy.asarray((float(eta_floor),)),
+                            base_grid[keep],
+                        )
+                    )
+                ),
                 maximum_samples=int(requested_samples),
             )
             # Diagnostic refinement controls are required to change the
@@ -1441,6 +1592,98 @@ def build_declared_mode_evolution(
                 limited = _densify_eta_grid(
                     limited,
                     minimum_samples=int(requested_samples),
+                )
+            if adaptive_controls.evolution_enabled:
+                # Linear interpolation of a unit oscillation has error at
+                # most phase_step**2/8. Reserve one eighth of the history
+                # amplitude budget for that error, using the actual largest
+                # evolved k. Coarse controls enlarge this phase step, so an
+                # independent refinement cannot collapse onto one mesh.
+                reference_count = max(
+                    int(adaptive_controls.evolution_minimum_nodes), 1
+                )
+                dense_eta = numpy.unique(
+                    numpy.concatenate(
+                        (
+                            numpy.asarray((float(eta_floor),)),
+                            base_grid,
+                        )
+                    )
+                )
+                # Evolution planning reads the physical background directly.
+                # Its rates/features must not inherit the independently
+                # selected source/projection representation error.
+                physical_history = background.sample(dense_eta)
+                profiles = {
+                    "collision_rate": numpy.maximum(
+                        -numpy.asarray(physical_history["tau_dot"]), 0.0
+                    ),
+                    "Hconf": numpy.asarray(physical_history["a"])
+                    * numpy.asarray(physical_history["H"])
+                    / _C_LIGHT_KM_S,
+                    "visibility": numpy.asarray(
+                        physical_history["visibility"]
+                    ),
+                }
+                rate_floor = numpy.maximum(
+                    numpy.abs(profiles["Hconf"]), maximum_mode_k
+                )
+                feature_tolerance = (
+                    adaptive_controls.evolution_relative_tolerance
+                    * (reference_count / int(requested_samples)) ** 2
+                    / 8.0
+                )
+                visibility_floor = max(
+                    float(numpy.max(numpy.abs(profiles["visibility"])))
+                    * adaptive_controls.evolution_relative_tolerance,
+                    1e-30,
+                )
+                limited = resolve_feature_eta_grid(
+                    dense_eta,
+                    limited,
+                    profiles=profiles,
+                    scales={
+                        "collision_rate": numpy.maximum(
+                            numpy.abs(profiles["collision_rate"]), rate_floor
+                        ),
+                        "Hconf": numpy.maximum(
+                            numpy.abs(profiles["Hconf"]), 1e-30
+                        ),
+                        "visibility": numpy.maximum(
+                            numpy.abs(profiles["visibility"]),
+                            visibility_floor,
+                        ),
+                    },
+                    relative_tolerance=feature_tolerance,
+                )
+                phase_step = (
+                    numpy.sqrt(adaptive_controls.evolution_relative_tolerance)
+                    * reference_count
+                    / int(requested_samples)
+                )
+                phase_intervals = max(
+                    1,
+                    int(
+                        numpy.ceil(
+                            maximum_mode_k
+                            * (limited[-1] - limited[0])
+                            / phase_step
+                        )
+                    ),
+                )
+                limited = numpy.unique(
+                    numpy.concatenate(
+                        (
+                            limited,
+                            numpy.linspace(
+                                limited[0], limited[-1], phase_intervals + 1
+                            ),
+                            coupling_transition_nodes[
+                                (coupling_transition_nodes >= limited[0])
+                                & (coupling_transition_nodes <= limited[-1])
+                            ],
+                        )
+                    )
                 )
             return limited
 
@@ -1474,6 +1717,32 @@ def build_declared_mode_evolution(
             eta_target = float(eta_prefix[0])
         else:
             eta_prefix = numpy.asarray((), dtype=float)
+        if adaptive_controls.evolution_enabled and eta_prefix.size:
+            prefix_phase_step = (
+                numpy.sqrt(adaptive_controls.evolution_relative_tolerance)
+                * max(int(adaptive_controls.evolution_minimum_nodes), 1)
+                / max(int(numerics.evolution_eta_sample_count or 1), 1)
+            )
+            prefix_intervals = max(
+                1,
+                int(
+                    numpy.ceil(
+                        maximum_mode_k
+                        * (source_eta_start - eta_target)
+                        / prefix_phase_step
+                    )
+                ),
+            )
+            eta_prefix = numpy.unique(
+                numpy.concatenate(
+                    (
+                        eta_prefix,
+                        numpy.linspace(
+                            eta_target, source_eta_start, prefix_intervals + 1
+                        ),
+                    )
+                )
+            )
         requested_evolution_samples = (
             numerics.evolution_eta_sample_count
             if evolution_sample_count_override is None
@@ -1525,12 +1794,16 @@ def build_declared_mode_evolution(
             )
             if shared_generated_mode_grids_enabled:
                 shared_generated_mode_grids = sampled_mode_grids
+                mode_grid_cache[mode_grid_key] = sampled_mode_grids
             return sampled_mode_grids
         post_source_sample_count = None
         if requested_evolution_samples is not None:
+            # The mandatory early prefix is additional physical work. It
+            # must not consume the controlled late-time grid or make three
+            # independent resolution tiers identical.
             post_source_sample_count = max(
                 16,
-                int(requested_evolution_samples) - int(eta_prefix.size),
+                int(requested_evolution_samples),
             )
         eta_mode_grid = numpy.unique(
             numpy.concatenate(
@@ -1550,8 +1823,13 @@ def build_declared_mode_evolution(
             physical_params=physical_params,
             contract_or_params=contract_or_params,
         )
-        if shared_generated_mode_grids_enabled:
+        if (
+            shared_generated_mode_grids_enabled
+            and evolution_sample_count_override is None
+        ):
             shared_generated_mode_grids = sampled_mode_grids
+        if shared_generated_mode_grids_enabled:
+            mode_grid_cache[mode_grid_key] = sampled_mode_grids
         return sampled_mode_grids
 
     def _build_scalar_base_context(
@@ -1654,12 +1932,14 @@ def build_declared_mode_evolution(
                 ),
             )
         )
-        for slot in runtime_spec.state_slots:
-            value = float(state_vector[slot.index])
-            if slot.order == 0:
-                context[slot.variable] = value
-            else:
-                context[f"__d{slot.order}_{slot.variable}_{slot.wrt}"] = value
+        # Slots are contiguous in compiler order. Keep scalar conversion
+        # identical while avoiding repeated metadata lookup per RK stage.
+        state_values = (
+            map(float, state_vector)
+            if state_vector.ndim == 1
+            else state_vector
+        )
+        context.update(zip(state_context_names, state_values))
         return _resolve_declared_graph_context_ordered(
             context,
             perturbation_data,
@@ -1685,8 +1965,19 @@ def build_declared_mode_evolution(
         histories: Mapping[str, numpy.ndarray],
         *,
         k_value: float,
+        background_grids=None,
+        include_states: bool = True,
     ) -> dict[str, Any]:
         """Return the array-valued expression environment for one mode."""
+
+        context_grids = (
+            active_grids if background_grids is None else background_grids[0]
+        )
+        context_backgrounds = (
+            active_declared_background_histories
+            if background_grids is None
+            else background_grids[1]
+        )
 
         context: dict[str, Any] = {
             **{
@@ -1696,29 +1987,29 @@ def build_declared_mode_evolution(
                 name: float(value)
                 for name, value in physical_runtime_scalars.items()
             },
-            "a": active_grids["a"],
-            "a_initial": float(active_grids["a"][0]),
-            "z": active_grids["z"],
-            "eta": active_grids["eta"],
-            "eta_initial": float(active_grids["eta"][0]),
-            "H": active_grids["H"],
-            "Hconf": active_grids["Hconf"],
-            "Hconf_tau": active_grids["Hconf_tau"],
-            "tau": active_grids["tau"],
-            "tau_dot": active_grids["tau_dot"],
-            "visibility": active_grids["visibility"],
-            "chi": active_grids["chi"],
+            "a": context_grids["a"],
+            "a_initial": float(context_grids["a"][0]),
+            "z": context_grids["z"],
+            "eta": context_grids["eta"],
+            "eta_initial": float(context_grids["eta"][0]),
+            "H": context_grids["H"],
+            "Hconf": context_grids["Hconf"],
+            "Hconf_tau": context_grids["Hconf_tau"],
+            "tau": context_grids["tau"],
+            "tau_dot": context_grids["tau_dot"],
+            "visibility": context_grids["visibility"],
+            "chi": context_grids["chi"],
             "angular_diameter_distance": numpy.asarray(
-                active_grids["angular_diameter_distance"],
+                context_grids["angular_diameter_distance"],
                 dtype=float,
             ),
-            "sound_speed": active_grids["sound_speed"],
-            "sound_speed_sq": active_grids["sound_speed_sq"],
-            "baryon_sound_speed_sq": active_grids["baryon_sound_speed_sq"],
-            "collision_rate": active_grids["collision_rate"],
-            "free_streaming": active_grids["free_streaming"],
+            "sound_speed": context_grids["sound_speed"],
+            "sound_speed_sq": context_grids["sound_speed_sq"],
+            "baryon_sound_speed_sq": context_grids["baryon_sound_speed_sq"],
+            "collision_rate": context_grids["collision_rate"],
+            "free_streaming": context_grids["free_streaming"],
             "tight_coupling_drag": _compute_tight_coupling_drag(
-                collision_rate=active_grids["collision_rate"],
+                collision_rate=context_grids["collision_rate"],
                 k_value=float(k_value),
                 tight_coupling_ratio=float(numerics.tight_coupling_ratio),
             ),
@@ -1730,16 +2021,27 @@ def build_declared_mode_evolution(
                 model_parameters=source_parameters,
             ),
         }
-        for name, history in active_declared_background_histories.items():
+        for name, history in context_backgrounds.items():
             context.setdefault(name, numpy.asarray(history, dtype=float))
         context.update(
             _declared_momentum_grid_context(
                 perturbation_data,
                 model_parameters=source_parameters,
                 physical_params=physical_params,
-                scale_factor=active_grids["a"],
+                scale_factor=context_grids["a"],
             )
         )
+        if not include_states:
+            return _resolve_declared_graph_context_ordered(
+                context,
+                perturbation_data,
+                allow_partial=True,
+                eta_grid=None,
+                execution_plan=execution_plan,
+                value_steps=state_independent_value_steps,
+                use_compiled_program=True,
+                compiled_value_program=state_independent_context_program,
+            )
         for slot in runtime_spec.state_slots:
             if slot.order != 0:
                 continue
@@ -1820,6 +2122,19 @@ def build_declared_mode_evolution(
     ) -> numpy.ndarray:
         """Return the state derivative for one RK stage."""
 
+        nonlocal scalar_rhs_calls
+        scalar_rhs_calls += 1
+        if scalar_rhs_calls % 256 == 0:
+            performance_timer.heartbeat(
+                "evolution",
+                scope=scalar_work_scope,
+                details={
+                    "rhs_evaluations": scalar_rhs_calls,
+                    "mode_k": float(k_value),
+                    "remaining_work": "adaptive_unknown",
+                },
+            )
+
         effective_state_vector = numpy.asarray(state_vector, dtype=float)
         eta_value, background_scalars = _scalar_background_context(
             step_index,
@@ -1879,7 +2194,9 @@ def build_declared_mode_evolution(
             )
         with numpy.errstate(divide="ignore", invalid="ignore", over="ignore"):
             try:
-                equation_program(
+                evaluate_scalar_equations(
+                    grouped_equation_program,
+                    equation_program,
                     scalar_context,
                     effective_state_vector,
                     derivative,
@@ -1918,8 +2235,7 @@ def build_declared_mode_evolution(
                         [
                             _coerce_numeric_scalar(
                                 _evaluate_compiled_expression_noerr(
-                                    entry,
-                                    scalar_context,
+                                    entry, scalar_context
                                 ),
                                 name=(
                                     f"collision operator '{runtime.name}' "
@@ -1951,8 +2267,18 @@ def build_declared_mode_evolution(
                     )
                 target_indices = tuple(runtime.target_slot_indices)
                 target_state = effective_state_vector[list(target_indices)]
-                derivative[list(target_indices)] += float(collision_rate) * (
-                    numpy.asarray(matrix, dtype=float) @ target_state
+                # Retain the scalar dot-product reduction order for each
+                # Jacobian probe. A GEMM reduction can change cancellation
+                # in conservation rows relative to the scalar GEMV owner.
+                collision_drive = (
+                    matrix @ target_state
+                    if target_state.ndim == 1
+                    else numpy.column_stack(
+                        [matrix @ column for column in target_state.T]
+                    )
+                )
+                derivative[list(target_indices)] += (
+                    float(collision_rate) * collision_drive
                 )
                 if runtime.damping_slot_indices:
                     if damping_coefficient is None:
@@ -2086,6 +2412,78 @@ def build_declared_mode_evolution(
     batched_rhs_context_program = _compile_value_program(
         batched_rhs_value_steps
     )
+    rebound_names = {
+        str(step.output_name) for step in execution_plan.value_steps
+    } | set(execution_plan.relation_target_names)
+    grouped_equation_program = compile_grouped_equation_program(
+        equation_program_specs,
+        tuple(
+            (name, slot.index)
+            for name, slot in zip(
+                state_context_names, runtime_spec.state_slots
+            )
+            if name not in rebound_names
+        ),
+    )
+    coordinate_names = tuple(
+        dict.fromkeys(
+            str(slot.wrt) for slot in execution_plan.equation_slot_plans
+        )
+    )
+    state_context_bindings = tuple(
+        (name, slot.index)
+        for name, slot in zip(state_context_names, runtime_spec.state_slots)
+    )
+    rhs_context_names = set(grouped_equation_program.context_names)
+    rhs_context_names.update(
+        name for step in stage_value_steps for name in step.dependencies
+    )
+    rhs_context_names.update(step.slot_name for step in stage_derivative_steps)
+    rhs_state_bindings = tuple(
+        (name, index)
+        for name, index in state_context_bindings
+        if name in rhs_context_names
+    )
+    can_prune_rhs_context = set(coordinate_names).issubset(
+        {*_LEGACY_DECLARED_EVOLUTION_COORDINATES, "a", "z"}
+    )
+    runtime_envelope["equation_context_required_state_count"] = (
+        len(rhs_state_bindings)
+        if can_prune_rhs_context
+        else len(state_context_bindings)
+    )
+    runtime_envelope["declared_context_state_count"] = len(
+        state_context_bindings
+    )
+    runtime_envelope["equation_arithmetic_group_count"] = len(
+        grouped_equation_program.groups
+    )
+    continuous_affine_system = is_affine_state_system(
+        equation_program_specs,
+        state_context_names,
+        tuple(
+            (step.output_name, step.compiled_expression.expression)
+            for step in stage_value_steps
+        ),
+        tuple(
+            (step.output_name, step.slot_name)
+            for step in stage_derivative_steps
+        ),
+        tuple(
+            expression.expression
+            for runtime in split_collision_runtimes
+            for expression in (
+                runtime.rate_expression,
+                *(entry for row in runtime.matrix for entry in row),
+                *(
+                    (runtime.damping_coefficient,)
+                    if runtime.damping_coefficient is not None
+                    else ()
+                ),
+            )
+        ),
+    )
+    runtime_envelope["continuous_affine_system"] = continuous_affine_system
     stage_context_program = _compile_value_program(stage_value_steps)
     runtime_envelope["batched_rhs_value_step_count"] = int(
         len(batched_rhs_value_steps)
@@ -2129,6 +2527,59 @@ def build_declared_mode_evolution(
         & state_dependent_names
         for runtime in split_collision_runtimes
     }
+    if any(
+        not value for value in state_independent_collision_runtimes.values()
+    ):
+        # A state-dependent rate cannot have a fixed future split schedule.
+        # Integrate its actual declared operator with local error control.
+        continuous_collision_solver = True
+        runtime_envelope["continuous_collision_solver"] = True
+    collision_phase_history_cache = {}
+    collision_k_names = {"k"}
+    for step in state_independent_value_steps:
+        if set(step.dependencies) & collision_k_names:
+            collision_k_names.add(str(step.output_name))
+    collision_depends_on_k = any(
+        collision_k_names
+        & (
+            set(runtime.rate_expression.dependencies)
+            | {
+                dependency
+                for row in runtime.matrix
+                for entry in row
+                for dependency in entry.dependencies
+            }
+            | (
+                set(runtime.damping_coefficient.dependencies)
+                if runtime.damping_coefficient is not None
+                else set()
+            )
+        )
+        for runtime in split_collision_runtimes
+    )
+
+    def _collision_phase_history(mode_k_value, mode_grids, active_mask):
+        """Measure operator scales once per compatible physical grid."""
+
+        key = (
+            numpy.asarray(mode_grids[0]["eta"]).tobytes(),
+            float(mode_k_value) if collision_depends_on_k else None,
+            numpy.asarray(active_mask, dtype=bool).tobytes(),
+        )
+        if key not in collision_phase_history_cache:
+            context = _build_array_context(
+                {},
+                k_value=float(mode_k_value),
+                background_grids=mode_grids,
+                include_states=False,
+            )
+            mask = numpy.concatenate((active_mask, active_mask[-1:]))
+            collision_phase_history_cache[key] = (
+                declared_collision_phase_rates(
+                    split_collision_runtimes, context, mask
+                )[:-1]
+            )
+        return collision_phase_history_cache[key]
 
     metric_constraint_state_key = next(
         (
@@ -2426,7 +2877,8 @@ def build_declared_mode_evolution(
         active_coordinate_rate_histories = source_coordinate_rate_histories
 
     _LOGGER.info(
-        "CCMBS phase completed: model=%s phase=preparation k=%d eta=%d",
+        "CCMBS phase completed: model=%s phase=preparation "
+        "k=%d source_eta_samples=%d",
         model_label,
         int(k_values.size),
         int(source_grids["eta"].size),
@@ -2968,6 +3420,78 @@ def build_declared_mode_evolution(
         )
         return source_arrays
 
+    def _record_resampled_state_diagnostics(mode_k_value, source_histories):
+        """Retain current state diagnostics, including resampled raw work."""
+
+        state_history_max_abs_by_k[f"{mode_k_value:.12g}"] = {
+            name: float(numpy.max(numpy.abs(history), initial=0.0))
+            for name, history in source_histories.items()
+            if name
+            in {
+                "theta_gamma0",
+                "theta_gamma1",
+                "theta_gamma2",
+                "e_gamma2",
+                "e_gamma3",
+                "theta_b",
+                "delta_b",
+                "delta_c",
+                "delta_nu",
+                "sigma_nu",
+                "Phi",
+                "Psi",
+            }
+        }
+        if {"theta_gamma2", "e_gamma2"}.issubset(source_histories):
+            visibility = numpy.asarray(source_grids["visibility"], dtype=float)
+            active_visibility = visibility >= 0.1 * float(
+                numpy.max(visibility, initial=0.0)
+            )
+            if numpy.any(active_visibility):
+                theta_values = numpy.asarray(
+                    source_histories["theta_gamma2"], dtype=float
+                )[active_visibility]
+                e_values = numpy.asarray(
+                    source_histories["e_gamma2"], dtype=float
+                )[active_visibility]
+                state_history_polarization_ratio_by_k[
+                    f"{mode_k_value:.12g}"
+                ] = {
+                    "maximum_abs_e_over_theta": float(
+                        numpy.max(
+                            numpy.abs(e_values)
+                            / numpy.maximum(numpy.abs(theta_values), 1.0e-30),
+                            initial=0.0,
+                        )
+                    ),
+                    "maximum_abs_theta": float(
+                        numpy.max(numpy.abs(theta_values), initial=0.0)
+                    ),
+                    "maximum_abs_e": float(
+                        numpy.max(numpy.abs(e_values), initial=0.0)
+                    ),
+                }
+
+    def _resample_mode_history(
+        k_value, native_eta, native_histories, *, collect_diagnostics=True
+    ):
+        """Evaluate current sources from compatible raw native histories."""
+
+        nonlocal active_k_value
+        active_k_value = float(k_value)
+        histories = _interpolate_declared_histories(
+            native_eta, native_histories, source_grids["eta"]
+        )
+        sources = _evaluate_source_histories(
+            float(k_value),
+            histories,
+            collect_diagnostics=collect_diagnostics,
+            required_source_names=required_source_names,
+        )
+        if collect_diagnostics:
+            _record_resampled_state_diagnostics(float(k_value), histories)
+        return histories, sources
+
     def _evolve_declared_mode(
         k_value: float,
         *,
@@ -2985,6 +3509,11 @@ def build_declared_mode_evolution(
         nonlocal scalar_background_context_cache
         nonlocal active_k_value
 
+        nonlocal scalar_rhs_calls
+        nonlocal scalar_work_scope
+        scalar_rhs_calls = 0
+        scalar_work_scope = f"scalar_mode_{float(k_value):.12g}"
+        performance_timer.start_work("evolution", scalar_work_scope)
         if (
             count_as_primary_evolution
             and "evolution_modes_evolved" in runtime_envelope
@@ -3433,9 +3962,106 @@ def build_declared_mode_evolution(
                 abs(float(interval_background.get("Hconf", 0.0))),
                 1.0e-12,
             )
+            streaming_scale = stiffness_scale
+            continuous_block_scale = 0.0
+            if exact_collision_phase_cap:
+                operator_scale = 0.0
+                for operator in split_collision_runtimes:
+                    if operator.fast_manifold and tight_coupling_active:
+                        continue
+                    if (
+                        operator.activation_strategy == "tight_coupling"
+                        and not tight_coupling_active
+                    ):
+                        continue
+                    rate, matrix, damping = _collision_metadata_for_state(
+                        state_vector,
+                        runtime=operator,
+                        step_index=step_index,
+                        blend=0.0,
+                        k_value=k_value,
+                    )
+                    norm = (
+                        float(
+                            numpy.max(abs(numpy.linalg.eigvals(abs(matrix))))
+                        )
+                        if matrix.size
+                        else 0.0
+                    )
+                    if damping is not None:
+                        norm = max(norm, abs(float(damping)))
+                    operator_scale = max(operator_scale, abs(rate) * norm)
+                    if not operator.fast_manifold:
+                        continuous_block_scale = max(
+                            continuous_block_scale, abs(rate) * norm
+                        )
+                stiffness_scale = float(
+                    _split_collision_phase_scale(
+                        k_value,
+                        interval_background.get("Hconf", 0.0),
+                        operator_scale,
+                        False,
+                    )
+                )
             target_stage_scale = _phase_step_for_interval(
                 step_index=step_index,
             )
+            if continuous_block_scale > streaming_scale:
+                # A declared stiff block without a fast manifold needs
+                # controlled forcing accuracy, not hundreds of thousands
+                # of split microsteps. Solve the complete interval locally;
+                # the caller still owns all boundary projections/events.
+                left_eta = float(active_grids["eta"][step_index])
+
+                def interval_rhs(eta_value, states):
+                    """Retain the actual activation and authoritative block."""
+
+                    return _mode_rhs(
+                        states,
+                        step_index=step_index,
+                        blend=float(
+                            numpy.clip((eta_value - left_eta) / dt, 0.0, 1.0)
+                        ),
+                        k_value=k_value,
+                        tight_coupling_active=tight_coupling_active,
+                        include_split_collision_outputs=True,
+                    )
+
+                local = _integrate_scaled_continuous_history(
+                    interval_rhs,
+                    state_vector,
+                    numpy.asarray((left_eta, left_eta + dt)),
+                    initial_time_scale=min(abs(dt), 1.0 / stiffness_scale),
+                    rtol=float(numerics.ode_rtol),
+                    atol=float(numerics.ode_atol),
+                    affine_system=continuous_affine_system,
+                    vectorized_rhs=(
+                        interval_rhs if continuous_affine_system else None
+                    ),
+                    # Each projected interval restarts integration. A
+                    # one-step L-stable collocation method avoids rebuilding
+                    # multistep BDF history at every output boundary.
+                    method="Radau",
+                )[:, -1]
+                runtime_envelope["stiff_collision_intervals"] = (
+                    int(runtime_envelope.get("stiff_collision_intervals", 0))
+                    + 1
+                )
+                for operator in split_collision_runtimes:
+                    _validate_collision_invariants(
+                        local,
+                        runtime=operator,
+                        step_index=step_index,
+                        blend=1.0,
+                        k_value=k_value,
+                    )
+                return _project_declared_fast_collision_state(
+                    local,
+                    step_index=step_index,
+                    blend=1.0,
+                    k_value=k_value,
+                    tight_coupling_active=tight_coupling_active,
+                )
             required_substeps = max(
                 1,
                 int(
@@ -3445,18 +4071,16 @@ def build_declared_mode_evolution(
                 ),
                 1,
             )
-            # Exact symmetric collision half-steps absorb the collision
-            # stiffness.  Their magnitude must not force the explicit
-            # streaming RK schedule into redundant microsteps after the
-            # declared tight-coupling transition has ended.
             substep_count = 1
             while substep_count < required_substeps:
                 substep_count *= 2
-            max_substep_count = 65536
             failure_detail = "unspecified"
-            while substep_count <= max_substep_count:
+            while True:
                 trial_state = numpy.asarray(state_vector, dtype=float).copy()
                 sub_dt = dt / float(substep_count)
+                left_eta = float(active_grids["eta"][step_index])
+                if sub_dt == 0 or left_eta + sub_dt == left_eta:
+                    break
                 failed = False
                 for substep_index in range(substep_count):
                     blend_start = substep_index / substep_count
@@ -3569,6 +4193,10 @@ def build_declared_mode_evolution(
                 for slot in runtime_spec.state_slots
                 if slot.order == 0
             }
+            runtime_envelope["evolution_peak_state_cells"] = max(
+                int(runtime_envelope.get("evolution_peak_state_cells", 0)),
+                int(active_grids["eta"].size) * len(runtime_spec.state_slots),
+            )
             state = numpy.asarray(initial_state, dtype=float).copy()
             if not split_collision_runtimes or continuous_collision_solver:
                 eta_values = numpy.asarray(active_grids["eta"], dtype=float)
@@ -3620,6 +4248,10 @@ def build_declared_mode_evolution(
                     initial_time_scale=1.0 / inverse_time_scale,
                     rtol=float(numerics.ode_rtol),
                     atol=float(numerics.ode_atol),
+                    affine_system=continuous_affine_system,
+                    vectorized_rhs=(
+                        _continuous_rhs if continuous_affine_system else None
+                    ),
                 )
                 histories = {
                     slot.variable: numpy.asarray(
@@ -3879,17 +4511,9 @@ def build_declared_mode_evolution(
             active_grids["eta"],
             source_grids["eta"],
         ):
-            source_histories = {
-                name: numpy.asarray(
-                    numpy.interp(
-                        source_grids["eta"],
-                        active_grids["eta"],
-                        history,
-                    ),
-                    dtype=float,
-                )
-                for name, history in histories.items()
-            }
+            source_histories = _interpolate_declared_histories(
+                active_grids["eta"], histories, source_grids["eta"]
+            )
         source_arrays = _evaluate_source_histories(
             float(k_value),
             source_histories,
@@ -3909,54 +4533,59 @@ def build_declared_mode_evolution(
                 name: numpy.asarray(values, dtype=float).copy()
                 for name, values in source_arrays.items()
             }
-        state_history_max_abs_by_k[f"{float(k_value):.12g}"] = {
-            name: float(numpy.max(numpy.abs(history), initial=0.0))
-            for name, history in source_histories.items()
-            if name
-            in {
-                "theta_gamma0",
-                "theta_gamma1",
-                "theta_gamma2",
-                "e_gamma2",
-                "e_gamma3",
-                "theta_b",
-                "delta_b",
-                "delta_c",
-                "delta_nu",
-                "sigma_nu",
-                "Phi",
-                "Psi",
-            }
-        }
-        if {"theta_gamma2", "e_gamma2"}.issubset(source_histories):
-            visibility = numpy.asarray(source_grids["visibility"], dtype=float)
-            active_visibility = visibility >= 0.1 * float(
-                numpy.max(visibility, initial=0.0)
-            )
-            if numpy.any(active_visibility):
-                theta_values = numpy.asarray(
-                    source_histories["theta_gamma2"], dtype=float
-                )[active_visibility]
-                e_values = numpy.asarray(
-                    source_histories["e_gamma2"], dtype=float
-                )[active_visibility]
-                state_history_polarization_ratio_by_k[
-                    f"{float(k_value):.12g}"
-                ] = {
-                    "maximum_abs_e_over_theta": float(
-                        numpy.max(
-                            numpy.abs(e_values)
-                            / numpy.maximum(numpy.abs(theta_values), 1.0e-30),
-                            initial=0.0,
-                        )
-                    ),
-                    "maximum_abs_theta": float(
-                        numpy.max(numpy.abs(theta_values), initial=0.0)
-                    ),
-                    "maximum_abs_e": float(
-                        numpy.max(numpy.abs(e_values), initial=0.0)
-                    ),
+        if collect_diagnostics:
+            state_history_max_abs_by_k[f"{float(k_value):.12g}"] = {
+                name: float(numpy.max(numpy.abs(history), initial=0.0))
+                for name, history in source_histories.items()
+                if name
+                in {
+                    "theta_gamma0",
+                    "theta_gamma1",
+                    "theta_gamma2",
+                    "e_gamma2",
+                    "e_gamma3",
+                    "theta_b",
+                    "delta_b",
+                    "delta_c",
+                    "delta_nu",
+                    "sigma_nu",
+                    "Phi",
+                    "Psi",
                 }
+            }
+            if {"theta_gamma2", "e_gamma2"}.issubset(source_histories):
+                visibility = numpy.asarray(
+                    source_grids["visibility"], dtype=float
+                )
+                active_visibility = visibility >= 0.1 * float(
+                    numpy.max(visibility, initial=0.0)
+                )
+                if numpy.any(active_visibility):
+                    theta_values = numpy.asarray(
+                        source_histories["theta_gamma2"], dtype=float
+                    )[active_visibility]
+                    e_values = numpy.asarray(
+                        source_histories["e_gamma2"], dtype=float
+                    )[active_visibility]
+                    state_history_polarization_ratio_by_k[
+                        f"{float(k_value):.12g}"
+                    ] = {
+                        "maximum_abs_e_over_theta": float(
+                            numpy.max(
+                                numpy.abs(e_values)
+                                / numpy.maximum(
+                                    numpy.abs(theta_values), 1.0e-30
+                                ),
+                                initial=0.0,
+                            )
+                        ),
+                        "maximum_abs_theta": float(
+                            numpy.max(numpy.abs(theta_values), initial=0.0)
+                        ),
+                        "maximum_abs_e": float(
+                            numpy.max(numpy.abs(e_values), initial=0.0)
+                        ),
+                    }
         return source_histories, source_arrays
 
     def _record_stage_diagnostic_histories(
@@ -3971,6 +4600,12 @@ def build_declared_mode_evolution(
     ) -> None:
         """Retain native and source-grid histories for selected modes."""
 
+        if float(mode_k_value) in history_capture_k_values:
+            cache.set_cmb_evolution_history(
+                source_history_cache_prefix + (float(mode_k_value),),
+                evolution_eta,
+                evolution_histories,
+            )
         if not stage_diagnostic_k_values:
             return
         for requested_k_value in stage_diagnostic_k_values:
@@ -4008,8 +4643,12 @@ def build_declared_mode_evolution(
                 "source_histories": source_payload,
             }
 
+    @with_native_history_storage
     def _evolve_declared_modes_batched(
         mode_k_values: numpy.ndarray,
+        *,
+        evolution_sample_count_override: int | None = None,
+        history_sinks: dict[float, dict[str, Any]] | None = None,
     ) -> dict[int, dict[str, numpy.ndarray]]:
         """Evolve compatible declared modes through one shared RK schedule.
 
@@ -4066,14 +4705,52 @@ def build_declared_mode_evolution(
             float(generated_final_phase_step),
             float(numerics.evolution_phase_step),
             float(recombination_window),
+            bool(exact_collision_phase_cap),
+            float(numerics.tight_coupling_ratio),
+            float(numerics.tight_coupling_exit_ratio),
         )
+
+        def _tight_interval_mask(
+            mode_k_value: float,
+            collision_values: numpy.ndarray,
+            expansion_values: numpy.ndarray,
+        ) -> numpy.ndarray:
+            """Retain the declared hysteresis at each interval's left node."""
+
+            active = False
+            mask = numpy.empty(collision_values.size - 1, dtype=bool)
+            for index in range(mask.size):
+                active = _tight_coupling_is_active(
+                    active=active,
+                    collision_rate=float(collision_values[index]),
+                    k_value=mode_k_value,
+                    expansion_rate=float(expansion_values[index]),
+                    tight_coupling_ratio=float(numerics.tight_coupling_ratio),
+                    exit_ratio=float(numerics.tight_coupling_exit_ratio),
+                )
+                mask[index] = active
+            return mask
 
         def _mode_schedule_values(
             mode_k_value: float,
             eta_values: numpy.ndarray,
             hconf_values: numpy.ndarray,
+            collision_values: numpy.ndarray,
+            mode_grids,
         ) -> numpy.ndarray:
             """Return the phase schedule required by one mode."""
+
+            operator_phase = (
+                _collision_phase_history(
+                    mode_k_value,
+                    mode_grids,
+                    _tight_interval_mask(
+                        mode_k_value, collision_values, hconf_values
+                    ),
+                )
+                if exact_collision_phase_cap
+                else numpy.zeros(hconf_values.shape)
+            )
 
             grid_hasher = hashlib.sha256(
                 numpy.asarray(eta_values, dtype=numpy.float64).tobytes()
@@ -4081,6 +4758,10 @@ def build_declared_mode_evolution(
             grid_hasher.update(
                 numpy.asarray(hconf_values, dtype=numpy.float64).tobytes()
             )
+            grid_hasher.update(
+                numpy.asarray(collision_values, dtype=numpy.float64).tobytes()
+            )
+            grid_hasher.update(operator_phase.tobytes())
             eta_signature = grid_hasher.hexdigest()
             schedule_cache_key = schedule_cache_prefix + (
                 eta_signature,
@@ -4114,13 +4795,21 @@ def build_declared_mode_evolution(
                     float(generated_final_phase_step),
                     float(numerics.evolution_phase_step),
                 )
+            phase_scale = numpy.maximum(
+                abs(float(mode_k_value)), numpy.abs(hconf_values)
+            )
+            if exact_collision_phase_cap:
+                phase_scale = _split_collision_phase_scale(
+                    mode_k_value,
+                    hconf_values,
+                    operator_phase,
+                    False,
+                )
             required = numpy.maximum(
                 1,
                 numpy.ceil(
                     numpy.abs(dt_values)
-                    * numpy.maximum(
-                        abs(float(mode_k_value)), numpy.abs(hconf_values)
-                    )
+                    * phase_scale
                     / numpy.maximum(phase_steps, 1.0e-12)
                 ).astype(int),
             )
@@ -4139,26 +4828,29 @@ def build_declared_mode_evolution(
         # Modes with adjacent k values have schedules that differ only at
         # isolated phase thresholds.  Requiring byte-identical schedules
         # would turn almost every production mode into a scalar evolution.
-        # Small requests retain each scalar schedule exactly, including
-        # one-row batches. Large requests bound the extra work from their
-        # common schedule to one refinement level. Neither path re-evolves
-        # completed modes merely to replace a shared-grid trajectory.
+        # Bound extra work to one refinement level for every request size.
+        # Tiny diagnostic requests need the same accuracy contract as large
+        # ones; byte-identical schedules needlessly serialize their modes.
         grouped_modes: list[dict[str, Any]] = []
         batched_collision_eigendecomposition_cache: dict[
             tuple[tuple[int, ...], bytes],
             tuple[numpy.ndarray, numpy.ndarray, numpy.ndarray] | None,
         ] = {}
         schedule_group_width = 256
-        allow_single_mode_batch = bool(
-            generated_scalar_hierarchy and k_values_batch.size <= 32
-        )
         for mode_index, mode_k_value in enumerate(k_values_batch):
-            mode_grids = _mode_grids_for_k(float(mode_k_value))
+            mode_grids = _mode_grids_for_k(
+                float(mode_k_value),
+                evolution_sample_count_override=(
+                    evolution_sample_count_override
+                ),
+            )
             eta_values = numpy.asarray(mode_grids[0]["eta"], dtype=float)
             schedule_values = _mode_schedule_values(
                 float(mode_k_value),
                 eta_values,
                 numpy.asarray(mode_grids[0]["Hconf"][:-1], dtype=float),
+                numpy.asarray(mode_grids[0]["collision_rate"], dtype=float),
+                mode_grids,
             )
             compatible_group = None
             for candidate in grouped_modes:
@@ -4168,11 +4860,6 @@ def build_declared_mode_evolution(
                     continue
                 candidate_min = candidate["schedule_min"]
                 candidate_max = candidate["schedule_max"]
-                if allow_single_mode_batch:
-                    if numpy.array_equal(schedule_values, candidate_min):
-                        compatible_group = candidate
-                        break
-                    continue
                 if numpy.all(schedule_values <= 2 * candidate_min) and (
                     numpy.all(candidate_max <= 2 * schedule_values)
                 ):
@@ -4201,8 +4888,8 @@ def build_declared_mode_evolution(
 
         results: dict[int, dict[str, numpy.ndarray]] = {}
         for group in grouped_modes:
-            if len(group["indices"]) < 2 and not allow_single_mode_batch:
-                continue
+            # Capability was checked for the whole call. A singleton
+            # partition or independent reference keeps that same solver.
             (
                 active_grids,
                 active_declared_background_histories,
@@ -4361,17 +5048,26 @@ def build_declared_mode_evolution(
                 blend: float,
                 suppress_split_collision: bool = True,
                 include_diagnostics: bool = False,
+                equations_only: bool = False,
             ) -> dict[str, Any]:
-                """Bind all state rows into one vector-valued graph context."""
+                """Bind required states into a vector-valued graph context."""
 
                 context = dict(_batch_base_context(step_index, blend))
                 state_columns = numpy.asarray(state_rows, dtype=float).T
-                for slot in runtime_spec.state_slots:
-                    if slot.order == 0:
-                        name = slot.variable
-                    else:
-                        name = f"__d{slot.order}_{slot.variable}_{slot.wrt}"
-                    context[name] = state_columns[slot.index]
+                bindings = state_context_bindings
+                if (
+                    equations_only
+                    and not include_diagnostics
+                    and can_prune_rhs_context
+                    and not (
+                        mode_count == 1
+                        and len(grouped_equation_program.groups)
+                        >= len(runtime_spec.state_slots)
+                    )
+                ):
+                    bindings = rhs_state_bindings
+                for name, index in bindings:
+                    context[name] = state_columns[index]
                 suppressed_outputs = (
                     batched_suppressed_collision_outputs
                     if suppress_split_collision
@@ -4416,6 +5112,7 @@ def build_declared_mode_evolution(
                     state_rows,
                     step_index=step_index,
                     blend=blend,
+                    equations_only=True,
                 )
                 # Coordinate rates are background quantities and therefore
                 # common to the batch, but they are not all unity.  In
@@ -4425,22 +5122,24 @@ def build_declared_mode_evolution(
                 # runs.  The former hard-coded unity map silently changed
                 # those theories' dynamics.
                 batch_coordinate_rates = {
-                    str(slot_plan.wrt): _resolve_coordinate_rate(
-                        wrt_name=str(slot_plan.wrt),
+                    wrt: _resolve_coordinate_rate(
+                        wrt_name=wrt,
                         scalar_context=context,
                         step_index=step_index,
                         blend=blend,
                         k_value=float(local_k_values[0]),
                     )
-                    for slot_plan in execution_plan.equation_slot_plans
+                    for wrt in coordinate_names
                 }
                 state_columns = numpy.asarray(state_rows, dtype=float).T
                 derivative_columns = numpy.zeros_like(
                     state_columns,
                     dtype=float,
                 )
-                equation_executor = equation_program
-                if mode_count <= 5:
+                equation_executor = grouped_equation_program
+                if mode_count == 1 and len(
+                    grouped_equation_program.groups
+                ) >= len(runtime_spec.state_slots):
                     vector_names = tuple(
                         name
                         for name in sorted(equation_direct_names)
@@ -4958,14 +5657,31 @@ def build_declared_mode_evolution(
                 active_grids["Hconf"],
                 dtype=float,
             )[:-1]
+            phase_scale = numpy.maximum(
+                numpy.abs(local_k_values)[:, numpy.newaxis],
+                numpy.abs(hconf_interval_values[numpy.newaxis, :]),
+            )
+            if exact_collision_phase_cap:
+                phase_scale = _split_collision_phase_scale(
+                    local_k_values[:, numpy.newaxis],
+                    hconf_interval_values[numpy.newaxis, :],
+                    numpy.stack(
+                        [
+                            _collision_phase_history(
+                                wave, group["grids"], mask
+                            )
+                            for wave, mask in zip(
+                                local_k_values, active_intervals
+                            )
+                        ]
+                    ),
+                    False,
+                )
             required_substeps = numpy.maximum(
                 1,
                 numpy.ceil(
                     numpy.abs(dt_values)[numpy.newaxis, :]
-                    * numpy.maximum(
-                        numpy.abs(local_k_values)[:, numpy.newaxis],
-                        numpy.abs(hconf_interval_values[numpy.newaxis, :]),
-                    )
+                    * phase_scale
                     / phase_step_values[numpy.newaxis, :]
                 ).astype(int),
             )
@@ -4990,7 +5706,7 @@ def build_declared_mode_evolution(
                 while substep_count < requested:
                     substep_count *= 2
                 batch_substeps[step_index] = substep_count
-            if momentum_runtimes:
+            if momentum_runtimes or generated_scalar_hierarchy:
                 stage_keys: list[tuple[int, float]] = [(0, 0.0)]
                 seen_stage_keys = {(0, 0.0)}
                 for step_index in range(interval_count):
@@ -5009,6 +5725,50 @@ def build_declared_mode_evolution(
                     if record_key not in seen_stage_keys:
                         seen_stage_keys.add(record_key)
                         stage_keys.append(record_key)
+                if generated_scalar_hierarchy:
+                    # These coordinates are already fixed by the actual RK
+                    # schedule. Evaluate the same physical graph in bounded
+                    # vector blocks, never on an interpolated substitute.
+                    stage_wave = float(local_k_values[0])
+                    performance_timer.start_work(
+                        "background", "scheduled_rk_background"
+                    )
+                    with performance_timer.phase("background"):
+                        for start in range(0, len(stage_keys), 4096):
+                            selected_keys = stage_keys[start : start + 4096]
+                            epochs, columns = sample_declared_stage_contexts(
+                                background=background,
+                                grids=active_grids,
+                                declared_histories=(
+                                    active_declared_background_histories
+                                ),
+                                contract=contract_or_params,
+                                physical=physical_params,
+                                numerics=numerics,
+                                indices=[key[0] for key in selected_keys],
+                                blends=[key[1] for key in selected_keys],
+                                wave=stage_wave,
+                            )
+                            for row, key in enumerate(selected_keys):
+                                scalar_background_context_cache[
+                                    (*key, stage_wave)
+                                ] = (
+                                    float(epochs[row]),
+                                    {
+                                        name: float(values[row])
+                                        for name, values in columns.items()
+                                    },
+                                )
+                            completed = start + len(selected_keys)
+                            performance_timer.heartbeat(
+                                "background",
+                                scope="scheduled_rk_background",
+                                completed=completed,
+                                total=len(stage_keys),
+                                weighted_completed=float(completed),
+                                weighted_total=float(len(stage_keys)),
+                            )
+            if momentum_runtimes:
                 stage_scales = numpy.asarray(
                     [
                         float(
@@ -5029,17 +5789,23 @@ def build_declared_mode_evolution(
                     scale_factor=stage_scales,
                 )
                 stage_count = len(stage_keys)
+                static_context = {}
+                stage_columns = []
+                for name, value in batch_momentum_context.items():
+                    array_value = numpy.asarray(value)
+                    if (
+                        array_value.ndim > 0
+                        and array_value.shape[0] == stage_count
+                    ):
+                        stage_columns.append((name, array_value))
+                    else:
+                        static_context[name] = value
                 for stage_index, stage_key in enumerate(stage_keys):
-                    stage_context: dict[str, Any] = {}
-                    for name, value in batch_momentum_context.items():
-                        array_value = numpy.asarray(value)
-                        if (
-                            array_value.ndim > 0
-                            and array_value.shape[0] == stage_count
-                        ):
-                            stage_context[name] = array_value[stage_index]
-                        else:
-                            stage_context[name] = value
+                    stage_context = dict(static_context)
+                    stage_context.update(
+                        (name, values[stage_index])
+                        for name, values in stage_columns
+                    )
                     momentum_context_by_stage[stage_key] = stage_context
             schedule_matches = numpy.all(
                 scalar_substeps == batch_substeps[numpy.newaxis, :],
@@ -5051,6 +5817,25 @@ def build_declared_mode_evolution(
             runtime_envelope["schedule_max_group_size"] = max(
                 int(runtime_envelope.get("schedule_max_group_size", 0)),
                 int(mode_count),
+            )
+            runtime_envelope["schedule_scalar_substeps"] = int(
+                runtime_envelope.get("schedule_scalar_substeps", 0)
+            ) + int(numpy.sum(scalar_substeps))
+            runtime_envelope["schedule_batched_substeps"] = int(
+                runtime_envelope.get("schedule_batched_substeps", 0)
+            ) + int(mode_count * numpy.sum(batch_substeps))
+            runtime_envelope["schedule_max_overintegration_ratio"] = max(
+                float(
+                    runtime_envelope.get(
+                        "schedule_max_overintegration_ratio", 1.0
+                    )
+                ),
+                float(
+                    numpy.max(
+                        batch_substeps[numpy.newaxis, :]
+                        / numpy.maximum(scalar_substeps, 1)
+                    )
+                ),
             )
             runtime_envelope["schedule_forced_overintegration"] = int(
                 runtime_envelope.get("schedule_forced_overintegration", 0)
@@ -5079,6 +5864,31 @@ def build_declared_mode_evolution(
                     )
                     results[int(mode_index)] = scalar_source_arrays
                 continue
+            scope = "rk_group_" + str(runtime_envelope["schedule_group_count"])
+            performance_timer.start_work("evolution", scope)
+
+            def _report_batch_work(
+                completed_work: int,
+                scheduled_work: int,
+                *,
+                interval: int,
+                intervals: int,
+            ) -> None:
+                """Estimate only this known schedule, weighted by mode rows."""
+
+                performance_timer.heartbeat(
+                    "evolution",
+                    scope=scope,
+                    completed=completed_work,
+                    total=scheduled_work,
+                    weighted_completed=float(completed_work),
+                    weighted_total=float(scheduled_work),
+                    details={
+                        "rk_interval": f"{interval}/{intervals}",
+                        "schedule_group_modes": mode_count,
+                    },
+                )
+
             histories, _, batch_stats = _integrate_batched_rk4(
                 states,
                 eta_values,
@@ -5088,6 +5898,15 @@ def build_declared_mode_evolution(
                 pre_step=_batch_pre_step,
                 post_step=_batch_post_step,
                 record_step=_batch_record_step,
+                progress=_report_batch_work,
+            )
+            storage_key = (
+                "evolution_peak_mapped_history_cells"
+                if isinstance(histories, numpy.memmap)
+                else "evolution_peak_state_cells"
+            )
+            runtime_envelope[storage_key] = max(
+                int(runtime_envelope.get(storage_key, 0)), int(histories.size)
             )
             runtime_envelope["batch_count"] = (
                 int(runtime_envelope["batch_count"]) + 1
@@ -5105,10 +5924,8 @@ def build_declared_mode_evolution(
             # A shared schedule can refine a row beyond its scalar budget.
             # Keep that resolved history rather than duplicating evolution
             # and replacing it with a different scalar trajectory.
-            history_names = tuple(
-                slot.variable
-                for slot in runtime_spec.state_slots
-                if slot.order == 0
+            history_slots = tuple(
+                slot for slot in runtime_spec.state_slots if slot.order == 0
             )
             source_eta = numpy.asarray(source_grids["eta"], dtype=float)
             for row_index, mode_index in enumerate(group["indices"]):
@@ -5125,13 +5942,11 @@ def build_declared_mode_evolution(
                 scalar_base_context_cache = {}
                 scalar_background_context_cache = {}
                 source_histories = {
-                    name: numpy.asarray(
+                    slot.variable: numpy.asarray(
                         histories[row_index, :, slot.index],
                         dtype=float,
                     )
-                    for name in history_names
-                    for slot in runtime_spec.state_slots
-                    if slot.variable == name and slot.order == 0
+                    for slot in history_slots
                 }
                 mode_k_value = float(local_k_values[row_index])
                 if diagnostic_source_audit:
@@ -5142,65 +5957,13 @@ def build_declared_mode_evolution(
                         source_histories,
                     )
                 if not numpy.array_equal(eta_values, source_eta):
-                    source_histories = {
-                        name: numpy.asarray(
-                            numpy.interp(source_eta, eta_values, values),
-                            dtype=float,
-                        )
-                        for name, values in source_histories.items()
-                    }
-                state_history_max_abs_by_k[f"{mode_k_value:.12g}"] = {
-                    name: float(numpy.max(numpy.abs(history), initial=0.0))
-                    for name, history in source_histories.items()
-                    if name
-                    in {
-                        "theta_gamma0",
-                        "theta_gamma1",
-                        "theta_gamma2",
-                        "e_gamma2",
-                        "e_gamma3",
-                        "theta_b",
-                        "delta_b",
-                        "delta_c",
-                        "delta_nu",
-                        "sigma_nu",
-                        "Phi",
-                        "Psi",
-                    }
-                }
-                if {"theta_gamma2", "e_gamma2"}.issubset(source_histories):
-                    visibility = numpy.asarray(
-                        source_grids["visibility"], dtype=float
+                    source_histories = _interpolate_declared_histories(
+                        eta_values, source_histories, source_eta
                     )
-                    active_visibility = visibility >= 0.1 * float(
-                        numpy.max(visibility, initial=0.0)
+                if evolution_sample_count_override is None:
+                    _record_resampled_state_diagnostics(
+                        mode_k_value, source_histories
                     )
-                    if numpy.any(active_visibility):
-                        theta_values = numpy.asarray(
-                            source_histories["theta_gamma2"], dtype=float
-                        )[active_visibility]
-                        e_values = numpy.asarray(
-                            source_histories["e_gamma2"], dtype=float
-                        )[active_visibility]
-                        state_history_polarization_ratio_by_k[
-                            f"{mode_k_value:.12g}"
-                        ] = {
-                            "maximum_abs_e_over_theta": float(
-                                numpy.max(
-                                    numpy.abs(e_values)
-                                    / numpy.maximum(
-                                        numpy.abs(theta_values), 1.0e-30
-                                    ),
-                                    initial=0.0,
-                                )
-                            ),
-                            "maximum_abs_theta": float(
-                                numpy.max(numpy.abs(theta_values), initial=0.0)
-                            ),
-                            "maximum_abs_e": float(
-                                numpy.max(numpy.abs(e_values), initial=0.0)
-                            ),
-                        }
                 if not common_schedule_allowed and not numpy.array_equal(
                     scalar_substeps[row_index],
                     batch_substeps,
@@ -5246,25 +6009,43 @@ def build_declared_mode_evolution(
                     mode_k_value,
                     source_histories,
                     required_source_names=required_source_names,
+                    collect_diagnostics=evolution_sample_count_override
+                    is None,
                 )
-                _record_stage_diagnostic_histories(
-                    int(mode_index),
-                    mode_k_value,
-                    evolution_eta=eta_values,
-                    evolution_histories={
-                        name: numpy.asarray(
-                            histories[row_index, :, slot.index],
-                            dtype=float,
-                        )
-                        for name in history_names
-                        for slot in runtime_spec.state_slots
-                        if slot.variable == name and slot.order == 0
-                    },
-                    source_eta=source_eta,
-                    source_histories=source_histories,
-                    source_arrays=evaluated_source_arrays,
-                )
-                results[int(mode_index)] = evaluated_source_arrays
+                native_histories = {
+                    slot.variable: numpy.asarray(
+                        histories[row_index, :, slot.index],
+                        dtype=float,
+                    )
+                    for slot in history_slots
+                }
+                if history_sinks is not None:
+                    history_sinks[mode_k_value] = {
+                        "evolution_eta": eta_values.copy(),
+                        "evolution_histories": {
+                            name: values.copy()
+                            for name, values in native_histories.items()
+                        },
+                        "source_eta": source_eta.copy(),
+                        "source_arrays": {
+                            name: numpy.array(values, copy=True)
+                            for name, values in evaluated_source_arrays.items()
+                        },
+                    }
+                if evolution_sample_count_override is None:
+                    _record_stage_diagnostic_histories(
+                        int(mode_index),
+                        mode_k_value,
+                        evolution_eta=eta_values,
+                        evolution_histories=native_histories,
+                        source_eta=source_eta,
+                        source_histories=source_histories,
+                        source_arrays=evaluated_source_arrays,
+                    )
+                results[int(mode_index)] = {
+                    name: numpy.array(values, copy=True)
+                    for name, values in evaluated_source_arrays.items()
+                }
 
         scalar_base_context_cache = {}
         scalar_background_context_cache = {}
@@ -5314,4 +6095,7 @@ def build_declared_mode_evolution(
             scalar_initial_constraint_preflight
         ),
         snapshot=_snapshot,
+        mode_grids_for_k=_mode_grids_for_k,
+        history_capture_k_values=history_capture_k_values,
+        resample_mode_history=_resample_mode_history,
     )

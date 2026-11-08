@@ -13,6 +13,7 @@ from functools import lru_cache
 from typing import Any, Callable, Mapping
 
 import numpy
+from scipy.interpolate import CubicHermiteSpline
 
 from ....model_adapter import FrozenMapping, _freeze_for_cache
 from ....perturbation_contract import (
@@ -24,6 +25,7 @@ from ....perturbation_contract import (
     engine_numerical_plan_context,
     evaluate_compiled_expression,
 )
+from ....phase_space import phase_space_temperature, sample_distribution
 from ..errors import ConstraintViolationError, NonFiniteEvolutionError
 from . import cache
 from .background import (
@@ -34,6 +36,7 @@ from .background import (
     _physical_runtime_scalars,
     _resolve_declared_accuracy_controls,
 )
+from .history_store import allocate_native_history
 
 _NEUTRINO_TEMPERATURE_EV_PER_K = (4.0 / 11.0) ** (
     1.0 / 3.0
@@ -145,6 +148,9 @@ def _compile_declared_perturbation_contract(
             )
         )
         materialization_numerics = dict(engine_numerics)
+        materialization_numerics.update(
+            contract.get("_numerical_overrides", {})
+        )
         declared_numerics = getattr(precompiled, "numerics", {}) or {}
         if isinstance(declared_numerics, Mapping):
             materialization_numerics["ell_max"] = max(
@@ -313,6 +319,9 @@ def describe_declared_execution_schedule(
                 "momentum_grid": str(
                     getattr(entry, "momentum_grid", "") or ""
                 ),
+                "physical_role": str(
+                    getattr(entry, "physical_role", "generic")
+                ),
             }
         )
     collision_rows = []
@@ -418,10 +427,10 @@ def describe_declared_execution_schedule(
         "q_resolved": [],
     }
     for row in family_rows:
-        family_name = row["name"].lower()
-        if "tensor" in family_name:
+        sector = row["sector"]
+        if sector == "tensor":
             partition = "tensor"
-        elif "vector" in family_name:
+        elif sector == "vector":
             partition = "vector"
         else:
             partition = "scalar"
@@ -461,6 +470,127 @@ def describe_declared_execution_schedule(
     }
 
 
+def _interpolate_declared_histories(
+    eta: numpy.ndarray,
+    histories: Mapping[str, numpy.ndarray],
+    target_eta: numpy.ndarray,
+) -> dict[str, numpy.ndarray]:
+    """Sample a C1, shape-preserving interpolant of actual native states.
+
+    Differentiating linearly resampled metric histories produces artificial
+    ISW corners. Monotone cubic Hermite slopes preserve every native state
+    and avoid reciprocal-slope overflow for tiny kinetic moments.
+    """
+
+    grid = numpy.asarray(eta, dtype=float)
+    target = numpy.asarray(target_eta, dtype=float)
+    names = tuple(histories)
+    if (
+        grid.ndim != 1
+        or grid.size < 2
+        or target.ndim != 1
+        or not names
+        or not numpy.all(numpy.isfinite(grid))
+        or not numpy.all(numpy.isfinite(target))
+        or numpy.any(numpy.diff(grid) <= 0)
+        or (
+            target.size and (target.min() < grid[0] or target.max() > grid[-1])
+        )
+    ):
+        raise ValueError(
+            "History interpolation requires ordered supported coordinates"
+        )
+    samples = numpy.stack(
+        [numpy.asarray(histories[name], dtype=float) for name in names], axis=1
+    )
+    if samples.shape != (grid.size, len(names)) or not numpy.all(
+        numpy.isfinite(samples)
+    ):
+        raise ValueError("Native histories must be finite matching vectors")
+    amplitudes = numpy.max(numpy.abs(samples), axis=0)
+    amplitudes = numpy.where(amplitudes > 0, amplitudes, 1.0)
+    scaled = samples / amplitudes
+    intervals = numpy.diff(grid)
+    slopes = numpy.diff(scaled, axis=0) / intervals[:, numpy.newaxis]
+    derivatives = numpy.zeros_like(scaled)
+    if grid.size == 2:
+        derivatives[:] = slopes[0]
+    else:
+        left, right = slopes[:-1], slopes[1:]
+        same_sign = (
+            (numpy.sign(left) == numpy.sign(right))
+            & (left != 0)
+            & (right != 0)
+        )
+        smaller = numpy.copysign(numpy.minimum(abs(left), abs(right)), left)
+        left_ratio = numpy.divide(
+            smaller, left, out=numpy.zeros_like(left), where=same_sign
+        )
+        right_ratio = numpy.divide(
+            smaller, right, out=numpy.zeros_like(right), where=same_sign
+        )
+        weight_left = (2 * intervals[1:] + intervals[:-1])[:, numpy.newaxis]
+        weight_right = (intervals[1:] + 2 * intervals[:-1])[:, numpy.newaxis]
+        denominator = weight_left * left_ratio + weight_right * right_ratio
+        derivatives[1:-1] = numpy.divide(
+            (weight_left + weight_right) * smaller,
+            denominator,
+            out=numpy.zeros_like(left),
+            where=same_sign,
+        )
+        for endpoint, first, second, width, next_width in (
+            (0, slopes[0], slopes[1], intervals[0], intervals[1]),
+            (-1, slopes[-1], slopes[-2], intervals[-1], intervals[-2]),
+        ):
+            edge = ((2 * width + next_width) * first - width * second) / (
+                width + next_width
+            )
+            edge = numpy.where(
+                numpy.sign(edge) != numpy.sign(first), 0.0, edge
+            )
+            edge = numpy.where(
+                (numpy.sign(first) != numpy.sign(second))
+                & (abs(edge) > 3 * abs(first)),
+                3 * first,
+                edge,
+            )
+            derivatives[endpoint] = edge
+    interpolated = (
+        CubicHermiteSpline(
+            grid, scaled, derivatives, axis=0, extrapolate=False
+        )(target)
+        * amplitudes
+    )
+    return {name: interpolated[:, index] for index, name in enumerate(names)}
+
+
+def _split_collision_phase_scale(
+    k_values: Any,
+    expansion_rates: Any,
+    collision_rates: Any,
+    tight_coupling_active: Any,
+) -> numpy.ndarray:
+    """Resolve forcing accuracy after leaving the fast collision manifold.
+
+    Exact damping in a Strang split is stable for a large optical step, but
+    its driven equilibrium has relative error of order (rate*dt)**2. The
+    inactive manifold therefore requires collision phase as well as Fourier
+    and expansion phase. Active declared fast projection remains separate.
+    """
+
+    dynamic = numpy.maximum(
+        abs(numpy.asarray(k_values)), abs(numpy.asarray(expansion_rates))
+    )
+    result = numpy.where(
+        tight_coupling_active,
+        dynamic,
+        numpy.maximum(dynamic, abs(numpy.asarray(collision_rates))),
+    )
+    if not numpy.all(numpy.isfinite(result)):
+        raise ValueError("Split collision phase scales must be finite")
+    return result
+
+
 def _integrate_batched_rk4(
     initial_states: numpy.ndarray,
     eta_grid: numpy.ndarray,
@@ -471,6 +601,7 @@ def _integrate_batched_rk4(
     pre_step: Callable[..., numpy.ndarray] | None = None,
     post_step: Callable[..., numpy.ndarray] | None = None,
     record_step: Callable[..., numpy.ndarray] | None = None,
+    progress: Callable[..., None] | None = None,
 ) -> tuple[numpy.ndarray, numpy.ndarray, BatchedEvolutionStats]:
     """Integrate mode rows on a shared grid with a common RK4 schedule.
 
@@ -511,9 +642,8 @@ def _integrate_batched_rk4(
         raise ValueError(
             "Batched evolution received non-finite initial states"
         )
-    histories = numpy.empty(
+    histories = allocate_native_history(
         (mode_count, eta_values.size, states.shape[1]),
-        dtype=float,
     )
     if record_step is not None and interval_count:
         states = record_step(
@@ -526,12 +656,17 @@ def _integrate_batched_rk4(
     rk_stage_count = 0
     total_substep_count = 0
     maximum_substeps = 0
+    interval_substeps = tuple(
+        1 << (max(int(numpy.max(required[:, index])), 1) - 1).bit_length()
+        for index in range(interval_count)
+    )
+    scheduled_work = sum(interval_substeps) * mode_count
+    completed_work = 0
+    if progress is not None:
+        progress(0, scheduled_work, interval=0, intervals=interval_count)
     for step_index in range(interval_count):
         dt = float(eta_values[step_index + 1] - eta_values[step_index])
-        requested = max(int(numpy.max(required[:, step_index])), 1)
-        substep_count = 1
-        while substep_count < requested:
-            substep_count *= 2
+        substep_count = interval_substeps[step_index]
         maximum_substeps = max(maximum_substeps, substep_count)
         total_substep_count += substep_count
         interval_active = active[:, step_index]
@@ -592,6 +727,17 @@ def _integrate_batched_rk4(
                 raise ValueError(
                     "Batched CMB evolution produced non-finite state values "
                     f"at mode_index={bad_row}, step_index={step_index}"
+                )
+            completed_work += mode_count
+            if progress is not None and (
+                (substep_index + 1) % 64 == 0
+                or substep_index + 1 == substep_count
+            ):
+                progress(
+                    completed_work,
+                    scheduled_work,
+                    interval=step_index + 1,
+                    intervals=interval_count,
                 )
         if record_step is not None:
             if step_index + 1 < interval_count:
@@ -1103,6 +1249,10 @@ class _DeclaredMomentumGridRuntime:
     quadrature_order: int
     mass_eV: float
     family_names: tuple[str, ...]
+    phase_space: Mapping[str, Any] | None = None
+    temperature_eV: float | None = None
+    occupation: tuple[float, ...] | None = None
+    log_derivative: tuple[float, ...] | None = None
 
 
 def _thermal_fermi_dirac_distribution(
@@ -1609,11 +1759,10 @@ def _resolve_declared_momentum_grid_runtimes(
         family_name,
         family_entry,
     ) in perturbation_data.hierarchy_families.items():
-        family_species = set(getattr(family_entry, "species", ()))
-        declared_species = getattr(perturbation_data, "species", {})
         if (
-            "massive_neutrino" not in family_species
-            or "massive_neutrino" not in declared_species
+            not getattr(family_entry, "phase_space", {})
+            and getattr(family_entry, "physical_role", "generic")
+            != "massive_neutrino"
         ):
             continue
         grid_name = str(family_entry.momentum_grid or "").strip()
@@ -1724,8 +1873,36 @@ def _resolve_declared_momentum_grid_runtimes(
             parameter_name = grid_def.get("mass_parameter")
             if isinstance(parameter_name, str):
                 relevant_parameter_names.add(parameter_name)
+    for family in perturbation_data.hierarchy_families.values():
+        law = getattr(family, "phase_space", {}) or {}
+        for field in (
+            "mass_parameter",
+            "multiplicity_parameter",
+            "density_parameter",
+        ):
+            if field in law:
+                relevant_parameter_names.add(str(law[field]))
+        for field in ("temperature_ratio", "occupation", "log_derivative"):
+            if field in law:
+                relevant_parameter_names.update(
+                    node.id
+                    for node in ast.walk(
+                        _parse_safe_expression(str(law[field]))
+                    )
+                    if isinstance(node, ast.Name)
+                )
     cache_key = (
         topology_key,
+        tuple(
+            (
+                name,
+                getattr(family, "physical_role", "generic"),
+                _freeze_for_cache(getattr(family, "phase_space", {}) or {}),
+            )
+            for name, family in sorted(
+                perturbation_data.hierarchy_families.items()
+            )
+        ),
         tuple(
             sorted(
                 (
@@ -1738,6 +1915,7 @@ def _resolve_declared_momentum_grid_runtimes(
         ),
         float(physical_params.hubble_ratio),
         float(physical_params.Omega_nu0 or 0.0),
+        float(physical_params.Tcmb_K),
     )
     cached = cache.get_declared_momentum_grid(cache_key)
     if cached is not None:
@@ -1820,14 +1998,80 @@ def _resolve_declared_momentum_grid_runtimes(
     runtimes: list[_DeclaredMomentumGridRuntime] = []
     for topology in topologies:
         grid_def = momentum_grid_defs.get(topology.name, {}) or {}
+        family_laws = [
+            dict(
+                getattr(
+                    perturbation_data.hierarchy_families[name],
+                    "phase_space",
+                    {},
+                )
+                or {}
+            )
+            for name in topology.family_names
+        ]
+        if any(law != family_laws[0] for law in family_laws):
+            raise ValueError(
+                "A shared momentum grid requires one physical law"
+            )
+        law = family_laws[0]
+        roles = {
+            getattr(
+                perturbation_data.hierarchy_families[name],
+                "physical_role",
+                "generic",
+            )
+            for name in topology.family_names
+        }
+        if (
+            law
+            and (
+                "massive_neutrino" not in roles
+                or law.get("distribution") != "fermi_dirac"
+            )
+            and not law.get("density_parameter")
+        ):
+            raise ValueError(
+                "A nonstandard kinetic species must declare density_parameter"
+            )
+        occupation, log_derivative = sample_distribution(
+            topology.points,
+            law or {"distribution": "fermi_dirac"},
+            model_parameters,
+        )
+        mass = _grid_mass_eV(topology.name, grid_def)
+        temperature = None
+        if law:
+            parameter = str(law["mass_parameter"])
+            if parameter not in model_parameters:
+                raise ValueError(
+                    f"Missing declared mass parameter: {parameter}"
+                )
+            mass = float(model_parameters[parameter])
+            multiplicity = str(law.get("multiplicity_parameter", ""))
+            if multiplicity:
+                count = float(model_parameters[multiplicity])
+                if not numpy.isfinite(count) or count <= 0:
+                    raise ValueError("Mass multiplicity must be positive")
+                mass /= count
+            if not numpy.isfinite(mass) or mass < 0:
+                raise ValueError(
+                    "Declared mass must be finite and nonnegative"
+                )
+            temperature = phase_space_temperature(
+                law, model_parameters, physical_params.Tcmb_K
+            )
         runtimes.append(
             _DeclaredMomentumGridRuntime(
                 name=topology.name,
                 points=topology.points,
                 weights=topology.weights,
                 quadrature_order=topology.quadrature_order,
-                mass_eV=_grid_mass_eV(topology.name, grid_def),
+                mass_eV=mass,
                 family_names=topology.family_names,
+                phase_space=law or None,
+                temperature_eV=temperature,
+                occupation=tuple(float(value) for value in occupation),
+                log_derivative=tuple(float(value) for value in log_derivative),
             )
         )
     runtime_tuple = tuple(runtimes)
@@ -1840,12 +2084,17 @@ def _prepare_declared_momentum_static_terms(
     points_key: tuple[float, ...],
     weights_key: tuple[float, ...],
     mass_ratio_today: float,
+    occupation_key: tuple[float, ...] | None = None,
 ) -> tuple[Any, ...]:
     """Cache q-grid algebra that is independent of the scale factor."""
 
     points = numpy.asarray(points_key, dtype=float)
     weights = numpy.asarray(weights_key, dtype=float)
-    thermal_distribution = _thermal_fermi_dirac_distribution(points)
+    thermal_distribution = (
+        _thermal_fermi_dirac_distribution(points)
+        if occupation_key is None
+        else numpy.asarray(occupation_key)
+    )
     quadrature_weights = numpy.asarray(
         weights * thermal_distribution,
         dtype=float,
@@ -1969,7 +2218,7 @@ def _declared_momentum_grid_context(
                 * float(
                     numpy.sum(
                         runtime.weights
-                        * _thermal_fermi_dirac_distribution(runtime.points)
+                        * numpy.asarray(runtime.occupation)
                         * numpy.power(runtime.points, 3.0)
                     )
                 )
@@ -2021,7 +2270,16 @@ def _declared_momentum_grid_context(
         )
 
     for runtime in runtimes:
-        mass_ratio_today = float(runtime.mass_eV) / neutrino_temperature_eV
+        temperature = runtime.temperature_eV or neutrino_temperature_eV
+        occupation = runtime.occupation
+        log_derivative = runtime.log_derivative
+        if occupation is None or log_derivative is None:
+            occupation, log_derivative = sample_distribution(
+                runtime.points,
+                runtime.phase_space or {"distribution": "fermi_dirac"},
+                model_parameters,
+            )
+        mass_ratio_today = float(runtime.mass_eV) / temperature
         (
             quadrature_weights,
             density_weight_base,
@@ -2034,6 +2292,7 @@ def _declared_momentum_grid_context(
             tuple(float(value) for value in runtime.points),
             tuple(float(value) for value in runtime.weights),
             mass_ratio_today,
+            tuple(occupation),
         )
         massless_density_moment = float(
             numpy.sum(density_weight_base * runtime.points)
@@ -2065,10 +2324,15 @@ def _declared_momentum_grid_context(
             _normalize_declared_momentum_weights(shear_weight_raw)
         )
         total_mass_eV = _declared_total_mass_eV(runtime)
-        massive_omega0 = _massive_neutrino_omega0(
-            runtime,
-            total_mass_eV,
-            density_moment_today,
+        density_parameter = (runtime.phase_space or {}).get(
+            "density_parameter"
+        )
+        massive_omega0 = (
+            float(model_parameters[str(density_parameter)])
+            if density_parameter
+            else _massive_neutrino_omega0(
+                runtime, total_mass_eV, density_moment_today
+            )
         )
         scale_factor_array = numpy.maximum(a_values, 1.0e-30)
         density_fraction = (
@@ -2162,6 +2426,9 @@ def _declared_momentum_grid_context(
             else:
                 context[f"{prefix}_{name}"] = normalized
         for index, point in enumerate(runtime.points):
+            context[f"{prefix}_q{index}_distribution_log_derivative"] = float(
+                log_derivative[index]
+            )
             context[f"{prefix}_q{index}_point"] = float(point)
             context[f"{prefix}_q{index}_weight"] = float(
                 runtime.weights[index]
@@ -2240,7 +2507,12 @@ def _declared_momentum_grid_context(
                 else q_shear_weight
             )
         if any(
-            "massive_neutrino" in family_name
+            getattr(
+                perturbation_data.hierarchy_families[family_name],
+                "physical_role",
+                "",
+            )
+            == "massive_neutrino"
             for family_name in runtime.family_names
         ):
             available_neff = (

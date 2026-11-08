@@ -6,7 +6,7 @@ from typing import Any, Mapping
 
 import numpy
 
-from .adaptive import phase_aware_eta_grid
+from .adaptive import phase_aware_eta_grid, resolve_feature_eta_grid
 from .background import _C_LIGHT_KM_S, _resolve_declared_background_context
 from .evolution import _nonuniform_gradient
 
@@ -19,8 +19,64 @@ def build_phase_aware_projection_ladder(
     phase_points_per_cycle: float,
     minimum_nodes: int,
     maximum_nodes: int,
+    measured_features: bool = False,
+    feature_relative_tolerance: float = 0.005,
 ) -> tuple[numpy.ndarray, numpy.ndarray]:
     """Build a nested coarse/fine LOS phase ladder."""
+
+    if measured_features:
+        # A search allowance is not a target. Resolve the actual visibility
+        # interpolation and Fourier phase, then halve every physical interval
+        # for an independent quadrature comparison. No fixed node ceiling
+        # replaces a required physical sample.
+        eta = numpy.asarray(base_eta, dtype=float)
+        visibility = numpy.asarray(background.visibility_of_eta(eta))
+        phase_count = (
+            int(
+                numpy.ceil(
+                    (eta[-1] - eta[0])
+                    * float(k_max)
+                    * float(phase_points_per_cycle)
+                    / numpy.pi
+                )
+            )
+            + 1
+        )
+        seed = numpy.unique(
+            numpy.concatenate(
+                (
+                    numpy.linspace(
+                        eta[0], eta[-1], max(int(minimum_nodes), phase_count)
+                    ),
+                    eta[[int(numpy.argmax(abs(visibility)))]],
+                )
+            )
+        )
+        eta = numpy.unique(numpy.concatenate((eta, seed)))
+        visibility = numpy.asarray(background.visibility_of_eta(eta))
+        amplitude = max(float(numpy.max(abs(visibility))), 1e-30)
+        coarse = resolve_feature_eta_grid(
+            eta,
+            seed,
+            profiles={"visibility": visibility},
+            scales={
+                "visibility": numpy.maximum(abs(visibility), amplitude * 1e-4)
+            },
+            relative_tolerance=feature_relative_tolerance,
+        )
+        fine = numpy.unique(
+            numpy.concatenate(
+                (
+                    coarse,
+                    coarse[:-1] + numpy.diff(coarse) / 2,
+                )
+            )
+        )
+        if fine.size <= coarse.size:
+            raise ValueError(
+                "Projection refinement made no representable progress"
+            )
+        return fine, coarse
 
     coarse_maximum = max(
         int(minimum_nodes),

@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import copy
 import os
 from collections import OrderedDict, deque
 from dataclasses import dataclass, field, fields
+from functools import wraps
 from typing import Any, Generic, Mapping, TypeVar
 
 import numpy
 
 from copernican.lib.cmb_identity import CCMBS_ID
+
+from .history_store import active_source_history_store, retain_source_histories
 
 _CacheValue = TypeVar("_CacheValue")
 
@@ -44,6 +48,7 @@ class _BoundedCacheStore(Generic[_CacheValue]):
         self.limit = int(limit)
         self.max_bytes = None if max_bytes is None else int(max_bytes)
         self._store: OrderedDict[Any, _CacheValue] = OrderedDict()
+        self._entry_bytes: dict[Any, int] = {}
         self._bytes = 0
         self.hits = 0
         self.misses = 0
@@ -63,25 +68,31 @@ class _BoundedCacheStore(Generic[_CacheValue]):
     def set(self, key: Any, value: _CacheValue) -> None:
         """Store ``value`` under ``key`` and evict stale entries if needed."""
 
-        value_bytes = _numpy_payload_bytes(value)
+        # Entry-only stores need no recursive walk through compiled graphs.
+        value_bytes = (
+            _numpy_payload_bytes(value) if self.max_bytes is not None else 0
+        )
         if self.max_bytes is not None and value_bytes > self.max_bytes:
             return
         if key in self._store:
             self._store.move_to_end(key)
-            self._bytes -= _numpy_payload_bytes(self._store[key])
+            self._bytes -= self._entry_bytes.pop(key, 0)
         self._store[key] = value
+        if self.max_bytes is not None:
+            self._entry_bytes[key] = value_bytes
         self._bytes += value_bytes
         while len(self._store) > self.limit or (
             self.max_bytes is not None and self._bytes > self.max_bytes
         ):
-            _, stale_value = self._store.popitem(last=False)
-            self._bytes -= _numpy_payload_bytes(stale_value)
+            stale_key, _ = self._store.popitem(last=False)
+            self._bytes -= self._entry_bytes.pop(stale_key, 0)
             self.evictions += 1
 
     def clear(self) -> None:
         """Remove every cached entry and reset cache accounting counters."""
 
         self._store.clear()
+        self._entry_bytes.clear()
         self._bytes = 0
         self.hits = 0
         self.misses = 0
@@ -110,9 +121,8 @@ class _BoundedCacheStore(Generic[_CacheValue]):
 
         stale_keys = [key for key in self._store if predicate(key)]
         for key in stale_keys:
-            stale_value = self._store.pop(key, None)
-            if stale_value is not None:
-                self._bytes -= _numpy_payload_bytes(stale_value)
+            self._store.pop(key, None)
+            self._bytes -= self._entry_bytes.pop(key, 0)
 
 
 _DECLARED_SYMBOL_PLAN_CACHE = _BoundedCacheStore(limit=256)
@@ -123,6 +133,7 @@ _DECLARED_MOMENTUM_GRID_CACHE = _BoundedCacheStore(limit=128)
 _CMB_BACKGROUND_CACHE = _BoundedCacheStore(limit=64)
 _CMB_REIONIZATION_CALIBRATION_SEED_CACHE = _BoundedCacheStore(limit=128)
 _CMB_SPECTRUM_CACHE = _BoundedCacheStore(limit=64)
+_CMB_RESOLUTION_HINT_CACHE = _BoundedCacheStore(limit=64)
 _CMB_LENSING_CACHE = _BoundedCacheStore(
     limit=32,
     max_bytes=64 * 1024 * 1024,
@@ -143,8 +154,14 @@ _CMB_HIERARCHY_SCHEDULE_CACHE = _BoundedCacheStore(
     limit=2048,
     max_bytes=8 * 1024 * 1024,
 )
-_CMB_BESSEL_INPUT_CACHE = _BoundedCacheStore(limit=512)
-_CMB_BESSEL_VALUE_CACHE = _BoundedCacheStore(limit=4096)
+_CMB_BESSEL_INPUT_CACHE = _BoundedCacheStore(
+    limit=512,
+    max_bytes=32 * 1024 * 1024,
+)
+_CMB_BESSEL_VALUE_CACHE = _BoundedCacheStore(
+    limit=4096,
+    max_bytes=64 * 1024 * 1024,
+)
 _CMB_BESSEL_BATCH_CACHE = _BoundedCacheStore(
     limit=512,
     max_bytes=32 * 1024 * 1024,
@@ -279,6 +296,35 @@ def get_cmb_spectrum(cache_key: Any):
     return cached
 
 
+def has_cmb_spectrum(cache_key: Any) -> bool:
+    """Inspect exact-result availability without charging a data lookup."""
+
+    return cache_key in _CMB_SPECTRUM_CACHE._store
+
+
+def get_cmb_resolution_hint(cache_key: Any):
+    """Return copied starting controls, never a numerical certificate."""
+
+    return copy.deepcopy(_CMB_RESOLUTION_HINT_CACHE.get(cache_key))
+
+
+def set_cmb_resolution_hint(cache_key: Any, controls: Mapping) -> None:
+    """Retain only accepted-point starting controls under an exact identity."""
+
+    allowed = {
+        "_engine_numerical_plan",
+        "_engine_accuracy_controls",
+        "_numerical_overrides",
+    }
+    if set(controls) - allowed or not all(
+        isinstance(value, Mapping) for value in controls.values()
+    ):
+        raise ValueError(
+            "Resolution hints may contain numerical controls only"
+        )
+    _CMB_RESOLUTION_HINT_CACHE.set(cache_key, copy.deepcopy(dict(controls)))
+
+
 def set_cmb_spectrum(cache_key: Any, spectrum_data: Any) -> None:
     """Store one declared spectrum payload."""
 
@@ -313,13 +359,87 @@ def set_cmb_transfer(cache_key: Any, transfer_data: Any) -> None:
 def get_cmb_source_history(cache_key: Any):
     """Return source arrays cached for one exact parameter/grid identity."""
 
-    return _CMB_SOURCE_HISTORY_CACHE.get(cache_key)
+    scope = active_source_history_store()
+    if scope is not None:
+        retained = scope.get(cache_key)
+        if retained is not None:
+            _CMB_SOURCE_HISTORY_CACHE.hits += 1
+            return retained
+    cached = _CMB_SOURCE_HISTORY_CACHE.get(cache_key)
+    if cached is not None and scope is not None:
+        scope.set(cache_key, cached)
+    return cached
 
 
 def set_cmb_source_history(cache_key: Any, source_data: Any) -> None:
     """Store immutable source arrays for one exact parameter/grid identity."""
 
     _CMB_SOURCE_HISTORY_CACHE.set(cache_key, source_data)
+    scope = active_source_history_store()
+    if scope is not None:
+        scope.set(cache_key, source_data)
+
+
+def retain_cmb_source_histories(function):
+    """Keep nested refinement products independently of global LRU capacity."""
+
+    @wraps(function)
+    def evaluate(*args, **kwargs):
+        """Release request-owned source histories on success or failure."""
+
+        budget = _CMB_SOURCE_HISTORY_CACHE.max_bytes
+        with retain_source_histories(
+            max_bytes=0 if budget is None else budget
+        ):
+            return function(*args, **kwargs)
+
+    return evaluate
+
+
+def cmb_source_history_scope_stats() -> dict[str, int]:
+    """Return explicit retention, spill and integrity accounting."""
+
+    scope = active_source_history_store()
+    return {} if scope is None else scope.snapshot()
+
+
+def set_cmb_evolution_history(
+    key: Any,
+    eta: numpy.ndarray,
+    histories: Mapping[str, numpy.ndarray],
+) -> None:
+    """Keep selected actual RK histories within this refinement lifetime."""
+
+    store = active_source_history_store()
+    if store is not None:
+        store.set(
+            ("native_evolution_history", key),
+            {
+                "eta": eta,
+                **{
+                    f"state:{name}": values
+                    for name, values in histories.items()
+                },
+            },
+        )
+
+
+def get_cmb_evolution_history(
+    key: Any,
+) -> tuple[numpy.ndarray, dict[str, numpy.ndarray]] | None:
+    """Read selected raw histories without reusing their certificates."""
+
+    store = active_source_history_store()
+    if store is None:
+        return None
+    retained = store.get(("native_evolution_history", key))
+    if retained is None:
+        return None
+    return retained["eta"], {
+        name[6:]: values
+        for name, values in retained.items()
+        if name.startswith("state:")
+    }
 
 
 def get_cmb_initial_state(cache_key: Any):
@@ -448,6 +568,12 @@ def record_cmb_performance(
     normalized_phases: dict[str, float] = {}
     heartbeat: dict[str, Any] = {}
     for phase_name, elapsed in phase_seconds.items():
+        if str(phase_name) == "work_scopes":
+            heartbeat["work_scopes"] = dict(elapsed)
+            continue
+        if str(phase_name) == "request_elapsed_seconds":
+            heartbeat["request_elapsed_seconds"] = float(elapsed)
+            continue
         if str(phase_name) == "last_heartbeat_phase":
             heartbeat["phase"] = None if elapsed is None else str(elapsed)
             continue
@@ -631,11 +757,15 @@ def clear_cmb_result_caches() -> None:
 def clear_cmb_parameter_caches() -> None:
     """Clear parameter-bound data while retaining structural compilation."""
 
+    scope = active_source_history_store()
+    if scope is not None:
+        scope.clear()
     for cache in (
         _DECLARED_MOMENTUM_GRID_CACHE,
         _CMB_BACKGROUND_CACHE,
         _CMB_REIONIZATION_CALIBRATION_SEED_CACHE,
         _CMB_SPECTRUM_CACHE,
+        _CMB_RESOLUTION_HINT_CACHE,
         _CMB_LENSING_CACHE,
         _CMB_TRANSFER_CACHE,
         _CMB_SOURCE_HISTORY_CACHE,
@@ -656,6 +786,9 @@ def clear_cmb_caches() -> None:
     global _CMB_PERFORMANCE_FAILURES
     global _LAST_CMB_REQUEST_IDENTITY
 
+    scope = active_source_history_store()
+    if scope is not None:
+        scope.clear()
     for cache in (
         _DECLARED_SYMBOL_PLAN_CACHE,
         _DECLARED_GRAPH_EXECUTION_PLAN_CACHE,
@@ -665,6 +798,7 @@ def clear_cmb_caches() -> None:
         _CMB_BACKGROUND_CACHE,
         _CMB_REIONIZATION_CALIBRATION_SEED_CACHE,
         _CMB_SPECTRUM_CACHE,
+        _CMB_RESOLUTION_HINT_CACHE,
         _CMB_LENSING_CACHE,
         _CMB_TRANSFER_CACHE,
         _CMB_SOURCE_HISTORY_CACHE,
@@ -701,6 +835,7 @@ def cmb_cache_stats() -> dict[str, dict[str, int]]:
             _CMB_REIONIZATION_CALIBRATION_SEED_CACHE.snapshot()
         ),
         "declared_spectrum": _CMB_SPECTRUM_CACHE.snapshot(),
+        "resolution_hint": _CMB_RESOLUTION_HINT_CACHE.snapshot(),
         "declared_lensing": _CMB_LENSING_CACHE.snapshot(),
         "declared_transfer": _CMB_TRANSFER_CACHE.snapshot(),
         "source_history": _CMB_SOURCE_HISTORY_CACHE.snapshot(),
@@ -729,6 +864,7 @@ def cmb_cache_inventory() -> dict[str, Mapping[str, Any]]:
         "bessel_values": "parameter",
         "declared_projection_kernel_batch": "parameter",
         "declared_spectrum": "result",
+        "resolution_hint": "parameter",
         "declared_lensing": "result",
         "declared_transfer": "parameter",
         "source_history": "parameter",

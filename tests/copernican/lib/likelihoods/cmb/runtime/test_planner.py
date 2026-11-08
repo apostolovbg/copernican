@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import unittest
 from pathlib import Path
@@ -75,6 +76,24 @@ class AutomaticCMBPlannerTestCase(unittest.TestCase):
         second = plan_cmb_numerics(renamed, ells=(2, 30, 200))
         self.assertEqual(first.signature, second.signature)
         self.assertEqual(first.to_dict(), second.to_dict())
+
+    def test_family_labels_do_not_replace_declared_physical_roles(self):
+        contract = self._lcdm_contract()
+        renamed = copy.deepcopy(contract)
+        families = renamed["perturbations"]["hierarchy_families"]
+        renamed["perturbations"]["hierarchy_families"] = {
+            f"unrelated_{index}": value
+            for index, value in enumerate(families.values())
+        }
+        first = plan_cmb_numerics(contract, ells=(2, 20))
+        second = plan_cmb_numerics(renamed, ells=(2, 20))
+        self.assertEqual(first.numerical_controls, second.numerical_controls)
+        # A suggestive label cannot create an undeclared kinetic law.
+        renamed["perturbations"]["hierarchy_families"] = {
+            "massive_neutrino_photon": {"sector": "scalar", "species": ["x"]}
+        }
+        generic = plan_cmb_numerics(renamed, ells=(2, 20))
+        self.assertFalse(generic.numerical_controls.get("momentum_grids"))
 
     def test_public_planner_symbols_are_exposed(self) -> None:
         """Planner API exposes the immutable plan and accuracy helper."""
@@ -326,7 +345,8 @@ class AutomaticCMBPlannerTestCase(unittest.TestCase):
 
         self.assertTrue(bounds)
         for evidence in bounds.values():
-            self.assertTrue(evidence["validated"])
+            self.assertFalse(evidence["validated"])
+            self.assertTrue(evidence["candidate_bound"])
             self.assertLess(evidence["relative_bound"], 1.0e-2)
             self.assertEqual(evidence["phase_domain"][0], 0.0)
             self.assertTrue(evidence["assumptions"])

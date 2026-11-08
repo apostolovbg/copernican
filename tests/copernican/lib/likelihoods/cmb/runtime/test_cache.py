@@ -2,6 +2,7 @@
 
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import numpy
 
@@ -11,6 +12,159 @@ from copernican.lib.likelihoods.cmb.runtime import cache
 
 class CacheModuleTestCase(unittest.TestCase):
     """Exercise declared cache helpers directly."""
+
+    def test_resolution_hints_are_isolated_controls_and_parameter_scoped(self):
+        cache.clear_cmb_caches()
+        self.addCleanup(cache.clear_cmb_caches)
+        self.assertFalse(cache.has_cmb_spectrum("point"))
+        self.assertIsNone(cache.get_cmb_resolution_hint("point"))
+        controls = {"_numerical_overrides": {"eta_sample_count": 768}}
+        cache.set_cmb_resolution_hint("point", controls)
+        controls["_numerical_overrides"]["eta_sample_count"] = 1
+        self.assertEqual(
+            cache.get_cmb_resolution_hint("point")["_numerical_overrides"][
+                "eta_sample_count"
+            ],
+            768,
+        )
+        self.assertIsNone(
+            cache.get_cmb_resolution_hint("different-parameters")
+        )
+        with self.assertRaises(ValueError):
+            cache.set_cmb_resolution_hint("point", {"certificate": True})
+        cache.clear_cmb_result_caches()
+        self.assertIsNotNone(cache.get_cmb_resolution_hint("point"))
+        cache.clear_cmb_parameter_caches()
+        self.assertIsNone(cache.get_cmb_resolution_hint("point"))
+
+    def test_selected_native_histories_survive_spill_without_certificates(
+        self,
+    ):
+        """The same RK arrays survive refinement pressure and leave at exit."""
+
+        from copernican.lib.likelihoods.cmb.runtime.history_store import (
+            retain_source_histories,
+        )
+
+        eta = numpy.linspace(0.0, 1.0, 5)
+        state = numpy.arange(5, dtype=float)
+        self.assertIsNone(cache.get_cmb_evolution_history("absent"))
+        cache.set_cmb_evolution_history("outside", eta, {"eta": state})
+        with retain_source_histories(max_bytes=0) as store:
+            cache.set_cmb_evolution_history("mode", eta, {"eta": state})
+            cache.set_cmb_source_history("pressure", {"source": state})
+            epoch, histories = cache.get_cmb_evolution_history("mode")
+            numpy.testing.assert_array_equal(epoch, eta)
+            numpy.testing.assert_array_equal(histories["eta"], state)
+            self.assertFalse(histories["eta"].flags.writeable)
+            self.assertIsNone(cache.get_cmb_evolution_history("changed_mode"))
+            self.assertGreater(store.snapshot()["loads"], 0)
+            self.assertEqual(set(histories), {"eta"})
+        self.assertIsNone(cache.get_cmb_evolution_history("mode"))
+
+    def test_performance_record_retains_scoped_work_separately_from_times(
+        self,
+    ):
+        """Nested work records stay serializable without becoming seconds."""
+
+        self.addCleanup(cache.clear_cmb_caches)
+        cache.clear_cmb_caches()
+        scopes = {"evolution:rk": {"completed": 10, "total": 20}}
+        record = cache.record_cmb_performance(
+            {
+                "evolution_seconds": 3.0,
+                "request_elapsed_seconds": 5.0,
+                "work_scopes": scopes,
+            }
+        )
+        self.assertEqual(record["phase_seconds"], {"evolution_seconds": 3.0})
+        self.assertEqual(record["heartbeat"]["work_scopes"], scopes)
+        self.assertEqual(record["heartbeat"]["request_elapsed_seconds"], 5.0)
+
+    def test_entry_limited_graph_cache_does_not_walk_payloads(self):
+        """Entry eviction must not inspect large compiled graph payloads."""
+
+        cache_store = cache._BoundedCacheStore(limit=1)
+        with mock.patch.object(
+            cache,
+            "_numpy_payload_bytes",
+            side_effect=AssertionError("entry-only cache walked a graph"),
+        ):
+            first = object()
+            second = object()
+            cache_store.set("first", first)
+            self.assertIs(cache_store.get("first"), first)
+            cache_store.set("first", second)
+            cache_store.set("second", first)
+            self.assertIsNone(cache_store.get("first"))
+            self.assertIs(cache_store.get("second"), first)
+            cache_store.prune(lambda key: key == "second")
+            self.assertEqual(cache_store.snapshot()["entries"], 0)
+
+    def test_byte_budget_survives_replacement_eviction_and_pruning(self):
+        """Measured array bytes remain bounded after every store operation."""
+
+        cache_store = cache._BoundedCacheStore(limit=10, max_bytes=32)
+        small = numpy.ones(2, dtype=numpy.float64)
+        large = numpy.ones(4, dtype=numpy.float64)
+        cache_store.set("first", small)
+        cache_store.set("first", large)
+        self.assertEqual(cache_store._bytes, 32)
+        cache_store.set("second", small)
+        self.assertIsNone(cache_store.get("first"))
+        self.assertEqual(cache_store._bytes, 16)
+        cache_store.prune(lambda key: key == "second")
+        self.assertEqual(cache_store._bytes, 0)
+        cache_store.set("oversized", numpy.ones(5))
+        self.assertIsNone(cache_store.get("oversized"))
+        cache_store.set("last", large)
+        cache_store.clear()
+        self.assertEqual(cache_store._bytes, 0)
+        self.assertEqual(cache_store._entry_bytes, {})
+
+    def test_request_refinement_survives_global_history_eviction(self):
+        """Nested solves retain exact raw work without enlarging global LRU."""
+
+        self.addCleanup(cache.clear_cmb_caches)
+        cache.clear_cmb_caches()
+
+        def refined_request():
+            for mode in range(4):
+                cache.set_cmb_source_history(
+                    ("physical_graph", mode),
+                    {"source": numpy.arange(8, dtype=float) + mode},
+                )
+            for mode in range(4):
+                product = cache.get_cmb_source_history(
+                    ("physical_graph", mode)
+                )
+                numpy.testing.assert_array_equal(
+                    product["source"], numpy.arange(8, dtype=float) + mode
+                )
+            self.assertIsNone(
+                cache.get_cmb_source_history(("changed_physical_graph", 0))
+            )
+            accounting = cache.cmb_source_history_scope_stats()
+            self.assertEqual(accounting["entries"], 4)
+            self.assertGreater(accounting["spills"], 0)
+            self.assertGreater(
+                cache.cmb_cache_stats()["source_history"]["evictions"], 0
+            )
+            cache.clear_cmb_parameter_caches()
+            self.assertIsNone(
+                cache.get_cmb_source_history(("physical_graph", 0))
+            )
+            return accounting
+
+        with (
+            mock.patch.object(cache._CMB_SOURCE_HISTORY_CACHE, "limit", 1),
+            mock.patch.object(
+                cache._CMB_SOURCE_HISTORY_CACHE, "max_bytes", 64
+            ),
+        ):
+            evaluate = cache.retain_cmb_source_histories(refined_request)
+            self.assertEqual(evaluate()["entries"], 4)
+        self.assertEqual(cache.cmb_source_history_scope_stats(), {})
 
     def test_bounded_cache_store_tracks_hits_misses_and_evictions(self):
         """The internal bounded cache should expose explicit accounting."""

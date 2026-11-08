@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import math
+from dataclasses import fields
 from time import perf_counter
 from typing import Any, Iterable, Mapping
 
@@ -63,6 +64,13 @@ from .convergence import (
     resolve_declared_numerical_envelope,
     resolve_production_scalar_convergence,
 )
+from .error_budget import (
+    NativeSourceProbe,
+    combine_observable_errors,
+    project_source_uncertainty,
+    transfer_spectrum_error,
+    update_source_error_envelope,
+)
 from .evidence import (
     _build_source_history_bundle_digest,
     _projection_array_digest,
@@ -72,6 +80,8 @@ from .evolution import (
     _NEUTRINO_TEMPERATURE_EV_PER_K,
     _compile_declared_perturbation_contract,
     _compile_equation_program,
+    _declared_graph_execution_plan_cache_token,
+    _interpolate_declared_histories,
     _resolve_declared_momentum_grid_runtimes,
     describe_declared_execution_schedule,
     prepare_runtime_assets,
@@ -85,11 +95,16 @@ from .mode_evolution import (
     build_declared_mode_evolution,
 )
 from .numerical_controls import (
+    InitialResolutionCandidate,
     _densify_eta_grid,
     _enforce_runtime_envelope,
     _limit_eta_grid,
     _refine_eta_grid,
     _resolve_evolution_chunk_size,
+    promote_failed_resolution,
+    refine_numerical_axis,
+    resolve_background_numerics,
+    seed_resolution_from_background,
 )
 from .performance import PhaseTimer
 from .postprocessing import build_postprocessing_evidence
@@ -129,7 +144,9 @@ def _compute_custom_cmb_spectrum_data_impl(
     requested_spectra: Iterable[str] | None = None,
     diagnostic_source_audit: bool = False,
     performance_timer: PhaseTimer,
-) -> CustomCMBSpectrumData:
+    source_probe: tuple[float, ...] | None = None,
+    initialize_resolution: bool = False,
+) -> CustomCMBSpectrumData | NativeSourceProbe | InitialResolutionCandidate:
     """Return transfer functions and spectra for a declared CMB graph."""
 
     request_started = perf_counter()
@@ -145,7 +162,9 @@ def _compute_custom_cmb_spectrum_data_impl(
         and len(raw_stage_diagnostic.get("k_values")) > 0
     )
     diagnostic_request = bool(
-        diagnostic_source_audit or stage_diagnostic_requested
+        diagnostic_source_audit
+        or stage_diagnostic_requested
+        or source_probe is not None
     )
     cache_key = _custom_cmb_spectrum_cache_key(
         contract_or_params,
@@ -282,14 +301,24 @@ def _compute_custom_cmb_spectrum_data_impl(
         background = _build_custom_cmb_background(
             contract_or_params,
             physical_params,
-            numerics,
+            resolve_background_numerics(contract_or_params, numerics),
             background_provider=background_provider,
         )
     _LOGGER.info(
-        "CCMBS phase completed: model=%s phase=background eta=%d",
+        "CCMBS phase completed: model=%s phase=background eta_samples=%d",
         model_label,
         int(background.eta_grid.size),
     )
+    if (
+        initialize_resolution
+        and not diagnostic_request
+        and generated_scalar_hierarchy
+    ):
+        candidate = seed_resolution_from_background(
+            contract_or_params, int(background.eta_grid.size)
+        )
+        if candidate is not None:
+            return candidate
 
     ell_arr = numpy.asarray(list(ells), dtype=int)
     if ell_arr.size == 0:
@@ -463,6 +492,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                 int(adaptive_controls.projection_maximum_nodes),
             )
         if adaptive_controls.projection_enabled:
+            feature_tolerance = adaptive_controls.source_relative_tolerance / 4
             eta_los_grid, projection_coarse_eta_plan = (
                 build_phase_aware_projection_ladder(
                     eta_los_grid,
@@ -473,6 +503,12 @@ def _compute_custom_cmb_spectrum_data_impl(
                     ),
                     minimum_nodes=source_minimum_nodes,
                     maximum_nodes=source_maximum_nodes,
+                    measured_features=(
+                        declared_accuracy_tier == "final"
+                        and not diagnostic_source_audit
+                        and not stage_diagnostic_requested
+                    ),
+                    feature_relative_tolerance=feature_tolerance,
                 )
             )
         else:
@@ -493,6 +529,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         adaptive_controls.projection_enabled
         and not adaptive_controls.source_enabled
     ):
+        feature_tolerance = adaptive_controls.projection_relative_tolerance / 4
         eta_los_grid, projection_coarse_eta_plan = (
             build_phase_aware_projection_ladder(
                 eta_los_grid,
@@ -503,6 +540,12 @@ def _compute_custom_cmb_spectrum_data_impl(
                 ),
                 minimum_nodes=int(adaptive_controls.projection_minimum_nodes),
                 maximum_nodes=int(adaptive_controls.projection_maximum_nodes),
+                measured_features=(
+                    declared_accuracy_tier == "final"
+                    and not diagnostic_source_audit
+                    and not stage_diagnostic_requested
+                ),
+                feature_relative_tolerance=feature_tolerance,
             )
         )
 
@@ -854,16 +897,36 @@ def _compute_custom_cmb_spectrum_data_impl(
     source_eta_signature = hashlib.sha256(
         numpy.asarray(source_grids["eta"], dtype=numpy.float64).tobytes()
     ).hexdigest()
+    source_structure = dict(
+        _contract_structural_cache_view(contract_or_params)
+    )
+    accuracy = source_structure.get("_engine_accuracy_controls")
+    if isinstance(accuracy, Mapping):
+        # k-node refinement changes integration sampling, not a fixed mode's
+        # evolution. All other controls remain in the exact source identity.
+        transfer_sampling = accuracy.get("adaptive_transfer")
+        if isinstance(transfer_sampling, Mapping):
+            normalized_accuracy = dict(accuracy)
+            normalized_accuracy["adaptive_transfer"] = {
+                name: value
+                for name, value in transfer_sampling.items()
+                if name not in {"minimum_nodes", "maximum_nodes"}
+            }
+            source_structure["_engine_accuracy_controls"] = normalized_accuracy
+    source_graph_identity = hashlib.sha256(
+        repr(
+            _declared_graph_execution_plan_cache_token(perturbation_data)
+        ).encode("utf-8")
+    ).hexdigest()
     source_history_cache_prefix = (
         _freeze_for_cache(
             {
                 key: value
-                for key, value in _contract_structural_cache_view(
-                    contract_or_params
-                ).items()
+                for key, value in source_structure.items()
                 if key
                 not in {
                     "_engine_numerical_plan",
+                    "_engine_planner_evidence",
                     "_numerical_overrides",
                     "_k_grid_refinement_factor",
                     "_k_grid_refinement_anchors",
@@ -876,6 +939,15 @@ def _compute_custom_cmb_spectrum_data_impl(
         declared_source_graph.digest,
         source_eta_signature,
         tuple(sorted(str(name) for name in required_source_names)),
+        source_graph_identity,
+        _freeze_for_cache(
+            {
+                entry.name: getattr(numerics, entry.name)
+                for entry in fields(numerics)
+                if entry.name
+                not in {"k_sample_count", "k_grid_refinement_factor"}
+            }
+        ),
     )
 
     def _source_history_cache_key(mode_k_value: float) -> tuple[Any, ...]:
@@ -895,6 +967,70 @@ def _compute_custom_cmb_spectrum_data_impl(
         model_parameters=source_parameters,
         physical_params=physical_params,
     )
+    # q-node bounds and weights affect the stress tensor even when the state
+    # count and compiled expression names are unchanged.
+    source_history_cache_prefix += (
+        tuple(
+            (
+                runtime.name,
+                float(runtime.mass_eV),
+                numpy.asarray(runtime.points, dtype=numpy.float64).tobytes(),
+                numpy.asarray(runtime.weights, dtype=numpy.float64).tobytes(),
+                tuple(runtime.family_names),
+            )
+            for runtime in momentum_runtimes
+        ),
+    )
+    native_structure = {
+        name: value
+        for name, value in source_structure.items()
+        if name
+        not in {
+            "_engine_numerical_plan",
+            "_engine_planner_evidence",
+            "_numerical_overrides",
+            "_k_grid_refinement_factor",
+            "_k_grid_refinement_anchors",
+            "numerical",
+        }
+    }
+    native_accuracy = dict(
+        native_structure.get("_engine_accuracy_controls", {})
+    )
+    for name in ("adaptive_source", "adaptive_projection"):
+        native_accuracy.pop(name, None)
+    native_structure["_engine_accuracy_controls"] = native_accuracy
+    # Source coordinates do not identify an evolution. Retain physical
+    # inputs, compiled equations, q weights and integration controls; the
+    # exact native grids and all their background/rate arrays are added below.
+    native_history_identity = hashlib.sha256(
+        repr(
+            _freeze_for_cache(
+                (
+                    native_structure,
+                    source_parameters,
+                    {
+                        entry.name: getattr(physical_params, entry.name)
+                        for entry in fields(physical_params)
+                    },
+                    source_history_cache_prefix[1:4],
+                    source_graph_identity,
+                    source_history_cache_prefix[-1],
+                    {
+                        entry.name: getattr(numerics, entry.name)
+                        for entry in fields(numerics)
+                        if entry.name
+                        not in {
+                            "eta_sample_count",
+                            "source_grid_multiplier",
+                            "k_sample_count",
+                            "k_grid_refinement_factor",
+                        }
+                    },
+                )
+            )
+        ).encode()
+    ).hexdigest()
     runtime_envelope = _enforce_runtime_envelope(
         contract_or_params,
         ell_count=int(ell_arr.size),
@@ -944,6 +1080,12 @@ def _compute_custom_cmb_spectrum_data_impl(
             numerical_envelope.momentum_grid_controls,
             mass_ratio_max=maximum_mass_ratio,
             tolerance=numerical_envelope.q_grid_relative_tolerance,
+            parameters=source_parameters,
+            mass_ratios={
+                runtime.name: float(runtime.mass_eV)
+                / (runtime.temperature_eV or neutrino_temperature_eV)
+                for runtime in momentum_runtimes
+            },
         )
         if momentum_runtimes
         else {}
@@ -997,6 +1139,9 @@ def _compute_custom_cmb_spectrum_data_impl(
     if (
         numerical_envelope.accuracy_tier == "final"
         and unresolved_hierarchy_families
+        and not declared_accuracy_controls.get(
+            "observable_error_budget", {}
+        ).get("enabled", False)
     ):
         raise AdaptiveNonConvergenceError(
             "Declared hierarchy truncation bound failed: "
@@ -1017,21 +1162,6 @@ def _compute_custom_cmb_spectrum_data_impl(
     )
     runtime_envelope["hierarchy_schedule_cache_identity"] = (
         "compiled_graph_and_declared_physics"
-    )
-    evolution_chunk_size = _resolve_evolution_chunk_size(
-        k_count=int(k_values.size),
-        eta_count=int(source_grids["eta"].size),
-        state_slot_count=int(len(runtime_spec.state_slots)),
-    )
-    runtime_envelope["evolution_chunk_size"] = int(evolution_chunk_size)
-    runtime_envelope["evolution_chunk_count"] = int(
-        (int(k_values.size) + evolution_chunk_size - 1) // evolution_chunk_size
-    )
-    runtime_envelope["evolution_chunk_accumulation_order"] = "k_index"
-    runtime_envelope["evolution_peak_state_cells"] = int(
-        evolution_chunk_size
-        * max(int(source_grids["eta"].size), 1)
-        * max(int(len(runtime_spec.state_slots)), 1)
     )
     runtime_envelope["configured_numerical_controls"] = dict(
         numerical_envelope.numerical_controls
@@ -1295,6 +1425,7 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["evolution_missing_mode_count"] = int(k_values.size)
     runtime_envelope["evolution_partial_cache_hit"] = False
     runtime_envelope["evolution_modes_evolved"] = 0
+    runtime_envelope["evolution_peak_state_cells"] = 0
     runtime_envelope["evolution_heartbeat_count"] = 0
     graph_cache_after = cache.cmb_cache_stats()[
         "declared_graph_execution_plan"
@@ -1556,13 +1687,6 @@ def _compute_custom_cmb_spectrum_data_impl(
             raise ValueError(
                 "adaptive_k_quadrature.window_fraction must be in (0, 1]"
             )
-    use_streaming_projection = (
-        int(numpy.max(ell_arr)) >= 500
-        and not adaptive_controls.transfer_enabled
-        and not adaptive_controls.source_enabled
-        and not adaptive_controls.projection_enabled
-        and not adaptive_k_enabled
-    )
     adaptive_source_history_rows: dict[
         tuple[str, str], list[numpy.ndarray]
     ] = {}
@@ -1627,6 +1751,8 @@ def _compute_custom_cmb_spectrum_data_impl(
         # is formed.
         generated_final_phase_step = min(generated_final_phase_step, 0.25)
 
+    if source_probe is not None:
+        k_values = numpy.asarray(source_probe, dtype=float)
     mode_evolution_runtime = build_declared_mode_evolution(
         DeclaredModeEvolutionInputs(
             active_coordinate_rate_histories=active_coordinate_rate_histories,
@@ -1724,10 +1850,132 @@ def _compute_custom_cmb_spectrum_data_impl(
             transfer_component_observables=transfer_component_observables,
         )
     )
+    # Size state-history allocations from the grids actually integrated.
+    # Oscillatory LOS arrays are not RK state histories; charging their much
+    # larger grid here forced the kinetic graph into nearly scalar chunks.
+    evolution_eta_count = int(
+        mode_evolution_runtime.mode_grids_for_k(float(k_values[-1]))[0][
+            "eta"
+        ].size
+    )
+    runtime_envelope["evolution_eta_sample_count"] = evolution_eta_count
+    evolution_chunk_size = _resolve_evolution_chunk_size(
+        k_count=int(k_values.size),
+        # Large saved trajectories are request-owned mappings. Bound live
+        # RK/context working vectors here rather than fragmenting batches on
+        # the size of an output history that need not reside in RAM.
+        eta_count=min(evolution_eta_count, 64),
+        state_slot_count=int(len(runtime_spec.state_slots)),
+    )
+    runtime_envelope["evolution_chunk_size"] = int(evolution_chunk_size)
+    runtime_envelope["evolution_chunk_count"] = int(
+        (int(k_values.size) + evolution_chunk_size - 1) // evolution_chunk_size
+    )
+    runtime_envelope["evolution_chunk_accumulation_order"] = "k_index"
+    runtime_envelope["evolution_history_cell_bound"] = int(
+        evolution_chunk_size
+        * max(evolution_eta_count, 1)
+        * max(int(len(runtime_spec.state_slots)), 1)
+    )
+    runtime_envelope["evolution_history_storage"] = (
+        "bounded_ndarray_or_temporary_full_state_mapping"
+    )
     _evolve_declared_mode = mode_evolution_runtime.evolve_declared_mode
-    _evolve_declared_modes_batched = (
+    original_batched_evolution = (
         mode_evolution_runtime.evolve_declared_modes_batched
     )
+    native_key_cache = {}
+    native_reused_primary_waves = set()
+    runtime_envelope["native_history_cache_hits"] = 0
+    runtime_envelope["native_history_identity"] = native_history_identity
+
+    def _native_history_key(wave, override):
+        """Identify every numerical input to one retained physical history."""
+
+        token = (float(wave), override)
+        if token not in native_key_cache:
+            grids = mode_evolution_runtime.mode_grids_for_k(
+                float(wave), evolution_sample_count_override=override
+            )
+            digest = hashlib.sha256()
+            for table in grids:
+                for name, raw in sorted(table.items()):
+                    values = numpy.asarray(raw)
+                    digest.update(
+                        repr((name, values.dtype.str, values.shape)).encode()
+                    )
+                    digest.update(values.tobytes())
+            native_key_cache[token] = (
+                "native_evolution",
+                native_history_identity,
+                float(wave),
+                override,
+                digest.hexdigest(),
+            )
+        return native_key_cache[token]
+
+    def _evolve_declared_modes_batched(
+        waves, *, evolution_sample_count_override=None, history_sinks=None
+    ):
+        """Reuse only raw matching pilots, then recompute current sources."""
+
+        override = evolution_sample_count_override
+
+        if (
+            history_sinks is None
+            or diagnostic_source_audit
+            or stage_diagnostic_k_values
+        ):
+            return original_batched_evolution(
+                waves,
+                evolution_sample_count_override=override,
+                history_sinks=history_sinks,
+            )
+        results, missing = {}, []
+        for index, wave in enumerate(waves):
+            key = _native_history_key(wave, evolution_sample_count_override)
+            retained = cache.get_cmb_evolution_history(key)
+            if retained is None:
+                missing.append(index)
+                continue
+            epoch, histories = retained
+            with performance_timer.phase("preparation"):
+                _, sources = mode_evolution_runtime.resample_mode_history(
+                    float(wave),
+                    epoch,
+                    histories,
+                    collect_diagnostics=evolution_sample_count_override
+                    is None,
+                )
+            history_sinks[float(wave)] = {
+                "evolution_eta": epoch,
+                "evolution_histories": histories,
+                "source_eta": source_grids["eta"],
+                "source_arrays": sources,
+            }
+            results[index] = sources
+            runtime_envelope["native_history_cache_hits"] += 1
+            if evolution_sample_count_override is None:
+                native_reused_primary_waves.add(float(wave))
+        fresh_sinks = {}
+        if missing:
+            fresh = original_batched_evolution(
+                numpy.asarray(waves)[missing],
+                evolution_sample_count_override=override,
+                history_sinks=fresh_sinks,
+            )
+            results.update(
+                {missing[index]: values for index, values in fresh.items()}
+            )
+            for wave, sink in fresh_sinks.items():
+                cache.set_cmb_evolution_history(
+                    _native_history_key(wave, evolution_sample_count_override),
+                    sink["evolution_eta"],
+                    sink["evolution_histories"],
+                )
+                history_sinks[wave] = sink
+        return results
+
     _record_source_history_diagnostics = (
         mode_evolution_runtime.record_source_history_diagnostics
     )
@@ -1737,6 +1985,59 @@ def _compute_custom_cmb_spectrum_data_impl(
     scalar_initial_constraint_preflight = (
         mode_evolution_runtime.scalar_initial_constraint_preflight
     )
+    if source_probe is not None:
+        collected = {}
+        missing = []
+        for wave in source_probe:
+            existing = cache.get_cmb_source_history(
+                _source_history_cache_key(wave)
+            )
+            if existing is None:
+                missing.append(wave)
+            else:
+                collected[wave] = existing
+        with performance_timer.phase("evolution"):
+            batched = (
+                _evolve_declared_modes_batched(
+                    numpy.asarray(missing), history_sinks={}
+                )
+                if missing
+                else {}
+            )
+            for index, wave in enumerate(missing):
+                arrays = batched.get(index)
+                if arrays is None:
+                    _, arrays = _evolve_declared_mode(
+                        wave,
+                        collect_diagnostics=False,
+                        count_as_primary_evolution=False,
+                    )
+                collected[wave] = arrays
+                cache.set_cmb_source_history(
+                    _source_history_cache_key(wave), arrays
+                )
+        runtime_envelope["state_history_max_abs_by_k"] = {
+            name: dict(values)
+            for name, values in state_history_max_abs_by_k.items()
+        }
+        runtime_envelope["probe_requested_modes"] = len(source_probe)
+        runtime_envelope["probe_resampled_modes"] = len(
+            native_reused_primary_waves
+        )
+        runtime_envelope["probe_new_modes"] = len(missing) - len(
+            native_reused_primary_waves
+        )
+        runtime_envelope["probe_background_grid_sha256"] = (
+            _projection_array_digest(background.eta_grid)
+        )
+        return NativeSourceProbe(
+            eta=numpy.asarray(source_grids["eta"]),
+            sources=collected,
+            runtime_envelope=runtime_envelope,
+            eta0=float(background.eta0),
+            source_chi=source_chi,
+            chi=numpy.asarray(source_grids["chi"]),
+        )
 
     def _synchronize_mode_evolution_state() -> None:
         """Publish callback-updated evolution state to orchestration."""
@@ -1930,7 +2231,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         return spectrum_data
 
     log_k_values = numpy.log(k_values)
-    projection_ell_batch_size = 512 if use_streaming_projection else 128
+    projection_ell_batch_size = 128
     kernel_cache_before = cache.cmb_cache_stats()[
         "declared_projection_kernel_batch"
     ]
@@ -1962,6 +2263,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         name: 0.0 for name in history_feature_eta
     }
     evolution_error = 0.0
+    evolution_local_relative_error = 0.0
     evolution_absolute_error = 0.0
     evolution_coarse_to_intermediate_error = 0.0
     evolution_coarse_to_intermediate_absolute_error = 0.0
@@ -1996,6 +2298,10 @@ def _compute_custom_cmb_spectrum_data_impl(
     source_validation_mode_indices = (
         validation_mode_indices if adaptive_controls.source_enabled else set()
     )
+    if adaptive_controls.source_enabled or adaptive_controls.evolution_enabled:
+        mode_evolution_runtime.history_capture_k_values.update(
+            float(k_values[index]) for index in validation_mode_indices
+        )
     source_eta_indices = nested_coarse_indices(
         source_grids["eta"],
         feature_eta=history_feature_eta,
@@ -2174,502 +2480,86 @@ def _compute_custom_cmb_spectrum_data_impl(
             for name, values in transfer_components.items()
         }
 
-    evolution_started = perf_counter()
-    _LOGGER.info(
-        "CCMBS phase started: model=%s phase=evolution modes=%d",
-        model_label,
-        int(k_values.size),
-    )
-    with performance_timer.phase("evolution"):
-        cached_mode_source_arrays: dict[int, dict[str, numpy.ndarray]] = {}
-        if not diagnostic_source_audit and not stage_diagnostic_k_values:
-            for k_index, k_value in enumerate(k_values):
-                cached = cache.get_cmb_source_history(
-                    _source_history_cache_key(float(k_value))
-                )
-                if cached is None:
-                    source_history_cache_misses += 1
-                    continue
-                source_history_cache_hits += 1
-                cached_mode_source_arrays[int(k_index)] = {
-                    str(name): numpy.asarray(values, dtype=float).copy()
-                    for name, values in cached.items()
-                }
-        missing_mode_indices = numpy.asarray(
-            [
-                index
-                for index in range(int(k_values.size))
-                if index not in cached_mode_source_arrays
-            ],
-            dtype=int,
+    retained_validation_histories = 0
+    retained_reference_histories = 0
+    validated_mode_indices: set[int] = set()
+    preflight_histories: dict[int, dict[str, Any]] = {}
+    preflight_reference_sinks = {}
+    source_error_profiles: dict[str, dict[str, numpy.ndarray]] = {
+        "evolution": {},
+        "source": {},
+    }
+    observable_budget_enabled = bool(
+        declared_accuracy_controls.get("observable_error_budget", {}).get(
+            "enabled", False
         )
-        runtime_envelope["evolution_cached_mode_count"] = int(
-            len(cached_mode_source_arrays)
-        )
-        runtime_envelope["evolution_missing_mode_count"] = int(
-            missing_mode_indices.size
-        )
-        runtime_envelope["evolution_partial_cache_hit"] = bool(
-            cached_mode_source_arrays and missing_mode_indices.size
-        )
-        runtime_envelope["evolution_modes_evolved"] = 0
-        if not missing_mode_indices.size:
-            batched_mode_source_arrays = cached_mode_source_arrays
-            runtime_envelope["evolution_chunks_completed"] = int(
-                runtime_envelope["evolution_chunk_count"]
-            )
-            runtime_envelope["evolution_modes_completed"] = int(k_values.size)
-        else:
-            batched_mode_source_arrays = {}
-            missing_count = int(missing_mode_indices.size)
-            missing_chunk_count = (
-                missing_count + int(evolution_chunk_size) - 1
-            ) // int(evolution_chunk_size)
-            for chunk_index, chunk_start in enumerate(
-                range(0, missing_count, int(evolution_chunk_size)),
-                start=1,
-            ):
-                missing_chunk = missing_mode_indices[
-                    chunk_start : min(
-                        chunk_start + int(evolution_chunk_size),
-                        missing_count,
-                    )
-                ]
-                chunk_results = _evolve_declared_modes_batched(
-                    k_values[missing_chunk]
-                )
-                for local_index, source_arrays in chunk_results.items():
-                    global_index = int(missing_chunk[int(local_index)])
-                    batched_mode_source_arrays[global_index] = source_arrays
-                runtime_envelope["evolution_modes_evolved"] = int(
-                    runtime_envelope["evolution_modes_evolved"]
-                ) + len(chunk_results)
-                runtime_envelope["evolution_chunks_completed"] = int(
-                    chunk_index
-                )
-                runtime_envelope["evolution_modes_completed"] = int(
-                    len(cached_mode_source_arrays)
-                    + sum(
-                        1
-                        for index in batched_mode_source_arrays
-                        if index not in cached_mode_source_arrays
-                    )
-                )
-                performance_timer.heartbeat(
-                    "evolution",
-                    completed=int(
-                        runtime_envelope["evolution_modes_completed"]
-                    ),
-                    total=int(k_values.size),
-                )
-            runtime_envelope["evolution_chunk_count"] = int(
-                missing_chunk_count
-            )
-            runtime_envelope["evolution_chunks_completed"] = int(
-                missing_chunk_count
-            )
-            runtime_envelope["evolution_modes_completed"] = int(k_values.size)
-            performance_timer.heartbeat(
-                "evolution",
-                completed=int(k_values.size),
-                total=int(k_values.size),
-            )
-            for k_index, source_arrays in batched_mode_source_arrays.items():
-                if (
-                    not diagnostic_source_audit
-                    and not stage_diagnostic_k_values
-                ):
-                    cache.set_cmb_source_history(
-                        _source_history_cache_key(float(k_values[k_index])),
-                        {
-                            str(name): numpy.asarray(
-                                values, dtype=float
-                            ).copy()
-                            for name, values in source_arrays.items()
-                        },
-                    )
-            if cached_mode_source_arrays:
-                batched_mode_source_arrays = {
-                    **batched_mode_source_arrays,
-                    **cached_mode_source_arrays,
-                }
-        _synchronize_mode_evolution_state()
-        runtime_envelope["source_history_cache_hit_count"] = int(
-            source_history_cache_hits
-        )
-    runtime_envelope["source_history_cache_miss_count"] = int(
-        source_history_cache_misses
     )
-    runtime_envelope["source_history_cache_reused"] = bool(
-        source_history_cache_hits > 0
-    )
-    runtime_envelope["initial_state_cache_hit_count"] = int(
-        initial_state_cache_hits
-    )
-    runtime_envelope["initial_state_cache_miss_count"] = int(
-        initial_state_cache_misses
-    )
-    runtime_envelope["initial_state_cache_reused"] = bool(
-        initial_state_cache_hits > 0
-    )
-    _LOGGER.info(
-        "CCMBS phase completed: model=%s phase=evolution elapsed=%.3fs",
-        model_label,
-        perf_counter() - evolution_started,
-    )
-
-    mode_projection_metadata: dict[
-        int,
-        tuple[numpy.ndarray, str, numpy.ndarray, tuple[int, ...]],
-    ] = {}
-    mode_kernel_batches: dict[
-        int,
-        dict[tuple[int, ...], _DeclaredProjectionKernelBatch],
-    ] = {}
-    bessel_work_groups: dict[
-        int,
-        list[tuple[int, numpy.ndarray, str, tuple[int, ...]]],
-    ] = {}
-    projection_phase_started = perf_counter()
-    _LOGGER.info(
-        "CCMBS phase started: model=%s phase=projection modes=%d ells=%d",
-        model_label,
-        int(k_values.size),
-        int(ell_arr.size),
-    )
-    with performance_timer.phase("projection"):
-        bessel_batch_count = 0
-        bessel_mode_count = 0
-        for k_index, k_value in enumerate(k_values):
-            x_values = numpy.asarray(
-                k_value * (eta0 - source_grids["eta"]),
-                dtype=float,
-            )
-            x_signature = hashlib.sha256(x_values.tobytes()).hexdigest()
-            cache.store_bessel_inputs(
-                x_signature,
-                x_values.copy(),
-            )
-            mode_ell_limit = _projection_ell_limit_for_mode(
-                ell_values=ell_arr,
-                x_values=x_values,
-            )
-            mode_ell_indices = numpy.flatnonzero(ell_arr <= mode_ell_limit)
-            if mode_ell_indices.size == 0:
-                continue
-            mode_ell_signature = tuple(
-                int(ell_value) for ell_value in ell_arr[mode_ell_indices]
-            )
-            mode_projection_metadata[int(k_index)] = (
-                x_values,
-                x_signature,
-                mode_ell_indices,
-                mode_ell_signature,
-            )
-            if use_streaming_projection:
-                bessel_work_groups.setdefault(
-                    ((len(mode_ell_signature) + 511) // 512) * 512,
-                    [],
-                ).append(
-                    (
-                        int(k_index),
-                        x_values,
-                        x_signature,
-                        mode_ell_signature,
-                    )
-                )
-                continue
-            cached_batches: dict[
-                tuple[int, ...], _DeclaredProjectionKernelBatch
-            ] = {}
-            missing_kernel = False
-            for ell_start in range(0, ell_arr.size, projection_ell_batch_size):
-                ell_stop = min(
-                    ell_start + projection_ell_batch_size,
-                    ell_arr.size,
-                )
-                batch_indices = mode_ell_indices[
-                    (mode_ell_indices >= ell_start)
-                    & (mode_ell_indices < ell_stop)
-                ]
-                if batch_indices.size == 0:
-                    continue
-                ell_signature = tuple(
-                    int(ell_value) for ell_value in ell_arr[batch_indices]
-                )
-                sector_key = (
-                    ("all",)
-                    if streaming_projection_sectors is None
-                    else tuple(sorted(streaming_projection_sectors))
-                )
-                cached = cache.get_declared_projection_kernel_batch(
-                    (ell_signature, x_signature, sector_key)
-                )
-                if cached is None:
-                    missing_kernel = True
-                else:
-                    cached_batches[ell_signature] = cached
-            mode_kernel_batches[int(k_index)] = cached_batches
-            if missing_kernel:
-                mode_ell_bucket = (
-                    (len(mode_ell_signature) + 511) // 512
-                ) * 512
-                bessel_work_groups.setdefault(mode_ell_bucket, []).append(
-                    (
-                        int(k_index),
-                        x_values,
-                        x_signature,
-                        mode_ell_signature,
-                    )
-                )
-
-            performance_timer.heartbeat(
-                "projection",
-                completed=int(k_index + 1),
-                total=int(k_values.size),
-            )
-
-        if use_streaming_projection:
-            mode_source_arrays = dict(batched_mode_source_arrays)
-            for k_index, k_value in enumerate(k_values):
-                source_arrays = mode_source_arrays.get(int(k_index))
-                if source_arrays is None:
-                    with performance_timer.phase("evolution"):
-                        _, source_arrays = _evolve_declared_mode(
-                            float(k_value)
-                        )
-                _record_source_history_diagnostics(
-                    source_arrays,
-                    mode_k_value=float(k_value),
-                )
-                mode_source_arrays[int(k_index)] = source_arrays
-
-            for work_group in bessel_work_groups.values():
-                mode_ell_signature = max(
-                    (entry[3] for entry in work_group),
-                    key=len,
-                )
-                maximum_bessel_order = max(
-                    1,
-                    int(max(mode_ell_signature)),
-                )
-                eta_count = max(1, int(work_group[0][1].size))
-                mode_batch_size = max(
-                    1,
-                    min(
-                        _BESSEL_MAX_MODE_BATCH,
-                        len(work_group),
-                        max(
-                            1,
-                            32
-                            * _BESSEL_WORK_CELL_BUDGET
-                            // max(
-                                (maximum_bessel_order + 65) * eta_count,
-                                1,
-                            ),
-                        ),
-                    ),
-                )
-                for group_start in range(0, len(work_group), mode_batch_size):
-                    mode_group = work_group[
-                        group_start : group_start + mode_batch_size
-                    ]
-                    mode_ell_signature = max(
-                        (entry[3] for entry in mode_group),
-                        key=len,
-                    )
-                    grouped_x_values = numpy.stack(
-                        [entry[1] for entry in mode_group],
-                        axis=0,
-                    )
-                    grouped_bessel, grouped_derivatives = (
-                        _compute_spherical_bessel_mode_batch(
-                            mode_ell_signature,
-                            grouped_x_values,
-                        )
-                    )
-                    bessel_batch_count += 1
-                    bessel_mode_count += len(mode_group)
-                    for group_index, (
-                        k_index,
-                        mode_x_values,
-                        x_signature,
-                        _,
-                    ) in enumerate(mode_group):
-                        mode_ell_indices = mode_projection_metadata[k_index][2]
-                        source_arrays = mode_source_arrays[k_index]
-                        precomputed_projection_bessel = (
-                            mode_ell_signature,
-                            grouped_bessel[:, group_index, :],
-                            grouped_derivatives[:, group_index, :],
-                        )
-                        for ell_start in range(
-                            0,
-                            ell_arr.size,
-                            projection_ell_batch_size,
-                        ):
-                            ell_stop = min(
-                                ell_start + projection_ell_batch_size,
-                                ell_arr.size,
-                            )
-                            batch_indices = mode_ell_indices[
-                                (mode_ell_indices >= ell_start)
-                                & (mode_ell_indices < ell_stop)
-                            ]
-                            if batch_indices.size == 0:
-                                continue
-                            ell_signature = tuple(
-                                int(ell_value)
-                                for ell_value in ell_arr[batch_indices]
-                            )
-                            kernel_batch = (
-                                _get_cached_declared_projection_kernel_batch(
-                                    ell_signature,
-                                    x_signature,
-                                    x_values=mode_x_values,
-                                    precomputed_bessel=(
-                                        precomputed_projection_bessel
-                                    ),
-                                    required_sectors=(
-                                        streaming_projection_sectors
-                                    ),
-                                )
-                            )
-                            for (
-                                component_name,
-                                component_entry,
-                            ) in transfer_component_observables.items():
-                                source_histories = (
-                                    _bind_declared_source_histories(
-                                        component_name=str(component_name),
-                                        component_entry=component_entry,
-                                        source_arrays=source_arrays,
-                                    )
-                                )
-                                transfer_components[component_name][
-                                    batch_indices, k_index
-                                ] = _declared_graph_projection(
-                                    projection=str(
-                                        component_entry.projection or ""
-                                    ),
-                                    kernel=(
-                                        None
-                                        if component_entry.kernel is None
-                                        else str(component_entry.kernel)
-                                    ),
-                                    sector=(
-                                        None
-                                        if component_entry.sector is None
-                                        else str(component_entry.sector)
-                                    ),
-                                    kernel_batch=kernel_batch,
-                                    k_value=float(k_values[k_index]),
-                                    eta_weights=eta_integration_weights,
-                                    chi_grid=source_grids["chi"],
-                                    source_chi=source_chi,
-                                    source_histories=source_histories,
-                                )
-            bessel_work_groups.clear()
-
-        for work_group in bessel_work_groups.values():
-            mode_ell_signature = max(
-                (entry[3] for entry in work_group),
-                key=len,
-            )
-            maximum_bessel_order = max(
-                1,
-                int(max(mode_ell_signature)),
-            )
-            eta_count = max(1, int(work_group[0][1].size))
-            mode_batch_size = max(
-                1,
-                min(
-                    _BESSEL_MAX_MODE_BATCH,
-                    len(work_group),
-                    max(
-                        1,
-                        32
-                        * _BESSEL_WORK_CELL_BUDGET
-                        // max(
-                            (maximum_bessel_order + 65) * eta_count,
-                            1,
-                        ),
-                    ),
+    physical_axis_probe_records = {}
+    geometry_reference = None
+    if observable_budget_enabled:
+        source_error_profiles.update(
+            {
+                "background": {},
+                **(
+                    {"hierarchy_depth": {}}
+                    if declared_hierarchy_families
+                    else {}
                 ),
-            )
-            for group_start in range(0, len(work_group), mode_batch_size):
-                mode_group = work_group[
-                    group_start : group_start + mode_batch_size
-                ]
-                mode_ell_signature = max(
-                    (entry[3] for entry in mode_group),
-                    key=len,
-                )
-                grouped_x_values = numpy.stack(
-                    [entry[1] for entry in mode_group],
-                    axis=0,
-                )
-                grouped_bessel, grouped_derivatives = (
-                    _compute_spherical_bessel_mode_batch(
-                        mode_ell_signature,
-                        grouped_x_values,
-                    )
-                )
-                bessel_batch_count += 1
-                bessel_mode_count += len(mode_group)
-                for group_index, (k_index, _, x_signature, _) in enumerate(
-                    mode_group
-                ):
-                    precomputed_projection_bessel = (
-                        mode_ell_signature,
-                        numpy.asarray(
-                            grouped_bessel[:, group_index, :],
-                            dtype=float,
-                        ).copy(),
-                        numpy.asarray(
-                            grouped_derivatives[:, group_index, :],
-                            dtype=float,
-                        ).copy(),
-                    )
-                    mode_ell_indices = mode_projection_metadata[k_index][2]
-                    cached_batches = mode_kernel_batches[k_index]
-                    for ell_start in range(
-                        0,
-                        ell_arr.size,
-                        projection_ell_batch_size,
-                    ):
-                        ell_stop = min(
-                            ell_start + projection_ell_batch_size,
-                            ell_arr.size,
-                        )
-                        batch_indices = mode_ell_indices[
-                            (mode_ell_indices >= ell_start)
-                            & (mode_ell_indices < ell_stop)
-                        ]
-                        if batch_indices.size == 0:
-                            continue
-                        ell_signature = tuple(
-                            int(ell_value)
-                            for ell_value in ell_arr[batch_indices]
-                        )
-                        if ell_signature in cached_batches:
-                            continue
-                        cached_batches[ell_signature] = (
-                            _get_cached_declared_projection_kernel_batch(
-                                ell_signature,
-                                x_signature,
-                                x_values=grouped_x_values[group_index],
-                                precomputed_bessel=(
-                                    precomputed_projection_bessel
-                                ),
-                                required_sectors=streaming_projection_sectors,
-                            )
-                        )
+                **({"momentum_q": {}} if momentum_runtimes else {}),
+            }
+        )
+    source_absolute_error_profiles = {
+        axis: {} for axis in source_error_profiles
+    }
+    other_source_profiles = tuple(
+        (profile, source_absolute_error_profiles[axis])
+        for axis, profile in source_error_profiles.items()
+        if axis != "background"
+    )
+    transfer_uncertainties = (
+        {
+            axis: {
+                name: numpy.zeros_like(values)
+                for name, values in transfer_components.items()
+            }
+            for axis in source_error_profiles
+        }
+        if observable_budget_enabled
+        else {}
+    )
 
-    for k_index, k_value in enumerate(k_values):
-        if use_streaming_projection:
-            continue
-        base_history_sink = (
+    def _validate_native_mode(
+        k_index: int,
+        source_arrays: Mapping[str, numpy.ndarray],
+    ) -> None:
+        """Validate selected native histories before unsampled work."""
+
+        nonlocal source_history_representative_indices
+        nonlocal source_history_local_relative_error
+        nonlocal source_history_absolute_error
+        nonlocal source_history_error
+        nonlocal source_history_refinement_mode_count
+        nonlocal source_history_refinement_levels
+        nonlocal source_history_coarse_evolution_sample_count
+        nonlocal source_history_fine_evolution_sample_count
+        nonlocal evolution_error
+        nonlocal evolution_local_relative_error
+        nonlocal evolution_absolute_error
+        nonlocal evolution_coarse_to_intermediate_error
+        nonlocal evolution_coarse_to_intermediate_absolute_error
+        nonlocal evolution_intermediate_to_reference_error
+        nonlocal evolution_intermediate_to_reference_absolute_error
+        nonlocal evolution_mode_count
+        nonlocal evolution_fine_sample_count
+        nonlocal evolution_intermediate_sample_count
+        nonlocal evolution_coarse_sample_count
+        nonlocal retained_validation_histories
+        nonlocal retained_reference_histories
+
+        if k_index in validated_mode_indices:
+            return
+        k_value = float(k_values[k_index])
+        base_history_sink = preflight_histories.pop(k_index, None) or (
             {}
             if (
                 adaptive_controls.evolution_enabled
@@ -2677,21 +2567,6 @@ def _compute_custom_cmb_spectrum_data_impl(
             )
             else None
         )
-        source_arrays = batched_mode_source_arrays.get(int(k_index))
-        if source_arrays is None:
-            with performance_timer.phase("evolution"):
-                _, source_arrays = _evolve_declared_mode(
-                    float(k_value),
-                    history_sink=base_history_sink,
-                )
-            if not diagnostic_source_audit:
-                cache.set_cmb_source_history(
-                    _source_history_cache_key(float(k_value)),
-                    {
-                        str(name): numpy.asarray(values, dtype=float).copy()
-                        for name, values in source_arrays.items()
-                    },
-                )
         if (
             base_history_sink is not None
             and (
@@ -2701,33 +2576,37 @@ def _compute_custom_cmb_spectrum_data_impl(
             and k_index in validation_mode_indices
             and "source_histories" not in base_history_sink
         ):
-            _evolve_declared_mode(
-                float(k_value),
-                history_sink=base_history_sink,
-                collect_diagnostics=False,
-                count_as_primary_evolution=False,
+            retained = (
+                (
+                    base_history_sink["evolution_eta"],
+                    base_history_sink["evolution_histories"],
+                )
+                if "evolution_histories" in base_history_sink
+                else cache.get_cmb_evolution_history(
+                    _source_history_cache_key(float(k_value))
+                )
             )
-        batched_mode_source_arrays[int(k_index)] = source_arrays
-        bound_source_histories = {
-            str(component_name): _bind_declared_source_histories(
-                component_name=str(component_name),
-                component_entry=component_entry,
-                source_arrays=source_arrays,
-            )
-            for component_name, component_entry in (
-                transfer_component_observables.items()
-            )
-        }
-        performance_timer.heartbeat(
-            "projection",
-            completed=int(k_index + 1),
-            total=int(k_values.size),
-        )
+            if retained is not None:
+                evolution_eta, evolution_histories = retained
+                base_history_sink.update(
+                    evolution_eta=evolution_eta,
+                    evolution_histories=evolution_histories,
+                    source_eta=source_grids["eta"],
+                    source_histories=_interpolate_declared_histories(
+                        evolution_eta, evolution_histories, source_grids["eta"]
+                    ),
+                    source_arrays=source_arrays,
+                )
+                retained_validation_histories += 1
+            else:
+                with performance_timer.phase("evolution"):
+                    _evolve_declared_mode(
+                        float(k_value),
+                        history_sink=base_history_sink,
+                        collect_diagnostics=False,
+                        count_as_primary_evolution=False,
+                    )
         with performance_timer.phase("evolution"):
-            _record_source_history_diagnostics(
-                source_arrays,
-                mode_k_value=float(k_value),
-            )
             if adaptive_controls.source_enabled:
                 if base_history_sink is None:
                     raise RuntimeError(
@@ -2740,10 +2619,50 @@ def _compute_custom_cmb_spectrum_data_impl(
                         mode_product_errors,
                         mode_attempts,
                     ) = _refine_source_history_grid(source_arrays)
+                    update_source_error_envelope(
+                        source_error_profiles["source"],
+                        source_arrays,
+                        {
+                            name: numpy.interp(
+                                source_grids["eta"],
+                                source_grids["eta"][source_mode_indices],
+                                numpy.asarray(values)[source_mode_indices],
+                            )
+                            for name, values in source_arrays.items()
+                        },
+                        absolute_envelope=source_absolute_error_profiles[
+                            "source"
+                        ],
+                    )
                     mode_key = f"{float(k_value):.12g}"
                     source_history_refinement_attempts_by_k[mode_key] = (
                         mode_attempts
                     )
+                    unresolved_sources = tuple(
+                        name
+                        for name, errors in mode_product_errors.items()
+                        if errors["relative_error"]
+                        > adaptive_controls.source_relative_tolerance
+                        and errors["absolute_error"]
+                        > adaptive_controls.source_absolute_tolerance
+                    )
+                    if (
+                        unresolved_sources
+                        and adaptive_controls.fail_on_nonconvergence
+                    ):
+                        raise AdaptiveNonConvergenceError(
+                            "Selected native source histories are unresolved",
+                            label="source-history",
+                            failed_products=unresolved_sources,
+                            evidence={
+                                "mode_k": float(k_value),
+                                "source_eta_sample_count": int(
+                                    source_grids["eta"].size
+                                ),
+                                "product_errors": mode_product_errors,
+                                "before_full_mode_evolution": True,
+                            },
+                        )
                     source_history_mode_grids[mode_key] = {
                         "coarse_sample_count": int(source_mode_indices.size),
                         "fine_sample_count": int(source_grids["eta"].size),
@@ -2839,21 +2758,72 @@ def _compute_custom_cmb_spectrum_data_impl(
                         "adaptive_evolution requires a refinable "
                         "evolution_eta_sample_count"
                     )
-                coarse_history_sink: dict[str, Any] = {}
-                intermediate_history_sink: dict[str, Any] = {}
-                _evolve_declared_mode(
-                    float(k_value),
-                    evolution_sample_count_override=coarse_sample_count,
-                    history_sink=coarse_history_sink,
-                    collect_diagnostics=False,
-                    count_as_primary_evolution=False,
+
+                def _reference_history_sink(
+                    sample_count: int,
+                ) -> dict[str, Any]:
+                    """Retain independent raw work without its certificate."""
+
+                    nonlocal retained_reference_histories
+                    prepared = preflight_reference_sinks.pop(
+                        (float(k_value), sample_count), None
+                    )
+                    if prepared is not None:
+                        retained_reference_histories += 1
+                        return prepared
+                    reference_key = (
+                        _source_history_cache_key(float(k_value)),
+                        "independent_evolution",
+                        sample_count,
+                    )
+                    raw = cache.get_cmb_evolution_history(reference_key)
+                    sources = (
+                        cache.get_cmb_source_history(
+                            ("reference_sources", reference_key)
+                        )
+                        if raw is not None
+                        else None
+                    )
+                    if raw is not None and sources is not None:
+                        retained_reference_histories += 1
+                        return {
+                            "evolution_eta": raw[0],
+                            "evolution_histories": raw[1],
+                            "source_eta": source_grids["eta"],
+                            "source_arrays": sources,
+                        }
+                    sink: dict[str, Any] = {}
+                    _evolve_declared_mode(
+                        float(k_value),
+                        evolution_sample_count_override=sample_count,
+                        history_sink=sink,
+                        collect_diagnostics=False,
+                        count_as_primary_evolution=False,
+                    )
+                    cache.set_cmb_evolution_history(
+                        reference_key,
+                        sink["evolution_eta"],
+                        sink["evolution_histories"],
+                    )
+                    cache.set_cmb_source_history(
+                        ("reference_sources", reference_key),
+                        sink["source_arrays"],
+                    )
+                    return sink
+
+                coarse_history_sink = _reference_history_sink(
+                    coarse_sample_count
                 )
-                _evolve_declared_mode(
-                    float(k_value),
-                    evolution_sample_count_override=intermediate_sample_count,
-                    history_sink=intermediate_history_sink,
-                    collect_diagnostics=False,
-                    count_as_primary_evolution=False,
+                intermediate_history_sink = _reference_history_sink(
+                    intermediate_sample_count
+                )
+                update_source_error_envelope(
+                    source_error_profiles["evolution"],
+                    base_history_sink["source_arrays"],
+                    intermediate_history_sink["source_arrays"],
+                    absolute_envelope=source_absolute_error_profiles[
+                        "evolution"
+                    ],
                 )
 
                 def _estimate_evolution_pair(
@@ -2874,12 +2844,13 @@ def _compute_custom_cmb_spectrum_data_impl(
                             adaptive_controls.evolution_absolute_tolerance
                         ),
                         feature_eta=history_feature_eta,
+                        relative_scale="history_amplitude",
                     )
                     source_estimate = estimate_history_convergence(
                         lower_history_sink["source_eta"],
-                        lower_history_sink["source_histories"],
+                        lower_history_sink["source_arrays"],
                         higher_history_sink["source_eta"],
-                        higher_history_sink["source_histories"],
+                        higher_history_sink["source_arrays"],
                         relative_tolerance=(
                             adaptive_controls.evolution_relative_tolerance
                         ),
@@ -2887,6 +2858,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                             adaptive_controls.evolution_absolute_tolerance
                         ),
                         feature_eta=history_feature_eta,
+                        relative_scale="history_amplitude",
                     )
                     return state_estimate, source_estimate
 
@@ -2904,6 +2876,27 @@ def _compute_custom_cmb_spectrum_data_impl(
                     intermediate_history_sink,
                     base_history_sink,
                 )
+                for estimate in (state_estimate, source_estimate):
+                    evolution_local_relative_error = max(
+                        evolution_local_relative_error,
+                        estimate.local_relative_error,
+                    )
+                    if (
+                        not estimate.converged
+                        and adaptive_controls.fail_on_nonconvergence
+                    ):
+                        raise AdaptiveNonConvergenceError(
+                            "Selected native evolution history is unresolved",
+                            label="scalar evolution history",
+                            failed_products=(estimate.worst_history,),
+                            evidence={
+                                "relative_error": estimate.relative_error,
+                                "absolute_error": estimate.absolute_error,
+                                "mode_k": float(k_value),
+                                "worst_history": estimate.worst_history,
+                                "worst_eta": estimate.worst_eta,
+                            },
+                        )
                 for anchor_name in evolution_anchor_errors:
                     evolution_coarse_to_intermediate_anchor_errors[
                         anchor_name
@@ -2997,6 +2990,605 @@ def _compute_custom_cmb_spectrum_data_impl(
                     evolution_coarse_sample_count,
                     int(coarse_history_sink["evolution_eta"].size),
                 )
+        validated_mode_indices.add(k_index)
+
+    evolution_started = perf_counter()
+    performance_timer.start_work("evolution", "primary_modes")
+    _LOGGER.info(
+        "CCMBS phase started: model=%s phase=evolution modes=%d",
+        model_label,
+        int(k_values.size),
+    )
+    with performance_timer.phase("evolution"):
+        cached_mode_source_arrays: dict[int, dict[str, numpy.ndarray]] = {}
+        if not diagnostic_source_audit and not stage_diagnostic_k_values:
+            for k_index, k_value in enumerate(k_values):
+                cached = cache.get_cmb_source_history(
+                    _source_history_cache_key(float(k_value))
+                )
+                if cached is None:
+                    source_history_cache_misses += 1
+                    continue
+                source_history_cache_hits += 1
+                cached_mode_source_arrays[int(k_index)] = {
+                    str(name): numpy.asarray(values, dtype=float).copy()
+                    for name, values in cached.items()
+                }
+        preflight_new_modes = 0
+        if (
+            (
+                adaptive_controls.evolution_enabled
+                or adaptive_controls.source_enabled
+            )
+            and not diagnostic_source_audit
+            and not stage_diagnostic_k_values
+        ):
+            # Discover under-resolution on informative physical modes before
+            # evolving the remaining surface. Keep every successful pilot as
+            # real production work, with its exact native history.
+            pilot_indices = sorted(validation_mode_indices)
+            fresh_indices = [
+                index
+                for index in pilot_indices
+                if index not in cached_mode_source_arrays
+                or cache.get_cmb_evolution_history(
+                    _source_history_cache_key(float(k_values[index]))
+                )
+                is None
+            ]
+            pilot_sinks = {}
+            pilot_results = (
+                _evolve_declared_modes_batched(
+                    k_values[fresh_indices], history_sinks=pilot_sinks
+                )
+                if fresh_indices
+                else {}
+            )
+            for local_index, index in enumerate(fresh_indices):
+                wave = float(k_values[index])
+                if wave in pilot_sinks:
+                    preflight_histories[index] = pilot_sinks[wave]
+                sources = pilot_results.get(local_index)
+                if sources is None:
+                    sink: dict[str, Any] = {}
+                    _, sources = _evolve_declared_mode(
+                        float(k_values[index]),
+                        history_sink=sink,
+                    )
+                    preflight_histories[index] = sink
+                    cache.set_cmb_evolution_history(
+                        _source_history_cache_key(float(k_values[index])),
+                        sink["evolution_eta"],
+                        sink["evolution_histories"],
+                    )
+                cached_mode_source_arrays[index] = sources
+                cache.set_cmb_source_history(
+                    _source_history_cache_key(float(k_values[index])),
+                    sources,
+                )
+            preflight_new_modes = sum(
+                float(k_values[index]) not in native_reused_primary_waves
+                for index in fresh_indices
+            )
+            if (
+                adaptive_controls.evolution_enabled
+                and generated_scalar_hierarchy
+            ):
+                fine_count = int(numerics.evolution_eta_sample_count)
+                coarse_count = max(32, fine_count // 4)
+                intermediate_count = max(
+                    coarse_count + 1, (coarse_count + fine_count) // 2
+                )
+                for reference_count in (coarse_count, intermediate_count):
+                    missing_references = []
+                    for index in pilot_indices:
+                        key = (
+                            _source_history_cache_key(float(k_values[index])),
+                            "independent_evolution",
+                            reference_count,
+                        )
+                        if cache.get_cmb_evolution_history(key) is None or (
+                            cache.get_cmb_source_history(
+                                ("reference_sources", key)
+                            )
+                            is None
+                        ):
+                            missing_references.append(index)
+                    sinks: dict[float, dict[str, Any]] = {}
+                    primary_counters = {
+                        name: int(runtime_envelope.get(name, 0))
+                        for name in (
+                            "batch_count",
+                            "batch_mode_count",
+                            "batched_rk_stage_count",
+                        )
+                    }
+                    if missing_references:
+                        _evolve_declared_modes_batched(
+                            k_values[missing_references],
+                            evolution_sample_count_override=reference_count,
+                            history_sinks=sinks,
+                        )
+                    for name, previous in primary_counters.items():
+                        runtime_envelope["reference_" + name] = (
+                            int(runtime_envelope.get("reference_" + name, 0))
+                            + int(runtime_envelope.get(name, 0))
+                            - previous
+                        )
+                        runtime_envelope[name] = previous
+                    preflight_reference_sinks.update(
+                        ((wave, reference_count), sink)
+                        for wave, sink in sinks.items()
+                    )
+                    sinks.clear()
+            for index in pilot_indices:
+                _validate_native_mode(index, cached_mode_source_arrays[index])
+            # Persistent raw work belongs to the budgeted spill store;
+            # completed validation temporaries must not pin those arrays.
+            pilot_sinks.clear()
+            preflight_reference_sinks.clear()
+            if observable_budget_enabled:
+                for axis in ("background", "hierarchy_depth", "momentum_q"):
+                    if axis not in source_error_profiles:
+                        continue
+                    axis_evidence = {}
+                    if axis == "background":
+                        # The background may already have promoted its seed.
+                        # Refine that accepted control, not an obsolete input.
+                        axis_evidence["background_resolution_seed"] = int(
+                            background.resolution_evidence.get(
+                                "refinement", {}
+                            ).get("fine_eta_nodes", len(background.eta_grid))
+                        )
+                    comparison_contract, _ = refine_numerical_axis(
+                        contract_or_params, axis, evidence=axis_evidence
+                    )
+                    probe = _compute_custom_cmb_spectrum_data_impl(
+                        comparison_contract,
+                        tuple(int(value) for value in ell_arr),
+                        background_provider=background_provider,
+                        requested_spectra=requested_spectrum_names,
+                        performance_timer=performance_timer,
+                        source_probe=tuple(
+                            float(k_values[index]) for index in pilot_indices
+                        ),
+                    )
+                    if axis == "background" and probe.runtime_envelope[
+                        "probe_background_grid_sha256"
+                    ] == _projection_array_digest(background.eta_grid):
+                        raise ValueError(
+                            "Background comparison reused an identical grid"
+                        )
+                    if (
+                        generated_scalar_hierarchy
+                        and axis in {"hierarchy_depth", "momentum_q"}
+                        and probe.runtime_envelope["state_slot_count"]
+                        <= len(runtime_spec.state_slots)
+                    ):
+                        raise ValueError(
+                            "Axis refinement did not materialize new states"
+                        )
+                    maximum_error = 0.0
+                    source_errors_by_k = {}
+                    ratio = probe.eta0 / float(background.eta0)
+                    for index in pilot_indices:
+                        wave = float(k_values[index])
+                        target_eta = numpy.asarray(source_grids["eta"]) * ratio
+                        target_eta = numpy.clip(
+                            target_eta, probe.eta[0], probe.eta[-1]
+                        )
+                        comparison_sources = _interpolate_declared_histories(
+                            probe.eta,
+                            probe.sources[wave],
+                            target_eta,
+                        )
+                        native_sources = cached_mode_source_arrays[index]
+                        update_source_error_envelope(
+                            source_error_profiles[axis],
+                            native_sources,
+                            comparison_sources,
+                            absolute_envelope=source_absolute_error_profiles[
+                                axis
+                            ],
+                        )
+                        source_errors = {}
+                        for name, values in native_sources.items():
+                            absolute = float(
+                                numpy.max(
+                                    abs(
+                                        numpy.asarray(values)
+                                        - comparison_sources[name]
+                                    )
+                                )
+                            )
+                            relative = absolute / max(
+                                float(numpy.max(abs(values))), 1e-30
+                            )
+                            source_errors[name] = {
+                                "absolute_error": absolute,
+                                "relative_error": relative,
+                            }
+                            allowance = (
+                                adaptive_controls.evolution_absolute_tolerance
+                            )
+                            if absolute > allowance:
+                                maximum_error = max(maximum_error, relative)
+                        source_errors_by_k[f"{wave:.12g}"] = source_errors
+                    physical_axis_probe_records[axis] = {
+                        "method": "independent_native_source_axis_refinement",
+                        "mode_count": len(pilot_indices),
+                        "relative_error": maximum_error,
+                        "eta0_ratio": ratio,
+                        "probe_new_modes": probe.runtime_envelope[
+                            "probe_new_modes"
+                        ],
+                        "source_errors_by_k": source_errors_by_k,
+                        "base_source_eta_nodes": len(source_grids["eta"]),
+                        "reference_source_eta_nodes": len(probe.eta),
+                        "reference_state_slots": probe.runtime_envelope[
+                            "state_slot_count"
+                        ],
+                    }
+                    if axis == "background":
+                        reference_eta = (
+                            numpy.asarray(source_grids["eta"]) * ratio
+                        )
+                        geometry_reference = {
+                            "eta0_ratio": ratio,
+                            "source_chi": probe.source_chi,
+                            "chi_grid": numpy.interp(
+                                reference_eta, probe.eta, probe.chi
+                            ),
+                            "radial_distance": probe.eta0 - reference_eta,
+                        }
+                    if (
+                        maximum_error
+                        > adaptive_controls.evolution_relative_tolerance
+                    ):
+                        label = {
+                            "background": "background",
+                            "hierarchy_depth": "hierarchy-depth",
+                            "momentum_q": "momentum-q",
+                        }[axis]
+                        raise AdaptiveNonConvergenceError(
+                            "Independent native-source resolution "
+                            "is unresolved",
+                            label=label,
+                            evidence=physical_axis_probe_records[axis],
+                        )
+        runtime_envelope["evolution_preflight_mode_count"] = (
+            preflight_new_modes
+        )
+        missing_mode_indices = numpy.asarray(
+            [
+                index
+                for index in range(int(k_values.size))
+                if index not in cached_mode_source_arrays
+            ],
+            dtype=int,
+        )
+        runtime_envelope["evolution_cached_mode_count"] = int(
+            len(cached_mode_source_arrays) - preflight_new_modes
+        )
+        runtime_envelope["evolution_missing_mode_count"] = int(
+            missing_mode_indices.size + preflight_new_modes
+        )
+        runtime_envelope["evolution_partial_cache_hit"] = bool(
+            cached_mode_source_arrays and missing_mode_indices.size
+        )
+        runtime_envelope["evolution_modes_evolved"] = preflight_new_modes
+        runtime_envelope["evolution_chunk_count"] = (
+            int(missing_mode_indices.size) + int(evolution_chunk_size) - 1
+        ) // int(evolution_chunk_size)
+        if not missing_mode_indices.size:
+            batched_mode_source_arrays = cached_mode_source_arrays
+            runtime_envelope["evolution_chunks_completed"] = int(
+                runtime_envelope["evolution_chunk_count"]
+            )
+            runtime_envelope["evolution_modes_completed"] = int(k_values.size)
+        else:
+            batched_mode_source_arrays = {}
+            missing_count = int(missing_mode_indices.size)
+            missing_chunk_count = (
+                missing_count + int(evolution_chunk_size) - 1
+            ) // int(evolution_chunk_size)
+            for chunk_index, chunk_start in enumerate(
+                range(0, missing_count, int(evolution_chunk_size)),
+                start=1,
+            ):
+                missing_chunk = missing_mode_indices[
+                    chunk_start : min(
+                        chunk_start + int(evolution_chunk_size),
+                        missing_count,
+                    )
+                ]
+                chunk_results = _evolve_declared_modes_batched(
+                    k_values[missing_chunk]
+                )
+                for local_index, source_arrays in chunk_results.items():
+                    global_index = int(missing_chunk[int(local_index)])
+                    batched_mode_source_arrays[global_index] = source_arrays
+                runtime_envelope["evolution_modes_evolved"] = int(
+                    runtime_envelope["evolution_modes_evolved"]
+                ) + len(chunk_results)
+                runtime_envelope["evolution_chunks_completed"] = int(
+                    chunk_index
+                )
+                runtime_envelope["evolution_modes_completed"] = int(
+                    len(cached_mode_source_arrays)
+                    + sum(
+                        1
+                        for index in batched_mode_source_arrays
+                        if index not in cached_mode_source_arrays
+                    )
+                )
+                performance_timer.heartbeat(
+                    "evolution",
+                    completed=int(
+                        runtime_envelope["evolution_modes_completed"]
+                    ),
+                    total=int(k_values.size),
+                    scope="primary_modes",
+                )
+            runtime_envelope["evolution_chunk_count"] = int(
+                missing_chunk_count
+            )
+            runtime_envelope["evolution_chunks_completed"] = int(
+                missing_chunk_count
+            )
+            # Explicit or incompatible graphs return no batch rows. Complete
+            # those real scalar solves before claiming the phase is finished.
+            for missing_index in missing_mode_indices:
+                if int(missing_index) not in batched_mode_source_arrays:
+                    _, scalar_sources = _evolve_declared_mode(
+                        float(k_values[missing_index])
+                    )
+                    batched_mode_source_arrays[int(missing_index)] = (
+                        scalar_sources
+                    )
+                    performance_timer.heartbeat(
+                        "evolution",
+                        scope="primary_modes",
+                        completed=(
+                            len(cached_mode_source_arrays)
+                            + len(batched_mode_source_arrays)
+                        ),
+                        total=int(k_values.size),
+                    )
+            runtime_envelope["evolution_modes_completed"] = int(k_values.size)
+            performance_timer.heartbeat(
+                "evolution",
+                scope="primary_modes",
+                completed=int(k_values.size),
+                total=int(k_values.size),
+            )
+            for k_index, source_arrays in batched_mode_source_arrays.items():
+                if (
+                    not diagnostic_source_audit
+                    and not stage_diagnostic_k_values
+                ):
+                    cache.set_cmb_source_history(
+                        _source_history_cache_key(float(k_values[k_index])),
+                        {
+                            str(name): numpy.asarray(
+                                values, dtype=float
+                            ).copy()
+                            for name, values in source_arrays.items()
+                        },
+                    )
+            if cached_mode_source_arrays:
+                batched_mode_source_arrays = {
+                    **batched_mode_source_arrays,
+                    **cached_mode_source_arrays,
+                }
+        _synchronize_mode_evolution_state()
+        runtime_envelope["source_history_cache_hit_count"] = int(
+            source_history_cache_hits
+        )
+    runtime_envelope["source_history_cache_miss_count"] = int(
+        source_history_cache_misses
+    )
+    runtime_envelope["source_history_cache_reused"] = bool(
+        source_history_cache_hits > 0
+    )
+    runtime_envelope["initial_state_cache_hit_count"] = int(
+        initial_state_cache_hits
+    )
+    runtime_envelope["initial_state_cache_miss_count"] = int(
+        initial_state_cache_misses
+    )
+    runtime_envelope["initial_state_cache_reused"] = bool(
+        initial_state_cache_hits > 0
+    )
+    _LOGGER.info(
+        "CCMBS phase completed: model=%s phase=evolution elapsed=%.3fs",
+        model_label,
+        perf_counter() - evolution_started,
+    )
+
+    mode_projection_metadata: dict[
+        int,
+        tuple[numpy.ndarray, str, numpy.ndarray, tuple[int, ...]],
+    ] = {}
+    mode_kernel_batches: dict[
+        int,
+        dict[tuple[int, ...], _DeclaredProjectionKernelBatch],
+    ] = {}
+    performance_timer.start_work("projection", "kernel_preparation")
+    _LOGGER.info(
+        "CCMBS phase started: model=%s phase=projection modes=%d ells=%d",
+        model_label,
+        int(k_values.size),
+        int(ell_arr.size),
+    )
+    with performance_timer.phase("projection"):
+        bessel_batch_count = 0
+        bessel_mode_count = 0
+        for k_index, k_value in enumerate(k_values):
+            x_values = numpy.asarray(
+                k_value * (eta0 - source_grids["eta"]),
+                dtype=float,
+            )
+            x_signature = hashlib.sha256(x_values.tobytes()).hexdigest()
+            cache.store_bessel_inputs(
+                x_signature,
+                x_values.copy(),
+            )
+            mode_ell_limit = _projection_ell_limit_for_mode(
+                ell_values=ell_arr,
+                x_values=x_values,
+            )
+            mode_ell_indices = numpy.flatnonzero(ell_arr <= mode_ell_limit)
+            if mode_ell_indices.size == 0:
+                continue
+            mode_ell_signature = tuple(
+                int(ell_value) for ell_value in ell_arr[mode_ell_indices]
+            )
+            mode_projection_metadata[int(k_index)] = (
+                x_values,
+                x_signature,
+                mode_ell_indices,
+                mode_ell_signature,
+            )
+            performance_timer.heartbeat(
+                "projection",
+                scope="kernel_preparation",
+                completed=int(k_index + 1),
+                total=int(k_values.size),
+            )
+
+    performance_timer.start_work("projection", "mode_quadrature")
+    projection_work_total = sum(
+        int(entry[2].size) * int(source_grids["eta"].size)
+        for entry in mode_projection_metadata.values()
+    )
+    prepared_kernel_keys = set()
+    projection_peak_kernel_bytes = 0
+    projection_peak_live_modes = 0
+    projection_peak_bessel_cells = 0
+
+    def prepare_projection_chunk(first_index):
+        """Retain only one mode chunk, including adaptive projection work."""
+
+        nonlocal bessel_batch_count, bessel_mode_count
+        nonlocal projection_peak_kernel_bytes, projection_peak_live_modes
+        nonlocal projection_peak_bessel_cells
+        mode_kernel_batches.clear()
+        eta_count = int(source_grids["eta"].size)
+        rows_per_mode = (int(numpy.max(ell_arr)) + 65) * eta_count
+        mode_count = max(
+            1,
+            min(
+                _BESSEL_MAX_MODE_BATCH,
+                _BESSEL_WORK_CELL_BUDGET // max(rows_per_mode, 1),
+            ),
+        )
+        indices = [
+            index
+            for index in range(
+                first_index, min(first_index + mode_count, k_values.size)
+            )
+            if index in mode_projection_metadata
+        ]
+        if not indices:
+            return
+        signatures = [mode_projection_metadata[index][3] for index in indices]
+        largest_signature = max(signatures, key=len)
+        sector_key = (
+            ("all",)
+            if streaming_projection_sectors is None
+            else tuple(sorted(streaming_projection_sectors))
+        )
+        missing = False
+        for index in indices:
+            _, signature, ell_indices, _ = mode_projection_metadata[index]
+            batches = {}
+            for start in range(0, ell_arr.size, projection_ell_batch_size):
+                selected = ell_indices[
+                    (ell_indices >= start)
+                    & (ell_indices < start + projection_ell_batch_size)
+                ]
+                if not selected.size:
+                    continue
+                ell_signature = tuple(int(ell_arr[row]) for row in selected)
+                key = (ell_signature, signature, sector_key)
+                prepared_kernel_keys.add(key)
+                cached = cache.get_declared_projection_kernel_batch(key)
+                if cached is None:
+                    missing = True
+                else:
+                    batches[ell_signature] = cached
+            mode_kernel_batches[index] = batches
+        if missing:
+            grids = numpy.stack(
+                [mode_projection_metadata[index][0] for index in indices]
+            )
+            values, derivatives = _compute_spherical_bessel_mode_batch(
+                largest_signature, grids
+            )
+            projection_peak_bessel_cells = max(
+                projection_peak_bessel_cells, int(values.size)
+            )
+            bessel_batch_count += 1
+            bessel_mode_count += len(indices)
+            for row, index in enumerate(indices):
+                _, signature, ell_indices, _ = mode_projection_metadata[index]
+                for start in range(0, ell_arr.size, projection_ell_batch_size):
+                    selected = ell_indices[
+                        (ell_indices >= start)
+                        & (ell_indices < start + projection_ell_batch_size)
+                    ]
+                    if not selected.size:
+                        continue
+                    ell_signature = tuple(int(ell_arr[i]) for i in selected)
+                    batches = mode_kernel_batches[index]
+                    if ell_signature not in batches:
+                        batches[ell_signature] = (
+                            _get_cached_declared_projection_kernel_batch(
+                                ell_signature,
+                                signature,
+                                x_values=grids[row],
+                                precomputed_bessel=(
+                                    largest_signature,
+                                    values[:, row],
+                                    derivatives[:, row],
+                                ),
+                                required_sectors=streaming_projection_sectors,
+                            )
+                        )
+        projection_peak_live_modes = max(
+            projection_peak_live_modes, len(mode_kernel_batches)
+        )
+        projection_peak_kernel_bytes = max(
+            projection_peak_kernel_bytes,
+            sum(
+                cache._numpy_payload_bytes(batch)
+                for batches in mode_kernel_batches.values()
+                for batch in batches.values()
+            ),
+        )
+
+    projection_work_completed = 0
+    for k_index, k_value in enumerate(k_values):
+        source_arrays = batched_mode_source_arrays[int(k_index)]
+        _validate_native_mode(k_index, source_arrays)
+        batched_mode_source_arrays[int(k_index)] = source_arrays
+        bound_source_histories = {
+            str(component_name): _bind_declared_source_histories(
+                component_name=str(component_name),
+                component_entry=component_entry,
+                source_arrays=source_arrays,
+            )
+            for component_name, component_entry in (
+                transfer_component_observables.items()
+            )
+        }
+
+        with performance_timer.phase("evolution"):
+            _record_source_history_diagnostics(
+                source_arrays,
+                mode_k_value=float(k_value),
+            )
         if adaptive_k_enabled:
             for (
                 component_name,
@@ -3014,6 +3606,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                             source_arrays[str(source_name)], dtype=float
                         )
                     )
+        mode_projection_started = perf_counter()
         mode_projection = mode_projection_metadata.get(int(k_index))
         if mode_projection is None:
             continue
@@ -3023,7 +3616,9 @@ def _compute_custom_cmb_spectrum_data_impl(
             mode_ell_indices,
             _,
         ) = mode_projection
-        cached_batches = mode_kernel_batches[int(k_index)]
+        if int(k_index) not in mode_kernel_batches:
+            prepare_projection_chunk(int(k_index))
+        cached_batches = mode_kernel_batches.pop(int(k_index))
         if not cached_batches:
             raise RuntimeError(
                 "Declared projection did not prepare any radial kernel batches"
@@ -3076,6 +3671,32 @@ def _compute_custom_cmb_spectrum_data_impl(
                     batch_indices,
                     k_index,
                 ]
+                for axis, errors in transfer_uncertainties.items():
+                    errors[component_name][batch_indices, k_index] = (
+                        project_source_uncertainty(
+                            component_entry,
+                            source_arrays,
+                            source_error_profiles[axis],
+                            absolute_profiles=source_absolute_error_profiles[
+                                axis
+                            ],
+                            geometry_other_profiles=(
+                                other_source_profiles
+                                if axis == "background"
+                                else ()
+                            ),
+                            geometry_reference=(
+                                {**geometry_reference, "ells": ell_signature}
+                                if axis == "background"
+                                else None
+                            ),
+                            kernel_batch=kernel_batch,
+                            k_value=float(k_value),
+                            eta_weights=eta_integration_weights,
+                            chi_grid=source_grids["chi"],
+                            source_chi=source_chi,
+                        )
+                    )
                 if (
                     projection_eta_indices is not None
                     and projection_coarse_weights is not None
@@ -3108,14 +3729,28 @@ def _compute_custom_cmb_spectrum_data_impl(
                     coarse_projection_components[component_name][
                         batch_indices, k_index
                     ] = coarse_values
+        cached_batches.clear()
+        del kernel_batch, cached_batches
         performance_timer.add(
             "projection",
-            perf_counter() - projection_phase_started,
+            perf_counter() - mode_projection_started,
+        )
+        projection_work_completed += int(mode_projection[2].size) * int(
+            source_grids["eta"].size
+        )
+        performance_timer.heartbeat(
+            "projection",
+            scope="mode_quadrature",
+            completed=int(k_index + 1),
+            total=int(k_values.size),
+            weighted_completed=float(projection_work_completed),
+            weighted_total=float(projection_work_total),
+            details={"work_unit": "ell_eta_cells"},
         )
     _LOGGER.info(
         "CCMBS phase completed: model=%s phase=projection elapsed=%.3fs",
         model_label,
-        perf_counter() - projection_phase_started,
+        performance_timer.phase_seconds.get("projection", 0.0),
     )
     for component_name, component_matrix in transfer_components.items():
         if not numpy.all(numpy.isfinite(component_matrix)):
@@ -3226,6 +3861,56 @@ def _compute_custom_cmb_spectrum_data_impl(
                 float(value): int(index)
                 for index, value in enumerate(base_k_values)
             }
+            # Newly required nodes are independent physical solves, just as
+            # primary modes are. Group compatible equations rather than
+            # serializing this otherwise identical refinement workload.
+            retained_refined_sources = {}
+            missing_refined_waves = []
+            for wave in refined_k_values:
+                value = float(wave)
+                if value in base_index_by_k:
+                    continue
+                existing = cache.get_cmb_source_history(
+                    _source_history_cache_key(value)
+                )
+                if existing is None:
+                    missing_refined_waves.append(value)
+                else:
+                    retained_refined_sources[value] = existing
+            refined_warm_mode_count = len(retained_refined_sources)
+            with performance_timer.phase("evolution"):
+                for start in range(
+                    0, len(missing_refined_waves), evolution_chunk_size
+                ):
+                    waves = numpy.asarray(
+                        missing_refined_waves[
+                            start : start + evolution_chunk_size
+                        ]
+                    )
+                    previous_counts = {
+                        name: int(runtime_envelope.get(name, 0))
+                        for name in (
+                            "batch_count",
+                            "batch_mode_count",
+                            "batched_rk_stage_count",
+                        )
+                    }
+                    refined_batch = _evolve_declared_modes_batched(waves)
+                    for name, previous in previous_counts.items():
+                        key = "transfer_reference_" + name
+                        runtime_envelope[key] = (
+                            int(runtime_envelope.get(key, 0))
+                            + int(runtime_envelope.get(name, 0))
+                            - previous
+                        )
+                        runtime_envelope[name] = previous
+                    for index, arrays in refined_batch.items():
+                        wave = float(waves[index])
+                        retained_refined_sources[wave] = arrays
+                        cache.set_cmb_source_history(
+                            _source_history_cache_key(wave), arrays
+                        )
+                        refined_new_mode_count += 1
             refined_rows: list[dict[str, numpy.ndarray]] = []
             for refined_k_value in refined_k_values:
                 base_index = base_index_by_k.get(float(refined_k_value))
@@ -3235,8 +3920,8 @@ def _compute_custom_cmb_spectrum_data_impl(
                 source_cache_key = _source_history_cache_key(
                     float(refined_k_value)
                 )
-                cached_source_arrays = cache.get_cmb_source_history(
-                    source_cache_key
+                cached_source_arrays = retained_refined_sources.get(
+                    float(refined_k_value)
                 )
                 if cached_source_arrays is None:
                     _, actual_source_arrays = _evolve_declared_mode(
@@ -3260,7 +3945,6 @@ def _compute_custom_cmb_spectrum_data_impl(
                         str(name): numpy.asarray(values, dtype=float).copy()
                         for name, values in cached_source_arrays.items()
                     }
-                    refined_warm_mode_count += 1
                 refined_rows.append(actual_source_arrays)
             for source_name in source_names:
                 resolved_rows = numpy.vstack(
@@ -3285,6 +3969,13 @@ def _compute_custom_cmb_spectrum_data_impl(
                 dtype=float,
             )
             for component_name in transfer_component_observables
+        }
+        refined_uncertainties = {
+            axis: {
+                name: numpy.zeros_like(values)
+                for name, values in refined_transfer_components.items()
+            }
+            for axis in transfer_uncertainties
         }
         refined_kernel_work_units = 0
         refined_projection_started = perf_counter()
@@ -3363,6 +4054,32 @@ def _compute_custom_cmb_spectrum_data_impl(
                         source_chi=source_chi,
                         source_histories=source_histories,
                     )
+                    for axis, errors in refined_uncertainties.items():
+                        errors[component_name][
+                            batch_indices, refined_index
+                        ] = project_source_uncertainty(
+                            component_entry,
+                            source_arrays,
+                            source_error_profiles[axis],
+                            absolute_profiles=source_absolute_error_profiles[
+                                axis
+                            ],
+                            geometry_other_profiles=(
+                                other_source_profiles
+                                if axis == "background"
+                                else ()
+                            ),
+                            geometry_reference=(
+                                {**geometry_reference, "ells": ell_signature}
+                                if axis == "background"
+                                else None
+                            ),
+                            kernel_batch=kernel_batch,
+                            k_value=float(refined_k_value),
+                            eta_weights=eta_integration_weights,
+                            chi_grid=source_grids["chi"],
+                            source_chi=source_chi,
+                        )
         refined_projection_elapsed = (
             perf_counter() - refined_projection_started
         )
@@ -3459,6 +4176,7 @@ def _compute_custom_cmb_spectrum_data_impl(
         spectra_results = refined_spectra
         spectrum_k_values = refined_k_values
         spectrum_transfer_components = refined_transfer_components
+        transfer_uncertainties = refined_uncertainties
         runtime_envelope["k_grid_actual_count"] = int(refined_k_values.size)
         interpolation_elapsed = perf_counter() - interpolation_started
         performance_timer.add("projection", refined_projection_elapsed)
@@ -3792,6 +4510,21 @@ def _compute_custom_cmb_spectrum_data_impl(
             "refinement", {}
         )
         or {}
+    )
+    runtime_envelope["validation_native_history_reuse_count"] = (
+        retained_validation_histories
+    )
+    runtime_envelope["validation_reference_history_reuse_count"] = (
+        retained_reference_histories
+    )
+    runtime_envelope["evolution_error_normalization"] = (
+        "independent_per_state_history_amplitude"
+    )
+    runtime_envelope["source_history_interpolation"] = (
+        "native_shape_preserving_cubic_hermite"
+    )
+    runtime_envelope["evolution_local_relative_error"] = (
+        evolution_local_relative_error
     )
     hierarchy_controls = dict(numerical_envelope.hierarchy_controls)
     hierarchy_is_applicable = bool(declared_hierarchy_families)
@@ -4949,20 +5682,14 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["projection_kernel_cache_hits"] = int(
         kernel_cache_after["hits"] - kernel_cache_before["hits"]
     )
-    projection_sector_key = (
-        ("all",)
-        if streaming_projection_sectors is None
-        else tuple(sorted(streaming_projection_sectors))
-    )
     runtime_envelope["projection_kernel_cache_keys"] = tuple(
-        (
-            ell_signature,
-            mode_projection_metadata[int(k_index)][1],
-            projection_sector_key,
-        )
-        for k_index, kernel_batches in mode_kernel_batches.items()
-        for ell_signature in kernel_batches
-        if int(k_index) in mode_projection_metadata
+        sorted(prepared_kernel_keys)
+    )
+    runtime_envelope["projection_peak_kernel_bytes"] = int(
+        projection_peak_kernel_bytes
+    )
+    runtime_envelope["projection_peak_live_modes"] = int(
+        projection_peak_live_modes
     )
     runtime_envelope["collision_kernel_metrics"] = {
         key: (
@@ -4988,7 +5715,7 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["projection_chunk_size"] = int(_BESSEL_MAX_MODE_BATCH)
     runtime_envelope["projection_chunk_accumulation_order"] = "k_index"
     runtime_envelope["projection_peak_bessel_cells"] = int(
-        _BESSEL_WORK_CELL_BUDGET
+        projection_peak_bessel_cells
     )
     hierarchy_schedule_cache_after = cache.cmb_cache_stats()[
         "hierarchy_schedule"
@@ -5004,6 +5731,63 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["hierarchy_schedule_cache_reused"] = bool(
         runtime_envelope["hierarchy_schedule_cache_hit_count"] > 0
     )
+    if observable_budget_enabled:
+        axis_bounds: dict[str, dict[str, Any]] = {}
+        joint_errors = {
+            name: sum(
+                errors[name] for errors in transfer_uncertainties.values()
+            )
+            for name in spectrum_transfer_components
+        }
+        for axis, errors in transfer_uncertainties.items():
+            axis_bounds[axis] = {}
+            for name, entry in power_spectrum_observables.items():
+                primary = str(entry.primary)
+                secondary = str(entry.secondary)
+                axis_bounds[axis][name] = transfer_spectrum_error(
+                    numpy.log(spectrum_k_values),
+                    _primordial_power_grid_for_observable(
+                        physical_params=physical_params,
+                        perturbation_data=perturbation_data,
+                        observable_entry=entry,
+                        k_values=spectrum_k_values,
+                    ),
+                    spectrum_transfer_components[primary],
+                    spectrum_transfer_components[secondary],
+                    errors[primary],
+                    errors[secondary],
+                    total_primary_error=joint_errors[primary],
+                    total_secondary_error=joint_errors[secondary],
+                ).tolist()
+        axis_bounds["projection"] = {
+            name: numpy.full(
+                numpy.asarray(values).shape,
+                projection_product_errors[name]["absolute_error"],
+            ).tolist()
+            for name, values in spectra_results.items()
+        }
+        runtime_envelope["observable_axis_error_bounds"] = axis_bounds
+        runtime_envelope["physical_axis_source_refinement"] = (
+            physical_axis_probe_records
+        )
+        for axis, record in physical_axis_probe_records.items():
+            runtime_envelope["resolution_axis_evidence"][axis].update(
+                method=record["method"],
+                status="measured",
+                native_source_refinement=record,
+            )
+        runtime_envelope["observable_error_validation_domain"] = {
+            "source_and_evolution_k": [
+                float(k_values[index])
+                for index in sorted(validation_mode_indices)
+            ],
+            "source_eta_count": int(source_grids["eta"].size),
+            "propagation": "absolute_LOS_and_signed_spline_quadrature_weights",
+            "between_wave_envelope": (
+                "maximum_measured_normalized_source_error"
+            ),
+            "physical_axes": "separate_background_momentum_hierarchy_checks",
+        }
     timing_snapshot = performance_timer.snapshot(
         total_seconds=elapsed_seconds,
     )
@@ -5059,6 +5843,253 @@ def _refined_adaptive_transfer_controls(
     return controls
 
 
+def _compute_production_refinement(
+    contract_or_params,
+    result,
+    request_ells,
+    *,
+    background_provider,
+    effective_requested_spectra,
+    requested,
+    production_controls,
+    timer,
+    workload,
+    diagnostic_request,
+):
+    """Execute one distinct nested refinement and its observable budget."""
+
+    base_numerical = dict(
+        contract_or_params.get(
+            "_engine_numerical_plan",
+            contract_or_params.get("numerical", {}) or {},
+        )
+        or {}
+    )
+    base_k_count = int(base_numerical.get("k_sample_count", 0))
+    if base_k_count < 1:
+        raise ValueError(
+            "Production scalar convergence requires a positive "
+            "k_sample_count"
+        )
+    refined_contract = dict(contract_or_params)
+    refined_contract["_k_grid_refinement_factor"] = int(
+        production_controls.k_refinement_factor
+    )
+    refined_accuracy_controls = _refined_adaptive_transfer_controls(
+        refined_contract,
+        factor=production_controls.k_refinement_factor,
+    )
+    if refined_accuracy_controls is not None:
+        refined_contract["_engine_accuracy_controls"] = (
+            refined_accuracy_controls
+        )
+    refined_contract["_numerical_overrides"] = {
+        **dict(refined_contract.get("_numerical_overrides", {})),
+        # The grid builder applies the declared refinement factor.
+        # Keep the base count here so the safety floor and the
+        # refinement factor cannot silently multiply one another.
+        "k_sample_count": base_k_count,
+    }
+    refined_contract["_k_grid_refinement_anchors"] = tuple(
+        float(value) for value in numpy.asarray(result.k_grid)
+    )
+    refined_timer = PhaseTimer(
+        _started_at=timer._started_at,
+        _last_heartbeat_at=timer._last_heartbeat_at,
+    )
+    refinement_started = perf_counter()
+    try:
+        refined = _compute_custom_cmb_spectrum_data_impl(
+            refined_contract,
+            request_ells,
+            background_provider=background_provider,
+            requested_spectra=effective_requested_spectra,
+            diagnostic_source_audit=workload.startswith(
+                "fixed_parameter_diagnostic"
+            ),
+            performance_timer=refined_timer,
+        )
+    finally:
+        timer.merge(refined_timer, scope_prefix="k_refinement")
+    base_k_grid = numpy.asarray(result.k_grid, dtype=numpy.float64)
+    refined_k_grid = numpy.asarray(refined.k_grid, dtype=numpy.float64)
+    base_grid_digest = _projection_array_digest(base_k_grid)
+    refined_grid_digest = _projection_array_digest(refined_k_grid)
+    nested = bool(numpy.all(numpy.isin(base_k_grid, refined_k_grid)))
+    distinct = bool(
+        base_grid_digest != refined_grid_digest
+        and not numpy.array_equal(base_k_grid, refined_k_grid)
+    )
+    new_node_count = int(max(0, refined_k_grid.size - base_k_grid.size))
+    if not distinct or not nested or new_node_count <= 0:
+        raise ValueError(
+            "Production scalar convergence produced invalid k-grid "
+            "evidence: grids must be distinct, nested, and add nodes"
+        )
+    required_for_report = tuple(
+        dict.fromkeys(
+            tuple(production_controls.required_spectra)
+            + tuple(requested or ())
+        )
+    )
+    report = evaluate_spectrum_refinement(
+        result.spectra,
+        refined.spectra,
+        required_spectra=required_for_report,
+        relative_tolerances=(production_controls.relative_tolerances),
+    )
+    if not report.converged and production_controls.fail_on_nonconvergence:
+        raise AdaptiveNonConvergenceError(
+            "Production scalar CCMBS spectrum did not converge under "
+            "the declared doubled k-grid",
+            label="transfer k-grid",
+            evidence={
+                "base_count": int(result.k_grid.size),
+                "k_grid": tuple(float(value) for value in result.k_grid),
+                "relative_error": max(
+                    row.relative_error for row in report.metrics.values()
+                ),
+                "absolute_error": 0.0,
+                "metrics": report.to_dict()["metrics"],
+            },
+        )
+    refined_runtime_envelope = dict(refined.runtime_envelope)
+    measured_new_work = int(
+        refined_runtime_envelope.get("evolution_modes_evolved", 0)
+    ) + int(
+        refined_runtime_envelope.get(
+            "adaptive_transfer_new_node_work_units",
+            0,
+        )
+    )
+    exact_refinement_reuse = bool(
+        refined_timer.cache_state == "exact_cache_hit"
+    )
+    if not exact_refinement_reuse and measured_new_work <= 0:
+        raise ValueError(
+            "Cold production scalar refinement recorded no measured "
+            "new work"
+        )
+    production_record = {
+        "axis": "k_sample_count",
+        "base_count": int(base_k_grid.size),
+        "refined_count": int(refined_k_grid.size),
+        "declared_base_count": base_k_count,
+        "declared_refined_count": (
+            base_k_count * production_controls.k_refinement_factor
+        ),
+        "refinement_factor": production_controls.k_refinement_factor,
+        "required_spectra": required_for_report,
+        "base_grid_sha256": base_grid_digest,
+        "refined_grid_sha256": refined_grid_digest,
+        "nested": nested,
+        "distinct": distinct,
+        "new_node_count": new_node_count,
+        "new_node_work_units": measured_new_work,
+        "refined_cached_mode_count": int(
+            refined_runtime_envelope.get("evolution_cached_mode_count", 0)
+        ),
+        "refined_cache_state": refined_timer.cache_state,
+        "cold_refinement": bool(not exact_refinement_reuse),
+        "warm_reuse": exact_refinement_reuse,
+        "matching_accepted_finer_calculation": bool(
+            exact_refinement_reuse
+            and distinct
+            and nested
+            and new_node_count > 0
+        ),
+        "refinement_identity": hashlib.sha256(
+            (
+                f"{base_grid_digest}:{refined_grid_digest}:"
+                f"{production_controls.k_refinement_factor}"
+            ).encode("utf-8")
+        ).hexdigest(),
+        "metrics": report.to_dict()["metrics"],
+        "converged": report.converged,
+        "fail_on_nonconvergence": (production_controls.fail_on_nonconvergence),
+        "elapsed_seconds": perf_counter() - refinement_started,
+    }
+    enriched_envelope = dict(result.runtime_envelope)
+    enriched_envelope["production_scalar_k_convergence"] = production_record
+    axis_bounds = enriched_envelope.get("observable_axis_error_bounds")
+    if axis_bounds is not None:
+        finer_bounds = refined.runtime_envelope["observable_axis_error_bounds"]
+        combined_bounds = {
+            axis: {
+                name: numpy.maximum(values, finer_bounds[axis][name])
+                for name, values in bounds.items()
+            }
+            for axis, bounds in axis_bounds.items()
+        }
+        combined_bounds["k"] = {
+            name: abs(
+                numpy.asarray(result.spectra[name])
+                - numpy.asarray(refined.spectra[name])
+            )
+            for name in result.spectra
+        }
+        budget = combine_observable_errors(
+            result.spectra,
+            combined_bounds,
+            {
+                name: production_controls.relative_tolerances[
+                    canonical_cmb_spectrum_name(name)
+                ]
+                for name in result.spectra
+            },
+        )
+        enriched_envelope["observable_error_budget"] = budget
+        if not budget["converged"]:
+            raise AdaptiveNonConvergenceError(
+                "Combined observable error budget did not converge",
+                label="observable-error-budget",
+                failed_products=tuple(
+                    name
+                    for name, row in budget["products"].items()
+                    if not row["converged"]
+                ),
+                evidence={
+                    **budget,
+                    "source_eta_sample_count": max(
+                        int(
+                            result.runtime_envelope.get("eta_sample_count", 0)
+                        ),
+                        int(
+                            refined.runtime_envelope.get("eta_sample_count", 0)
+                        ),
+                    ),
+                    "background_resolution_seed": max(
+                        int(
+                            row.runtime_envelope.get(
+                                "background_resolution_evidence", {}
+                            )
+                            .get("refinement", {})
+                            .get("fine_eta_nodes", 0)
+                        )
+                        for row in (result, refined)
+                    ),
+                },
+            )
+    result = CustomCMBSpectrumData(
+        ell_grid=result.ell_grid,
+        k_grid=result.k_grid,
+        transfer_components=result.transfer_components,
+        spectra=result.spectra,
+        runtime_envelope=enriched_envelope,
+        spectrum_availability=result.spectrum_availability,
+    )
+    cache_key = _custom_cmb_spectrum_cache_key(
+        contract_or_params,
+        request_ells,
+        background_provider,
+        requested_spectra=effective_requested_spectra,
+    )
+    if not diagnostic_request:
+        cache.set_cmb_spectrum(cache_key, result)
+    return result
+
+
+@cache.retain_cmb_source_histories
 def _compute_custom_cmb_spectrum_data(
     contract_or_params: Mapping[str, Any],
     ells: Iterable[int],
@@ -5078,6 +6109,7 @@ def _compute_custom_cmb_spectrum_data(
     )
     production_controls = None
     effective_requested_spectra = requested
+    initial_request_contract = contract_or_params
     context = failure_context(
         contract_or_params,
         workload=workload,
@@ -5098,6 +6130,7 @@ def _compute_custom_cmb_spectrum_data(
             contract_or_params
         )
         request_ells = tuple(int(value) for value in ells)
+        ells = request_ells
         production_enforced = bool(
             production_controls.enabled
             and workload != "joint_mcmc"
@@ -5112,170 +6145,150 @@ def _compute_custom_cmb_spectrum_data(
             effective_requested_spectra = tuple(
                 dict.fromkeys(requested + production_controls.required_spectra)
             )
-        result = _compute_custom_cmb_spectrum_data_impl(
-            contract_or_params,
-            request_ells,
-            background_provider=background_provider,
-            requested_spectra=effective_requested_spectra,
-            diagnostic_source_audit=workload.startswith(
-                "fixed_parameter_diagnostic"
-            ),
-            performance_timer=timer,
-        )
-        production_record = result.runtime_envelope.get(
-            "production_scalar_k_convergence"
-        )
-        if production_enforced and production_record is None:
-            base_numerical = dict(
-                contract_or_params.get(
-                    "_engine_numerical_plan",
-                    contract_or_params.get("numerical", {}) or {},
-                )
-                or {}
+        hint_key = None
+        hint_reused = False
+        if (
+            production_enforced
+            and not diagnostic_request
+            and isinstance(
+                contract_or_params.get("_engine_numerical_plan"), Mapping
             )
-            base_k_count = int(base_numerical.get("k_sample_count", 0))
-            if base_k_count < 1:
-                raise ValueError(
-                    "Production scalar convergence requires a positive "
-                    "k_sample_count"
-                )
-            refined_contract = dict(contract_or_params)
-            refined_contract["_k_grid_refinement_factor"] = int(
-                production_controls.k_refinement_factor
-            )
-            refined_accuracy_controls = _refined_adaptive_transfer_controls(
-                refined_contract,
-                factor=production_controls.k_refinement_factor,
-            )
-            if refined_accuracy_controls is not None:
-                refined_contract["_engine_accuracy_controls"] = (
-                    refined_accuracy_controls
-                )
-            refined_contract["_numerical_overrides"] = {
-                # The grid builder applies the declared refinement factor.
-                # Keep the base count here so the safety floor and the
-                # refinement factor cannot silently multiply one another.
-                "k_sample_count": base_k_count,
-            }
-            refined_contract["_k_grid_refinement_anchors"] = tuple(
-                float(value) for value in numpy.asarray(result.k_grid)
-            )
-            refined_timer = PhaseTimer()
-            refinement_started = perf_counter()
-            refined = _compute_custom_cmb_spectrum_data_impl(
-                refined_contract,
+        ):
+            initial_key = _custom_cmb_spectrum_cache_key(
+                contract_or_params,
                 request_ells,
-                background_provider=background_provider,
+                background_provider,
                 requested_spectra=effective_requested_spectra,
-                diagnostic_source_audit=workload.startswith(
-                    "fixed_parameter_diagnostic"
-                ),
-                performance_timer=refined_timer,
             )
-            base_k_grid = numpy.asarray(result.k_grid, dtype=numpy.float64)
-            refined_k_grid = numpy.asarray(refined.k_grid, dtype=numpy.float64)
-            base_grid_digest = _projection_array_digest(base_k_grid)
-            refined_grid_digest = _projection_array_digest(refined_k_grid)
-            nested = bool(numpy.all(numpy.isin(base_k_grid, refined_k_grid)))
-            distinct = bool(
-                base_grid_digest != refined_grid_digest
-                and not numpy.array_equal(base_k_grid, refined_k_grid)
+            hint_key = _custom_cmb_spectrum_cache_key(
+                {
+                    key: value
+                    for key, value in contract_or_params.items()
+                    if key != "_engine_planner_evidence"
+                },
+                (min(request_ells), max(request_ells)),
+                background_provider,
+                requested_spectra=effective_requested_spectra,
             )
-            new_node_count = int(
-                max(0, refined_k_grid.size - base_k_grid.size)
-            )
-            if not distinct or not nested or new_node_count <= 0:
-                raise ValueError(
-                    "Production scalar convergence produced invalid k-grid "
-                    "evidence: grids must be distinct, nested, and add nodes"
+            if not cache.has_cmb_spectrum(initial_key):
+                hint = cache.get_cmb_resolution_hint(hint_key)
+                if hint is not None:
+                    contract_or_params = {**dict(contract_or_params), **hint}
+                    hint_reused = True
+        evolution_attempts: list[dict[str, Any]] = []
+        initial_resolution_evidence = None
+        initialize_resolution = bool(
+            production_enforced
+            and not diagnostic_request
+            and not hint_reused
+            and "_engine_numerical_plan" in contract_or_params
+        )
+        while True:
+            initialize_attempt = initialize_resolution
+            initialize_resolution = False
+            try:
+                result = _compute_custom_cmb_spectrum_data_impl(
+                    contract_or_params,
+                    request_ells,
+                    background_provider=background_provider,
+                    requested_spectra=effective_requested_spectra,
+                    diagnostic_source_audit=workload.startswith(
+                        "fixed_parameter_diagnostic"
+                    ),
+                    performance_timer=timer,
+                    **(
+                        {"initialize_resolution": True}
+                        if initialize_attempt
+                        else {}
+                    ),
                 )
-            required_for_report = tuple(
-                dict.fromkeys(
-                    tuple(production_controls.required_spectra)
-                    + tuple(requested or ())
+                if isinstance(result, InitialResolutionCandidate):
+                    initial_resolution_evidence = dict(result.evidence)
+                    _LOGGER.info(
+                        "CCMBS initial resolution candidate: %s",
+                        initial_resolution_evidence,
+                    )
+                    contract_or_params = result.contract
+                    continue
+                if (
+                    production_enforced
+                    and result.runtime_envelope.get(
+                        "production_scalar_k_convergence"
+                    )
+                    is None
+                ):
+                    result = _compute_production_refinement(
+                        contract_or_params,
+                        result,
+                        request_ells,
+                        background_provider=background_provider,
+                        effective_requested_spectra=(
+                            effective_requested_spectra
+                        ),
+                        requested=requested,
+                        production_controls=production_controls,
+                        timer=timer,
+                        workload=workload,
+                        diagnostic_request=diagnostic_request,
+                    )
+                production_record = result.runtime_envelope.get(
+                    "production_scalar_k_convergence"
                 )
-            )
-            report = evaluate_spectrum_refinement(
-                result.spectra,
-                refined.spectra,
-                required_spectra=required_for_report,
-                relative_tolerances=(production_controls.relative_tolerances),
-            )
-            refined_runtime_envelope = dict(refined.runtime_envelope)
-            measured_new_work = int(
-                refined_runtime_envelope.get("evolution_modes_evolved", 0)
-            ) + int(
-                refined_runtime_envelope.get(
-                    "adaptive_transfer_new_node_work_units",
-                    0,
+                break
+            except AdaptiveNonConvergenceError as error:
+                if (
+                    diagnostic_request
+                    or "_engine_numerical_plan" not in contract_or_params
+                ):
+                    raise
+                promotion = promote_failed_resolution(
+                    contract_or_params, error, attempts=evolution_attempts
                 )
-            )
-            exact_refinement_reuse = bool(
-                refined_timer.cache_state == "exact_cache_hit"
-            )
-            if not exact_refinement_reuse and measured_new_work <= 0:
-                raise ValueError(
-                    "Cold production scalar refinement recorded no measured "
-                    "new work"
+                if promotion is None:
+                    raise
+                updated_contract, attempt = promotion
+                matching = [
+                    row
+                    for row in evolution_attempts
+                    if row["axis"] == attempt["axis"]
+                    and row["failure_label"] == attempt["failure_label"]
+                ]
+                measured_error = float(attempt["relative_error"])
+                if len(matching) >= 3 and all(
+                    measured_error >= float(row["relative_error"]) * 0.9
+                    for row in matching[-3:]
+                ):
+                    error.add_context(
+                        automatic_resolution_refinement=evolution_attempts,
+                        refinement_stop="measured_error_stagnation",
+                    )
+                    raise
+                evolution_attempts.append(attempt)
+                _LOGGER.info(
+                    "CCMBS numerical refinement: axis=%s; relative_error=%.6g",
+                    attempt["axis"],
+                    measured_error,
                 )
-            production_record = {
-                "axis": "k_sample_count",
-                "base_count": int(base_k_grid.size),
-                "refined_count": int(refined_k_grid.size),
-                "declared_base_count": base_k_count,
-                "declared_refined_count": (
-                    base_k_count * production_controls.k_refinement_factor
-                ),
-                "refinement_factor": production_controls.k_refinement_factor,
-                "required_spectra": required_for_report,
-                "base_grid_sha256": base_grid_digest,
-                "refined_grid_sha256": refined_grid_digest,
-                "nested": nested,
-                "distinct": distinct,
-                "new_node_count": new_node_count,
-                "new_node_work_units": measured_new_work,
-                "refined_cache_state": refined_timer.cache_state,
-                "cold_refinement": bool(not exact_refinement_reuse),
-                "warm_reuse": exact_refinement_reuse,
-                "matching_accepted_finer_calculation": bool(
-                    exact_refinement_reuse
-                    and distinct
-                    and nested
-                    and new_node_count > 0
-                ),
-                "refinement_identity": hashlib.sha256(
-                    (
-                        f"{base_grid_digest}:{refined_grid_digest}:"
-                        f"{production_controls.k_refinement_factor}"
-                    ).encode("utf-8")
-                ).hexdigest(),
-                "metrics": report.to_dict()["metrics"],
-                "converged": report.converged,
-                "fail_on_nonconvergence": (
-                    production_controls.fail_on_nonconvergence
-                ),
-                "elapsed_seconds": perf_counter() - refinement_started,
-            }
-            enriched_envelope = dict(result.runtime_envelope)
-            enriched_envelope["production_scalar_k_convergence"] = (
-                production_record
-            )
+                contract_or_params = updated_contract
+                timer.failed_phase = None
+        if evolution_attempts or initial_resolution_evidence is not None:
+            envelope = dict(result.runtime_envelope)
+            if initial_resolution_evidence is not None:
+                envelope["initial_resolution_candidate"] = (
+                    initial_resolution_evidence
+                )
+            envelope["automatic_resolution_refinement"] = evolution_attempts
+            envelope["automatic_evolution_refinement"] = [
+                row for row in evolution_attempts if row["axis"] == "evolution"
+            ]
             result = CustomCMBSpectrumData(
                 ell_grid=result.ell_grid,
                 k_grid=result.k_grid,
                 transfer_components=result.transfer_components,
                 spectra=result.spectra,
-                runtime_envelope=enriched_envelope,
+                runtime_envelope=envelope,
                 spectrum_availability=result.spectrum_availability,
             )
-            cache_key = _custom_cmb_spectrum_cache_key(
-                contract_or_params,
-                ells,
-                background_provider,
-                requested_spectra=effective_requested_spectra,
-            )
-            if not diagnostic_request:
-                cache.set_cmb_spectrum(cache_key, result)
         if (
             production_enforced
             and production_record is not None
@@ -5292,6 +6305,53 @@ def _compute_custom_cmb_spectrum_data(
                     "metrics": production_record.get("metrics", {}),
                 },
             )
+        if (
+            hint_key is not None
+            and timer.cache_state != "exact_cache_hit"
+            and production_record is not None
+            and production_record.get("converged", False)
+            and result.runtime_envelope.get("observable_error_budget", {}).get(
+                "converged"
+            )
+        ):
+            cache.set_cmb_resolution_hint(
+                hint_key,
+                {
+                    key: dict(contract_or_params[key])
+                    for key in (
+                        "_engine_numerical_plan",
+                        "_engine_accuracy_controls",
+                        "_numerical_overrides",
+                    )
+                    if key in contract_or_params
+                },
+            )
+        if hint_reused:
+            envelope = dict(result.runtime_envelope)
+            envelope["resolution_hint_reused"] = True
+            result = CustomCMBSpectrumData(
+                ell_grid=result.ell_grid,
+                k_grid=result.k_grid,
+                transfer_components=result.transfer_components,
+                spectra=result.spectra,
+                runtime_envelope=envelope,
+                spectrum_availability=result.spectrum_availability,
+            )
+        if (
+            evolution_attempts
+            or hint_reused
+            or initial_resolution_evidence is not None
+        ) and not diagnostic_request:
+            # Automatic resolution satisfies the original accuracy request.
+            # Retain that exact request's accepted result and its effective
+            # controls, so an exact repeat does not redo a failed pilot.
+            initial_key = _custom_cmb_spectrum_cache_key(
+                initial_request_contract,
+                request_ells,
+                background_provider,
+                requested_spectra=effective_requested_spectra,
+            )
+            cache.set_cmb_spectrum(initial_key, result)
         if production_enforced and requested is not None:
             requested_names = {
                 canonical_cmb_spectrum_name(name) for name in requested
@@ -5355,6 +6415,18 @@ def _compute_custom_cmb_spectrum_data(
             raise
         raise typed_error from exc
 
+    retained_work = cache.cmb_source_history_scope_stats()
+    if retained_work:
+        updated_envelope = dict(result.runtime_envelope)
+        updated_envelope["request_source_history_retention"] = retained_work
+        result = CustomCMBSpectrumData(
+            ell_grid=result.ell_grid,
+            k_grid=result.k_grid,
+            transfer_components=result.transfer_components,
+            spectra=result.spectra,
+            runtime_envelope=FrozenMapping(updated_envelope),
+            spectrum_availability=result.spectrum_availability,
+        )
     timing = timer.snapshot(total_seconds=elapsed)
     telemetry_context = dict(context)
     telemetry_context["runtime"] = _runtime_telemetry_context(result)

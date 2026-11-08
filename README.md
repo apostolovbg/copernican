@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-10-25
+**Last Updated:** 2026-11-08
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -116,17 +116,15 @@ is validated rather than solved for a replacement potential, preventing
 low-k round-off from collapsing the initial metric and corrupting every
 projected spectrum.
 
-Final generated scalar spectra promote the declared Fourier ladder to the
-physical radial/acoustic phase requirement, with 512 modes as the minimum
-floor when that requirement is smaller. This resolves the rapidly oscillating
-spherical-Bessel phase that a 64-mode smoke-test ladder aliases into a jagged
-CMB curve. The hierarchy
-also uses quarter-cycle Runge-Kutta stages through recombination, then returns
-to the declared phase step for the late integrated Sachs-Wolfe tail.
-The bundled final LambdaCDM contract additionally declares a bounded
-phase-aware line-of-sight grid. Its runtime envelope records the effective
-eta-node count and spacing, so raw projection resolution is inspectable rather
-than hidden by plotting.
+Final generated scalar spectra resolve the measured radial/acoustic Fourier
+phase and validate a distinct nested finer ladder. An arbitrary fixed mode
+floor does not substitute for that comparison. The hierarchy uses
+quarter-cycle Runge-Kutta stages through recombination, then the declared
+phase target for the late integrated Sachs-Wolfe tail. Production
+line-of-sight grids resolve the actual visibility profile and Fourier phase;
+the search allowance is not a required output size. Their independently
+finer grids retain every coarse node. Runtime evidence records the actual
+node counts and spacing.
 
 Transfer phase refinement is nested. The engine evolves a bounded base k
 ladder once, preserves those modes, and evolves the declared hierarchy at
@@ -542,12 +540,177 @@ velocity source by k squared during superhorizon evolution. The momentum
 equation remains an independent constraint; initial radiation-density
 projection closes both constraints while preserving the primordial metric.
 `runtime/mode_evolution.py` retains the evolved metric and source histories.
+Its scalar stage contexts reuse compiler-ordered slot names. The graph
+compiler reuses each condition's common symbol domain, and `runtime/cache.py`
+measures array payloads only for stores with a byte budget, retaining those
+sizes through replacement and eviction. These changes preserve equations,
+scalar conversion and numerical controls.
+`runtime/history_store.py` retains raw mode sources across one request's
+nested refinements even when the global LRU evicts them. Its memory budget
+spills exact arrays into request-local files with checked digests; those
+files are released on success or failure. It retains no convergence
+certificates. Sampling node counts are separate from each mode's physical,
+graph, grid and numerical identity. Direct runtime ownership tests are
+included in ordinary unittest discovery.
+
+The parameter-scoped `resolution_hint` cache stores starting numerical controls
+for matching physical points and Fourier support. It excludes observation
+sampling labels, carries no certificate and preserves every accuracy target.
+Joint-budget refinement uses measured axis improvement to choose its next
+trial. It avoids repeating an unproductive grid increase while another
+material error can be reduced. The unchanged total-error test still decides
+acceptance. Source/projection refinement changes LOS sampling independently
+of the background seed. Compatible pilot/reference states survive these
+sampling changes, keyed by their exact physical and numerical inputs. Sources
+and acceptance checks are recomputed from the retained raw states.
+Background refinement starts from its accepted internal seed through a
+separate control, so an obsolete input cannot cause a no-op refinement or
+silently increase the unrelated LOS sampling seed.
+An ordinary generated-scalar request first proposes active evolution and LOS
+densities from its accepted physical background grid. This proposal avoids
+repeated full solves from undersized default guesses. It carries no spectrum
+or acceptance certificate; every independent native and observable check
+still runs. Later axis refinements remain independent, disabled checks retain
+their settings, and already finer starting controls are preserved.
+Fresh requests still perform their numerical checks; exact accepted results
+retain their usual cache identity. Clearing result products preserves these
+starting hints, while clearing parameter caches removes them.
+
+Evolution retains its full independently planned native history. Large saved
+batch trajectories use temporary file-backed arrays; live RK working arrays
+determine mode chunking. Resident ndarray cells and mapped history cells are
+reported separately; the operating system can also cache mapped pages.
+Reordering an observation request preserves compatible physical histories.
+Changed physical parameters, equations, distributions or effective controls
+require fresh work. `runtime/equation_kernel.py` groups validated equations by
+their arithmetic structure, preserving operand bindings and operation order.
+Scalar execution remains an independent comparison. A single pending compatible
+mode keeps that executor after cache reuse; new independent transfer nodes use
+chunked batches with separately recorded reference work. Split collision
+schedules resolve the spectral scale of the actual declared interaction
+operator, including its coefficients, rather than assuming every interaction is
+Thomson opacity. Stiff declared blocks without a fast manifold use error-
+controlled local implicit integration of their full equations; interval
+boundaries and conservation checks remain active. A fixed RK substep ceiling
+cannot reject an otherwise resolvable block.
+`runtime/stage_background.py` evaluates the actual declared background at
+scheduled RK coordinates in bounded vector blocks. It preserves every stage
+coordinate and physical interpolant, and compares all returned fields with
+the scalar owner. Momentum stage bindings separate constant fields from
+varying columns instead of rebuilding their array metadata for every stage.
+Interior equation operands gather native state rows directly, including when
+their terminal rows need declared closure values. Only those replacements
+and actual graph dependencies enter the RHS context. Derived state rebinding,
+numeric promotion, diagnostic contexts and independent scalar comparisons
+retain their original semantics.
+`runtime/performance.py` charges nested phases exclusively and merges outer
+refinement timings into the request. Heartbeats distinguish phase, scope and
+request elapsed time. Known RK schedules use mode-row substeps as weights;
+projection uses ell/eta cells. Each estimate names its work scope, while
+unresolved future adaptive work remains unknown. Scalar adaptive integration
+reports RHS activity without inventing a known remaining-work total.
+Grid messages label conformal-time node counts as `eta_samples` or
+`source_eta_samples`; these counts are not wall-clock estimates.
+
+Adaptive evolution keeps the hidden early-time prefix in addition to its
+controlled late-time mesh. `runtime/adaptive.py` resolves measured opacity,
+expansion and visibility features, actual Fourier phase and physical rate
+transitions. Independent coarse grids cannot overwrite the shared fine grid.
+Selected actual RK histories and their compiled source products are checked
+before scheduling the remaining modes; successful pilot work is retained.
+An unresolved engine-owned evolution mesh is refined without a fixed node
+ceiling; measured stagnation remains a failure. Each state's own amplitude
+and absolute tolerance govern its history error, while pointwise errors at
+zero crossings remain diagnostic. `runtime/evolution.py` includes collision
+phase after leaving the declared fast manifold: exact damping alone does not
+make a split, driven collision solution accurate.
+Native states use a shape-preserving cubic Hermite interpolant before source
+evaluation. Its stable harmonic slopes retain tiny moments and avoid
+artificial ISW corners caused by differentiating linearly resampled metric
+histories. Independent evolution checks compare the actual compiled sources
+as well as native states. Exact matching independent reference histories
+also survive nested refinements; each comparison is evaluated again.
 Velocity-isocurvature density seeds use the independent momentum source,
 so they resolve before any provisional state exists. `contracts_audit.py`
 uses the runtime's generated source-graph validator, including every energy
 equation input. Public massive-neutrino velocity and shear use the physical
 enthalpy density (rho plus pressure) at each epoch; normalized q moments
 remain separate. BAO data comparisons use the baryon drag sound horizon.
+
+Hierarchy families declare `physical_role` and kinetic `phase_space` metadata.
+`phase_space.py` resolves the declared occupation law, logarithmic derivative,
+temperature, mass and quadrature support independently of species labels.
+Numerical support and density are measured separately, including nonthermal
+features outside the initial thermal search interval.
+
+Ordinary production checks independently finer background, hierarchy depth,
+and applicable momentum quadrature on informative actual modes before the
+remaining surface. Evolution and source comparisons remain independent.
+`runtime/error_budget.py` propagates measured source uncertainties through the
+absolute line-of-sight operators and signed-spline quadrature weights, then
+sums all applicable axis bounds with projection and Fourier refinement errors.
+Cross-spectrum checks include uncertainty in their normalization. Joint
+transfer products include interactions between different source-error axes,
+and the final budget retains the larger coarse/finer-grid axis bounds.
+Background checks also propagate changes in the radial/geometry operator. These
+bounds
+condition on measured source discrepancies; their sampled physical domain and
+between-wave maximum-envelope assumption remain explicit. They do not certify
+agreement with an external scientific reference.
+
+The explicit `tests.project.lib.numerical_planning_acceptance` command records
+ordinary LCDM/Planck angular costs, numerical budgets, exact and compatible
+reuse, changed requests/parameters, subsets, cache pressure and batch failure
+isolation. It preserves each operation and its producer identity. Adaptive
+subsets
+compare raw and public products against the sum of their recorded numerical
+uncertainties; different accepted meshes need not agree to roundoff.
+`--assess-only` reads retained measurements into a separate digest-bound
+readback without changing the producer report or rerunning its solver.
+These measurements and scientific acceptance remain outside unittest
+discovery and `devcovenant run`.
+Historical sparse numerical measurements cover seven actual operations
+for each model. On the recorded Intel i5-4690K, cold LCDM and Planck requests
+take 617.956 and 3053.376 seconds; exact repeats take 0.015 and 0.172 seconds.
+These are final-control numerical measurements at ell=(2,10,20), including
+the full time domain and independent physical-axis comparisons. `PLAN.md`
+records the workload variants, memory costs and source-bound evidence. They
+did not establish full-suite practicality; that closure claim is withdrawn.
+Matched external angular parity remains a separate acceptance requirement.
+
+Projection now consumes one bounded mode chunk before releasing its radial
+kernels, including when adaptive comparisons are enabled and the maximum
+multipole is small. The same source, geometry and coarse/fine error checks
+remain active. Bessel recurrence columns and array caches have memory budgets;
+these partition work without discarding physical samples or relaxing accuracy.
+The runtime reports actual retained kernel bytes and live mode counts.
+Physical phase-space expressions must bind declared parameters before
+numerical planning; missing thermal constants are compilation errors.
+For compiler-proven affine state equations, continuous interval Jacobians
+evaluate their coefficient probes together. The scalar trajectory, original
+error tolerances, collision reduction order and boundary handling remain
+unchanged. Nonlinear equations retain the general Jacobian calculation.
+Local intervals use one-step stiff integration to avoid restarting multistep
+history at every projected boundary; whole-history BDF remains independently
+tested. Initial scale probes preserve zero and tiny driven states.
+Continuous solvers select sparse LU for mostly zero Jacobians, retaining
+every coefficient and any new nonzeros as the equations evolve. This avoids
+dense factorization of automatically expanded hierarchies without reducing
+their depth or changing their error tolerances.
+
+Dense graph physics acceptance is explicitly invoked with
+`python -m unittest -v
+tests.project.lib.ccmbs_production_graph.ProductionGraphTestCase` in the
+managed environment. Its original physics assertions remain intact. Ordinary
+`test_ccmbs_production_graph` discovery checks manufactured wave rendering,
+artifact hashes and fresh-process reload without initiating production work.
+It does not certify the manufactured data as scientific solver acceptance.
+Alias-routing fixtures explicitly bind their diagnostic request and original
+role-based hierarchy after preparation, so public replanning cannot turn a
+label-equality check into numerical production. They require finite nonzero
+spectra. Independent sector physics checks retain their domains and accuracy
+thresholds; a separate check validates every Jacobian column of the expanded
+public graph before integration starts.
 
 The explicit `tests.project.lib.native_history_acceptance` command compares
 both reference models' native modes and source terms before angular work.

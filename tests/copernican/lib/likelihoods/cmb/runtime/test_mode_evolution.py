@@ -28,6 +28,421 @@ class _ModeHistoryCaptured(BaseException):
 class ModeEvolutionTestCase(unittest.TestCase):
     """Exercise hierarchy scheduling apart from public orchestration."""
 
+    def test_vector_jacobian_columns_match_actual_scalar_declared_rhs(self):
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        observed = []
+
+        def compare(rhs, initial, eta, **kwargs):
+            self.assertTrue(kwargs["affine_system"])
+            vectorized = kwargs["vectorized_rhs"]
+            self.assertIsNotNone(vectorized)
+            scale = numpy.maximum(abs(initial), 1e-12)
+            probes = numpy.column_stack(
+                (initial, numpy.diag(scale), -numpy.diag(scale))
+            )
+            expected = numpy.column_stack(
+                [rhs(float(eta[0]), state) for state in probes.T]
+            )
+            actual = vectorized(float(eta[0]), probes)
+            numpy.testing.assert_allclose(
+                actual, expected, rtol=2e-13, atol=1e-30
+            )
+            observed.append(actual)
+            raise _ModeHistoryCaptured()
+
+        raw = test_cmb._speedup_contract(
+            test_cmb._declared_vector_hierarchy_contract()
+        )
+        contract = test_cmb._prepare_declared_contract(raw)
+        self.addCleanup(test_cmb.cache.clear_cmb_caches)
+        with (
+            mock.patch.object(
+                mode_evolution,
+                "_integrate_scaled_continuous_history",
+                side_effect=compare,
+            ),
+            self.assertRaises(_ModeHistoryCaptured),
+        ):
+            test_cmb.cmb.compute_cmb_spectrum_from_contract(
+                contract,
+                numpy.asarray((20, 30, 40)),
+                spectra=("BB",),
+            )
+        self.assertTrue(observed)
+
+    def test_affine_initial_scale_probes_preserve_zero_and_tiny_chains(self):
+        from copernican.lib.likelihoods.cmb.runtime.mode_evolution import (
+            _integrate_scaled_continuous_history,
+        )
+
+        eta = numpy.linspace(0, 2, 81)
+        calls = {"scalar": 0, "vector": 0}
+
+        def rhs(eta_value, x):
+            calls["scalar" if x.ndim == 1 else "vector"] += 1
+            return numpy.array(
+                (
+                    -x[0],
+                    1e-10 * x[0] - 2 * x[1],
+                    1e-20 * x[1] - 3 * x[2],
+                    numpy.zeros_like(x[3]),
+                )
+            )
+
+        args = dict(initial_time_scale=0.01, rtol=1e-9, atol=1e-12)
+        initial = numpy.array((1.0, 0.0, 0.0, 0.0))
+        vector = _integrate_scaled_continuous_history(
+            rhs, initial, eta, affine_system=True, vectorized_rhs=rhs, **args
+        )
+        self.assertGreater(calls["vector"], 0)
+        scalar = _integrate_scaled_continuous_history(
+            rhs, initial, eta, **args
+        )
+        exact = numpy.array(
+            (
+                numpy.exp(-eta),
+                1e-10 * (numpy.exp(-eta) - numpy.exp(-2 * eta)),
+                1e-30
+                * (
+                    0.5 * numpy.exp(-eta)
+                    - numpy.exp(-2 * eta)
+                    + 0.5 * numpy.exp(-3 * eta)
+                ),
+                numpy.zeros_like(eta),
+            )
+        )
+        numpy.testing.assert_allclose(vector, exact, rtol=2e-7, atol=1e-40)
+        numpy.testing.assert_allclose(vector, scalar, rtol=2e-7, atol=1e-40)
+        numpy.testing.assert_array_equal(vector[3], numpy.zeros_like(eta))
+
+    def test_affine_continuous_jacobian_preserves_tiny_forced_stiff_states(
+        self,
+    ):
+        from copernican.lib.likelihoods.cmb.runtime.mode_evolution import (
+            _integrate_scaled_continuous_history,
+        )
+
+        eta = numpy.linspace(0, 2, 81)
+
+        def rhs(eta_value, state):
+            return numpy.array((-state[0], 1e-20 * state[0] - 1000 * state[1]))
+
+        arguments = dict(initial_time_scale=0.01, rtol=1e-9, atol=1e-12)
+        affine = _integrate_scaled_continuous_history(
+            rhs,
+            numpy.array((1.0, 0.0)),
+            eta,
+            affine_system=True,
+            vectorized_rhs=rhs,
+            **arguments,
+        )
+        general = _integrate_scaled_continuous_history(
+            rhs, numpy.array((1.0, 0.0)), eta, affine_system=False, **arguments
+        )
+        expected = numpy.array(
+            (
+                numpy.exp(-eta),
+                1e-20 * (numpy.exp(-eta) - numpy.exp(-1000 * eta)) / 999,
+            )
+        )
+        numpy.testing.assert_allclose(affine, expected, rtol=2e-7, atol=1e-30)
+        numpy.testing.assert_allclose(affine, general, rtol=2e-7, atol=1e-30)
+        radau = _integrate_scaled_continuous_history(
+            rhs,
+            numpy.array((1.0, 0.0)),
+            eta,
+            affine_system=True,
+            vectorized_rhs=rhs,
+            method="Radau",
+            **arguments,
+        )
+        numpy.testing.assert_allclose(radau, expected, rtol=2e-7, atol=1e-30)
+        numpy.testing.assert_allclose(radau, general, rtol=2e-7, atol=1e-30)
+
+    def test_sparse_stiff_jacobian_retains_tiny_states_and_new_nonzeros(self):
+        """Changing matrix density must preserve an independent exact path."""
+
+        from scipy.sparse import issparse
+
+        amplitudes = numpy.geomspace(1.0, 1e-25, 16)
+        rates = numpy.geomspace(1.0, 1000.0, amplitudes.size)
+        eta = numpy.linspace(0, 1, 31)
+
+        def rhs(eta_value, state):
+            common = 0.01 * (1 - numpy.exp(-eta_value))
+            columns = amplitudes[:, None] if state.ndim == 2 else amplitudes
+            normalized = state / columns
+            forcing = (rates - 1 - amplitudes.size * common) * numpy.exp(
+                -eta_value
+            )
+            if state.ndim == 2:
+                return columns * (
+                    -rates[:, None] * normalized
+                    + common * normalized.sum(axis=0)
+                    + forcing[:, None]
+                )
+            return columns * (
+                -rates * normalized + common * normalized.sum() + forcing
+            )
+
+        solve = mode_evolution.solve_ivp
+        matrices = []
+
+        def observe(*args, **kwargs):
+            solver_jacobian = kwargs["jac"]
+
+            def retain(eta_value, state):
+                matrix = solver_jacobian(eta_value, state)
+                self.assertTrue(issparse(matrix))
+                matrices.append(matrix.copy())
+                return matrix
+
+            kwargs["jac"] = retain
+            # Force an additional, later evaluation: new nonzeros cannot
+            # disappear merely because startup selected sparse storage.
+            retain(0.5, args[2])
+            return solve(*args, **kwargs)
+
+        for method in ("BDF", "Radau"):
+            matrices.clear()
+            with self.subTest(method=method):
+                # SciPy first chooses its backend from the initial matrix.
+                # Observe subsequent matrices only after that first choice.
+                def first_then_observe(*args, **kwargs):
+                    first = kwargs["jac"](0.0, args[2])
+                    self.assertTrue(issparse(first))
+                    matrices.append(first.copy())
+                    return observe(*args, **kwargs)
+
+                with mock.patch.object(
+                    mode_evolution, "solve_ivp", side_effect=first_then_observe
+                ):
+                    actual = (
+                        mode_evolution._integrate_scaled_continuous_history(
+                            rhs,
+                            amplitudes,
+                            eta,
+                            initial_time_scale=0.01,
+                            rtol=1e-9,
+                            atol=1e-12,
+                            affine_system=True,
+                            vectorized_rhs=rhs,
+                            method=method,
+                        )
+                    )
+                self.assertLess(matrices[0].nnz, matrices[1].nnz)
+                self.assertEqual(matrices[1].nnz, amplitudes.size**2)
+                numpy.testing.assert_allclose(
+                    actual,
+                    amplitudes[:, None] * numpy.exp(-eta),
+                    rtol=2e-7,
+                    atol=1e-35,
+                )
+
+    def test_one_pending_probe_keeps_its_compatible_native_executor(self):
+        """Cache pressure cannot switch a final pending row to another ODE."""
+
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._speedup_contract(
+            test_cmb._declared_scalar_hierarchy_contract(
+                include_massive_neutrino=True
+            )
+        )
+        raw["numerical"].update(k_sample_count=4, k_max=0.03)
+        contract = test_cmb._prepare_declared_contract(raw)
+        build = mode_evolution.build_declared_mode_evolution
+        scalar_calls = []
+        observed_runtime = []
+
+        def observe(inputs):
+            runtime = build(inputs)
+            observed_runtime.append(runtime)
+            original = runtime.evolve_declared_mode
+
+            def scalar(*args, **kwargs):
+                scalar_calls.append(args[0])
+                return original(*args, **kwargs)
+
+            return replace(runtime, evolve_declared_mode=scalar)
+
+        execution = test_cmb.cmb_execution
+        execution.cache.clear_cmb_caches()
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        with mock.patch.object(
+            execution, "build_declared_mode_evolution", side_effect=observe
+        ):
+            single = execution._compute_custom_cmb_spectrum_data_impl(
+                contract,
+                (2,),
+                performance_timer=execution.PhaseTimer(),
+                source_probe=(0.001,),
+                requested_spectra=("TT",),
+            )
+        self.assertEqual(scalar_calls, [])
+        self.assertEqual(single.runtime_envelope["batch_mode_count"], 1)
+        self.assertLess(
+            single.runtime_envelope["equation_context_required_state_count"],
+            single.runtime_envelope["state_slot_count"],
+        )
+        # The costly production defect occurred in a singleton *reference*
+        # partition. Exercise its override and retained native history too.
+        runtime = observed_runtime[0]
+        sinks = {}
+        reference = runtime.evolve_declared_modes_batched(
+            numpy.asarray((0.001,)),
+            evolution_sample_count_override=32,
+            history_sinks=sinks,
+        )
+        self.assertEqual(set(reference), {0})
+        self.assertEqual(set(sinks), {0.001})
+        self.assertLess(
+            sinks[0.001]["evolution_eta"].size,
+            runtime.mode_grids_for_k(0.001)[0]["eta"].size,
+        )
+        self.assertEqual(scalar_calls, [])
+        execution.cache.clear_cmb_caches()
+        pair = execution._compute_custom_cmb_spectrum_data_impl(
+            contract,
+            (2,),
+            performance_timer=execution.PhaseTimer(),
+            source_probe=(0.001, 0.0011),
+            requested_spectra=("TT",),
+        )
+        for name, values in single.sources[0.001].items():
+            scale = numpy.max(abs(pair.sources[0.001][name]))
+            self.assertLessEqual(
+                numpy.max(abs(values - pair.sources[0.001][name])),
+                2e-5 * scale,
+            )
+
+    def test_stiff_declared_block_uses_full_local_interval_equations(self):
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._split_collision_contract()
+        raw["numerical"]["k_sample_count"] = 2
+        contract = test_cmb._prepare_declared_contract(raw)
+        integrate = mode_evolution._integrate_scaled_continuous_history
+        with mock.patch.object(
+            mode_evolution,
+            "_integrate_scaled_continuous_history",
+            wraps=integrate,
+        ) as continuous:
+            probe = (
+                test_cmb.cmb_execution._compute_custom_cmb_spectrum_data_impl(
+                    contract,
+                    (2,),
+                    performance_timer=test_cmb.cmb_execution.PhaseTimer(),
+                    source_probe=(0.001, 0.002),
+                    requested_spectra=("TT",),
+                )
+            )
+        callbacks = {
+            call.args[0].__name__ for call in continuous.call_args_list
+        }
+        self.assertIn("interval_rhs", callbacks)
+        self.assertTrue(
+            all(
+                call.kwargs.get("method") == "Radau"
+                for call in continuous.call_args_list
+                if call.args[0].__name__ == "interval_rhs"
+            )
+        )
+        self.assertTrue(probe.runtime_envelope["continuous_affine_system"])
+        self.assertTrue(
+            all(
+                call.kwargs.get("affine_system")
+                for call in continuous.call_args_list
+            )
+        )
+        self.assertTrue(
+            all(
+                call.kwargs.get("vectorized_rhs") is not None
+                for call in continuous.call_args_list
+            )
+        )
+        self.assertGreater(
+            probe.runtime_envelope["stiff_collision_intervals"], 0
+        )
+        for source in probe.sources.values():
+            self.assertTrue(
+                all(
+                    numpy.all(numpy.isfinite(values))
+                    for values in source.values()
+                )
+            )
+
+    def test_prefix_is_additional_and_refinement_cannot_poison_shared_grid(
+        self,
+    ):
+        """Real declared grids retain distinct controls and physical phase."""
+
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        build = mode_evolution.build_declared_mode_evolution
+        observed = {}
+
+        def capture(inputs):
+            """Inspect actual owner meshes before starting any ODE work."""
+
+            controls = replace(
+                inputs.adaptive_controls,
+                evolution_enabled=True,
+                evolution_minimum_nodes=128,
+            )
+            runtime = build(replace(inputs, adaptive_controls=controls))
+            k_value = float(inputs.k_values[-1])
+            fine = runtime.mode_grids_for_k(k_value)[0]["eta"].copy()
+            coarse = runtime.mode_grids_for_k(
+                k_value,
+                evolution_sample_count_override=32,
+            )[0]["eta"]
+            intermediate = runtime.mode_grids_for_k(
+                k_value,
+                evolution_sample_count_override=80,
+            )[0]["eta"]
+            unchanged = runtime.mode_grids_for_k(k_value)[0]["eta"]
+            observed.update(
+                fine=fine,
+                coarse=coarse,
+                intermediate=intermediate,
+                unchanged=unchanged,
+                k=k_value,
+                tolerance=controls.evolution_relative_tolerance,
+            )
+            raise _ModeHistoryCaptured()
+
+        raw = test_cmb._speedup_contract(
+            test_cmb._declared_scalar_hierarchy_contract()
+        )
+        raw["numerical"]["evolution_eta_sample_count"] = 128
+        contract = test_cmb._prepare_declared_contract(raw)
+        with (
+            mock.patch.object(
+                test_cmb.cmb_execution,
+                "build_declared_mode_evolution",
+                side_effect=capture,
+            ),
+            self.assertRaises(_ModeHistoryCaptured),
+        ):
+            test_cmb.cmb_execution._compute_custom_cmb_spectrum_data(
+                contract,
+                (20, 21),
+                requested_spectra=("TT",),
+                workload="fixed_parameter_diagnostic",
+            )
+        numpy.testing.assert_array_equal(
+            observed["fine"], observed["unchanged"]
+        )
+        self.assertLess(len(observed["coarse"]), len(observed["intermediate"]))
+        self.assertLess(len(observed["intermediate"]), len(observed["fine"]))
+        self.assertGreater(len(observed["coarse"]), 32)
+        self.assertLessEqual(
+            observed["k"] * numpy.max(numpy.diff(observed["fine"])),
+            numpy.sqrt(observed["tolerance"]) * (1.0 + 1e-12),
+        )
+
     def test_superhorizon_polarization_matches_frozen_camb_after_decoupling(
         self,
     ):
@@ -432,6 +847,16 @@ class ModeEvolutionTestCase(unittest.TestCase):
 
         metrics = {"maximum_relative_error": 0.0, "stage_count": 0}
         resolve = mode_evolution._resolve_declared_graph_context_ordered
+        build = mode_evolution.build_declared_mode_evolution
+        selected_modes = []
+
+        def capture_runtime(inputs):
+            """Retain one real accepted batch row without another solve."""
+
+            runtime = build(inputs)
+            selected_modes.append(float(inputs.k_values[0]))
+            runtime.history_capture_k_values.add(selected_modes[-1])
+            return runtime
 
         def observe(context, *args, **kwargs):
             if {"a", "H", "Hconf"}.issubset(context):
@@ -455,12 +880,24 @@ class ModeEvolutionTestCase(unittest.TestCase):
                 test_cmb._declared_scalar_hierarchy_contract()
             )
         )
-        with mock.patch.object(
-            mode_evolution,
-            "_resolve_declared_graph_context_ordered",
-            side_effect=observe,
+        with (
+            mock.patch.object(
+                mode_evolution,
+                "_resolve_declared_graph_context_ordered",
+                side_effect=observe,
+            ),
+            mock.patch.object(
+                test_cmb.cmb_execution,
+                "build_declared_mode_evolution",
+                side_effect=capture_runtime,
+            ),
+            mock.patch.object(
+                mode_evolution.cache,
+                "set_cmb_evolution_history",
+                wraps=mode_evolution.cache.set_cmb_evolution_history,
+            ) as retain,
         ):
-            test_cmb.cmb_execution._compute_custom_cmb_spectrum_data(
+            result = test_cmb.cmb_execution._compute_custom_cmb_spectrum_data(
                 contract,
                 numpy.asarray((20, 21)),
                 requested_spectra=("TT",),
@@ -468,6 +905,23 @@ class ModeEvolutionTestCase(unittest.TestCase):
             )
         self.assertGreater(metrics["stage_count"], 10)
         self.assertLess(metrics["maximum_relative_error"], 1e-12)
+        self.assertTrue(retain.called)
+        identity, epoch, histories = retain.call_args.args
+        self.assertEqual(identity[-1], selected_modes[-1])
+        self.assertIn("Phi", histories)
+        self.assertEqual(histories["Phi"].shape, epoch.shape)
+        envelope = result.runtime_envelope
+        self.assertGreater(envelope["evolution_peak_state_cells"], 0)
+        self.assertLessEqual(
+            envelope["evolution_peak_state_cells"],
+            envelope["evolution_history_cell_bound"],
+        )
+        self.assertEqual(
+            envelope["evolution_history_cell_bound"],
+            envelope["evolution_chunk_size"]
+            * envelope["evolution_eta_sample_count"]
+            * envelope["state_slot_count"],
+        )
 
     def test_batch_capability_requires_a_shared_declared_schedule(self):
         """Batching remains available only for compatible scalar modes."""
@@ -491,6 +945,16 @@ class ModeEvolutionTestCase(unittest.TestCase):
             ),
         }
         self.assertTrue(mode_evolution._can_batch_declared_evolution(**common))
+        self.assertTrue(
+            mode_evolution._can_batch_declared_evolution(
+                **{**common, "mode_count": 1}
+            )
+        )
+        self.assertFalse(
+            mode_evolution._can_batch_declared_evolution(
+                **{**common, "mode_count": 0}
+            )
+        )
         self.assertFalse(
             mode_evolution._can_batch_declared_evolution(
                 **{**common, "shared_mode_grids_enabled": False}

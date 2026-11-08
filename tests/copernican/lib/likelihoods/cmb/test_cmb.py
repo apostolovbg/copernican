@@ -1515,6 +1515,30 @@ def _with_prepared_numerical_overrides(
     return rebound
 
 
+def _prepare_alias_request_contract(contract):
+    """Bind the original hierarchy to a bounded diagnostic alias request.
+
+    Public replanning owns role-based hierarchy controls. A routing fixture
+    must override those controls as well as the older numerical spellings;
+    otherwise it silently runs an expanded numerical production workload.
+    """
+
+    contract = _speedup_contract(contract)
+    numerics = contract["numerical"]
+    photon_depth = numerics["photon_hierarchy_l_max"]
+    return _with_prepared_numerical_overrides(
+        _prepare_declared_contract(contract),
+        k_sample_count=2,
+        k_min=1e-4,
+        k_max=0.03,
+        photon_temperature=photon_depth,
+        photon_polarization=numerics.get(
+            "photon_polarization_hierarchy_l_max", photon_depth
+        ),
+        massless_neutrino=numerics["neutrino_hierarchy_l_max"],
+    )
+
+
 def _ensure_prepared_declared_contract(
     contract: dict[str, object],
 ) -> dict[str, object]:
@@ -5197,6 +5221,25 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         contract = _prepare_declared_contract(contract_data)
         integration_times = set()
         compile_equations = cmb_execution._compile_equation_program
+        integrate_batch = mode_evolution._integrate_batched_rk4
+
+        def observe_batch(states, eta, **kwargs):
+            original_rhs = kwargs["rhs"]
+
+            def observe_stage(*args, step_index, blend, **stage_kwargs):
+                integration_times.add(
+                    float(
+                        eta[step_index]
+                        + blend * (eta[step_index + 1] - eta[step_index])
+                    )
+                )
+                return original_rhs(
+                    *args, step_index=step_index, blend=blend, **stage_kwargs
+                )
+
+            return integrate_batch(
+                states, eta, **{**kwargs, "rhs": observe_stage}
+            )
 
         def observe_equations(*args, **kwargs):
             program = compile_equations(*args, **kwargs)
@@ -5207,10 +5250,17 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
 
             return observe
 
-        with mock.patch.object(
-            cmb_execution,
-            "_compile_equation_program",
-            side_effect=observe_equations,
+        with (
+            mock.patch.object(
+                cmb_execution,
+                "_compile_equation_program",
+                side_effect=observe_equations,
+            ),
+            mock.patch.object(
+                mode_evolution,
+                "_integrate_batched_rk4",
+                side_effect=observe_batch,
+            ),
         ):
             eta_history, theta_gamma0_history, _ = (
                 _capture_visible_scalar_monopole_history(contract)
@@ -6247,6 +6297,9 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         refined["numerical"]["evolution_phase_step"] = 1.0
         baseline_data = _raw_declared_spectrum_data(baseline, ells)
         refined_data = _raw_declared_spectrum_data(refined, ells)
+        self.assertGreater(
+            baseline_data.runtime_envelope["stiff_collision_intervals"], 0
+        )
         for spectrum_name in ("TT", "TE", "EE"):
             with self.subTest(spectrum=spectrum_name):
                 self.assertLess(
@@ -6802,11 +6855,24 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "runtime_envelope": "bounded",
             "fail_on_nonconvergence": False,
         }
-        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
-            _prepare_declared_contract(contract),
-            numpy.arange(20, 24, dtype=int),
-            requested_spectra=("TT",),
-        )
+        estimates = []
+        compare = cmb_execution.estimate_history_convergence
+
+        def record_comparison(*args, **kwargs):
+            result = compare(*args, **kwargs)
+            estimates.append(result)
+            return result
+
+        with mock.patch.object(
+            cmb_execution,
+            "estimate_history_convergence",
+            side_effect=record_comparison,
+        ):
+            spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
+                _prepare_declared_contract(contract),
+                numpy.arange(20, 24, dtype=int),
+                requested_spectra=("TT",),
+            )
 
         report = spectrum_data.runtime_envelope["scalar_evolution_convergence"]
         self.assertGreater(int(report["mode_count"]), 0)
@@ -6849,7 +6915,18 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ),
             2,
         )
-        self.assertGreater(float(report["relative_error"]), 1.0e-2)
+        # Accuracy improvements may resolve this real graph. The reported
+        # error must equal the actual independent reference comparisons,
+        # rather than being required to remain above an arbitrary floor.
+        self.assertGreaterEqual(len(estimates), 4)
+        self.assertEqual(len(estimates) % 4, 0)
+        expected = max(
+            estimate.relative_error
+            for index, estimate in enumerate(estimates)
+            if index % 4 in (2, 3)
+        )
+        self.assertEqual(float(report["relative_error"]), expected)
+        self.assertGreater(float(report["relative_error"]), 0.0)
         self.assertTrue(numpy.isfinite(float(report["absolute_error"])))
 
     def test_declared_scalar_evolution_detects_between_anchor_drift(
@@ -6878,11 +6955,44 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "runtime_envelope": "bounded",
             "fail_on_nonconvergence": False,
         }
-        spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
-            _prepare_declared_contract(contract),
-            numpy.arange(20, 24, dtype=int),
-            requested_spectra=("TT",),
-        )
+        compare = cmb_execution.estimate_history_convergence
+        injected = []
+
+        def inject_between_anchors(
+            coarse_eta, coarse, fine_eta, fine, **comparison_options
+        ):
+            # Inject a known history defect, not a fabricated error estimate.
+            # It is zero at every physical anchor and nonzero between them.
+            features = numpy.asarray(
+                tuple(comparison_options["feature_eta"].values())
+            )
+            distances = numpy.min(
+                abs(numpy.asarray(fine_eta)[:, None] - features), axis=1
+            )
+            probe = numpy.zeros(len(fine_eta))
+            probe[int(numpy.argmax(distances))] = 1.0
+            for eta in features:
+                self.assertEqual(probe[numpy.argmin(abs(fine_eta - eta))], 0.0)
+            result = compare(
+                coarse_eta,
+                {**coarse, "injected_drift": numpy.zeros(len(coarse_eta))},
+                fine_eta,
+                {**fine, "injected_drift": probe},
+                **comparison_options,
+            )
+            injected.append(result)
+            return result
+
+        with mock.patch.object(
+            cmb_execution,
+            "estimate_history_convergence",
+            side_effect=inject_between_anchors,
+        ):
+            spectrum_data = cmb_execution._compute_custom_cmb_spectrum_data(
+                _prepare_declared_contract(contract),
+                numpy.arange(20, 24, dtype=int),
+                requested_spectra=("TT",),
+            )
 
         report = spectrum_data.runtime_envelope["scalar_evolution_convergence"]
         self.assertEqual(
@@ -6899,6 +7009,11 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         )
         self.assertGreater(float(report["relative_error"]), 1.0e-2)
         self.assertTrue(report["anchor_relative_errors"])
+        self.assertTrue(injected)
+        self.assertTrue(all(not item.converged for item in injected))
+        self.assertTrue(
+            all(item.worst_history == "injected_drift" for item in injected)
+        )
         self.assertTrue(numpy.all(numpy.isfinite(spectrum_data.spectra["TT"])))
 
     def test_declared_scalar_hierarchy_depth_converges_at_anchor_surface(
@@ -7524,7 +7639,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ),
             sound_horizon=max(float(background_data.sound_horizon_mpc), 1.0),
         )
-        self.assertGreaterEqual(int(k_grid.size), 512)
+        self.assertGreaterEqual(int(k_grid.size), int(numerics.k_sample_count))
         self.assertGreaterEqual(
             int(k_grid.size), int(requirements["required_nodes"])
         )
@@ -7700,6 +7815,21 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         raw_contract = _speedup_contract(_analytic_signal_contract())
         contract = _prepare_declared_contract(raw_contract)
         ells = numpy.arange(20, 25, dtype=int)
+        prepare_assets = cmb_execution.prepare_runtime_assets
+        observed_assets = []
+
+        def observe_runtime_assets(*args, **kwargs):
+            assets = prepare_assets(*args, **kwargs)
+            observed_assets.append(assets)
+            return assets
+
+        self.enterContext(
+            mock.patch.object(
+                cmb_execution,
+                "prepare_runtime_assets",
+                side_effect=observe_runtime_assets,
+            )
+        )
 
         cold = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
@@ -7707,6 +7837,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             requested_spectra=("TT",),
         )
         cold_record = cache.latest_cmb_performance_record()
+        self.assertEqual(len(observed_assets), 1)
         cache.clear_cmb_result_caches()
         warm = cmb_execution._compute_custom_cmb_spectrum_data(
             contract,
@@ -7719,15 +7850,19 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             numpy.asarray(cold.spectra["TT"]),
             numpy.asarray(warm.spectra["TT"]),
         )
+        # Reuse is structural: sub-millisecond wall times can reverse under
+        # scheduling noise even when the exact same compiled assets are used.
+        self.assertEqual(len(observed_assets), 2)
+        self.assertIs(observed_assets[0], observed_assets[1])
         self.assertEqual(cold_record["cache_state"], "cold")
         self.assertEqual(warm_record["cache_state"], "warm")
         self.assertEqual(
+            int(cold.runtime_envelope["static_graph_preparations"]),
+            1,
+        )
+        self.assertEqual(
             int(warm.runtime_envelope["static_graph_preparations"]),
             0,
-        )
-        self.assertGreater(
-            float(cold_record["phase_seconds"]["compilation_seconds"]),
-            float(warm_record["phase_seconds"]["compilation_seconds"]),
         )
 
         exact = cmb_execution._compute_custom_cmb_spectrum_data(
@@ -7736,6 +7871,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             requested_spectra=("TT",),
         )
         exact_record = cache.latest_cmb_performance_record()
+        self.assertEqual(len(observed_assets), 2)
         numpy.testing.assert_array_equal(
             numpy.asarray(exact.spectra["TT"]),
             numpy.asarray(warm.spectra["TT"]),
@@ -7760,6 +7896,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             requested_spectra=("TT",),
         )
         shifted_record = cache.latest_cmb_performance_record()
+        self.assertEqual(len(observed_assets), 3)
+        self.assertIs(observed_assets[0], observed_assets[2])
         self.assertEqual(
             contract["runtime_signature"],
             shifted_contract["runtime_signature"],
@@ -7951,9 +8089,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         ells = numpy.asarray((20, 30, 40), dtype=int)
         for sector, raw_contract, base_name in cases:
             with self.subTest(sector=sector):
-                prepared = _prepare_declared_contract(
-                    _speedup_contract(raw_contract)
-                )
+                prepared = _prepare_alias_request_contract(raw_contract)
                 spectra = cmb.compute_cmb_spectrum_from_contract(
                     prepared,
                     ells,
@@ -7963,6 +8099,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                         f"total_{base_name}",
                     ),
                 )
+                self.assertTrue(numpy.all(numpy.isfinite(spectra[base_name])))
+                self.assertTrue(numpy.any(spectra[base_name] > 0.0))
                 numpy.testing.assert_allclose(
                     spectra[base_name],
                     spectra[f"{sector}_{base_name}"],
@@ -8020,14 +8158,21 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertEqual(int(envelope["request_specific_preparations"]), 1)
         mode_count = int(envelope["k_sample_count"])
         batch_count = int(envelope["batch_count"])
-        # Different mode schedules may require separate batches, but every
-        # mode must retain its schedule and evolve exactly once.
+        # Compatible schedules may add one subdivision level. Every mode
+        # evolves once, with measured work bounded by twice its scalar work.
         self.assertGreater(batch_count, 0)
         self.assertLessEqual(batch_count, mode_count)
         self.assertEqual(batch_count, int(envelope["schedule_group_count"]))
         self.assertEqual(int(envelope["batch_mode_count"]), mode_count)
         self.assertEqual(int(envelope["evolution_modes_evolved"]), mode_count)
-        self.assertEqual(int(envelope["schedule_forced_overintegration"]), 0)
+        scalar_work = int(envelope["schedule_scalar_substeps"])
+        batch_work = int(envelope["schedule_batched_substeps"])
+        self.assertGreater(scalar_work, 0)
+        self.assertGreaterEqual(batch_work, scalar_work)
+        self.assertLessEqual(batch_work, 2 * scalar_work)
+        self.assertLessEqual(
+            float(envelope["schedule_max_overintegration_ratio"]), 2.0
+        )
         self.assertEqual(
             int(envelope["batched_schedule_correction_mode_count"]), 0
         )
@@ -8368,10 +8513,25 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             requested_spectra=("TT",),
         )
         cache.clear_cmb_caches()
-        with mock.patch.object(
-            mode_evolution,
-            "_can_batch_declared_evolution",
-            return_value=False,
+
+        def reference_scalar(
+            _grouped, reference, context, states, derivative, rates
+        ):
+            """Retain the independent ungrouped CPU equation authority."""
+
+            reference(context, states, derivative, rates)
+
+        with (
+            mock.patch.object(
+                mode_evolution,
+                "_can_batch_declared_evolution",
+                return_value=False,
+            ),
+            mock.patch.object(
+                mode_evolution,
+                "evaluate_scalar_equations",
+                side_effect=reference_scalar,
+            ),
         ):
             scalar = cmb_execution._compute_custom_cmb_spectrum_data(
                 contract,
@@ -8997,7 +9157,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         theta_b_equation["rhs"] = "1.0 / (delta_b - delta_b)"
         with self.assertRaisesRegex(
             ValueError,
-            "must be finite",
+            "non-finite derivatives.*eta=.*k=.*state_index=",
         ):
             cmb.compute_cmb_spectrum_from_contract(
                 contract,
@@ -9896,8 +10056,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     ) -> None:
         """Tensor and total aliases should resolve to the same spectra."""
 
-        contract = _prepare_declared_contract(
-            _speedup_contract(_declared_tensor_hierarchy_contract())
+        contract = _prepare_alias_request_contract(
+            _declared_tensor_hierarchy_contract()
         )
         ells = numpy.asarray((20, 30, 40, 60, 90, 120), dtype=int)
         spectra = cmb.compute_cmb_spectrum_from_contract(
@@ -9905,6 +10065,9 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ells,
             spectra=("TT", "tensor_TT", "total_TT", "BB", "tensor_BB"),
         )
+        for name in ("TT", "BB"):
+            self.assertTrue(numpy.all(numpy.isfinite(spectra[name])))
+            self.assertTrue(numpy.any(spectra[name] > 0.0))
 
         numpy.testing.assert_allclose(
             numpy.asarray(spectra["TT"], dtype=float),
@@ -10760,7 +10923,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     def test_declared_scalar_spectrum_aliases_round_trip(self) -> None:
         """Declared phiphi, Tphi, and Ephi aliases should round-trip."""
 
-        contract = _prepare_declared_contract(
+        contract = _prepare_alias_request_contract(
             _declared_scalar_hierarchy_contract()
         )
         ells = numpy.asarray((20, 40, 60, 90, 120), dtype=int)
@@ -10769,6 +10932,9 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             ells,
             spectra=("PP", "phiphi", "TP", "Tphi", "EP", "Ephi"),
         )
+        for name in ("PP", "TP", "EP"):
+            self.assertTrue(numpy.all(numpy.isfinite(spectra[name])))
+            self.assertTrue(numpy.any(spectra[name] != 0.0))
 
         self.assertEqual(
             set(spectra),

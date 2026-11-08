@@ -23,14 +23,161 @@ from copernican.lib.likelihoods.cmb.runtime.adaptive import (
     phase_aware_k_grid_requirements,
     phase_aware_k_grid_status,
     physical_history_anchors,
+    rate_transition_eta_nodes,
     require_convergence,
     resolve_adaptive_controls,
+    resolve_feature_eta_grid,
     resolve_los_quadrature_controls,
 )
 
 
 class AdaptiveControlsTestCase(unittest.TestCase):
     """Validate physical grid refinement and convergence failure behavior."""
+
+    def test_rate_switches_are_located_independently_of_output_mesh(self):
+        """Changing event-sampling seeds keeps the same physical crossings."""
+
+        def evaluate(epoch):
+            return numpy.exp(-epoch), numpy.full(epoch.shape, 0.2)
+
+        results = []
+        for count in (9, 41):
+            eta = numpy.linspace(0.0, 4.0, count)
+            results.append(
+                rate_transition_eta_nodes(
+                    eta,
+                    *evaluate(eta),
+                    numpy.asarray((0.05, 0.1)),
+                    ratios=(2.0, 0.5),
+                    evaluate_rates=evaluate,
+                )
+            )
+        for root in (numpy.log(2.5), numpy.log(10.0)):
+            for nodes in results:
+                self.assertLess(numpy.min(abs(nodes - root)), 1e-12)
+        numpy.testing.assert_allclose(
+            results[0], results[1], atol=1e-12, rtol=0
+        )
+        self.assertEqual(results[0].size, 2)
+        with self.assertRaises(ValueError):
+            rate_transition_eta_nodes(
+                eta,
+                *evaluate(eta),
+                numpy.asarray((0.1,)),
+                ratios=(-1.0,),
+                evaluate_rates=evaluate,
+            )
+
+    def test_feature_sampling_resolves_localized_and_aliased_rates(self):
+        """Measured profiles reveal features invisible to the seed mesh."""
+
+        eta = numpy.linspace(0.0, 1.0, 4097)
+        profiles = {
+            "opacity": numpy.exp(-(((eta - 0.371) / 0.005) ** 2)),
+            "oscillatory": 0.5 + 0.5 * numpy.sin(64 * numpy.pi * eta),
+        }
+        scales = {name: numpy.ones(eta.size) for name in profiles}
+        resolved = resolve_feature_eta_grid(
+            eta,
+            numpy.linspace(0.0, 1.0, 9),
+            profiles=profiles,
+            scales=scales,
+            relative_tolerance=0.002,
+        )
+        self.assertEqual(resolved[0], eta[0])
+        self.assertEqual(resolved[-1], eta[-1])
+        self.assertLess(resolved.size, eta.size // 2)
+        for values in profiles.values():
+            approximation = numpy.interp(
+                eta, resolved, numpy.interp(resolved, eta, values)
+            )
+            self.assertLessEqual(numpy.max(abs(approximation - values)), 0.002)
+        with self.assertRaises(ValueError):
+            resolve_feature_eta_grid(
+                eta,
+                eta[[0, -1]],
+                profiles=profiles,
+                scales={name: numpy.zeros(eta.size) for name in profiles},
+                relative_tolerance=0.002,
+            )
+        with self.assertRaises(ValueError):
+            resolve_feature_eta_grid(
+                eta[::-1],
+                eta[[0, -1]],
+                profiles=profiles,
+                scales=scales,
+                relative_tolerance=0.002,
+            )
+
+    def test_amplitude_norm_handles_zeros_without_hiding_tiny_state_errors(
+        self,
+    ):
+        """A shifted zero is bounded by its own state, never another state."""
+
+        eta = numpy.linspace(0.0, 2.0 * numpy.pi, 257)
+        fine = numpy.sin(eta)
+        arguments = {
+            "coarse_eta": eta,
+            "coarse_histories": {"wave": numpy.sin(eta + 0.001)},
+            "fine_eta": eta,
+            "fine_histories": {"wave": fine},
+            "relative_tolerance": 0.01,
+            "absolute_tolerance": 1e-30,
+        }
+        pointwise = estimate_history_convergence(**arguments)
+        physical = estimate_history_convergence(
+            **arguments, relative_scale="history_amplitude"
+        )
+        self.assertFalse(pointwise.converged)
+        self.assertTrue(physical.converged)
+        self.assertLess(physical.relative_error, 0.002)
+        self.assertGreater(physical.local_relative_error, 0.9)
+        tiny = 1e-20 * fine
+        arguments["coarse_histories"]["tiny"] = 1.2 * tiny
+        arguments["fine_histories"]["tiny"] = tiny
+        changed = estimate_history_convergence(
+            **arguments, relative_scale="history_amplitude"
+        )
+        self.assertFalse(changed.converged)
+        self.assertGreater(changed.relative_error, 0.15)
+        with self.assertRaises(ValueError):
+            estimate_history_convergence(**arguments, relative_scale="unknown")
+
+    def test_amplitude_norm_rejects_between_anchor_spikes(self):
+        """Global state normalization still tests every physical interval."""
+
+        eta = numpy.linspace(0.0, 1.0, 65)
+        fine = numpy.ones(65)
+        fine[19] += 0.1
+        estimate = estimate_history_convergence(
+            eta,
+            {"state": numpy.ones(65)},
+            eta,
+            {"state": fine},
+            relative_tolerance=0.01,
+            absolute_tolerance=1e-12,
+            relative_scale="history_amplitude",
+        )
+        self.assertFalse(estimate.converged)
+        self.assertGreater(estimate.relative_error, 0.09)
+
+    def test_history_tolerances_apply_to_each_state_independently(self):
+        """A tiny absolute error cannot combine with another state's scale."""
+
+        eta = numpy.linspace(0.0, 1.0, 9)
+        estimate = estimate_history_convergence(
+            eta,
+            {"large": numpy.ones(9), "tiny": numpy.full(9, 5e-15)},
+            eta,
+            {"large": numpy.full(9, 1.001), "tiny": numpy.full(9, 1e-15)},
+            relative_tolerance=0.01,
+            absolute_tolerance=1e-12,
+            relative_scale="history_amplitude",
+        )
+        self.assertGreater(estimate.absolute_error, 1e-12)
+        self.assertLess(estimate.relative_error, 0.002)
+        self.assertTrue(estimate.converged)
+        self.assertAlmostEqual(estimate.local_relative_error, 0.004)
 
     def test_public_symbols_are_exposed(self) -> None:
         """The adaptive module keeps its control and diagnostic API stable."""

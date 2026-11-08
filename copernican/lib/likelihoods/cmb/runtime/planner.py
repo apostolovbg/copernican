@@ -13,7 +13,9 @@ import math
 from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
-_ENGINE_VERSION = "cmb-engine-planner-v3"
+from ....phase_space import phase_space_grid_name, plan_distribution_grid
+
+_ENGINE_VERSION = "cmb-engine-planner-v4"
 _PLANNER_REQUEST_MODES = frozenset({"production", "diagnostic"})
 
 
@@ -160,7 +162,6 @@ def plan_cmb_numerics(
     compiled_perturbations = contract.get("perturbation_data")
     if compiled_perturbations is not None:
         sectors = _mapping(getattr(compiled_perturbations, "sectors", {}))
-        species = _mapping(getattr(compiled_perturbations, "species", {}))
         families = _mapping(
             getattr(compiled_perturbations, "hierarchy_families", {})
         )
@@ -169,15 +170,16 @@ def plan_cmb_numerics(
         )
     else:
         sectors = _mapping(perturbations.get("sectors"))
-        species = _mapping(perturbations.get("species"))
         families = _mapping(perturbations.get("hierarchy_families"))
         observables = _mapping(perturbations.get("observables"))
 
     sector_names = tuple(sorted(str(name) for name in sectors)) or ("scalar",)
     family_names = tuple(sorted(str(name) for name in families))
     has_massive = any(
-        "massive" in name.lower() for name in family_names
-    ) or any("massive" in str(name).lower() for name in species)
+        _field(entry, "phase_space", {})
+        or _field(entry, "physical_role", "") == "massive_neutrino"
+        for entry in families.values()
+    )
 
     family_rows = tuple(
         {
@@ -189,6 +191,8 @@ def plan_cmb_numerics(
                 _field(entry, "multipole_symbol", "") or ""
             ),
             "momentum_grid": str(_field(entry, "momentum_grid", "") or ""),
+            "physical_role": str(_field(entry, "physical_role", "generic")),
+            "phase_space": dict(_field(entry, "phase_space", {}) or {}),
         }
         for name, entry in sorted(
             families.items(), key=lambda item: str(item[0])
@@ -364,13 +368,14 @@ def plan_cmb_numerics(
                 3,
                 (
                     photon_l_max
-                    if "photon" in row["name"].lower()
+                    if row["physical_role"]
+                    in {"photon_temperature", "photon_polarization"}
                     else (
                         massive_l_max
-                        if row["momentum_grid"]
+                        if row["phase_space"] or row["momentum_grid"]
                         else (
                             neutrino_l_max
-                            if "neutrino" in row["name"].lower()
+                            if row["physical_role"] == "massless_neutrino"
                             else photon_l_max
                         )
                     )
@@ -380,16 +385,31 @@ def plan_cmb_numerics(
         for row in family_rows
     }
     momentum_grid_controls: dict[str, Mapping[str, Any]] = {}
-    if has_massive:
-        momentum_grid_controls["massive_neutrino_default"] = {
+    distribution_parameters = {
+        name: value
+        for group in (
+            _mapping(contract.get("model_parameters")),
+            _mapping(contract.get("param_map")),
+        )
+        for name, value in group.items()
+        if isinstance(value, (float, int))
+    }
+    for row in family_rows:
+        if not row["phase_space"]:
+            continue
+        grid_name = phase_space_grid_name(row["name"], row)
+        distribution_grid = plan_distribution_grid(
+            row["phase_space"],
+            distribution_parameters,
+            allow_unbound=compiled_perturbations is None,
+        )
+        momentum_grid_controls[grid_name] = {
             # The q support is selected from the thermal tail.  Thirty-two
             # log nodes resolve the relativistic-to-nonrelativistic moments;
             # the runtime performs an independent doubled-count check when
             # a massive family is present.
-            "count": 32,
-            "q_min": 0.02,
-            "q_max": 24.0,
-            "mass_parameter": "sum_mnu",
+            **distribution_grid,
+            **row["phase_space"],
         }
 
     numerical_controls = {
@@ -518,6 +538,19 @@ def plan_cmb_numerics(
                     "required_spectra": required_spectra,
                     "fail_on_nonconvergence": True,
                 },
+                "observable_error_budget": {
+                    "enabled": True,
+                    "axes": (
+                        "background",
+                        "momentum_q",
+                        "hierarchy_depth",
+                        "evolution",
+                        "source",
+                        "projection",
+                        "k",
+                    ),
+                    "method": "absolute_operator_propagation",
+                },
             }
         )
     # Runtime consumers use this envelope for diagnostics, while its values
@@ -561,7 +594,7 @@ def plan_cmb_numerics(
                         "visibility-source phase",
                         "declared free_streaming_scalar terminal closure",
                     ),
-                    "validated": bool(
+                    "candidate_bound": bool(
                         row["closure"] == "free_streaming_scalar"
                         and _free_streaming_tail_bound(
                             phase_limit=float(visibility_phase),
@@ -571,6 +604,8 @@ def plan_cmb_numerics(
                         )
                         < 1.0e-2
                     ),
+                    "validated": False,
+                    "status": "requires_measured_native_source_refinement",
                 }
                 for row in family_rows
             },

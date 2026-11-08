@@ -29,6 +29,7 @@ from . import cache
 
 _C_LIGHT_KM_S = 299_792.458
 _CACHE_PRECISION = 15
+_BESSEL_RECURRENCE_CELL_BUDGET = 8_000_000
 _G_NEWTON_SI = 6.674_30e-11
 _MPC_M = 3.085_677_581_491_3673e22
 _PROTON_MASS_KG = 1.672_621_923_69e-27
@@ -2087,6 +2088,21 @@ def _compute_spherical_bessel_batch(
         return values, derivatives
 
     maximum_ell = max(int(ell_indices.max()), 1)
+    # A mode can require a long physical time grid. Partition columns of
+    # the recurrence rather than materializing all its intermediate orders
+    # at once; the returned requested rows and their arithmetic are intact.
+    column_count = max(1, _BESSEL_RECURRENCE_CELL_BUDGET // (maximum_ell + 65))
+    if x_array.size > column_count:
+        result = numpy.empty((len(ell_signature), x_array.size), dtype=float)
+        derivative_result = numpy.empty_like(result)
+        for start in range(0, x_array.size, column_count):
+            stop = min(start + column_count, x_array.size)
+            part, derivative_part = _compute_spherical_bessel_batch(
+                ell_signature, x_array[start:stop]
+            )
+            result[:, start:stop] = part
+            derivative_result[:, start:stop] = derivative_part
+        return result, derivative_result
     values = numpy.zeros((maximum_ell + 1, x_array.size), dtype=float)
     positive_mask = x_array > 0.0
     zero_mask = ~positive_mask

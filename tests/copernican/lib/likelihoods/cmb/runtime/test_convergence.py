@@ -61,16 +61,24 @@ def _final_tier_contract() -> dict[str, object]:
     }
     hierarchy_families = {
         "photon_temperature": SimpleNamespace(
-            species=("photon",), default_l_max=8
+            physical_role="photon_temperature",
+            species=("photon",),
+            default_l_max=8,
         ),
         "photon_polarization_e": SimpleNamespace(
-            species=("photon",), default_l_max=8
+            physical_role="photon_polarization",
+            species=("photon",),
+            default_l_max=8,
         ),
         "massless_neutrino": SimpleNamespace(
-            species=("massless_neutrino",), default_l_max=5
+            physical_role="massless_neutrino",
+            species=("massless_neutrino",),
+            default_l_max=5,
         ),
         "massive_neutrino": SimpleNamespace(
-            species=("massive_neutrino",), default_l_max=5
+            physical_role="massive_neutrino",
+            species=("massive_neutrino",),
+            default_l_max=5,
         ),
     }
     perturbation_data = SimpleNamespace(

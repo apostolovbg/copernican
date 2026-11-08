@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-10-25
+**Last Updated:** 2026-11-08
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -37,12 +37,15 @@ boundaries remain the starting point. They do not establish CAMB parity.
 Historical plans and evidence remain in Git and CHANGELOG.md. Unpushed
 experiments on another machine are not part of this accepted baseline.
 
-**Current state:** Slices One through Four are complete. The human confirmed
-the successful full workflow and gate close on 2026-10-21; Slice Four's
-closure record below identifies the tested state and its remaining scope.
-Slices Five through Ten remain pending; implementation proceeds one
-explicitly authorized slice at a time. A green policy gate, a generated
-report, or a successful mock cannot close a physical acceptance requirement.
+**Current state:** Slices One through Five are complete. Their closure
+records identify the successful human workflows and tested states. Slice Six
+is reopened: the subsequent full workflow exposed production-scale discovery
+work, excessive projection memory and untested regressions. Its earlier
+focused/sparse numerical record does not establish practical suite closure.
+Slices Seven through Ten remain
+pending. Implementation proceeds one explicitly
+authorized slice at a time. A green policy gate, a generated report, or a
+successful mock cannot close a physical acceptance requirement.
 
 ## Execution principles
 
@@ -1265,8 +1268,9 @@ claim that those later tasks are complete.
 
 ## Slice Six - make automatic production planning accurate and practical
 
-**Status:** pending. **Entry:** matched component physics and the repaired
-full-discovery workflow both pass.
+**Status:** reopened (2026-10-29), pending repaired full-workflow evidence.
+The earlier closure claim below is superseded. **Entry:** matched component
+physics and the repaired full-discovery workflow both pass.
 
 Use the accepted native component report above as the physical baseline.
 Profile the restored q-resolved Planck graph and coupled atomic background;
@@ -1332,6 +1336,396 @@ projection, caches, numerical work accounting, and their direct tests.
    unknown instead of presenting a phase estimate as total request time.
    Test changing totals, unequal interval costs, batching, cache hits and
    phase transitions; completed work must not exceed its stated total.
+
+### Measured baseline and work in progress, 2026-10-27
+
+The unmodified ordinary public LCDM request for ell=(2,10,20), TT/TE/EE,
+completed under cProfile in 532.556 seconds, including its production
+refinement. It evolved 512 modes and then a 1024-mode refinement on 3072
+source samples. The native Planck hierarchy/source prefix completed under
+cProfile in 169.332 seconds. The two profiles ran concurrently; these are
+instrumented baseline costs, not uninstrumented speedup measurements.
+Raw products, source identities and cumulative profiles are retained under
+the configured output root in
+`ccmbs-acceptance/completion-evidence/numerical-planning-20261027/`.
+
+The Planck profile identifies repeated condition-symbol set construction,
+scalar state-context binding, and recursive cache payload accounting as
+avoidable Python work. Kernel changes remove those repetitions without
+changing their equations or scalar conversions. Request-owned raw source
+and selected native/reference histories now survive nested refinements and
+global LRU pressure, with bounded resident arrays and checked spill files.
+Independent comparisons are recomputed; certificates are not retained there.
+
+The actual-batch checks exposed false earlier refinement evidence. The hidden
+early prefix consumed the late-time sampling controls, and reference meshes
+could overwrite the shared fine grid. The repaired grids add that prefix,
+resolve measured opacity/expansion/visibility features and actual Fourier
+phase, retain rate transitions, and keep independent controls distinct.
+Selected native states and their compiled sources are checked before the
+remaining modes are scheduled. Unresolved engine-owned evolution controls
+are promoted; measured stagnation remains a failure.
+
+An analytic forced-damping regression demonstrates why exact collision
+exponentials alone can be stable and inaccurate after tight coupling ends.
+Scalar and batch schedules now resolve that collision phase. Native states
+use smooth shape-preserving Hermite sampling before source differentiation;
+this preserves the evolved metric instead of substituting an algebraic one.
+Per-state amplitude normalization retains tiny states independently, applies
+each absolute allowance to its own samples, and reports local zero-crossing
+errors separately. State and physical-source checks remain independent.
+
+Phase accounting no longer adds repeated projection prefixes or nested
+intervals twice. Outer refinement shares the request clock and contributes
+its timings. Heartbeat estimates use known mode-row RK work or ell/eta
+quadrature cells for their named scope. Unplanned future adaptive work is
+unknown. Cached work does not complete unscheduled chunks, and native RK
+history grids determine memory chunking instead of projection-grid lengths.
+
+At this earlier checkpoint, implementation and verification were incomplete.
+The remaining obligations included declared role/distribution planning, a
+combined observable
+error budget with validated propagation, final current-identity LCDM/Planck
+cold/warm/subset/batch evidence and the complete focused regression handoff.
+The earlier diagnostic or interim production passes do not close Slice Six.
+
+The measured ordinary LCDM ell=(2,10,20), TT/TE/EE request completes its real
+production refinement in 454.420 seconds under concurrent verification work.
+Its exact repeat takes 0.013 seconds; the reordered subset ell=(20,2) takes
+252.237 seconds and agrees within 7.6e-16, 4.8e-16 and 7.9e-17 of the sampled
+TT, TE and EE amplitudes. The retained production-refinement errors are
+1.06e-7 (TT), 8.26e-8 (TE) and 2.50e-9 (EE), within the unchanged final
+thresholds. The finer calculation reuses 513 already evolved modes. Raw
+retention records 239 spills with a 128 MiB resident-array budget.
+
+The measured full-time-domain, three-mode Planck native/source diagnostic
+completes in 158.407 seconds. Its largest native-state error is 0.00212 and
+its largest compiled-source error is 0.00913 under independent evolution
+comparison. This is not a full Planck angular request or CAMB-parity report.
+Both records retain unchanged producer identities and products under the
+progress evidence directory above; `numerical-progress-summary.json` links
+their digests. All 172 direct runtime tests pass in 214.600 seconds, and nine
+public-route/hardware regressions pass in 378.090 seconds. These were focused
+checks, not a replacement for the human-run full workflow. Slice Six remained
+open at that checkpoint against its unfulfilled closure obligations.
+The measurements precede the final docstring/layout cleanup; their producer
+hashes are preserved rather than relabelled as a later source revision.
+
+### Additional numerical implementation
+
+Physical hierarchy roles and phase-space laws now flow through declarations,
+compilation, support planning, bound momentum moments and reuse identities.
+The bundled kinetic declarations explicitly preserve their thermal law and
+present-temperature convention. Numerical q support and density are measured
+separately, including a nonthermal peak beyond the initial search interval.
+
+Ordinary final execution independently refines actual background grids,
+hierarchy depth and applicable q quadrature on informative modes including
+both endpoints. Source probes evolve real equations and return before angular
+projection. Changed background comparisons must use a distinct accepted grid;
+kinetic/depth comparisons must materialize additional states. Tail estimates
+remain candidates, not measured certificates. Native source discrepancies
+propagate through absolute LOS operators and signed spline weights; geometry
+changes, quadratic transfer errors, projection, Fourier refinement and
+cross-spectrum denominators participate in one additive observable budget.
+The between-wave source envelope is the maximum measured normalized source
+discrepancy on that explicitly sampled domain, not an analytic universality
+claim. The unchanged acceptance thresholds still apply.
+
+Grouped arithmetic preserves each validated equation's operands and operation
+order. Actual declared collision operators set split phase schedules in a
+coordinate-scale-invariant way. Full native trajectories can use scoped
+file-backed buffers; live RK working memory determines batching, while mapped
+history cells and the OS page cache remain distinct accounting categories.
+Stiff operators without a fast manifold use controlled local full-equation
+integration, preserving boundary and conservation semantics. The old scalar
+substep ceiling is removed. Schedule evidence bounds extra compatible-group
+work against the actual scalar work instead of requiring zero extra steps.
+Kinetic binding keys exclude unrelated amplitudes while retaining every
+actual distribution, temperature and mass dependency.
+Production projection grids measure visibility/Fourier features and compare
+nested grids instead of filling the allowed search budget. Native evolution
+samples the full physical background independently of projection thinning.
+
+`tests.project.lib.numerical_planning_acceptance` is an explicit ordinary
+LCDM/Planck angular workload runner. It persists cold, exact-repeat, compatible
+warm, changed-request, reordered-subset, changed-Hubble-parameter and ordered
+batch outcomes, including actual global-LRU pressure. Its assessment requires
+numerical budgets and consistent products; timings alone cannot earn closure.
+It remains outside discovery, as does scientific reference acceptance.
+The final measured closure record below supplies current-identity workload
+evidence and the focused regression handoff.
+
+The workload reader compares common raw and public multipoles within both
+calculations' propagated absolute error budgets. Accepted adaptive subsets
+may choose different meshes. The initial new reader's arbitrary 1e-7
+roundoff-style cutoff incorrectly rejected small, bounded subset differences;
+the producer reports retain that assessment. Separate readback reports bind
+the original payload digest, original runner identity and current reader
+identity, without rerunning or relabeling the physical products. Negative
+controls reject raw or public differences outside the two recorded budgets.
+The numerical acceptance thresholds themselves are unchanged.
+
+The subsequent algebra review found missing cross-axis quadratic transfer
+terms and a coarse-only final axis bound. The corrected budget includes all
+transfer-error products and the larger coarse/finer-grid measured bound.
+Independent zero-transfer and disjoint-axis tests expose the omitted terms.
+Additional regressions retain newly resolved signals from exactly zero
+histories and include geometry changes multiplying other source errors.
+Earlier independent-axis reports remain profiling/history records and cannot
+close the corrected budget. Parameter-matched resolution hints retain only
+starting controls, with physical-key isolation and fresh-acceptance tests.
+Grouped scalar/one-row arithmetic retains an independent ungrouped CPU
+reference rather than duplicating slow row evaluation in refinement probes.
+The interrupted corrected-budget attempt also exposed a cache-pressure
+execution switch: one remaining physical probe bypassed the compatible RK
+executor and re-entered the scalar adaptive solver. A one-row compatible
+schedule now remains eligible, including singleton independent-reference
+partitions. The kinetic single/pair regression also exercises the actual
+coarse-reference override and verifies its distinct retained native grid.
+The first one-row repair missed a second guard on reference partitions;
+the expensive retained Planck attempt exposed that incomplete repair.
+The retained LCDM budget also showed repeated source-grid increases with
+little reduction in the source contribution. Joint-budget refinement now
+records measured axis contributions, avoids repeating an unproductive axis
+while another material contributor can be reduced, and retries a material
+axis when the remaining small contributors cannot close the deficit.
+Stagnation comparisons use the same failure kind and the total joint-budget
+violation, including normalized cross errors. All acceptance checks and
+physical tolerances remain unchanged; these observations only choose the
+next independent trial.
+Source/projection promotion now changes its own measured LOS node minima,
+not the background-resolution seed. Native event searches use the accepted
+physical background instead of source sampling. A real-grid regression
+checks increased source sampling against identical background and native
+inputs. Selected pilot/reference histories are retained under identities
+covering physical inputs, compiled equations, q weights, integration controls
+and exact native background/coordinate/rate arrays. Source-only changes
+resample that raw work and re-evaluate sources, constraints and numerical
+comparisons; no acceptance certificate crosses the refinement. Kinetic
+regressions force eviction and integrity-checked spills, prohibit another
+ODE on a compatible source-only change, require fresh integration for new
+controls, and compare refreshed sources with an independent cold solve.
+Reference-state diagnostics do not overwrite the primary state statistics.
+Background promotion now starts from its accepted internal refinement seed
+through a separate `background_minimum_nodes` control. Doubling the original
+input could otherwise select the same already-refined background. A real
+planning regression changes the background from 3,796 to 13,657 samples while
+preserving the 192-node LOS seed; source-only promotion changes 695 to 1,615
+samples while preserving actual background/native inputs. These are numerical
+counts, not seconds. Both directions retain independent fresh comparisons.
+New transfer-refinement nodes also use chunked compatible evolution, retaining
+separate reference work counts and the scalar fallback for incompatible
+contracts. A kinetic TT/TE/EE comparison uses the original ungrouped scalar
+equations under actual global-cache pressure.
+
+The subsequent resolved-axis measurement accepted the ordinary LCDM cold
+request in 4,936.365 seconds, its exact repeat in 0.016 seconds and its warm
+request in 1,321.027 seconds. The cold combined TT/TE/EE relative bounds were
+0.002737, 0.002581 and 0.000208; normalized TE was 0.006712. Evolution consumed
+4,348.445 seconds. Those costs do not satisfy practical closure. The Planck
+attempt remained unaccepted when both workers were interrupted for the
+profiled repair; neither incomplete producer is relabelled as closure.
+Their original identity and partial outcomes remain in the resolved-axis
+evidence files. Additional bounded profiles are explicitly partial records.
+
+The batch profile locates over half its cost in repeated scalar background
+evaluation at already known stage coordinates, including repeated kinetic
+moments. The stage-background owner now evaluates the exact same coordinates,
+interpolants and declared graph in bounded vector blocks. Momentum bindings
+separate constant fields from varying columns once per batch. These changes
+require fresh measured workload evidence; no tolerance or physical equation
+is changed, and the independent scalar executor remains the authority.
+The vector-stage LCDM attempt subsequently accepted the same numerical
+request in 3,333.709 seconds with nine resolution retries. Its exact repeat
+took 0.021 seconds. The expensive cold search still prevented practical
+closure, so that retained producer remains a partial cost record.
+Initial ordinary scalar planning now proposes active evolution/LOS densities
+from the accepted physical background's actual sample count, rather than
+repeatedly starting far below its measured feature resolution. This is only
+a candidate: every full independent numerical check still runs, failed
+acceptance still propagates, finer inputs and disabled controls are retained,
+and later background/LOS promotions remain independent. The final record
+below supplies fresh workload evidence after this planning change.
+The first measured candidate completed all seven LCDM operations, with cold
+execution in 894.059 seconds. The Planck cold request accepted in 4,697.143
+seconds, but that cost still required work; its later workload was interrupted
+and cannot close the slice. The retained producer identities remain intact.
+The final proposal starts evolution at measured background density and LOS
+products at paired density. Measured mixed equation operands now gather
+interior state rows directly and bind only boundary/rebound replacements;
+RHS contexts retain only actual dependencies. Full diagnostic, collision,
+custom-coordinate and independent scalar contexts retain their semantics.
+Grid logs explicitly label conformal-time node counts as `eta_samples` and
+`source_eta_samples`, distinct from elapsed or remaining wall-clock seconds.
+
+### Historical sparse numerical evidence, 2026-10-29
+
+At the recorded source revision, both ordinary public workloads complete
+all seven operations with their
+engine-selected final controls and unchanged numerical thresholds. The cold
+and changed-parameter requests cover the full time domain, with TT/TE/EE at
+ell=(2,10,20); the changed request adds ell=3 and the reordered subset uses
+ell=(20,2). No user numerical overrides or diagnostic execution are used.
+Each independent background, evolution, source, hierarchy, projection and
+Fourier comparison runs; the kinetic Planck graph additionally compares q
+quadrature. Both producer assessments and separate digest-bound readbacks
+pass, with identical initial/final/current source identity:
+
+`6065e65fefae78086c4e957a2e8b25bd72d9342c98bd627deae9a658d42c6880`.
+
+| Operation | LCDM seconds | Planck seconds |
+| --- | ---: | ---: |
+| Cold, with global-cache pressure | 617.956 | 3053.376 |
+| Exact repeat | 0.015 | 0.172 |
+| Warm, complete result caches cleared | 651.770 | 2767.460 |
+| Changed request | 611.965 | 2577.990 |
+| Reordered subset | 570.090 | 2547.245 |
+| Changed Hubble parameter | 678.115 | 2760.111 |
+| Ordered batch including one invalid contract | 0.037 | 0.307 |
+
+Common raw and public products agree within their two propagated absolute
+budgets. The changed physical point produces different spectra. Exact repeats
+report exact cache hits. Batch results retain order, isolate the invalid
+middle request, and reproduce the accepted raw results exactly. Warm solves
+retain fresh acceptance checks; these measurements do not imply that every
+compatible request is cheaper than its cold counterpart.
+
+Cold LCDM TT/TE/EE relative bounds are 0.003884, 0.003172 and 0.000288;
+Planck bounds are 0.005426, 0.004131 and 0.000215. All individual and combined
+checks pass the unchanged TT/EE 0.01 and TE 0.02 targets, including cross
+normalization. LCDM evolves 93 state slots; Planck evolves 1,021 with 32
+momentum points. Their cold refinements retain seven native and fourteen
+independent-reference history reuses each. The 128 MiB raw-retention budget
+causes 223/216 spills and 19/49 checked loads under actual global LRU pressure.
+Incoming bundles can transiently exceed that retention budget before spill;
+it is not a limit on the solver's full working memory.
+
+The recorded machine is a four-core Intel i5-4690K at 3.50 GHz with 16 GiB,
+macOS 26.2, Python 3.11.14, NumPy 1.26.4 and SciPy 1.12.0. The two workers
+start together without simultaneous numerical tests or gates. Whole-worker
+peak RSS across their seven operations is 1.92 GiB and 8.98 GiB. Compared
+with the preceding physical-seed checkpoint, cold costs fall from 894.059
+to 617.956 seconds for LCDM and 4697.143 to 3053.376 seconds for Planck.
+Planck remains costly on this Intel machine; the measured baseline is explicit
+rather than a promise of dense-window or sampler throughput. Historical time
+targets remain optimization guides, not altered acceptance tolerances.
+
+The evidence directory identified above retains
+`lcdm-completion-runtime.json`, `planck-completion-runtime.json`, their logs
+and separate `*-completion-readback.json` files.
+`completion-numerical-environment.json` records machine, dependency/thread
+environment, per-worker CPU cost and RSS. `numerical-completion-summary.json`
+binds their payload digests and outcomes without rewriting earlier attempts.
+
+The final focused handoff passes 215 runtime tests in 391.583 seconds, three
+public scalar/batch/regular-metric regressions in 150.589 seconds, and nine
+phase-space/workload-reader tests in 2.819 seconds. It includes independent
+ungrouped scalar equations, kinetic single/pair/coarse references, pressure
+and spill integrity, distinct physical-axis work, zero/localized/oscillatory
+errors, joint bounds and weighted heartbeat accounting. This is the focused
+verification requested for the slice; the human runs the full workflow.
+
+These results establish that recorded sparse workload only. They did not
+establish full-suite practicality, and their original closure claim is
+withdrawn. Dense matched CAMB angular parity remains Slice Seven;
+the universal matrix, sampler/application throughput and final bounded demo
+remain Slices Eight through Ten. Neither the scientific reference acceptance
+nor these explicit numerical workload measurements join ordinary discovery.
+
+### Full-workflow repair, 2026-10-29
+
+The interrupted human workflow ran for 36,694 seconds and recorded 47
+failure/error occurrences across 21 methods before its final report. Its
+discoverable graph test had entered a real 99-multipole production solve:
+442 modes, 16,367 source samples and about 689.6 million projection cells.
+Five retained scalar kernel matrices alone represented about 25.7 GiB of
+array payload. The global LRU budget did not bound local all-mode references.
+The earlier three/four-multipole measurements could not expose this growth.
+
+Projection now prepares, consumes and releases one Fourier-mode chunk for
+every request, including adaptive requests and small maximum multipoles.
+The same native validation, source-error propagation, geometry comparisons,
+coarse projection and quadrature still execute. The Bessel recurrence also
+partitions columns without changing any physical sample; its input/value
+caches have byte budgets. Actual live kernel bytes and mode counts are
+reported rather than claiming a constant as a measured peak.
+
+The dense graph physics assertions are preserved in the explicitly invoked
+`tests.project.lib.ccmbs_production_graph.ProductionGraphTestCase`. Run it
+with the managed interpreter and `python -m unittest -v` when requesting
+dense acceptance. Discovery instead tests manufactured wave rendering,
+fresh-process artifact reload, digest corruption and the discovery boundary.
+It does not earn a scientific acceptance certificate from manufactured data.
+Ordinary real public-route and independent physics tests remain in discovery.
+
+Bundled kinetic declarations preserve their existing temperature convention:
+models without a declared heating parameter use their original temperature
+ratio, while Planck retains its explicit heating factor. Compilation rejects
+unbound physical-law symbols before numerical planning or evolution. The
+early-prefix test observes actual scalar or batch integration stages, and
+history error tests compare real reference estimates and inject a localized
+history defect rather than assuming an improved solver must remain inaccurate.
+
+Per-test profiling also exposed repeated scalar Jacobian work in stiff
+vector-sector interval solves. A compiler proof of affine state dependence
+now allows all Jacobian coefficient probes to share one graph evaluation;
+the actual trajectory still uses the original scalar RHS. Collision products
+retain the scalar column reduction order, including conservation-row
+cancellation. Nonlinear systems and state-dependent collision coefficients
+retain the general Jacobian path. Direct scalar-column comparisons and an
+independent stiff analytic solution with a 1e-20 state test the optimization
+without changing tolerances, equations, interval boundaries or projections.
+Projected local intervals use one-step L-stable Radau integration rather
+than rebuilding multistep BDF history at each output boundary. Whole-history
+integration retains its BDF reference path. Both methods retain the same
+component scaling and error tolerances and are checked against an independent
+stiff analytic trajectory. Initial scale probes also share the validated
+affine graph without dropping initially zero or extremely small states.
+Alias-routing checks bind their bounded diagnostic request after preparation,
+so public replanning honors the fixture's original hierarchy. They require
+nonzero finite spectra. Independent sector physics/refinement comparisons
+retain their original domains and thresholds. The direct Jacobian-column test
+instead enters the public planner's expanded graph, stopping before numerical
+integration.
+
+The public planner expands the vector fixture to 113 states, compared with
+38 in its direct source probe. Its initial Jacobian has only 360 nonzero
+entries out of 12,769. Dense LU factorization made this actual public route
+far more expensive than the earlier direct probe. Continuous integration now
+selects sparse LU storage when the initial Jacobian is mostly zero, retaining
+every nonzero coefficient and allowing new nonzeros at later times. Storage
+format stays fixed for that solve, as required by the integrator. This changes
+linear algebra storage, not equations, tolerances, hierarchy depth or samples.
+An independent exact stiff trajectory checks BDF and Radau down to 1e-25
+amplitudes, including a Jacobian that becomes dense after sparse startup.
+
+Repair verification profiles individual test time and sampled process memory,
+retaining progress and immediate tracebacks if interrupted. All 716 distinct
+focused tests passed without skips across the repaired owner groups:
+
+| Verification group | Passed | Measured seconds |
+| --- | ---: | ---: |
+| Complete CMB module, three completed partitions | 221 | 2831.318 |
+| Three final alias cases and expanded public Jacobian case | 4 | 102.321 |
+| Runtime owners, including sparse stiff analytic checks | 222 | 397.012 |
+| Compiler, contracts and diagnostic/artifact readers | 187 | 306.047 |
+| Bundled model declarations and physical outputs | 34 | 1737.267 |
+| Frozen mapping, interfaces and adapter exports | 49 | 736.383 |
+
+The Jacobian case overlaps the runtime group, giving 716 distinct tests and
+complete 224-case CMB coverage. The bundled-model and interface profiles
+precede the sparse-LU change; the final runtime/CMB groups check that numerical
+change. Only the three alias fixtures and public Jacobian test changed during
+the final partitioned reruns; their updated cases passed separately. Discovery
+also imported all 1144 tests, included graph artifact checks and excluded the
+explicit dense acceptance case. The retained profile manifests record these
+producer boundaries under the output root's
+`ccmbs-acceptance/completion-evidence/workflow-repair-20261029*` directories.
+These are focused verification measurements, not a new full workflow verdict
+or a rerun of scientific acceptance. Slice Six remains open until the human's
+complete workflow demonstrates its actual development-loop cost; another
+green policy gate alone cannot close it.
 
 **Focused owners:** all direct runtime numerical/physics tests, public
 `test_cmb` method selectors, cache/performance tests, and the existing

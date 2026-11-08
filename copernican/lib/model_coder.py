@@ -566,6 +566,21 @@ def _compile_declared_cmb_runtime_impl(
     # contract are retained only as a compatibility input for the engine
     # planner; they are never copied into the physical declaration passed to
     # the graph compiler or returned by the runtime bundle.
+    from .phase_space import phase_space_grid_name, validate_phase_space
+
+    phase_parameters = set(cmb_contract.get("param_map", {}) or {})
+    phase_parameters.update(cmb_contract.get("model_parameters", {}) or {})
+
+    for family_name, family in perturbation_contract.get(
+        "hierarchy_families", {}
+    ).items():
+        if family.get("phase_space"):
+            validate_phase_space(
+                family["phase_space"], available_parameters=phase_parameters
+            )
+            family["momentum_grid"] = phase_space_grid_name(
+                family_name, family
+            )
     engine_plan = plan_cmb_numerics(
         cmb_contract,
         request_mode=request_mode,

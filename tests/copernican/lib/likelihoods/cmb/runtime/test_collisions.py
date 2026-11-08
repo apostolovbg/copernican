@@ -2,16 +2,59 @@
 
 import unittest
 import warnings
+from types import SimpleNamespace
 
 import numpy
 
 from copernican.lib.likelihoods.cmb.runtime import collisions
-from copernican.lib.perturbation_contract import evaluate_compiled_expression
+from copernican.lib.perturbation_contract import (
+    _compile_expression_plan,
+    evaluate_compiled_expression,
+)
 from tests.copernican.lib import test_perturbation_contract as contract_tests
 
 
 class CollisionOperatorTestCase(unittest.TestCase):
     """Exercise stiff collision handling separately from mode evolution."""
+
+    def test_declared_collision_phase_rates_ignore_coordinate_rescaling(self):
+        def operator(scale, fast=False):
+            return SimpleNamespace(
+                rate_expression=_compile_expression_plan("rate"),
+                matrix=tuple(
+                    tuple(
+                        _compile_expression_plan(str(value)) for value in row
+                    )
+                    for row in (
+                        (-1.0, 1.0 / scale),
+                        (2.0 * scale, -2.0),
+                    )
+                ),
+                damping_coefficient=None,
+                fast_manifold=fast,
+                activation_strategy="always",
+            )
+
+        active = numpy.array((False, True))
+        rates = numpy.array((10.0, 20.0))
+        first = collisions.declared_collision_phase_rates(
+            (operator(1.0),),
+            {"rate": rates},
+            active,
+        )
+        second = collisions.declared_collision_phase_rates(
+            (operator(1e8),),
+            {"rate": rates},
+            active,
+        )
+        numpy.testing.assert_allclose(first, (30.0, 60.0))
+        numpy.testing.assert_allclose(second, first, rtol=1e-14)
+        fast = collisions.declared_collision_phase_rates(
+            (operator(1.0, fast=True),),
+            {"rate": rates},
+            active,
+        )
+        numpy.testing.assert_allclose(fast, (30.0, 0.0))
 
     def test_scalar_thomson_action_conserves_momentum_and_damps_slip(self):
         """Use total momentum and exponential slip, independently of expm."""

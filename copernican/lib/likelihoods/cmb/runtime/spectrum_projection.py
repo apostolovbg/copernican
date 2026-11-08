@@ -402,23 +402,11 @@ def _build_projection_k_grid(
         return numpy.asarray((k_min,), dtype=float)
 
     if generated_final_hierarchy and allow_final_production_floor:
-        # A 64-node ladder is adequate for contract smoke tests but cannot
-        # resolve the rapidly oscillating spherical-Bessel projection at the
-        # public ell ceiling.  Keep the declared value as the lower bound and
-        # promote generated final spectra to a deterministic production grid.
-        # Production refinement carries an explicit factor so the doubled
-        # request actually doubles the physical grid rather than being hidden
-        # by this floor.
-        # Scale the declared ladder before applying the floor.  Otherwise a
-        # 64-node base request and a 96-node refinement both collapse to the
-        # same production grid, so the convergence comparison does not
-        # actually measure a refinement.  The 4x floor keeps the base and
-        # doubled ladders distinct without making every public request pay
-        # for an unnecessary 2048-mode refinement.
-        sample_count = max(
-            sample_count * refinement_factor * 4,
-            512 * refinement_factor,
-        )
+        # The actual radial/acoustic phase requirement below owns the floor.
+        # A fixed 512-mode ladder wastes low-ell work without bounding any
+        # additional error. Independent nested production refinement remains
+        # compulsory, even when the measured phase requirement dominates.
+        sample_count *= refinement_factor
     production_probe = accuracy_controls.get(
         "production_scalar_convergence",
         {},
@@ -735,6 +723,8 @@ def _declared_graph_projection(
     chi_grid: numpy.ndarray,
     source_chi: float,
     source_histories: Mapping[str, numpy.ndarray],
+    absolute_error: bool = False,
+    operator_sink: dict[str, numpy.ndarray] | None = None,
 ) -> numpy.ndarray:
     """Return projected transfer component values for every ell."""
 
@@ -816,8 +806,14 @@ def _declared_graph_projection(
     ) -> numpy.ndarray:
         """Project one source history through one ell-batched kernel."""
 
+        if absolute_error:
+            kernel_values = abs(kernel_values)
+            history = abs(history)
         return numpy.asarray(
-            kernel_values @ (eta_weights * history),
+            kernel_values
+            @ (
+                (abs(eta_weights) if absolute_error else eta_weights) * history
+            ),
             dtype=float,
         )
 
@@ -835,8 +831,11 @@ def _declared_graph_projection(
                 observable_name=projection,
                 kernel=source_kernel,
             )
+            kernel_values = _apply_kernel(source_kernel)
+            if operator_sink is not None:
+                operator_sink[role_name] = kernel_values * eta_weights
             projected += _project_history(
-                _apply_kernel(source_kernel),
+                kernel_values,
                 history,
             )
         return projected

@@ -37,6 +37,7 @@ from .model_adapter import (
     _replace_latex_tokens,
     _validate_safe_expression,
 )
+from .phase_space import validate_phase_space
 
 _COMPILED_BINARY_OPCODE_NAMES = {
     ast.Add: "add",
@@ -257,6 +258,8 @@ _SUPPORTED_HIERARCHY_FAMILY_KEYS = {
     "notes",
     "sector",
     "species",
+    "physical_role",
+    "phase_space",
 }
 _SUPPORTED_COLLISION_OPERATOR_KEYS = {
     "activation_strategy",
@@ -1252,6 +1255,19 @@ def _materialize_declared_scalar_hierarchy_contract(
                     int(momentum_grid_def.get("count", 1)),
                 )
     materialized = copy.deepcopy(dict(contract))
+    # This materializer owns the standard scalar equations. Mark their
+    # physical roles here as well as in shipped declarations; generic graph
+    # planners and numerical readers must never infer roles from labels.
+    for family_name, role in (
+        ("photon_temperature", "photon_temperature"),
+        ("photon_polarization_e", "photon_polarization"),
+        ("massless_neutrino", "massless_neutrino"),
+        ("massive_neutrino", "massive_neutrino"),
+    ):
+        if family_name in materialized.get("hierarchy_families", {}):
+            materialized["hierarchy_families"][family_name].setdefault(
+                "physical_role", role
+            )
     if has_massive_neutrino:
         # The existence of a massive species is physical graph metadata.  The
         # planner supplies the actual q grid; give the generated family a
@@ -2539,7 +2555,8 @@ def _materialize_declared_scalar_hierarchy_contract(
             q_shear_component_names.append(q_shear_name)
             derived_entries[q_log_derivative_name] = {
                 "expression": (
-                    f"-{q_prefix}_point / (1.0 + exp(-{q_prefix}_point))"
+                    f"momentum_grid_{momentum_grid_name}_q{q_index}"
+                    "_distribution_log_derivative"
                 ),
                 "description": (
                     "Logarithmic derivative of the thermal distribution."
@@ -5162,6 +5179,8 @@ class PerturbationHierarchyFamilyData:
     closure: str | None = None
     default_l_max: int | None = None
     momentum_grid: str | None = None
+    physical_role: str = "generic"
+    phase_space: Mapping[str, Any] = field(default_factory=FrozenMapping)
 
 
 @dataclass(frozen=True, slots=True)
@@ -5778,6 +5797,12 @@ def _compile_hierarchy_family_metadata(
         compiled[name] = PerturbationHierarchyFamilyData(
             name=name,
             sector=sector,
+            physical_role=str(family_def.get("physical_role", "generic")),
+            phase_space=FrozenMapping(
+                validate_phase_space(family_def["phase_space"])
+                if family_def.get("phase_space") is not None
+                else {}
+            ),
             description=_validate_optional_string(
                 family_def.get("description"),
                 label=(
@@ -7550,6 +7575,7 @@ def _compile_perturbation_contract_impl(
                     "point",
                     "weight",
                     "distribution_weight",
+                    "distribution_log_derivative",
                     "velocity_ratio",
                     "pressure_ratio",
                     "mass_fraction",
@@ -8717,6 +8743,13 @@ def _compile_perturbation_contract_impl(
 
         compiled: dict[str, PerturbationConditionData] = {}
         seen_targets: set[tuple[str, str, int]] = set()
+        # The symbol domain is constant across conditions. Building this
+        # union per q-bin seed makes large kinetic graphs quadratic in size.
+        condition_reference_names = (
+            all_expression_names
+            | set(_relation_target_nodes(constraint_entries, closure_entries))
+            | set(variable_entries)
+        )
         for condition_name, condition_def in condition_defs.items():
             name = _validate_string(
                 condition_name,
@@ -8778,11 +8811,7 @@ def _compile_perturbation_contract_impl(
                 condition_def.get("expression"),
                 label=f"{label_prefix}.{name}.expression",
                 replacements=replacements,
-                allowed_names=all_expression_names
-                | set(
-                    _relation_target_nodes(constraint_entries, closure_entries)
-                )
-                | {entry_name for entry_name in variable_entries},
+                allowed_names=condition_reference_names,
             )
             anchor_name = str(
                 _validate_optional_string(

@@ -1,6 +1,7 @@
 """Focused tests for declared CMB numerical execution."""
 
 import unittest
+from dataclasses import replace
 from types import SimpleNamespace
 from unittest import mock
 
@@ -11,6 +12,1065 @@ from copernican.lib.likelihoods.cmb.runtime import execution
 
 class ExecutionModuleTestCase(unittest.TestCase):
     """Exercise public numerical execution composition directly."""
+
+    def test_prepare_projection_chunk_bounds_live_kernels_and_retains_axes(
+        self,
+    ):
+        """Dense angular adaptive work retains one chunk, not all modes."""
+
+        import weakref
+
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._speedup_contract(test_cmb._custom_contract())
+        raw["numerical"].update(
+            k_sample_count=12,
+            eta_sample_count=64,
+            evolution_eta_sample_count=64,
+            ell_max=100,
+        )
+        raw["perturbations"]["numerics"] = dict(raw["numerical"])
+        raw["perturbations"]["accuracy_controls"] = {
+            "adaptive_source": {
+                "enabled": True,
+                "minimum_nodes": 32,
+                "maximum_nodes": 128,
+                "relative_tolerance": 2.0,
+            },
+            "adaptive_projection": {
+                "enabled": True,
+                "minimum_nodes": 32,
+                "maximum_nodes": 128,
+                "relative_tolerance": 2.0,
+            },
+            "fail_on_nonconvergence": False,
+        }
+        contract = test_cmb._prepare_declared_contract(raw)
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        original = execution._get_cached_declared_projection_kernel_batch
+        references = []
+        live = []
+
+        def observe(*args, **kwargs):
+            batch = original(*args, **kwargs)
+            references.append(weakref.ref(batch.j_l))
+            live.append(sum(ref() is not None for ref in references))
+            return batch
+
+        execution.cache.clear_cmb_caches()
+        with (
+            mock.patch.object(execution, "_BESSEL_WORK_CELL_BUDGET", 10_000),
+            mock.patch.object(
+                execution.cache._CMB_BESSEL_BATCH_CACHE, "max_bytes", 0
+            ),
+            mock.patch.object(
+                execution,
+                "_get_cached_declared_projection_kernel_batch",
+                side_effect=observe,
+            ),
+        ):
+            small = execution._compute_custom_cmb_spectrum_data(
+                contract,
+                tuple(range(2, 101)),
+                requested_spectra=("TT", "TE", "EE"),
+            )
+        envelope = small.runtime_envelope
+        self.assertTrue(envelope["adaptive_source_enabled"])
+        self.assertTrue(envelope["adaptive_projection_enabled"])
+        self.assertEqual(
+            envelope["projection_peak_live_modes"],
+            1,
+            "prepare_projection_chunk retained excess live modes",
+        )
+        self.assertGreater(envelope["projection_peak_kernel_bytes"], 0)
+        self.assertLessEqual(max(live), 2)
+        self.assertGreater(envelope["projection_bessel_batch_count"], 1)
+        execution.cache.clear_cmb_caches()
+        with mock.patch.object(
+            execution, "_BESSEL_WORK_CELL_BUDGET", 8_000_000
+        ):
+            large = execution._compute_custom_cmb_spectrum_data(
+                contract,
+                tuple(range(2, 101)),
+                requested_spectra=("TT", "TE", "EE"),
+            )
+        for name in ("TT", "TE", "EE"):
+            numpy.testing.assert_allclose(
+                small.spectra[name],
+                large.spectra[name],
+                rtol=5e-14,
+                atol=0,
+            )
+        for name in small.transfer_components:
+            numpy.testing.assert_allclose(
+                small.transfer_components[name],
+                large.transfer_components[name],
+                rtol=5e-14,
+                atol=0,
+            )
+
+    def test_transfer_refinement_batches_new_kinetic_modes(self):
+        """Independent refined nodes preserve the original scalar authority."""
+
+        from copernican.lib.likelihoods.cmb.runtime import mode_evolution
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._speedup_contract(
+            test_cmb._declared_scalar_hierarchy_contract(
+                include_massive_neutrino=True
+            )
+        )
+        raw["numerical"].update(k_sample_count=4, k_max=0.03)
+        raw["perturbations"]["accuracy_controls"] = {
+            "adaptive_transfer": {
+                "minimum_nodes": 4,
+                "maximum_nodes": 10,
+                "relative_tolerance": 2.0,
+                "absolute_tolerance": 1e-12,
+            }
+        }
+        contract = test_cmb._prepare_declared_contract(raw)
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        execution.cache.clear_cmb_caches()
+        with mock.patch.object(
+            execution.cache._CMB_SOURCE_HISTORY_CACHE, "limit", 1
+        ):
+            batched = execution._compute_custom_cmb_spectrum_data(
+                contract, (2, 10), requested_spectra=("TT", "TE", "EE")
+            )
+        envelope = batched.runtime_envelope
+        self.assertGreater(envelope["transfer_reference_batch_mode_count"], 1)
+        self.assertEqual(
+            envelope["transfer_reference_batch_mode_count"],
+            envelope["adaptive_transfer_new_node_work_units"],
+        )
+        self.assertEqual(envelope["adaptive_transfer_warm_node_count"], 0)
+        self.assertEqual(
+            envelope["batch_mode_count"],
+            envelope["adaptive_transfer_base_node_count"],
+        )
+        execution.cache.clear_cmb_caches()
+
+        def original_equations(
+            _grouped, original, context, states, derivative, rates
+        ):
+            original(context, states, derivative, rates)
+
+        with (
+            mock.patch.object(
+                mode_evolution,
+                "_can_batch_declared_evolution",
+                return_value=False,
+            ),
+            mock.patch.object(
+                mode_evolution,
+                "evaluate_scalar_equations",
+                side_effect=original_equations,
+            ),
+        ):
+            scalar = execution._compute_custom_cmb_spectrum_data(
+                contract, (2, 10), requested_spectra=("TT", "TE", "EE")
+            )
+        self.assertEqual(scalar.runtime_envelope["batch_mode_count"], 0)
+        for name in ("TT", "TE", "EE"):
+            numpy.testing.assert_allclose(
+                batched.spectra[name],
+                scalar.spectra[name],
+                rtol=2e-5,
+                atol=0,
+            )
+
+    def test_source_grid_reuses_native_work_but_evaluates_fresh_sources(self):
+        """Raw native reuse survives eviction and matches fresh evaluation."""
+
+        from copernican.lib.likelihoods.cmb.runtime import mode_evolution
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._speedup_contract(
+            test_cmb._declared_scalar_hierarchy_contract(
+                include_massive_neutrino=True
+            )
+        )
+        raw["numerical"].update(k_sample_count=4, k_max=0.03)
+        raw["_engine_numerical_plan"] = dict(raw["numerical"])
+        raw["_engine_accuracy_controls"] = {
+            "accuracy_tier": "final",
+            "adaptive_evolution": {
+                "minimum_nodes": 64,
+                "maximum_nodes": 512,
+                "relative_tolerance": 0.02,
+            },
+            "adaptive_source": {
+                "minimum_nodes": 64,
+                "maximum_nodes": 512,
+                "relative_tolerance": 0.02,
+            },
+            "adaptive_projection": {
+                "minimum_nodes": 64,
+                "maximum_nodes": 512,
+                "relative_tolerance": 0.02,
+            },
+        }
+        contract = test_cmb._prepare_declared_contract(raw)
+        waves = (0.001, 0.002)
+        execution.cache.clear_cmb_caches()
+        self.addCleanup(execution.cache.clear_cmb_caches)
+
+        def probe(point):
+            return execution._compute_custom_cmb_spectrum_data_impl(
+                point,
+                (2,),
+                source_probe=waves,
+                requested_spectra=("TT", "TE", "EE"),
+                performance_timer=execution.PhaseTimer(),
+            )
+
+        @execution.cache.retain_cmb_source_histories
+        def exercise():
+            original = probe(contract)
+            changed, _ = execution.refine_numerical_axis(
+                contract,
+                "source",
+                evidence={"source_eta_sample_count": original.eta.size},
+            )
+            with mock.patch.object(
+                mode_evolution,
+                "_integrate_batched_rk4",
+                side_effect=AssertionError("Compatible raw work must survive"),
+            ):
+                refreshed = probe(changed)
+            self.assertEqual(
+                refreshed.runtime_envelope["native_history_cache_hits"],
+                2,
+                "_native_history_key must ignore only output sampling",
+            )
+            self.assertEqual(refreshed.runtime_envelope["probe_new_modes"], 0)
+            self.assertEqual(
+                refreshed.runtime_envelope["probe_resampled_modes"], 2
+            )
+            self.assertIn(
+                "Phi",
+                refreshed.runtime_envelope["state_history_max_abs_by_k"][
+                    "0.001"
+                ],
+            )
+            self.assertGreater(refreshed.eta.size, original.eta.size)
+            stats = execution.cache.cmb_source_history_scope_stats()
+            self.assertGreater(stats["spills"], 0)
+            self.assertGreater(stats["loads"], 0)
+            # New evolution controls must require independent raw work.
+            different = {
+                **changed,
+                "_numerical_overrides": {
+                    **changed.get("_numerical_overrides", {}),
+                    "evolution_eta_sample_count": 2
+                    * int(raw["numerical"]["evolution_eta_sample_count"]),
+                },
+            }
+            with mock.patch.object(
+                mode_evolution,
+                "_integrate_batched_rk4",
+                side_effect=AssertionError("A new native solve is required"),
+            ):
+                with self.assertRaisesRegex(
+                    AssertionError, "new native solve"
+                ):
+                    probe(different)
+            phase_changed = {
+                **changed,
+                "_numerical_overrides": {
+                    **changed.get("_numerical_overrides", {}),
+                    "evolution_phase_step": 0.5
+                    * float(raw["numerical"]["evolution_phase_step"]),
+                },
+            }
+            with mock.patch.object(
+                mode_evolution,
+                "_integrate_batched_rk4",
+                side_effect=AssertionError(
+                    "Changed integration needs a solve"
+                ),
+            ):
+                with self.assertRaisesRegex(
+                    AssertionError, "integration needs"
+                ):
+                    probe(phase_changed)
+            return changed, refreshed
+
+        with (
+            mock.patch.object(
+                execution.cache._CMB_SOURCE_HISTORY_CACHE, "limit", 1
+            ),
+            mock.patch.object(
+                execution.cache._CMB_SOURCE_HISTORY_CACHE, "max_bytes", 1024
+            ),
+        ):
+            changed, refreshed = exercise()
+        execution.cache.clear_cmb_caches()
+        fresh = probe(changed)
+        self.assertEqual(
+            fresh.runtime_envelope["native_history_cache_hits"], 0
+        )
+        for wave in waves:
+            for name, values in fresh.sources[wave].items():
+                numpy.testing.assert_allclose(
+                    refreshed.sources[wave][name],
+                    values,
+                    rtol=2e-5,
+                    atol=0,
+                    err_msg="_resample_mode_history evaluates current sources",
+                )
+
+    def test_source_refinement_preserves_actual_background_and_native_grid(
+        self,
+    ):
+        """A real source ladder changes independently of physical evolution."""
+
+        from copernican.lib.likelihoods.cmb import cmb
+        from tests.copernican.lib.test_model_adapter import (
+            DeclaredLCDMModelTestCase,
+        )
+
+        class Captured(BaseException):
+            """Stop after inspecting real planned grids, before any ODE."""
+
+        observations = []
+        build = execution.build_declared_mode_evolution
+
+        def capture(inputs):
+            runtime = build(inputs)
+            native = runtime.mode_grids_for_k(float(inputs.k_values[-1]))[0]
+            observations.append(
+                {
+                    "contract": inputs.contract_or_params,
+                    "background": inputs.background.eta_grid.copy(),
+                    "background_seed": inputs.background.resolution_evidence[
+                        "refinement"
+                    ]["fine_eta_nodes"],
+                    "source_seed": inputs.numerics.eta_sample_count,
+                    "source": inputs.source_grids["eta"].copy(),
+                    "native": {k: v.copy() for k, v in native.items()},
+                }
+            )
+            raise Captured()
+
+        execution.cache.clear_cmb_caches()
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        plugin = DeclaredLCDMModelTestCase._build_plugin()
+        with mock.patch.object(
+            execution, "build_declared_mode_evolution", side_effect=capture
+        ):
+            with self.assertRaises(Captured):
+                cmb.compute_cmb_spectrum_cached(
+                    plugin,
+                    tuple(plugin.INITIAL_GUESSES),
+                    (2, 10, 20),
+                    spectra=("TT", "TE", "EE"),
+                )
+            before = observations[0]
+            finer, _ = execution.refine_numerical_axis(
+                before["contract"],
+                "source",
+                evidence={"source_eta_sample_count": before["source"].size},
+            )
+            with self.assertRaises(Captured):
+                execution._compute_custom_cmb_spectrum_data_impl(
+                    finer,
+                    (2, 10, 20),
+                    background_provider=plugin,
+                    requested_spectra=("TT", "TE", "EE"),
+                    performance_timer=execution.PhaseTimer(),
+                )
+            background_finer, _ = execution.refine_numerical_axis(
+                before["contract"],
+                "background",
+                evidence={
+                    "background_resolution_seed": before["background_seed"]
+                },
+            )
+            with self.assertRaises(Captured):
+                execution._compute_custom_cmb_spectrum_data_impl(
+                    background_finer,
+                    (2, 10, 20),
+                    background_provider=plugin,
+                    requested_spectra=("TT", "TE", "EE"),
+                    performance_timer=execution.PhaseTimer(),
+                )
+        background_after = observations[2]
+        self.assertGreater(
+            background_after["background"].size, before["background"].size
+        )
+        self.assertEqual(
+            background_after["source_seed"], before["source_seed"]
+        )
+        after = observations[1]
+        self.assertGreater(after["source"].size, before["source"].size)
+        numpy.testing.assert_array_equal(
+            after["background"], before["background"]
+        )
+        for name in before["native"]:
+            numpy.testing.assert_array_equal(
+                after["native"][name],
+                before["native"][name],
+                err_msg=name,
+            )
+
+    def test_hint_identity_tracks_physics_not_observation_density(self):
+        from copernican.lib.likelihoods.cmb import cmb
+        from tests.copernican.lib.test_model_adapter import (
+            DeclaredLCDMModelTestCase,
+        )
+
+        class Planned(BaseException):
+            """Stop after the real public planner and hint identity."""
+
+        execution.cache.clear_cmb_caches()
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        plugin = DeclaredLCDMModelTestCase._build_plugin()
+        keys = []
+
+        def capture(key):
+            keys.append(key)
+            return None
+
+        parameters = tuple(plugin.INITIAL_GUESSES)
+        with (
+            mock.patch.object(
+                execution.cache, "get_cmb_resolution_hint", side_effect=capture
+            ),
+            mock.patch.object(
+                execution,
+                "_compute_custom_cmb_spectrum_data_impl",
+                side_effect=Planned,
+            ),
+        ):
+            for ells in ((2, 10, 20), (2, 3, 10, 20), (20, 2)):
+                with self.assertRaises(Planned):
+                    cmb.compute_cmb_spectrum_cached(
+                        plugin, parameters, ells, spectra=("TT", "TE", "EE")
+                    )
+            changed = (parameters[0] * 1.002, *parameters[1:])
+            with self.assertRaises(Planned):
+                cmb.compute_cmb_spectrum_cached(
+                    plugin, changed, (2, 10, 20), spectra=("TT", "TE", "EE")
+                )
+        self.assertEqual(keys[0], keys[1])
+        self.assertEqual(keys[0], keys[2])
+        self.assertNotEqual(keys[0], keys[3])
+
+    def test_joint_budget_retry_uses_earlier_measured_trials(self):
+        """The public controller rotates flat axes and retains its trials."""
+
+        contract = {
+            "_engine_numerical_plan": {
+                "eta_sample_count": 192,
+                "evolution_eta_sample_count": 128,
+            }
+        }
+        result = execution.CustomCMBSpectrumData(
+            ell_grid=numpy.asarray((2,)),
+            k_grid=numpy.asarray((0.01, 0.02)),
+            transfer_components={},
+            spectra={"TT": numpy.ones(1)},
+            runtime_envelope={
+                "observable_error_budget": {"converged": True},
+                "production_scalar_k_convergence": {"converged": True},
+            },
+        )
+        failures = [
+            execution.AdaptiveNonConvergenceError(
+                "Measured joint budget is unresolved",
+                label="observable-error-budget",
+                evidence={
+                    "products": {
+                        "TT": {
+                            "relative_tolerance": 0.01,
+                            "relative_error_bound": source + 0.0065,
+                            "axis_relative_bounds": {
+                                "source": source,
+                                "evolution": 0.004,
+                                "background": 0.0025,
+                            },
+                        }
+                    }
+                },
+            )
+            for source in (0.0045, 0.0046)
+        ]
+        execution.cache.clear_cmb_caches()
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        with (
+            mock.patch.object(
+                execution,
+                "resolve_production_scalar_convergence",
+                return_value=SimpleNamespace(
+                    enabled=True,
+                    required_spectra=("TT",),
+                    fail_on_nonconvergence=True,
+                ),
+            ),
+            mock.patch.object(
+                execution,
+                "_custom_cmb_spectrum_cache_key",
+                return_value="joint-budget-controller",
+            ),
+            mock.patch.object(
+                execution,
+                "_compute_custom_cmb_spectrum_data_impl",
+                side_effect=[*failures, result],
+            ) as compute,
+        ):
+            completed = execution._compute_custom_cmb_spectrum_data(
+                contract, (2,), requested_spectra=("TT",)
+            )
+        trials = completed.runtime_envelope["automatic_resolution_refinement"]
+        self.assertEqual(
+            [row["axis"] for row in trials], ["source", "evolution"]
+        )
+        last = compute.call_args.args[0]["_numerical_overrides"]
+        self.assertNotIn("eta_sample_count", last)
+        self.assertEqual(
+            compute.call_args.args[0]["_engine_accuracy_controls"][
+                "adaptive_source"
+            ]["minimum_nodes"],
+            384,
+        )
+        self.assertEqual(last["evolution_eta_sample_count"], 256)
+        self.assertEqual(trials[1]["unproductive_budget_axes"], ["source"])
+        self.assertTrue(
+            compute.call_args_list[0].kwargs["initialize_resolution"]
+        )
+        for call in compute.call_args_list[1:]:
+            self.assertNotIn("initialize_resolution", call.kwargs)
+
+    def test_initial_candidate_still_requires_full_independent_acceptance(
+        self,
+    ):
+        execution.cache.clear_cmb_caches()
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        contract = {"_engine_numerical_plan": {"eta_sample_count": 192}}
+        candidate = execution.InitialResolutionCandidate(
+            contract={
+                "_engine_numerical_plan": {
+                    "eta_sample_count": 192,
+                    "evolution_eta_sample_count": 3796,
+                }
+            },
+            evidence={"acceptance_reused": False},
+        )
+        base = execution.CustomCMBSpectrumData(
+            ell_grid=numpy.array((2,)),
+            k_grid=numpy.array((0.01, 0.02)),
+            transfer_components={},
+            spectra={"TT": numpy.ones(1)},
+            runtime_envelope={},
+        )
+        failure = execution.AdaptiveNonConvergenceError(
+            "The real independent check failed",
+            label="unknown-axis",
+            evidence={},
+        )
+        control = SimpleNamespace(
+            enabled=True, required_spectra=("TT",), fail_on_nonconvergence=True
+        )
+        with (
+            mock.patch.object(
+                execution,
+                "resolve_production_scalar_convergence",
+                return_value=control,
+            ),
+            mock.patch.object(
+                execution,
+                "_custom_cmb_spectrum_cache_key",
+                return_value="candidate-test",
+            ),
+            mock.patch.object(
+                execution,
+                "_compute_custom_cmb_spectrum_data_impl",
+                side_effect=(candidate, base),
+            ) as compute,
+            mock.patch.object(
+                execution,
+                "_compute_production_refinement",
+                side_effect=failure,
+            ) as refine,
+            self.assertRaises(execution.AdaptiveNonConvergenceError),
+        ):
+            execution._compute_custom_cmb_spectrum_data(
+                contract, (2,), requested_spectra=("TT",)
+            )
+        self.assertEqual(compute.call_count, 2)
+        self.assertTrue(
+            compute.call_args_list[0].kwargs["initialize_resolution"]
+        )
+        self.assertNotIn(
+            "initialize_resolution", compute.call_args_list[1].kwargs
+        )
+        refine.assert_called_once()
+        self.assertEqual(refine.call_args.args[0], candidate.contract)
+        self.assertFalse(execution.cache.has_cmb_spectrum("candidate-test"))
+
+        accepted = execution.CustomCMBSpectrumData(
+            ell_grid=base.ell_grid,
+            k_grid=base.k_grid,
+            transfer_components=base.transfer_components,
+            spectra=base.spectra,
+            runtime_envelope={
+                "production_scalar_k_convergence": {"converged": True},
+                "observable_error_budget": {"converged": True},
+            },
+        )
+        with (
+            mock.patch.object(
+                execution,
+                "resolve_production_scalar_convergence",
+                return_value=control,
+            ),
+            mock.patch.object(
+                execution,
+                "_custom_cmb_spectrum_cache_key",
+                return_value="candidate-test",
+            ),
+            mock.patch.object(
+                execution,
+                "_compute_custom_cmb_spectrum_data_impl",
+                side_effect=(candidate, accepted),
+            ),
+        ):
+            result = execution._compute_custom_cmb_spectrum_data(
+                contract, (2,), requested_spectra=("TT",)
+            )
+        self.assertFalse(
+            result.runtime_envelope["initial_resolution_candidate"][
+                "acceptance_reused"
+            ]
+        )
+        self.assertTrue(execution.cache.has_cmb_spectrum("candidate-test"))
+
+    def test_finer_axis_evidence_cannot_be_hidden_by_coarse_budget(self):
+        base = execution.CustomCMBSpectrumData(
+            ell_grid=numpy.asarray((2,)),
+            k_grid=numpy.asarray((0.01, 0.02)),
+            transfer_components={},
+            spectra={"TT": numpy.ones(1)},
+            runtime_envelope={
+                "observable_axis_error_bounds": {"evolution": {"TT": [0.001]}}
+            },
+        )
+        fine = execution.CustomCMBSpectrumData(
+            ell_grid=base.ell_grid,
+            k_grid=numpy.asarray((0.01, 0.015, 0.02)),
+            transfer_components={},
+            spectra=base.spectra,
+            runtime_envelope={
+                "evolution_modes_evolved": 1,
+                "observable_axis_error_bounds": {"evolution": {"TT": [0.02]}},
+            },
+        )
+        controls = SimpleNamespace(
+            k_refinement_factor=2,
+            required_spectra=("TT",),
+            relative_tolerances={"TT": 0.01},
+            fail_on_nonconvergence=True,
+        )
+        with mock.patch.object(
+            execution,
+            "_compute_custom_cmb_spectrum_data_impl",
+            return_value=fine,
+        ):
+            with self.assertRaises(
+                execution.AdaptiveNonConvergenceError
+            ) as caught:
+                execution._compute_production_refinement(
+                    {"_engine_numerical_plan": {"k_sample_count": 2}},
+                    base,
+                    (2,),
+                    background_provider=None,
+                    effective_requested_spectra=("TT",),
+                    requested=("TT",),
+                    production_controls=controls,
+                    timer=execution.PhaseTimer(),
+                    workload="full_spectrum",
+                    diagnostic_request=False,
+                )
+        self.assertEqual(caught.exception.label, "observable-error-budget")
+
+    def test_hint_seeds_resolution_but_recomputes_the_current_acceptance(self):
+        cache = execution.cache
+        cache.clear_cmb_caches()
+        self.addCleanup(cache.clear_cmb_caches)
+        contract = {"_engine_numerical_plan": {"eta_sample_count": 192}}
+        original = execution.CustomCMBSpectrumData(
+            ell_grid=numpy.array((2,)),
+            k_grid=numpy.array((0.01, 0.02)),
+            transfer_components={},
+            spectra={"TT": numpy.ones(1)},
+            runtime_envelope={
+                "observable_error_budget": {"converged": True},
+                "production_scalar_k_convergence": {"converged": True},
+            },
+        )
+        control = SimpleNamespace(
+            enabled=True, required_spectra=("TT",), fail_on_nonconvergence=True
+        )
+        hint = {
+            "_engine_numerical_plan": {"eta_sample_count": 768},
+            "_numerical_overrides": {"eta_sample_count": 768},
+        }
+        with (
+            mock.patch.object(
+                execution,
+                "resolve_production_scalar_convergence",
+                return_value=control,
+            ),
+            mock.patch.object(
+                execution,
+                "_custom_cmb_spectrum_cache_key",
+                return_value="exact-point",
+            ),
+            mock.patch.object(
+                execution,
+                "_compute_custom_cmb_spectrum_data_impl",
+                return_value=original,
+            ) as compute,
+        ):
+            cache.set_cmb_resolution_hint("exact-point", hint)
+            result = execution._compute_custom_cmb_spectrum_data(
+                contract, (2,), requested_spectra=("TT",)
+            )
+        self.assertEqual(compute.call_count, 1)
+        self.assertEqual(
+            compute.call_args.args[0]["_numerical_overrides"][
+                "eta_sample_count"
+            ],
+            768,
+        )
+        self.assertTrue(result.runtime_envelope["resolution_hint_reused"])
+
+        # An exact result hit must not replace the finer hint with its
+        # original request's obsolete seed controls.
+        def exact(_contract, _ells, **kwargs):
+            kwargs["performance_timer"].cache_state = "exact_cache_hit"
+            return original
+
+        with (
+            mock.patch.object(
+                execution,
+                "resolve_production_scalar_convergence",
+                return_value=control,
+            ),
+            mock.patch.object(
+                execution,
+                "_custom_cmb_spectrum_cache_key",
+                return_value="exact-point",
+            ),
+            mock.patch.object(
+                execution,
+                "_compute_custom_cmb_spectrum_data_impl",
+                side_effect=exact,
+            ),
+        ):
+            execution._compute_custom_cmb_spectrum_data(
+                contract, (2,), requested_spectra=("TT",)
+            )
+        self.assertEqual(
+            cache.get_cmb_resolution_hint("exact-point")[
+                "_numerical_overrides"
+            ]["eta_sample_count"],
+            768,
+        )
+        cache.clear_cmb_result_caches()
+        failure = execution.AdaptiveNonConvergenceError(
+            "Current check failed", label="unknown-axis", evidence={}
+        )
+        with (
+            mock.patch.object(
+                execution,
+                "resolve_production_scalar_convergence",
+                return_value=control,
+            ),
+            mock.patch.object(
+                execution,
+                "_custom_cmb_spectrum_cache_key",
+                return_value="exact-point",
+            ),
+            mock.patch.object(
+                execution,
+                "_compute_custom_cmb_spectrum_data_impl",
+                side_effect=failure,
+            ),
+        ):
+            with self.assertRaises(execution.AdaptiveNonConvergenceError):
+                execution._compute_custom_cmb_spectrum_data(
+                    contract, (2,), requested_spectra=("TT",)
+                )
+
+    def test_native_source_probe_evolves_real_states_without_projection(self):
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._analytic_signal_contract(decay_rate=1e-4)
+        raw["numerical"].update(
+            ode_rtol=1e-9,
+            ode_atol=1e-12,
+            evolution_eta_sample_count=256,
+        )
+        execution.cache.clear_cmb_caches()
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        contract = test_cmb._prepare_declared_contract(raw)
+        with mock.patch.object(
+            execution, "_declared_graph_projection"
+        ) as projection:
+            probe = execution._compute_custom_cmb_spectrum_data_impl(
+                contract,
+                (2,),
+                performance_timer=execution.PhaseTimer(),
+                requested_spectra=("TT",),
+                source_probe=(0.001, 0.002),
+            )
+        self.assertIsInstance(probe, execution.NativeSourceProbe)
+        self.assertEqual(probe.runtime_envelope["probe_new_modes"], 2)
+        projection.assert_not_called()
+        for sources in probe.sources.values():
+            values = sources["signal_source"]
+            expected = values[0] * numpy.exp(
+                -1e-4 * (probe.eta - probe.eta[0])
+            )
+            numpy.testing.assert_allclose(
+                values, expected, rtol=2e-5, atol=1e-8
+            )
+
+    def test_measured_evolution_error_promotes_only_its_axis(self):
+        """Engine requests retry resolution with unchanged accuracy."""
+
+        contract = {
+            "_engine_numerical_plan": {"evolution_eta_sample_count": 128},
+            "_engine_accuracy_controls": {
+                "adaptive_evolution": {
+                    "enabled": True,
+                    "minimum_nodes": 128,
+                    "maximum_nodes": 512,
+                    "relative_tolerance": 0.01,
+                },
+            },
+        }
+        result = execution.CustomCMBSpectrumData(
+            ell_grid=numpy.asarray((2,)),
+            k_grid=numpy.asarray((0.01,)),
+            transfer_components={},
+            spectra={"TT": numpy.ones(1)},
+        )
+        failure = execution.AdaptiveNonConvergenceError(
+            "Measured evolution error",
+            label="scalar evolution history",
+            evidence={"relative_error": 0.02, "absolute_error": 1e-7},
+        )
+        with mock.patch.object(
+            execution,
+            "_compute_custom_cmb_spectrum_data_impl",
+            side_effect=(failure, result),
+        ) as compute:
+            accepted = execution._compute_custom_cmb_spectrum_data(
+                contract,
+                (2,),
+                requested_spectra=("TT",),
+            )
+        self.assertEqual(compute.call_count, 2)
+        promoted = compute.call_args.args[0]
+        self.assertEqual(
+            promoted["_numerical_overrides"],
+            {
+                "evolution_eta_sample_count": 256,
+            },
+        )
+        self.assertEqual(
+            promoted["_engine_accuracy_controls"]["adaptive_evolution"][
+                "relative_tolerance"
+            ],
+            0.01,
+        )
+        self.assertNotIn("_numerical_overrides", contract)
+        self.assertEqual(
+            len(accepted.runtime_envelope["automatic_evolution_refinement"]), 1
+        )
+        with mock.patch.object(
+            execution,
+            "_compute_custom_cmb_spectrum_data_impl",
+            side_effect=failure,
+        ) as compute:
+            with self.assertRaises(execution.AdaptiveNonConvergenceError):
+                execution._compute_custom_cmb_spectrum_data(
+                    contract,
+                    (2,),
+                    requested_spectra=("TT",),
+                )
+        self.assertEqual(compute.call_count, 4)
+
+    def test_request_metadata_does_not_invalidate_physical_mode_histories(
+        self,
+    ):
+        """Reordering observations shares modes; changed equations do not."""
+
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        execution.cache.clear_cmb_caches()
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        raw = test_cmb._analytic_signal_contract(decay_rate=1.0e-4)
+        raw["numerical"].update(
+            ell_max=3,
+            k_min=1.0e-5,
+            k_max=0.02,
+            k_sample_count=8,
+            eta_sample_count=64,
+            evolution_eta_sample_count=32,
+        )
+        contract = test_cmb._prepare_declared_contract(raw)
+        contract["_engine_planner_evidence"] = {"signature": "first"}
+        first = execution._compute_custom_cmb_spectrum_data(
+            contract,
+            (2, 3),
+            requested_spectra=("TT",),
+        )
+        contract["_engine_planner_evidence"] = {"signature": "second"}
+        second = execution._compute_custom_cmb_spectrum_data(
+            contract,
+            (3, 2),
+            requested_spectra=("TT",),
+        )
+        numpy.testing.assert_array_equal(
+            first.spectra["TT"], second.spectra["TT"][::-1]
+        )
+        self.assertEqual(
+            second.runtime_envelope["evolution_cached_mode_count"],
+            len(second.k_grid),
+        )
+        self.assertEqual(second.runtime_envelope["evolution_modes_evolved"], 0)
+        changed_raw = test_cmb._analytic_signal_contract(decay_rate=2.0e-4)
+        changed_raw["numerical"].update(raw["numerical"])
+        changed = execution._compute_custom_cmb_spectrum_data(
+            test_cmb._prepare_declared_contract(changed_raw),
+            (3, 2),
+            requested_spectra=("TT",),
+        )
+        self.assertEqual(
+            changed.runtime_envelope["evolution_cached_mode_count"], 0
+        )
+        self.assertGreater(
+            changed.runtime_envelope["evolution_modes_evolved"], 0
+        )
+        self.assertFalse(
+            numpy.array_equal(changed.spectra["TT"], second.spectra["TT"])
+        )
+
+    def test_nested_k_refinement_retains_real_modes_with_small_cache(self):
+        """A nested real solve evolves new nodes once under cache pressure."""
+
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        execution.cache.clear_cmb_caches()
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        raw = test_cmb._analytic_signal_contract(decay_rate=1.0e-4)
+        raw["numerical"].update(
+            k_min=1.0e-5,
+            k_max=0.02,
+            k_sample_count=64,
+            ell_max=3,
+            eta_sample_count=64,
+            evolution_eta_sample_count=32,
+        )
+        raw["perturbations"]["equations"]["evolve_signal_mode"].update(
+            lhs={
+                "kind": "derivative",
+                "variable": "signal_mode",
+                "wrt": "eta",
+                "order": 1,
+            },
+            rhs="-decay_rate * k * signal_mode",
+        )
+        raw["perturbations"]["initial_conditions"]["signal_seed"]["target"][
+            "wrt"
+        ] = "eta"
+        raw["perturbations"]["accuracy_controls"] = {
+            "production_scalar_convergence": {
+                "enabled": True,
+                "k_refinement_factor": 2,
+                "required_spectra": ["TT"],
+                "fail_on_nonconvergence": True,
+            }
+        }
+        contract = test_cmb._prepare_declared_contract(raw)
+        evolved = []
+        build = execution.build_declared_mode_evolution
+
+        def record_runtime(inputs):
+            runtime = build(inputs)
+
+            def evolve_mode(k_value, **kwargs):
+                result = runtime.evolve_declared_mode(k_value, **kwargs)
+                if kwargs.get("count_as_primary_evolution", True):
+                    evolved.append(float(k_value))
+                return result
+
+            def evolve_batch(k_values, **kwargs):
+                result = runtime.evolve_declared_modes_batched(
+                    k_values, **kwargs
+                )
+                evolved.extend(float(k_values[index]) for index in result)
+                return result
+
+            return replace(
+                runtime,
+                evolve_declared_mode=evolve_mode,
+                evolve_declared_modes_batched=evolve_batch,
+            )
+
+        with (
+            mock.patch.object(
+                execution,
+                "build_declared_mode_evolution",
+                side_effect=record_runtime,
+            ),
+            mock.patch.object(
+                execution.cache._CMB_SOURCE_HISTORY_CACHE,
+                "limit",
+                1,
+            ),
+            mock.patch.object(
+                execution.cache._CMB_SOURCE_HISTORY_CACHE,
+                "max_bytes",
+                128,
+            ),
+        ):
+            result = execution._compute_custom_cmb_spectrum_data(
+                contract,
+                (2, 3),
+                requested_spectra=("TT",),
+            )
+        report = result.runtime_envelope["production_scalar_k_convergence"]
+        self.assertTrue(report["converged"])
+        self.assertEqual(
+            len(evolved), len(set(evolved)), "primary mode was evolved twice"
+        )
+        self.assertEqual(
+            len(evolved),
+            report["refined_count"],
+            "missing independently evolved refinement nodes",
+        )
+        self.assertGreaterEqual(
+            report["refined_cached_mode_count"],
+            report["base_count"],
+            "base histories were not retained",
+        )
+        self.assertEqual(
+            report["new_node_work_units"], report["new_node_count"]
+        )
+        self.assertEqual(len(result.k_grid), report["base_count"])
+        self.assertGreater(
+            result.runtime_envelope["request_source_history_retention"][
+                "spills"
+            ],
+            0,
+        )
+        self.assertTrue(numpy.all(result.spectra["TT"] > 0.0))
 
     def test_custom_spectrum_data_accessors_return_named_payloads(self):
         """Transfer and spectrum accessors should expose stable arrays."""

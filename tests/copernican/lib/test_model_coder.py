@@ -614,6 +614,34 @@ class TestRobustQuad(unittest.TestCase):
 class DeclaredCMBRuntimeCoverageTestCase(unittest.TestCase):
     """Cover the declared CMB runtime helper surface."""
 
+    def test_phase_space_dependencies_fail_before_numerical_planning(self):
+        from copernican.lib.likelihoods.cmb.runtime import planner
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        contract = test_cmb._declared_scalar_hierarchy_contract(
+            include_massive_neutrino=True
+        )
+        families = contract["perturbations"]["hierarchy_families"]
+        family = next(
+            value for value in families.values() if value.get("momentum_grid")
+        )
+        family["phase_space"] = {
+            "distribution": "fermi_dirac",
+            "mass_parameter": "sum_mnu",
+            "temperature_ratio": "undeclared_heating",
+        }
+        with (
+            mock.patch.object(
+                planner,
+                "plan_cmb_numerics",
+                side_effect=AssertionError("planning must not start"),
+            ),
+            self.assertRaisesRegex(
+                ValueError, "undeclared names: undeclared_heating"
+            ),
+        ):
+            model_coder.prepare_declared_cmb_execution_contract(contract)
+
     def test_compile_declared_cmb_runtime_builds_one_runtime_bundle(self):
         """Static CMB contracts should compile once into one runtime bundle."""
 

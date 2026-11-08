@@ -2,6 +2,7 @@
 
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import numpy
 
@@ -14,6 +15,35 @@ from copernican.lib.likelihoods.cmb.runtime import (
 
 class BackgroundModuleTestCase(unittest.TestCase):
     """Exercise declared background helpers directly."""
+
+    def test_bessel_column_partition_preserves_reference_values(self):
+        """Workspace partitioning keeps every requested physical column."""
+
+        from scipy.special import spherical_jn
+
+        orders = (0, 2, 12)
+        x = numpy.concatenate(([0.0], numpy.linspace(-100.0, 100.0, 201)))
+        with mock.patch.object(
+            background, "_BESSEL_RECURRENCE_CELL_BUDGET", 512
+        ):
+            values, derivatives = background._compute_spherical_bessel_batch(
+                orders, x
+            )
+        for row, ell in enumerate(orders):
+            # SciPy's negative-argument support varies by order; apply the
+            # independent analytic parity to its positive reference.
+            expected = spherical_jn(ell, abs(x)) * numpy.where(
+                x < 0, (-1.0) ** ell, 1.0
+            )
+            expected_derivative = spherical_jn(
+                ell, abs(x), derivative=True
+            ) * numpy.where(x < 0, (-1.0) ** (ell + 1), 1.0)
+            numpy.testing.assert_allclose(
+                values[row], expected, rtol=2e-12, atol=2e-14
+            )
+            numpy.testing.assert_allclose(
+                derivatives[row], expected_derivative, rtol=2e-12, atol=2e-14
+            )
 
     def test_drag_depth_uses_euler_loading_and_complete_remaining_tail(self):
         """Constant opacity/R has its exact integral through the endpoint."""

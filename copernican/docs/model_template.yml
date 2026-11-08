@@ -34,7 +34,14 @@ description: |
     its perturbation contract must provide typed graph metadata, physical
     sources, projections, initial conditions, and validity metadata.
   * A metadata-generated scalar hierarchy materializes only the species and
-    hierarchy families listed in `species` and `hierarchy_families`. It never
+    hierarchy families listed in `species` and `hierarchy_families`. Families
+    declare `physical_role` rather than relying on their labels. Kinetic
+    families declare `phase_space`: a named distribution (fermi_dirac,
+    bose_einstein, maxwell_boltzmann) or occupation/log_derivative expressions,
+    mass_parameter, optional multiplicity_parameter, and temperature_ratio
+    relative to today's CMB temperature. Nonstandard populations also declare
+    density_parameter. Numerical q nodes/support remain engine decisions.
+    The solver never
     adds CDM or neutrino states to complete a compiler requirement.
   * Theory-specific source closures belong in `perturbations.sources`. Use
     the `matter_density`, `matter_momentum`, and `baryon_euler` roles when a

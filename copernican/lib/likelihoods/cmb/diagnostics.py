@@ -4691,6 +4691,7 @@ def cmb_completion_source_identity(
         "camb_reference.py",
         "scientific_acceptance.py",
         "test_ccmbs_production_graph.py",
+        "ccmbs_production_graph.py",
     ):
         paths.add(root / "tests/project/lib" / name)
     paths.add(root / "tests/project/fixtures/ccmbs_completion_contract.json")

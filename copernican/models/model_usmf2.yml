@@ -369,18 +369,21 @@ cmb:
         anisotropic_stress: supported
     hierarchy_families:
       photon_temperature:
+        physical_role: photon_temperature
         sector: scalar
         species:
         - photon
         closure: free_streaming_scalar
         multipole_symbol: theta_gamma_l
       photon_polarization_e:
+        physical_role: photon_polarization
         sector: scalar
         species:
         - photon
         closure: free_streaming_scalar
         multipole_symbol: e_gamma_l
       massless_neutrino:
+        physical_role: massless_neutrino
         sector: scalar
         species:
         - massless_neutrino

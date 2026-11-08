@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 import numpy
 
@@ -74,6 +74,9 @@ class HistoryConvergence:
     anchor_relative_errors: Mapping[str, float]
     sample_count: int
     converged: bool
+    local_relative_error: float
+    worst_history: str
+    worst_eta: float
 
 
 class AdaptiveNonConvergenceError(ConvergenceError):
@@ -980,6 +983,176 @@ def phase_aware_eta_grid(
     return numpy.asarray(result, dtype=float)
 
 
+def rate_transition_eta_nodes(
+    eta: numpy.ndarray,
+    rates: numpy.ndarray,
+    expansion: numpy.ndarray,
+    k_values: numpy.ndarray,
+    *,
+    ratios: Sequence[float],
+    evaluate_rates: Callable[
+        [numpy.ndarray], tuple[numpy.ndarray, numpy.ndarray]
+    ],
+) -> numpy.ndarray:
+    """Locate measured rate transitions independently of the output mesh.
+
+    Hysteretic regime switches belong to physical time, independently of
+    the output-grid resolution. Vector bisection selects the outgoing side
+    or an exact zero, without introducing nearly duplicate history knots.
+    """
+
+    grid = numpy.asarray(eta, dtype=float)
+    rate_values = numpy.asarray(rates, dtype=float)
+    expansion_values = numpy.asarray(expansion, dtype=float)
+    waves = numpy.asarray(k_values, dtype=float)
+    if (
+        grid.ndim != 1
+        or grid.size < 2
+        or rate_values.shape != grid.shape
+        or expansion_values.shape != grid.shape
+        or waves.ndim != 1
+        or not waves.size
+        or not all(
+            numpy.all(numpy.isfinite(values))
+            for values in (
+                grid,
+                rate_values,
+                expansion_values,
+                waves,
+            )
+        )
+        or numpy.any(numpy.diff(grid) <= 0)
+    ):
+        raise ValueError("Rate transitions require finite ordered histories")
+    nodes = []
+    for ratio in ratios:
+        if not numpy.isfinite(ratio) or ratio <= 0:
+            raise ValueError("Transition ratios must be positive and finite")
+        residuals = rate_values[numpy.newaxis, :] - float(
+            ratio
+        ) * numpy.maximum(
+            abs(waves)[:, numpy.newaxis],
+            abs(expansion_values)[numpy.newaxis, :],
+        )
+        wave_indices, intervals = numpy.nonzero(
+            numpy.signbit(residuals[:, :-1]) != numpy.signbit(residuals[:, 1:])
+        )
+        if not intervals.size:
+            continue
+        left = grid[intervals].copy()
+        right = grid[intervals + 1].copy()
+        left_sign = numpy.signbit(residuals[wave_indices, intervals])
+        local_waves = abs(waves[wave_indices])
+        while True:
+            middle = left + 0.5 * (right - left)
+            active = (middle > left) & (middle < right)
+            if not numpy.any(active):
+                break
+            current_rate, current_expansion = evaluate_rates(middle[active])
+            current = numpy.asarray(current_rate) - float(
+                ratio
+            ) * numpy.maximum(
+                local_waves[active], abs(numpy.asarray(current_expansion))
+            )
+            if not numpy.all(numpy.isfinite(current)):
+                raise ValueError("Rate transition evaluation is non-finite")
+            same_sign = numpy.signbit(current) == left_sign[active]
+            active_indices = numpy.flatnonzero(active)
+            left[active_indices[same_sign]] = middle[active_indices[same_sign]]
+            right[active_indices[~same_sign]] = middle[
+                active_indices[~same_sign]
+            ]
+        left_rate, left_expansion = evaluate_rates(left)
+        left_residual = numpy.asarray(left_rate) - float(
+            ratio
+        ) * numpy.maximum(local_waves, abs(numpy.asarray(left_expansion)))
+        nodes.append(numpy.where(left_residual == 0.0, left, right))
+    return numpy.unique(numpy.concatenate(nodes)) if nodes else numpy.empty(0)
+
+
+def resolve_feature_eta_grid(
+    eta: numpy.ndarray,
+    seed_eta: numpy.ndarray,
+    *,
+    profiles: Mapping[str, numpy.ndarray],
+    scales: Mapping[str, numpy.ndarray],
+    relative_tolerance: float,
+) -> numpy.ndarray:
+    """Resolve measured background features by local interpolation errors.
+
+    Add the worst physical node in each failing interval. Support and
+    endpoints remain fixed; the finite measured history supplies the search
+    domain rather than an arbitrary resolution cap.
+    """
+
+    grid = numpy.asarray(eta, dtype=float)
+    selected = numpy.asarray(seed_eta, dtype=float)
+    tolerance = float(relative_tolerance)
+    if (
+        grid.ndim != 1
+        or grid.size < 2
+        or selected.ndim != 1
+        or selected.size < 2
+        or not numpy.all(numpy.isfinite(grid))
+        or not numpy.all(numpy.isfinite(selected))
+        or numpy.any(numpy.diff(grid) <= 0)
+        or numpy.any(numpy.diff(selected) <= 0)
+        or selected[0] < grid[0]
+        or selected[-1] > grid[-1]
+        or not numpy.isfinite(tolerance)
+        or tolerance <= 0
+        or not profiles
+        or set(profiles) != set(scales)
+    ):
+        raise ValueError(
+            "Feature resolution requires finite matching histories"
+        )
+    normalized_profiles = {}
+    normalized_scales = {}
+    for name, values in profiles.items():
+        history = numpy.asarray(values, dtype=float)
+        scale = numpy.asarray(scales[name], dtype=float)
+        if (
+            history.shape != grid.shape
+            or scale.shape != grid.shape
+            or not numpy.all(numpy.isfinite(history))
+            or not numpy.all(numpy.isfinite(scale))
+            or numpy.any(scale <= 0)
+        ):
+            raise ValueError("Feature profiles require finite positive scales")
+        normalized_profiles[name] = history
+        normalized_scales[name] = scale
+    selected = numpy.unique(numpy.concatenate((grid[[0, -1]], selected)))
+    while True:
+        errors = numpy.zeros(grid.size)
+        for name, history in normalized_profiles.items():
+            interpolated = numpy.interp(
+                grid, selected, numpy.interp(selected, grid, history)
+            )
+            errors = numpy.maximum(
+                errors,
+                numpy.abs(history - interpolated) / normalized_scales[name],
+            )
+        failing = numpy.flatnonzero(errors > tolerance)
+        if not failing.size:
+            return selected
+        intervals = (
+            numpy.searchsorted(selected, grid[failing], side="right") - 1
+        )
+        additions = [
+            failing[intervals == interval][
+                numpy.argmax(errors[failing[intervals == interval]])
+            ]
+            for interval in numpy.unique(intervals)
+        ]
+        refined = numpy.unique(numpy.concatenate((selected, grid[additions])))
+        if refined.size <= selected.size:
+            raise ValueError(
+                "Feature refinement made no representable progress"
+            )
+        selected = refined
+
+
 def physical_history_anchors(
     eta_grid: numpy.ndarray,
     *,
@@ -1159,6 +1332,7 @@ def estimate_history_convergence(
     absolute_tolerance: float,
     anchors: Mapping[str, float] | None = None,
     feature_eta: Mapping[str, float] | None = None,
+    relative_scale: str = "local",
 ) -> HistoryConvergence:
     """Compare histories densely, including features and between-grid nodes.
 
@@ -1167,8 +1341,13 @@ def estimate_history_convergence(
     obtained from recombination, visibility, and interaction histories.
     Every node and interval midpoint in the overlapping grids is sampled, so
     a spike or sign reversal between named anchors cannot be certified away.
+    ``history_amplitude`` scales each state by its own amplitude, retaining
+    tiny states independently and avoiding division by a zero crossing. The
+    pointwise local error remains available as a diagnostic in either mode.
     """
 
+    if relative_scale not in {"local", "history_amplitude"}:
+        raise ValueError("Unknown history relative-error normalization")
     coarse_grid = numpy.asarray(coarse_eta, dtype=float)
     fine_grid = numpy.asarray(fine_eta, dtype=float)
     for label, grid in (("coarse", coarse_grid), ("fine", fine_grid)):
@@ -1232,6 +1411,9 @@ def estimate_history_convergence(
     relative_errors: dict[str, float] = {}
     maximum_absolute = 0.0
     maximum_relative = 0.0
+    maximum_local_relative = 0.0
+    worst_history = ""
+    worst_eta = float(sample_eta[0])
     history_samples: dict[str, tuple[numpy.ndarray, numpy.ndarray, float]] = {}
     for name in coarse_histories:
         coarse_values = numpy.asarray(coarse_histories[name], dtype=float)
@@ -1253,18 +1435,34 @@ def estimate_history_convergence(
         )
         difference = numpy.abs(fine_sample - coarse_sample)
         local_floor = max(scale * 1.0e-8, float(absolute_tolerance))
-        normalized = difference / numpy.maximum(
+        local_normalized = difference / numpy.maximum(
             numpy.maximum(numpy.abs(fine_sample), numpy.abs(coarse_sample)),
             local_floor,
+        )
+        maximum_local_relative = max(
+            maximum_local_relative,
+            float(numpy.max(local_normalized, initial=0.0)),
+        )
+        normalized = (
+            difference / scale
+            if relative_scale == "history_amplitude"
+            else local_normalized
+        )
+        # Each state/sample earns its own absolute-or-relative allowance.
+        # Combining the largest absolute error of one state with the largest
+        # relative error of another falsely rejects negligible high moments.
+        normalized = numpy.where(
+            difference <= float(absolute_tolerance), 0.0, normalized
         )
         maximum_absolute = max(
             maximum_absolute,
             float(numpy.max(difference, initial=0.0)),
         )
-        maximum_relative = max(
-            maximum_relative,
-            float(numpy.max(normalized, initial=0.0)),
-        )
+        peak_index = int(numpy.argmax(normalized))
+        if normalized[peak_index] > maximum_relative:
+            maximum_relative = float(normalized[peak_index])
+            worst_history = str(name)
+            worst_eta = float(sample_eta[peak_index])
         history_samples[str(name)] = (coarse_sample, fine_sample, scale)
     for anchor_name, coordinate in anchor_coordinates.items():
         anchor_absolute = 0.0
@@ -1281,16 +1479,20 @@ def estimate_history_convergence(
             difference = abs(fine_value - coarse_value)
             anchor_absolute = max(anchor_absolute, difference)
             history_scale = history_samples[str(name)][2]
-            anchor_relative = max(
-                anchor_relative,
-                difference
-                / max(
+            denominator = (
+                history_scale
+                if relative_scale == "history_amplitude"
+                else max(
                     abs(coarse_value),
                     abs(fine_value),
                     history_scale * 1.0e-8,
                     float(absolute_tolerance),
-                ),
+                )
             )
+            if difference > float(absolute_tolerance):
+                anchor_relative = max(
+                    anchor_relative, difference / denominator
+                )
         absolute_errors[str(anchor_name)] = anchor_absolute
         relative_errors[str(anchor_name)] = anchor_relative
     converged = bool(
@@ -1304,6 +1506,9 @@ def estimate_history_convergence(
         anchor_relative_errors=relative_errors,
         sample_count=int(sample_eta.size),
         converged=bool(converged),
+        local_relative_error=float(maximum_local_relative),
+        worst_history=worst_history,
+        worst_eta=worst_eta,
     )
 
 

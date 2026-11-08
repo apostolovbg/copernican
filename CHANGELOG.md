@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-10-25
+**Last Updated:** 2026-11-08
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,411 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-11-08:
+  Change: Replaced timing-order assertions with direct runtime-asset reuse
+    checks.
+  Why: Removed scheduling jitter as a false cache-correctness failure.
+  Impact: Preserved exact spectra, cache-hit and parameter-isolation checks.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/collisions.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/equation_kernel.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/line_of_sight.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/performance.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  copernican/lib/likelihoods/cmb/runtime/stage_background.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/phase_space.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/__init__.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_collisions.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_equation_kernel.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_history_store.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_line_of_sight.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_performance.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_stage_background.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_model_coder.py
+  tests/copernican/lib/test_phase_space.py
+  tests/project/lib/ccmbs_production_graph.py
+  tests/project/lib/numerical_planning_acceptance.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_ccmbs_production_graph.py
+  tests/project/lib/test_numerical_planning_acceptance.py
+
+- 2026-11-07:
+  Change: Updated documentation dates and recorded renewed gate verification.
+  Why: Addressed UTC date rollover while retaining the staged CCMBS repairs.
+  Impact: Preserved existing implementation and acceptance scope for review.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/collisions.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/equation_kernel.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/line_of_sight.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/performance.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  copernican/lib/likelihoods/cmb/runtime/stage_background.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/phase_space.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/__init__.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_collisions.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_equation_kernel.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_history_store.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_line_of_sight.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_performance.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_stage_background.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_model_coder.py
+  tests/copernican/lib/test_phase_space.py
+  tests/project/lib/ccmbs_production_graph.py
+  tests/project/lib/numerical_planning_acceptance.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_ccmbs_production_graph.py
+  tests/project/lib/test_numerical_planning_acceptance.py
+
+- 2026-10-29:
+  Change: Fixed adaptive projection retention, physical-law bindings and
+    stiff-state Jacobian work and LU storage; separated dense graph acceptance
+    from discovery and bound diagnostic alias fixtures explicitly.
+  Why: Removed all-mode kernel storage and corrected workflow regressions
+    without changing equations, scientific thresholds or required samples.
+  Impact: Added live-memory, scalar-column and tiny-state controls, preserved
+    explicit dense physics assertions and reopened Slice Six pending full run.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/collisions.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/equation_kernel.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/line_of_sight.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/performance.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  copernican/lib/likelihoods/cmb/runtime/stage_background.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/phase_space.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/__init__.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_collisions.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_equation_kernel.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_history_store.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_line_of_sight.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_performance.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_stage_background.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_model_coder.py
+  tests/copernican/lib/test_phase_space.py
+  tests/project/lib/ccmbs_production_graph.py
+  tests/project/lib/numerical_planning_acceptance.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_ccmbs_production_graph.py
+  tests/project/lib/test_numerical_planning_acceptance.py
+
+- 2026-10-29:
+  Change: Completed ordinary LCDM/Planck numerical acceptance and recorded
+    source-bound workload, memory and focused regression evidence.
+  Why: Verified final automatic controls, coupled bounds, original scalar
+    equations and identity-safe reuse under real cache pressure.
+  Impact: Closed Slice Six implementation and numerical acceptance while
+    retaining the human-run full workflow and later scientific obligations.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/collisions.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/equation_kernel.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/line_of_sight.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/performance.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  copernican/lib/likelihoods/cmb/runtime/stage_background.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/phase_space.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/__init__.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_collisions.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_equation_kernel.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_history_store.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_line_of_sight.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_performance.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_stage_background.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_phase_space.py
+  tests/project/lib/numerical_planning_acceptance.py
+  tests/project/lib/test_numerical_planning_acceptance.py
+
+- 2026-10-28:
+  Change: Improved physical-axis planning, exact stage evaluation and reuse
+    with ordinary angular workload recording and bound-aware readback.
+  Why: Fixed coupled/zero-source error bounds, stale resolution searches,
+    scalar refinement work and kinetic invalidation without relaxed targets.
+  Impact: Added independent collision, budget, ordering and persistence
+    checks and retained original producer outcomes beside reader results.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/collisions.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/equation_kernel.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/line_of_sight.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/performance.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  copernican/lib/likelihoods/cmb/runtime/stage_background.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/phase_space.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/__init__.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_collisions.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_equation_kernel.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_history_store.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_line_of_sight.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_performance.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_stage_background.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_phase_space.py
+  tests/project/lib/numerical_planning_acceptance.py
+  tests/project/lib/test_numerical_planning_acceptance.py
+
+- 2026-10-27:
+  Change: Implemented physical role/distribution planning, measured native
+    axis refinements, combined observable budgets and request-owned reuse.
+  Why: Fixed false refinement evidence, resolved driven collision phase,
+    grouped equation work and removed forced search-budget grid inflation.
+  Impact: Added independent numerical, memory, heartbeat and reuse checks;
+    retained actual production cost evidence separately from CAMB parity.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/collisions.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/equation_kernel.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/line_of_sight.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/performance.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  copernican/lib/model_coder.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/phase_space.py
+  copernican/models/model_lcdm.yml
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_qauc.yml
+  copernican/models/model_qrsf.yml
+  copernican/models/model_ref_planck2018.yml
+  copernican/models/model_tog.yml
+  copernican/models/model_torg.yml
+  copernican/models/model_usmf2.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/__init__.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_cache.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_collisions.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_equation_kernel.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_history_store.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_line_of_sight.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_performance.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/test_phase_space.py
+  tests/project/lib/numerical_planning_acceptance.py
+  tests/project/lib/test_numerical_planning_acceptance.py
 
 - 2026-10-25:
   Change: Closed Slice Five against the successful 909-test full workflow

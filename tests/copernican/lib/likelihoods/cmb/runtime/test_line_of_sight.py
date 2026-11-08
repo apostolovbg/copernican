@@ -12,6 +12,34 @@ from copernican.lib.likelihoods.cmb.runtime import line_of_sight
 class LineOfSightTestCase(unittest.TestCase):
     """Exercise nested phase-aware line-of-sight grids directly."""
 
+    def test_measured_ladder_resolves_features_without_filling_a_search_cap(
+        self,
+    ):
+        eta = numpy.linspace(0.0, 10.0, 2001)
+        background = SimpleNamespace(
+            visibility_of_eta=lambda x: numpy.exp(
+                -(((numpy.asarray(x) - 4.0) / 0.1) ** 2)
+            )
+        )
+        fine, coarse = line_of_sight.build_phase_aware_projection_ladder(
+            eta,
+            background=background,
+            k_max=1.0,
+            phase_points_per_cycle=8.0,
+            minimum_nodes=64,
+            maximum_nodes=10000,
+            measured_features=True,
+        )
+        self.assertLess(fine.size, 2000)
+        self.assertTrue(numpy.all(numpy.isin(coarse, fine)))
+        self.assertLessEqual(float(numpy.max(numpy.diff(fine))), numpy.pi / 16)
+        reconstructed = numpy.interp(
+            eta, coarse, background.visibility_of_eta(coarse)
+        )
+        reference = background.visibility_of_eta(eta)
+        error = abs(reconstructed - reference) / numpy.maximum(reference, 1e-4)
+        self.assertLessEqual(float(error.max()), 0.005 + 1e-12)
+
     def test_projection_ladder_is_nested_and_materially_refined(self):
         """Fine projection nodes retain every coarse physical node."""
 

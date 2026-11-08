@@ -31,6 +31,74 @@ class _CompiledCollisionOperatorRuntime:
     conservation_rule_names: tuple[str, ...] = ()
 
 
+def declared_collision_phase_rates(runtimes, context, active):
+    """Resolve driven splitting scales from declared, scaled operators.
+
+    Exact exponentials control stability, while the product of physical rate
+    and the absolute operator's spectral radius controls its intrinsic
+    timescale without mixing differently scaled state coordinates. Only an
+    explicitly
+    active fast manifold can remove its own stiffness from this schedule.
+    """
+
+    from ....perturbation_contract import _evaluate_compiled_expression_noerr
+
+    active = numpy.asarray(active, dtype=bool)
+    result = numpy.zeros(active.shape, dtype=float)
+    for runtime in runtimes:
+        rate = numpy.asarray(
+            _evaluate_compiled_expression_noerr(
+                runtime.rate_expression, context
+            ),
+            dtype=float,
+        )
+        norm = numpy.zeros(active.shape, dtype=float)
+        if runtime.matrix:
+            matrix = numpy.stack(
+                [
+                    numpy.stack(
+                        [
+                            numpy.broadcast_to(
+                                numpy.asarray(
+                                    _evaluate_compiled_expression_noerr(
+                                        entry, context
+                                    ),
+                                    dtype=float,
+                                ),
+                                active.shape,
+                            )
+                            for entry in row
+                        ],
+                        axis=-1,
+                    )
+                    for row in runtime.matrix
+                ],
+                axis=-2,
+            )
+            norm = numpy.max(abs(numpy.linalg.eigvals(abs(matrix))), axis=-1)
+        if runtime.damping_coefficient is not None:
+            norm = numpy.maximum(
+                norm,
+                abs(
+                    numpy.asarray(
+                        _evaluate_compiled_expression_noerr(
+                            runtime.damping_coefficient, context
+                        ),
+                        dtype=float,
+                    )
+                ),
+            )
+        phase = abs(rate) * norm
+        if runtime.fast_manifold:
+            phase = numpy.where(active, 0.0, phase)
+        if runtime.activation_strategy == "tight_coupling":
+            phase = numpy.where(active, phase, 0.0)
+        result = numpy.maximum(result, phase)
+    if not numpy.all(numpy.isfinite(result)):
+        raise ValueError("Declared collision phase rates must be finite")
+    return result
+
+
 def _solve_declared_fast_collision_target(
     matrix: numpy.ndarray,
     forcing: numpy.ndarray,

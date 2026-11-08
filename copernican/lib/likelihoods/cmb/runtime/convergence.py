@@ -10,6 +10,8 @@ from typing import Any, Iterable, Mapping
 
 import numpy
 
+from ....phase_space import sample_distribution
+
 FINAL_SPECTRUM_RELATIVE_TOLERANCES = {
     "TT": 1.0e-2,
     "EE": 1.0e-2,
@@ -354,19 +356,14 @@ def _entry_value(entry: Any, name: str, default: Any = None) -> Any:
 def _hierarchy_kind(family_name: str, entry: Any) -> str | None:
     """Return the physical hierarchy kind represented by one family."""
 
-    name = str(family_name).lower()
-    species = {
-        str(value).lower()
-        for value in (_entry_value(entry, "species", ()) or ())
-    }
-    if "massive_neutrino" in species or "massive_neutrino" in name:
-        return "massive_neutrino"
-    if "massless_neutrino" in species or "neutrino" in name:
-        return "massless_neutrino"
-    if "polarization" in name or "photon_polarization" in species:
-        return "photon_polarization"
-    if "photon" in species or "photon_temperature" in name:
-        return "photon_temperature"
+    role = str(_entry_value(entry, "physical_role", "generic"))
+    if role in {
+        "massive_neutrino",
+        "massless_neutrino",
+        "photon_polarization",
+        "photon_temperature",
+    }:
+        return role
     return None
 
 
@@ -456,6 +453,7 @@ def _momentum_grid_controls(
                 f"Declared momentum grid '{grid_name}' must be a mapping"
             )
         resolved[str(grid_name)] = {
+            **dict(raw_grid),
             "count": int(raw_grid.get("count", 8)),
             "q_min": float(raw_grid.get("q_min", 0.05)),
             "q_max": float(raw_grid.get("q_max", 15.0)),
@@ -873,6 +871,8 @@ def evaluate_momentum_grid_refinement_bounds(
     *,
     mass_ratio_max: float,
     tolerance: float = FINAL_Q_GRID_RELATIVE_TOLERANCE,
+    parameters: Mapping[str, Any] | None = None,
+    mass_ratios: Mapping[str, float] | None = None,
 ) -> dict[str, Mapping[str, Any]]:
     """Measure q quadrature and omitted-tail errors over its physical domain.
 
@@ -916,7 +916,11 @@ def evaluate_momentum_grid_refinement_bounds(
         weights = numpy.full(count, log_spacing, dtype=float)
         weights[[0, -1]] *= 0.5
         exp_negative_q = numpy.exp(-q_values)
-        occupation = exp_negative_q / (1.0 + exp_negative_q)
+        occupation = (
+            sample_distribution(q_values, raw_grid, parameters)[0]
+            if raw_grid.get("distribution")
+            else (exp_negative_q / (1.0 + exp_negative_q))
+        )
         base = weights * occupation
         rows: list[float] = []
         for mass_ratio in ratio_samples:
@@ -940,6 +944,20 @@ def evaluate_momentum_grid_refinement_bounds(
 
     evidence: dict[str, Mapping[str, Any]] = {}
     for grid_name, raw_grid in momentum_grids.items():
+        if mass_ratios is not None:
+            maximum_ratio = float(mass_ratios[grid_name])
+            ratio_samples = numpy.unique(
+                numpy.concatenate(
+                    (
+                        (0.0, maximum_ratio),
+                        numpy.geomspace(
+                            max(maximum_ratio * 1.0e-8, 1.0e-8),
+                            max(maximum_ratio, 1.0e-8),
+                            12,
+                        ),
+                    )
+                )
+            )
         count = int(raw_grid["count"])
         q_min = float(raw_grid["q_min"])
         q_max = float(raw_grid["q_max"])
@@ -988,7 +1006,7 @@ def evaluate_momentum_grid_refinement_bounds(
             "tolerance": threshold,
             "converged": bool(relative_error < threshold),
             "assumptions": (
-                "thermal Fermi-Dirac occupation",
+                str(raw_grid.get("distribution", "fermi_dirac")),
                 "endpoint-inclusive log-q trapezoid rule",
             ),
         }

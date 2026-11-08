@@ -5,6 +5,7 @@ import unittest
 from dataclasses import replace
 from itertools import product
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 import numpy
@@ -119,6 +120,168 @@ def _compiled_graph_fixture():
 
 class EvolutionModuleTestCase(unittest.TestCase):
     """Exercise declared evolution helpers directly."""
+
+    def test_kinetic_law_rebinding_invalidates_only_bound_distribution(self):
+        law = {
+            "distribution": "maxwell_boltzmann",
+            "mass_parameter": "mass",
+            "temperature_ratio": "ratio",
+            "density_parameter": "density",
+        }
+        family = SimpleNamespace(
+            momentum_grid="physical_q",
+            physical_role="generic",
+            phase_space=law,
+        )
+        perturbation_data = SimpleNamespace(
+            hierarchy_families={"arbitrary_label": family},
+            numerics={
+                "momentum_grids": {
+                    "physical_q": {"count": 16, "q_min": 0.02, "q_max": 24.0}
+                }
+            },
+            accuracy_controls={},
+        )
+        physical = SimpleNamespace(hubble_ratio=0.7, Omega_nu0=0.0, Tcmb_K=2.7)
+        parameters = {"mass": 0.1, "ratio": 0.5, "density": 0.01}
+        cache.clear_cmb_caches()
+        self.addCleanup(cache.clear_cmb_caches)
+
+        def resolve():
+            return evolution._resolve_declared_momentum_grid_runtimes(
+                perturbation_data,
+                model_parameters=parameters,
+                physical_params=physical,
+            )
+
+        first = resolve()[0]
+        self.assertIs(resolve()[0], first)
+        parameters["unrelated_amplitude"] = 2e-9
+        self.assertIs(resolve()[0], first)
+        family.phase_space = {**law, "distribution": "fermi_dirac"}
+        changed = resolve()[0]
+        self.assertIsNot(changed, first)
+        self.assertIs(changed.points, first.points)
+        q_values = first.points
+        numpy.testing.assert_allclose(first.occupation, numpy.exp(-q_values))
+        numpy.testing.assert_allclose(
+            changed.occupation, 1 / (1 + numpy.exp(q_values))
+        )
+        parameters["ratio"] = 0.75
+        warmer = resolve()[0]
+        self.assertAlmostEqual(
+            warmer.temperature_eV / changed.temperature_eV, 1.5
+        )
+
+    def test_native_history_interpolation_is_smooth_and_shape_preserving(self):
+        """Native states retain signs, tiny scales and smooth derivatives."""
+
+        native = numpy.linspace(0.0, 2.0, 65)
+        query = numpy.linspace(0.0, 2.0, 2001)
+        histories = {
+            "potential": numpy.exp(-native),
+            "tiny": 1e-310 * numpy.exp(-native),
+            "zero": numpy.zeros(native.size),
+        }
+        with numpy.errstate(over="raise", invalid="raise", divide="raise"):
+            sampled = evolution._interpolate_declared_histories(
+                native,
+                histories,
+                query,
+            )
+        self.assertTrue(numpy.all(numpy.diff(sampled["potential"]) <= 0))
+        numpy.testing.assert_allclose(
+            sampled["potential"],
+            numpy.exp(-query),
+            rtol=1e-5,
+        )
+        numpy.testing.assert_allclose(
+            sampled["tiny"] / 1e-310,
+            sampled["potential"],
+            rtol=1e-12,
+        )
+        self.assertTrue(numpy.all(sampled["zero"] == 0))
+        slope = numpy.gradient(sampled["potential"], query)
+        self.assertLess(numpy.max(abs(slope + numpy.exp(-query))), 0.001)
+        with self.assertRaises(ValueError):
+            evolution._interpolate_declared_histories(
+                native, histories, [-1.0]
+            )
+
+    def test_inactive_split_resolves_driven_collision_equilibrium(self):
+        """Stable exact damping alone misses the analytic forced solution."""
+
+        rate = 10.0
+        duration = 2.0
+        expected = (1.0 - numpy.exp(-rate * duration)) / rate
+
+        def rhs(states, **kwargs):
+            return numpy.ones_like(states)
+
+        def damp(states, *, dt, **kwargs):
+            return states * numpy.exp(-rate * dt)
+
+        errors = []
+        for active in (True, False):
+            scale = float(
+                evolution._split_collision_phase_scale(
+                    0.02,
+                    0.01,
+                    rate,
+                    active,
+                )
+            )
+            _, final, _ = evolution._integrate_batched_rk4(
+                numpy.zeros((1, 1)),
+                numpy.asarray((0.0, duration)),
+                required_substeps=int(numpy.ceil(duration * scale / 0.1)),
+                active_intervals=numpy.zeros((1, 1), dtype=bool),
+                rhs=rhs,
+                pre_step=damp,
+                post_step=damp,
+            )
+            errors.append(abs(float(final[0, 0]) - expected) / expected)
+        self.assertGreater(errors[0], 0.9)
+        self.assertLess(errors[1], 0.001)
+        with self.assertRaises(ValueError):
+            evolution._split_collision_phase_scale(
+                0.02, 0.01, numpy.inf, False
+            )
+
+    def test_progress_uses_actual_rounded_schedule_and_preserves_states(self):
+        """Nonuniform interval costs are counted once for each mode row."""
+
+        observed = []
+
+        def progress(completed, total, **details):
+            observed.append((completed, total, details))
+
+        def rhs(states, **kwargs):
+            return -states
+
+        arguments = {
+            "initial_states": numpy.ones((2, 1)),
+            "eta_grid": numpy.asarray((0.0, 0.1, 0.2)),
+            "required_substeps": numpy.asarray(((1, 129), (3, 65))),
+            "active_intervals": numpy.zeros((2, 2), dtype=bool),
+            "rhs": rhs,
+        }
+        authority = evolution._integrate_batched_rk4(**arguments)
+        measured = evolution._integrate_batched_rk4(
+            **arguments, progress=progress
+        )
+        numpy.testing.assert_array_equal(authority[0], measured[0])
+        numpy.testing.assert_array_equal(authority[1], measured[1])
+        self.assertEqual(authority[2], measured[2])
+        self.assertEqual(observed[0][:2], (0, 520))
+        self.assertEqual(observed[-1][:2], (520, 520))
+        self.assertEqual(observed[-1][2]["interval"], 2)
+        self.assertTrue(all(total == 520 for _, total, _ in observed))
+        self.assertEqual(
+            [value[0] for value in observed],
+            sorted(set(value[0] for value in observed)),
+        )
+        self.assertGreater(len(observed), 4)
 
     def test_generated_scalar_seeds_resolve_without_provisional_states(self):
         """All scalar families resolve before any state values exist."""
