@@ -328,8 +328,8 @@ def plan_cmb_numerics(
     # The bounded formulas are deterministic and intentionally conservative;
     # later refinement is driven by measured residuals, never by model knobs.
     phase_scale = max(1.0e-5, float(ell_max) / 14000.0)
-    k_max = min(1.0, max(0.30, 2.0 * phase_scale + 0.05))
-    k_min = max(1.0e-5, min(1.0e-4, 0.02 / max(ell_max, 2)))
+    k_max = max(0.30, 2.0 * phase_scale + 0.05)
+    k_min = 1.0e-6
     k_nodes = min(
         512,
         max(64, _next_power_of_two(32 + int(3.0 * math.sqrt(ell_max)))),
@@ -466,7 +466,7 @@ def plan_cmb_numerics(
                     "relative_tolerance": 1.0e-2,
                     "absolute_tolerance": 1.0e-12,
                     "maximum_refinements": 2,
-                    "algorithm": "nested_independent_source_projection",
+                    "algorithm": "independent_source_interpolation",
                 },
                 "adaptive_source": {
                     "enabled": True,
@@ -548,6 +548,7 @@ def plan_cmb_numerics(
                         "source",
                         "projection",
                         "k",
+                        "angular_k",
                     ),
                     "method": "absolute_operator_propagation",
                 },

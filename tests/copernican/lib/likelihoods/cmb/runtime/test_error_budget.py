@@ -11,6 +11,7 @@ from copernican.lib.likelihoods.cmb.runtime.error_budget import (
     NativeSourceProbe,
     combine_observable_errors,
     project_source_uncertainty,
+    source_representation_envelope,
     spline_integral_weights,
     transfer_spectrum_error,
     update_source_error_envelope,
@@ -19,6 +20,33 @@ from copernican.lib.likelihoods.cmb.runtime.error_budget import (
 
 class ObservableErrorBudgetTestCase(unittest.TestCase):
     """Operator conditioning and axis cancellation must remain visible."""
+
+    def test_native_samples_bound_unresolved_source_time_oscillations(self):
+        """Envelope resampling cannot erase an error between source nodes."""
+
+        sparse = numpy.linspace(0, 1, 9)
+        native = numpy.linspace(0, 1, 1001)
+        samples = numpy.sin(12 * numpy.pi * sparse)
+        truth = numpy.sin(12 * numpy.pi * native)
+        relative, absolute, errors = source_representation_envelope(
+            sparse, {"s": samples}, native, {"s": truth}
+        )
+        interpolated = CubicSpline(sparse, samples)(native)
+        scale = numpy.max(abs(interpolated))
+        bound = numpy.interp(
+            native, sparse, relative["s"]
+        ) * scale + numpy.interp(native, sparse, absolute["s"])
+        self.assertTrue(numpy.all(abs(interpolated - truth) <= bound + 1e-14))
+        self.assertGreater(errors["s"]["relative_error"], 0.01)
+        relative, absolute, errors = source_representation_envelope(
+            sparse,
+            {"s": numpy.zeros(9)},
+            native,
+            {"s": numpy.sin(8 * numpy.pi * native) ** 2},
+        )
+        self.assertTrue(numpy.all(relative["s"] == 0))
+        self.assertGreater(numpy.max(absolute["s"]), 0.9)
+        self.assertEqual(errors["s"]["relative_error"], 1.0)
 
     def test_zero_source_retains_absolute_uncertainty_in_projection(self):
         from copernican.lib.likelihoods.cmb.runtime import (

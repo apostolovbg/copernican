@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from typing import Any, Mapping
 
 import numpy
@@ -20,85 +20,78 @@ _EVOLUTION_WORK_CELL_BUDGET = 16_000_000
 _WORK_ESTIMATE_VERSION = 1
 
 
-@dataclass(frozen=True)
-class InitialResolutionCandidate:
-    """A starting proposal, carrying no spectrum or acceptance certificate."""
+def group_mode_schedules(rows, *, maximum_modes=256, work_multiplier=2.0):
+    """Batch compatible meshes while bounding total extra integration work.
 
-    contract: Mapping[str, Any]
-    evidence: Mapping[str, Any]
-
-
-def seed_resolution_from_background(contract, background_node_count):
-    """Start active grids at the measured background's sampling density.
-
-    The accepted physical grid supplies a candidate, not an accuracy proof.
-    Subsequent background, evolution and LOS refinements stay independent.
-    Every native and observable comparison still executes on that candidate.
+    Every interval uses the largest required schedule among its modes.
+    Bound both total work and each interval's increase. The latter keeps
+    batched collision splitting close to independently scheduled scalar
+    trajectories; a total bound alone can conceal a large local change.
     """
 
-    count = int(background_node_count)
-    if count < 2:
-        raise ValueError("A background seed needs at least two actual nodes")
-    plan = dict(contract["_engine_numerical_plan"])
-    controls = dict(_resolve_declared_accuracy_controls(contract))
-    overrides = dict(contract.get("_numerical_overrides", {}))
-    actual = _resolve_custom_cmb_numerics(contract)
-    changes = {}
-    for name in (
-        "adaptive_evolution",
-        "adaptive_source",
-        "adaptive_projection",
+    if (
+        int(maximum_modes) < 1
+        or not numpy.isfinite(work_multiplier)
+        or work_multiplier < 1
     ):
-        section = controls.get(name, False)
-        enabled = (
-            bool(section.get("enabled", False))
-            if isinstance(section, Mapping)
-            else bool(section)
+        raise ValueError(
+            "Mode grouping needs a positive width and work factor"
         )
-        if not enabled:
-            continue
-        settings = (
-            dict(section)
-            if isinstance(section, Mapping)
-            else {"enabled": True}
+    groups = []
+    for row in rows:
+        schedule = numpy.asarray(row["schedule"], dtype=numpy.int64)
+        eta = numpy.asarray(row["eta"], dtype=numpy.float64)
+        if (
+            schedule.ndim != 1
+            or schedule.size != eta.size - 1
+            or numpy.any(schedule < 1)
+        ):
+            raise ValueError(
+                "Mode schedules must match their positive mesh intervals"
+            )
+        signature = eta.tobytes()
+        native_work = int(numpy.sum(schedule))
+        selected = None
+        for group in groups:
+            if (
+                len(group["indices"]) >= maximum_modes
+                or group["eta_signature"] != signature
+            ):
+                continue
+            combined = numpy.maximum(group["schedule_max"], schedule)
+            if numpy.any(combined > work_multiplier * schedule):
+                continue
+            if numpy.any(combined > work_multiplier * group["schedule_min"]):
+                continue
+            actual_work = (len(group["indices"]) + 1) * int(
+                numpy.sum(combined)
+            )
+            if actual_work <= work_multiplier * (
+                group["native_work"] + native_work
+            ):
+                selected = group
+                break
+        if selected is None:
+            selected = {
+                "indices": [],
+                "k_values": [],
+                "grids": row["grids"],
+                "eta_signature": signature,
+                "schedule_max": schedule.copy(),
+                "schedule_min": schedule.copy(),
+                "native_work": 0,
+            }
+            groups.append(selected)
+        selected["indices"].append(int(row["index"]))
+        selected["k_values"].append(float(row["k"]))
+        selected["schedule_max"] = numpy.maximum(
+            selected["schedule_max"], schedule
         )
-        previous = (
-            int(actual.evolution_eta_sample_count)
-            if name == "adaptive_evolution"
-            else int(settings.get("minimum_nodes", 0))
+        selected["native_work"] += native_work
+        selected["schedule_min"] = numpy.minimum(
+            selected["schedule_min"], schedule
         )
-        # LOS sources combine resolved background and evolved fields. Start
-        # their products/derivatives at paired density; fresh comparisons,
-        # rather than this starting estimate, still determine acceptance.
-        target = count if name == "adaptive_evolution" else 2 * count
-        if previous >= target:
-            continue
-        if name == "adaptive_evolution":
-            plan["evolution_eta_sample_count"] = count
-            overrides["evolution_eta_sample_count"] = count
-        else:
-            settings["minimum_nodes"] = target
-        settings["maximum_nodes"] = max(
-            int(settings.get("maximum_nodes", 0)), 2 * target
-        )
-        controls[name] = settings
-        changes[name] = {"previous": previous, "candidate": target}
-    if not changes:
-        return None
-    return InitialResolutionCandidate(
-        contract={
-            **contract,
-            "_engine_numerical_plan": plan,
-            "_engine_accuracy_controls": controls,
-            "_numerical_overrides": overrides,
-        },
-        evidence={
-            "method": "measured_physical_background_initial_density",
-            "background_node_count": count,
-            "changes": changes,
-            "acceptance_reused": False,
-        },
-    )
+    return groups
 
 
 def resolve_background_numerics(contract, numerics):
@@ -126,6 +119,9 @@ def promote_failed_resolution(
         "line-of-sight projection": "projection",
         "transfer k-grid": "k",
         "transfer-k-grid": "k",
+        "source-k interpolation": "k",
+        "angular k-grid": "angular_k",
+        "k-domain": "physical_limits",
         "momentum-q": "momentum_q",
         "hierarchy-depth": "hierarchy_depth",
         "background": "background",
@@ -218,6 +214,18 @@ def refine_numerical_axis(contract, axis, *, evidence=None):
             }
             for name, grid in plan["momentum_grids"].items()
         }
+    elif axis == "angular_k":
+        previous = int(controls.get("angular_k_refinement_factor", 1))
+        controls["angular_k_refinement_factor"] = 2 * previous
+        evidence["previous_angular_factor"] = previous
+        evidence["next_angular_factor"] = 2 * previous
+    elif axis == "physical_limits":
+        previous_minimum = float(actual.k_min)
+        previous_maximum = float(actual.k_max)
+        plan["k_min"] = overrides["k_min"] = previous_minimum / 2
+        plan["k_max"] = overrides["k_max"] = 2 * previous_maximum
+        evidence["previous_domain"] = [previous_minimum, previous_maximum]
+        evidence["next_domain"] = [previous_minimum / 2, 2 * previous_maximum]
     elif axis == "background":
         previous = max(
             int(actual.eta_sample_count),
@@ -228,10 +236,15 @@ def refine_numerical_axis(contract, axis, *, evidence=None):
         evidence["background_minimum_nodes"] = previous
         evidence["next_background_minimum_nodes"] = 2 * previous
     elif axis in {"source", "projection"}:
+        transfer = controls.get("adaptive_transfer")
+        independent_grids = isinstance(transfer, Mapping) and (
+            transfer.get("algorithm") == "independent_source_interpolation"
+        )
         names = tuple(
             name
             for name in ("adaptive_source", "adaptive_projection")
             if isinstance(controls.get(name), Mapping)
+            and (not independent_grids or name == "adaptive_" + axis)
         ) or ("adaptive_" + axis,)
         previous = max(
             int(actual.eta_sample_count),
@@ -246,11 +259,27 @@ def refine_numerical_axis(contract, axis, *, evidence=None):
                 for name in names
             ),
         )
-        # These minima describe the coarse LOS ladder. Its independent
-        # midpoint refinement has roughly twice as many actual samples.
-        # Source/projection work must not alter the physical background seed.
-        observed = int(evidence.get("source_eta_sample_count", 0))
-        next_count = max(2 * previous, observed)
+        # A shared LOS ladder doubles its coarse floor. Independent source
+        # representation instead doubles the actual measured sample count;
+        # its radial quadrature and physical background stay independent.
+        observed = int(
+            evidence.get(
+                (
+                    "projection_eta_sample_count"
+                    if axis == "projection" and independent_grids
+                    else "source_eta_sample_count"
+                ),
+                0,
+            )
+        )
+        next_count = max(
+            2 * previous,
+            (
+                2 * observed
+                if independent_grids and axis == "source"
+                else observed
+            ),
+        )
         for name in names:
             section = controls.get(name)
             settings = dict(section) if isinstance(section, Mapping) else {}

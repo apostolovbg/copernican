@@ -67,6 +67,46 @@ def allocate_native_history(shape: tuple[int, ...]) -> numpy.ndarray:
     return history
 
 
+class StageContextColumns:
+    """Retain scheduled physical contexts without a dictionary per stage.
+
+    Columns belong to the current schedule. Only requested rows become
+    dictionaries, so clearing an executor's working cache cannot discard
+    physical values already sampled for future stages.
+    """
+
+    def __init__(self, keys, columns, *, static=None):
+        """Index exact RK coordinates and retain their compact columns."""
+
+        self.rows = {key: index for index, key in enumerate(keys)}
+        if len(self.rows) != len(keys):
+            raise ValueError("Scheduled stage coordinates must be unique")
+        self.columns = {
+            name: numpy.asarray(values).view()
+            for name, values in dict(columns).items()
+        }
+        self.static = dict(static or {})
+        if any(
+            numpy.ndim(values) == 0 or len(values) != len(keys)
+            for values in self.columns.values()
+        ):
+            raise ValueError("Scheduled context columns must match stages")
+        for values in self.columns.values():
+            values.setflags(write=False)
+
+    def get(self, key):
+        """Materialize one exact row, leaving future columns intact."""
+
+        index = self.rows.get(key)
+        if index is None:
+            return None
+        context = dict(self.static)
+        context.update(
+            (name, values[index]) for name, values in self.columns.items()
+        )
+        return context
+
+
 @dataclass(frozen=True)
 class _SpilledSourceHistory:
     """Describe an integrity-checked array bundle owned by one request."""

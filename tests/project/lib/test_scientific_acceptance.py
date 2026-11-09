@@ -15,6 +15,123 @@ from tests.project.lib import scientific_acceptance
 class ScientificAcceptanceHandoffTestCase(unittest.TestCase):
     """Keep the handoff wiring durable without running the scientific solve."""
 
+    def test_named_point_failure_preserves_actual_observed_arrays(self):
+        """A failed numerical call retains its partial evidence honestly."""
+
+        import numpy
+
+        from copernican.lib.likelihoods.cmb import cmb, evidence_assets
+        from copernican.lib.likelihoods.cmb.runtime import evidence
+
+        runtime = {"model_name": "failure_fixture"}
+        physical_inputs = scientific_acceptance.completion_physical_inputs(
+            runtime
+        )
+        request = {
+            "ells": [2],
+            "spectra": ["TT"],
+            "numerical_overrides": {},
+            "workload": "full_spectrum",
+        }
+        case_id = "fixture:initial"
+        payload = {"state": numpy.arange(4.0)}
+
+        def failing_solve(*args, **kwargs):
+            evidence.publish_completed_cmb_products(
+                "native_refinement", payload
+            )
+            raise ValueError("independent numerical rejection")
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            reference = evidence_assets.write_json_artifact(
+                root, "reference.json", {"not_a_scientific_reference": True}
+            )
+            contract = {
+                "contract_sha256": "fixture-contract",
+                "cases": {
+                    case_id: {
+                        "reference_kind": "camb",
+                        "ells": [2],
+                        "surfaces": ["TT"],
+                        "reference_identity": "fixture",
+                        "reference_sha256": reference["sha256"],
+                    }
+                },
+                "bindings": {
+                    case_id: {
+                        "reference_artifact": reference,
+                        "model_filename": "fixture",
+                        "point": "initial",
+                        "physical_inputs": physical_inputs,
+                        "request": request,
+                        "declaration_sha256": "fixture-declaration",
+                        "numerical_plan": {"policy": "ordinary_automatic"},
+                    }
+                },
+            }
+            with (
+                mock.patch.object(
+                    scientific_acceptance,
+                    "completion_point_contract",
+                    return_value=runtime,
+                ),
+                mock.patch.object(
+                    cmb,
+                    "compute_cmb_spectrum_from_contract",
+                    side_effect=failing_solve,
+                ),
+            ):
+                result = scientific_acceptance.run_completion_point(
+                    root,
+                    case_id,
+                    contract=contract,
+                    model_records=[
+                        SimpleNamespace(
+                            model_filename="fixture", plugin=object()
+                        )
+                    ],
+                )
+            self.assertFalse(result["accepted"])
+            self.assertFalse(result["completion_accepted"])
+            self.assertIn(
+                "independent numerical rejection", result["failure"]["message"]
+            )
+            self.assertEqual(len(result["observations"]), 1)
+            retained = evidence_assets.read_array_products(
+                root, result["observations"][0]["artifact"], materialize=True
+            )
+            numpy.testing.assert_array_equal(
+                retained["state"], payload["state"]
+            )
+            producer = next(root.glob("cases/*/*/producer.json"))
+            self.assertEqual(
+                json.loads(producer.read_text())["observations"], []
+            )
+            self.assertEqual(
+                json.loads(producer.read_text())["source_identity"],
+                result["source_identity"],
+            )
+
+    def test_physical_binding_keeps_math_and_excludes_compiled_handles(
+        self,
+    ):
+        runtime = {
+            "model_name": "independent_declaration",
+            "background": {"H": "H0/a"},
+            "perturbations": {"equations": ["x'=k*x"]},
+            "background_runtime": object(),
+            "perturbation_data": object(),
+            "compile_diagnostics": object(),
+            "_engine_numerical_plan": {"nodes": 1024},
+        }
+        inputs = scientific_acceptance.completion_physical_inputs(runtime)
+        self.assertEqual(inputs["background"], runtime["background"])
+        self.assertEqual(inputs["perturbations"], runtime["perturbations"])
+        self.assertNotIn("background_runtime", inputs)
+        self.assertNotIn("_engine_numerical_plan", inputs)
+        self.assertEqual(json.loads(json.dumps(inputs)), inputs)
+
     def test_completion_reference_retains_declared_temperature(self):
         """Reference input resolution follows the actual physical contract."""
 
@@ -29,6 +146,87 @@ class ScientificAcceptanceHandoffTestCase(unittest.TestCase):
         )
         self.assertEqual(reference["param_map"]["TCMB"], 3.0)
         self.assertEqual(camb_reference._make_camb_params(reference).TCMB, 3.0)
+
+    def test_canonical_default_temperature_keeps_resolved_physics(self):
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+        from tests.project.lib import camb_reference
+
+        runtime = test_cmb._prepare_declared_contract(
+            test_cmb._declared_scalar_hierarchy_contract()
+        )
+        explicit = scientific_acceptance.completion_reference_contract(runtime)
+        canonical = scientific_acceptance.completion_reference_contract(
+            runtime, canonical_defaults=True
+        )
+        self.assertEqual(explicit["param_map"]["TCMB"], 2.7255)
+        self.assertNotIn("TCMB", canonical["param_map"])
+        self.assertEqual(
+            str(camb_reference._make_camb_params(explicit)),
+            str(camb_reference._make_camb_params(canonical)),
+        )
+        runtime["model_parameters"]["Tcmb_K"] = 3.0
+        canonical = scientific_acceptance.completion_reference_contract(
+            runtime, canonical_defaults=True
+        )
+        self.assertEqual(canonical["param_map"]["TCMB"], 3.0)
+
+    def test_completion_preflight_persists_failures_without_solver_execution(
+        self,
+    ):
+        from copernican.lib.likelihoods.cmb import cmb, evidence_assets
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with (
+                mock.patch.object(
+                    scientific_acceptance,
+                    "materialize_completion_contract",
+                    side_effect=ValueError(
+                        "Frozen independent reference differs"
+                    ),
+                ),
+                mock.patch.object(
+                    cmb,
+                    "compute_cmb_spectrum_from_contract",
+                    side_effect=AssertionError("preflight must not solve"),
+                ) as solve,
+                mock.patch("builtins.print"),
+            ):
+                status = scientific_acceptance.main(
+                    ["--completion-preflight", "--evidence-root", directory]
+                )
+            report = json.loads(
+                (root / "completion-preflight.json").read_text()
+            )
+            self.assertEqual(status, 1)
+            self.assertFalse(report["preflight_ready"])
+            self.assertFalse(report["accepted"])
+            self.assertFalse(report["scientific_acceptance"])
+            self.assertIn("Frozen independent", report["failure"]["message"])
+            retained = evidence_assets.read_json_artifact(
+                root, report["attempt"]
+            )
+            self.assertEqual(retained["failure"], report["failure"])
+            solve.assert_not_called()
+
+    def test_preflight_readiness_does_not_claim_scientific_acceptance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            scientific_acceptance._retain(
+                root / "completion-contract.json", {}
+            )
+            with mock.patch.object(
+                scientific_acceptance,
+                "materialize_completion_contract",
+                return_value={
+                    "contract_sha256": "contract",
+                    "cases": {"case": {}},
+                },
+            ):
+                report = scientific_acceptance.run_completion_preflight(root)
+            self.assertTrue(report["preflight_ready"])
+            self.assertFalse(report["accepted"])
+            self.assertFalse(report["scientific_acceptance"])
 
     def test_development_cli_reports_cost_without_rejecting_passing_tests(
         self,
@@ -217,6 +415,20 @@ class ScientificAcceptanceHandoffTestCase(unittest.TestCase):
                 result = scientific_acceptance.main(["--baseline"])
         self.assertEqual(result, 1)
         self.assertIn("ccmbs-acceptance", str(run.call_args.args[0]))
+
+    def test_checkout_provenance_records_current_uncommitted_content(self):
+        root = Path(__file__).resolve().parents[3]
+        recorded = scientific_acceptance.checkout_provenance(root)
+        self.assertEqual(len(recorded["source_revision"]), 40)
+        self.assertEqual(
+            recorded["sha256"],
+            scientific_acceptance.diagnostics._canonical_sha256(
+                {
+                    name: recorded[name]
+                    for name in ("source_revision", "uncommitted")
+                }
+            ),
+        )
 
 
 if __name__ == "__main__":

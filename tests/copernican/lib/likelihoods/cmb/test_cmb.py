@@ -6791,6 +6791,8 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "source": "measured",
             "projection": "measured",
             "physical_limits": "measured",
+            "k": "measured",
+            "angular_k": "measured",
         }
         for evidence in (full_evidence, subset_evidence):
             self.assertIsNotNone(evidence)
@@ -6804,6 +6806,18 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
                 },
                 expected_statuses,
             )
+            for axis in ("k", "angular_k"):
+                row = evidence["resolution_axis_evidence"][axis]
+                base = numpy.asarray(row["base_grid"])
+                refined = numpy.asarray(row["refined_grid"])
+                self.assertGreater(refined.size, base.size)
+                self.assertTrue(numpy.all(numpy.isin(base, refined)))
+                self.assertTrue(row["absolute_error_bounds"])
+                for values in row["absolute_error_bounds"].values():
+                    bounds = numpy.asarray(values)
+                    self.assertEqual(bounds.shape, ells.shape)
+                    self.assertTrue(numpy.all(numpy.isfinite(bounds)))
+                    self.assertTrue(numpy.all(bounds >= 0))
             self.assertLessEqual(
                 float(evidence["adaptive_transfer_relative_error"]),
                 1.0e-2,
@@ -8158,7 +8172,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertEqual(int(envelope["request_specific_preparations"]), 1)
         mode_count = int(envelope["k_sample_count"])
         batch_count = int(envelope["batch_count"])
-        # Compatible schedules may add one subdivision level. Every mode
+        # Compatible batches bound total extra subdivision work. Every mode
         # evolves once, with measured work bounded by twice its scalar work.
         self.assertGreater(batch_count, 0)
         self.assertLessEqual(batch_count, mode_count)
@@ -8170,6 +8184,9 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         self.assertGreater(scalar_work, 0)
         self.assertGreaterEqual(batch_work, scalar_work)
         self.assertLessEqual(batch_work, 2 * scalar_work)
+        self.assertLessEqual(
+            float(envelope["schedule_total_overintegration_ratio"]), 2.0
+        )
         self.assertLessEqual(
             float(envelope["schedule_max_overintegration_ratio"]), 2.0
         )

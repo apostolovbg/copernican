@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import tempfile
 import unittest
@@ -2892,6 +2893,233 @@ class CompletionPersistenceTestCase(unittest.TestCase):
             self.assertNotEqual(
                 original, d.cmb_completion_source_identity(root)
             )
+
+
+class CompletionDependencyTestCase(unittest.TestCase):
+    """Product reuse follows numerical dependencies, not rendering code."""
+
+    def test_retained_quadratures_recompute_rule_and_integral(self):
+        """Rehashed storage claims cannot replace the actual operator."""
+
+        from copernican.lib.likelihoods.cmb import evidence_assets as assets
+        from copernican.lib.likelihoods.cmb.runtime import spectrum_projection
+
+        waves = numpy.asarray((0.01, 0.02, 0.03))
+        observed = []
+        values = spectrum_projection._integrate_power_spectrum(
+            primordial_grid=numpy.ones(3),
+            log_k_values=numpy.log(waves),
+            primary=numpy.asarray((1.0, -2.0, 3.0)),
+            secondary=numpy.asarray((2.0, 1.0, -1.0)),
+            product_observer=lambda kind, products: observed.append(products),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            source = assets.write_array_products(
+                directory,
+                "source",
+                {
+                    "k": waves,
+                    "eta": numpy.arange(3.0),
+                    "eta_weights": numpy.ones(3),
+                    "sources_by_k": {
+                        str(float(k)): {"s": numpy.ones(3)} for k in waves
+                    },
+                },
+            )
+            projection = assets.write_array_products(
+                directory,
+                "projection",
+                {
+                    "k": waves,
+                    "ell": numpy.asarray((2,)),
+                    "transfers": {"t": numpy.ones((1, 3))},
+                    "spectra": {"TT": values},
+                },
+            )
+
+            def chain(payload):
+                quadrature = assets.write_array_products(
+                    directory, "quadrature", payload
+                )
+                return assets.write_json_artifact(
+                    directory,
+                    "chain.json",
+                    {
+                        "schema_version": 2,
+                        "source": source,
+                        "projection": projection,
+                        "quadratures": [quadrature],
+                    },
+                )
+
+            loaded = diagnostics.read_cmb_completion_products(
+                directory, chain(observed[0])
+            )
+            diagnostics.validate_cmb_completion_products(loaded)
+            with self.assertRaisesRegex(ValueError, "reproduce"):
+                diagnostics.read_cmb_completion_products(
+                    directory,
+                    chain(
+                        {
+                            **observed[0],
+                            "C_ell": values + 1,
+                        }
+                    ),
+                )
+            with self.assertRaisesRegex(ValueError, "operator"):
+                diagnostics.read_cmb_completion_products(
+                    directory,
+                    chain(
+                        {
+                            **observed[0],
+                            "C_ell": 2 * values,
+                            "weights": 2 * observed[0]["weights"],
+                        }
+                    ),
+                )
+
+    def test_completion_products_require_archive_arrays_with_matching_grids(
+        self,
+    ):
+        from copernican.lib.likelihoods.cmb import diagnostics as d
+        from copernican.lib.likelihoods.cmb import evidence_assets as products
+
+        arrays = {
+            "grids": {
+                "k": numpy.arange(2.0),
+                "eta": numpy.arange(4.0),
+                "ell": numpy.arange(3),
+            },
+            "weights": {"k": numpy.ones(2), "eta": numpy.ones(4)},
+            "sources": {"temperature": numpy.ones((2, 4))},
+            "transfers": {"temperature": numpy.ones((3, 2))},
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            entry = products.write_array_products(directory, "raw", arrays)
+            metadata = products.read_array_products(directory, entry)
+            self.assertIsNone(d.validate_cmb_completion_products(metadata))
+            arrays["transfers"]["temperature"] = numpy.ones((2, 3))
+            entry = products.write_array_products(directory, "bad", arrays)
+            with self.assertRaisesRegex(ValueError, "grid dimensions"):
+                d.validate_cmb_completion_products(
+                    products.read_array_products(directory, entry)
+                )
+            with self.assertRaisesRegex(ValueError, "not an array"):
+                d.validate_cmb_completion_products(
+                    {"grids": {"k": {"shape": [2]}}}
+                )
+
+    def test_frozen_requirements_remain_distinct_from_materialized_case_hashes(
+        self,
+    ):
+        from copernican.lib.likelihoods.cmb import diagnostics as d
+
+        repository = Path(__file__).resolve().parents[5]
+        frozen_path = (
+            repository
+            / "tests/project/fixtures/ccmbs_completion_contract.json"
+        )
+        frozen = json.loads(frozen_path.read_text())
+        selected = "model_lcdm.yml:initial"
+        self.assertNotEqual(
+            d._canonical_sha256(frozen["cases"][selected]),
+            frozen["case_sha256"][selected],
+        )
+        contract = {
+            "schema_version": 2,
+            "cases": frozen["cases"],
+            "bindings": {},
+            "frozen_fixture_sha256": hashlib.sha256(
+                frozen_path.read_bytes()
+            ).hexdigest(),
+            "frozen_materialization_sha256": frozen["case_sha256"],
+            "metrics": d._jsonable(d.CMB_COMPLETION_METRICS),
+            "source_identity": d.cmb_completion_source_identity(),
+        }
+        contract["contract_sha256"] = d._canonical_sha256(contract)
+        with tempfile.TemporaryDirectory() as directory:
+            result = d.assess_cmb_completion_evidence(
+                contract,
+                {selected: {}},
+                evidence_root=directory,
+                required_case_ids=[selected],
+            )
+            self.assertEqual(result["issues"], [])
+            self.assertFalse(result["accepted"])
+            self.assertIn(
+                "real ordinary CCMBS execution is missing",
+                result["rows"][selected]["issues"],
+            )
+            contract["frozen_materialization_sha256"] = {}
+            result = d.assess_cmb_completion_evidence(
+                contract,
+                {},
+                evidence_root=directory,
+                required_case_ids=[selected],
+            )
+            self.assertIn(
+                "historical materialization identities were changed",
+                result["issues"],
+            )
+
+    def test_dependencies_distinguish_forward_reference_and_rendering(self):
+        from copernican.lib.likelihoods.cmb import diagnostics
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            files = {
+                "copernican/lib/physics.py": "rate = 1\n",
+                "copernican/lib/plotter.py": "color = 'blue'\n",
+                "copernican/lib/likelihoods/cmb/diagnostics.py": "limit = 1\n",
+                "tests/project/lib/camb_reference.py": "version = 1\n",
+            }
+            for name, contents in files.items():
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(contents)
+
+            arguments = {
+                "physical_inputs": {"mass": 0},
+                "request": {"ells": [2, 20]},
+                "numerical_plan": {"nodes": 32},
+                "reference": {"sha256": "reference"},
+                "requirement": {"surfaces": ["TT"]},
+                "repository_root": root,
+            }
+
+            def identify(**updates):
+                return diagnostics.cmb_completion_dependency_identity(
+                    **{**arguments, **updates}
+                )
+
+            original = identify()
+            (root / "copernican/lib/physics.py").write_text(
+                "# format only\nrate=1\n"
+            )
+            self.assertEqual(identify()["physical"], original["physical"])
+            (root / "copernican/lib/plotter.py").write_text("color = 'red'\n")
+            self.assertEqual(identify(), original)
+            changed = identify(physical_inputs={"mass": 0.06})
+            self.assertNotEqual(
+                original["physical"],
+                diagnostics.cmb_completion_dependency_identity(
+                    **{**arguments, "physical_inputs": {"mass": 0.06}}
+                )["physical"],
+            )
+            self.assertEqual(changed["reference"], original["reference"])
+            changed = identify(numerical_plan={"nodes": 64})
+            self.assertNotEqual(changed["numerical"], original["numerical"])
+            self.assertEqual(changed["physical"], original["physical"])
+            changed = identify(reference={"sha256": "new reference"})
+            self.assertNotEqual(changed["reference"], original["reference"])
+            self.assertEqual(changed["physical"], original["physical"])
+            path = root / "copernican/lib/likelihoods/cmb/diagnostics.py"
+            path.write_text("limit = 2\n")
+            changed = identify()
+            self.assertNotEqual(changed["assessment"], original["assessment"])
+            self.assertEqual(changed["physical"], original["physical"])
+            (root / "copernican/lib/physics.py").write_text("rate = 2\n")
+            self.assertNotEqual(identify()["physical"], original["physical"])
 
 
 if __name__ == "__main__":

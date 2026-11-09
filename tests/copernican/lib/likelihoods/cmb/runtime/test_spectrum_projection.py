@@ -19,6 +19,242 @@ from tests.copernican.lib import test_perturbation_contract as contract_tests
 class SpectrumProjectionTestCase(unittest.TestCase):
     """Exercise projection kernels without execution orchestration."""
 
+    def test_independent_source_meshes_share_exact_radial_quadrature(self):
+        """Quadratic sources reproduce direct Bessel integration at new k."""
+
+        import hashlib
+
+        from scipy.special import spherical_jn
+
+        base = numpy.asarray((0.001, 0.004, 0.008, 0.012))
+        refined = numpy.sort(numpy.r_[base, (base[:-1] + base[1:]) / 2])
+        angular = numpy.linspace(base[0], base[-1], 51)
+        eta = numpy.linspace(0, 500, 129)
+        weights = spectrum_projection._simpson_weights(eta)
+        profile = numpy.exp(-(((eta - 120) / 30) ** 2))
+        component = SimpleNamespace(
+            projection="line_of_sight_temperature",
+            kernel=None,
+            sector="scalar",
+            source_terms={"monopole": "s"},
+        )
+
+        def sources(nodes):
+            return {"s": (1 + 3 * nodes + 8 * nodes**2)[:, None] * profile}
+
+        def kernels(orders, arguments):
+            return background._get_cached_declared_projection_kernel_batch(
+                orders,
+                hashlib.sha256(arguments.tobytes()).hexdigest(),
+                x_values=arguments,
+                required_sectors=("scalar",),
+            )
+
+        arguments = dict(
+            base_k=base,
+            base_sources=sources(base),
+            refined_k=refined,
+            refined_sources=sources(refined),
+            angular_k=angular,
+            ell_values=(2, 10),
+            eta=eta,
+            eta_weights=weights,
+            chi=500 - eta,
+            source_chi=500,
+            components={"T": component},
+            kernel_provider=kernels,
+        )
+        projected = spectrum_projection.project_interpolated_source_histories(
+            **arguments
+        )
+        expected = numpy.asarray(
+            [
+                [
+                    numpy.sum(
+                        spherical_jn(ell, wave * (500 - eta))
+                        * profile
+                        * weights
+                    )
+                    * (1 + 3 * wave + 8 * wave**2)
+                    for wave in angular
+                ]
+                for ell in (2, 10)
+            ]
+        )
+        for label in ("base", "refined"):
+            numpy.testing.assert_allclose(
+                projected[label]["T"], expected, rtol=1e-12, atol=1e-15
+            )
+        with self.assertRaisesRegex(ValueError, "distinct"):
+            spectrum_projection.project_interpolated_source_histories(
+                **{
+                    **arguments,
+                    "refined_k": base,
+                    "refined_sources": sources(base),
+                }
+            )
+        distorted = sources(refined)
+        distorted["s"][1] *= 1.2
+        changed = spectrum_projection.project_interpolated_source_histories(
+            **{**arguments, "refined_sources": distorted}
+        )
+        self.assertGreater(
+            numpy.max(abs(changed["refined"]["T"] - changed["base"]["T"])),
+            1e-5,
+        )
+
+    def test_source_time_and_radial_time_meshes_are_independent(self):
+        """Cubic time sources retain direct quadrature on a denser mesh."""
+
+        import hashlib
+
+        from scipy.special import spherical_jn
+
+        source_eta = numpy.linspace(0, 100, 9)
+        radial_eta = numpy.linspace(0, 100, 129)
+        base = numpy.asarray((0.01, 0.03, 0.06, 0.1))
+        fine = numpy.sort(numpy.r_[base, (base[:-1] + base[1:]) / 2])
+        angular = numpy.linspace(0.01, 0.1, 21)
+        component = SimpleNamespace(
+            projection="line_of_sight_temperature",
+            kernel=None,
+            sector="scalar",
+            source_terms={"monopole": "s"},
+        )
+
+        def kernel_provider(orders, arguments):
+            return background._get_cached_declared_projection_kernel_batch(
+                orders,
+                hashlib.sha256(arguments.tobytes()).hexdigest(),
+                x_values=arguments,
+                required_sectors=("scalar",),
+            )
+
+        def sources(nodes):
+            return {"s": (1 + nodes**2)[:, None] * (source_eta / 100) ** 3}
+
+        weights = spectrum_projection._simpson_weights(radial_eta)
+        result = spectrum_projection.project_interpolated_source_histories(
+            base_k=base,
+            base_sources=sources(base),
+            refined_k=fine,
+            refined_sources=sources(fine),
+            angular_k=angular,
+            ell_values=(2,),
+            eta=radial_eta,
+            source_eta=source_eta,
+            eta_weights=weights,
+            chi=100 - radial_eta,
+            source_chi=100.0,
+            components={"T": component},
+            kernel_provider=kernel_provider,
+        )
+        expected = numpy.asarray(
+            [
+                numpy.sum(
+                    spherical_jn(2, wave * (100 - radial_eta))
+                    * weights
+                    * (radial_eta / 100) ** 3
+                )
+                * (1 + wave**2)
+                for wave in angular
+            ]
+        )
+        numpy.testing.assert_allclose(
+            result["refined"]["T"][0], expected, rtol=1e-12, atol=1e-15
+        )
+
+    def test_source_mesh_retains_full_support_at_acoustic_spacing(
+        self,
+    ):
+        """Source spacing does not silently remove oscillatory radial tails."""
+
+        physical = SimpleNamespace(
+            eta0=14000.0, eta_rec=280.0, sound_horizon_mpc=150.0
+        )
+        numerics = SimpleNamespace(
+            ell_min=2, ell_max=100, k_min=1e-6, k_max=0.3, k_sample_count=64
+        )
+        declaration = SimpleNamespace(
+            manifest_summary={"generated_scalar_hierarchy": True},
+            accuracy_controls={
+                "accuracy_tier": "final",
+                "require_phase_resolution": True,
+            },
+            observables={},
+        )
+        nodes = spectrum_projection._build_projection_k_grid(
+            ell_arr=numpy.asarray((2, 20, 100)),
+            background=physical,
+            numerics=numerics,
+            perturbation_data=declaration,
+            retain_declared_surface=True,
+            source_sampling=True,
+        )
+        self.assertEqual(nodes[0], numerics.k_min)
+        self.assertEqual(nodes[-1], numerics.k_max)
+        self.assertLess(nodes.size, (0.3 - 1e-6) * 13720 / (2 * numpy.pi / 8))
+        self.assertLessEqual(
+            numpy.max(numpy.diff(nodes)) * 150, 2 * numpy.pi / 8 * (1 + 1e-12)
+        )
+
+    def test_retained_quadrature_weights_match_independent_integrals(self):
+        from scipy.integrate import simpson
+        from scipy.interpolate import CubicSpline
+
+        for count in range(2, 12):
+            x = numpy.geomspace(0.01, 10, count)
+            basis = numpy.eye(count)
+            for rule in ("trapezoid", "simpson", "cubic"):
+                if rule == "trapezoid":
+                    expected = numpy.trapz(basis, x=x, axis=0)
+                elif rule == "simpson":
+                    expected = simpson(basis, x=x, axis=0)
+                else:
+                    primitive = CubicSpline(x, basis, axis=0).antiderivative()
+                    expected = primitive(x[-1]) - primitive(x[0])
+                numpy.testing.assert_allclose(
+                    spectrum_projection.power_spectrum_quadrature_weights(
+                        x, rule
+                    ),
+                    expected,
+                    rtol=2e-14,
+                    atol=1e-14,
+                )
+
+    def test_quadrature_observer_preserves_results_and_retains_actual_products(
+        self,
+    ):
+        rows = []
+        x = numpy.linspace(-5, 0, 17)
+        parameters = dict(
+            primordial_grid=numpy.ones(17),
+            log_k_values=x,
+            primary=numpy.sin(x),
+            secondary=numpy.cos(x),
+        )
+        plain = spectrum_projection._integrate_power_spectrum(**parameters)
+        observed = spectrum_projection._integrate_power_spectrum(
+            **parameters,
+            product_observer=lambda kind, products: rows.append(
+                (kind, products)
+            ),
+        )
+        numpy.testing.assert_array_equal(plain, observed)
+        self.assertEqual(rows[0][0], "spectrum_quadrature")
+        payload = rows[0][1]
+        reconstructed = (
+            4
+            * numpy.pi
+            * numpy.sum(
+                payload["weights"] * payload["weighted_transfer_products"],
+                axis=1,
+            )
+        )
+        numpy.testing.assert_allclose(
+            reconstructed, payload["C_ell"], rtol=1e-13
+        )
+
     def test_integrated_temperature_quadrupole_matches_angular_thomson_source(
         self,
     ):

@@ -248,6 +248,7 @@ def resolve_adaptive_controls(
             )
         ).strip()
         if transfer_algorithm not in {
+            "independent_source_interpolation",
             "nested_independent_source_projection",
             "diagnostic_transfer_interpolation",
         }:
@@ -1248,7 +1249,11 @@ def informative_k_indices(
     while len(candidates) < target:
         ordered = sorted(candidates)
         widest = max(
-            zip(ordered[:-1], ordered[1:]),
+            (
+                (left, right)
+                for left, right in zip(ordered[:-1], ordered[1:])
+                if right - left > 1
+            ),
             key=lambda pair: float(values[pair[1]] / values[pair[0]]),
         )
         candidates.add((widest[0] + widest[1]) // 2)

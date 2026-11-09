@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-11-08
+**Last Updated:** 2026-11-09
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,193 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-11-09:
+  Change: Corrected the ordinary request subset axis assertions.
+  Why: Matched the independently measured source and angular grids
+    to their actual nested refinement evidence.
+  Impact: Verified both new axes without weakening existing checks.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/evidence_assets.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evidence.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evidence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_history_store.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_evidence_assets.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-09:
+  Change: Updated verification-day metadata for the staged CCMBS repairs.
+  Why: Resolved UTC rollover complaints while preserving source, angular
+    and metric changes in the open work session.
+  Impact: Retained previous scientific records and documented current
+    verification without changing the open Slice Seven acceptance status.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/evidence_assets.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evidence.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evidence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_history_store.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_evidence_assets.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-08:
+  Change: Split independent source and angular quadrature, conditioned
+    the generated Einstein metric equation and compacted stage contexts.
+  Why: Reproduced high-k overflow, a stalled pilot selector, ineffective
+    source promotion and discarded native-source error contributions.
+  Impact: Preserved scientific tolerances and scalar-reference checks,
+    repaired measured axes and documented incomplete physical acceptance.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/evidence_assets.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evidence.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  copernican/lib/perturbation_contract.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evidence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_history_store.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_evidence_assets.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-08:
+  Change: Updated the independently verified Planck reference and retained
+    named ordinary attempts, typed arrays and actual quadrature operators.
+  Why: Diagnosed missing high-k angular support and removed coupled grid
+    seeding, collapsed native refinements and avoidable singleton work.
+  Impact: Preserved every scientific tolerance, added early budget rejection
+    and documented the remaining physical acceptance work in Slice Seven.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/evidence_assets.py
+  copernican/lib/likelihoods/cmb/runtime/evidence.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evidence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_evidence_assets.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-08:
+  Change: Added completion-reference preflight, separate dependency identities
+    and durable typed numerical-product verification.
+  Why: Detected frozen/current Planck density drift before angular evolution
+    and distinguished compact requirements from full materialization hashes.
+  Impact: Preserved scientific thresholds and recorded incomplete Slice Seven
+    evidence without certifying reference mismatches or metadata-only arrays.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/evidence_assets.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_evidence_assets.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_scientific_acceptance.py
 
 - 2026-11-08:
   Change: Replaced timing-order assertions with direct runtime-asset reuse

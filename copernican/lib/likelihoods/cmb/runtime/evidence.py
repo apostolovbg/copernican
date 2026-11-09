@@ -4,11 +4,48 @@ from __future__ import annotations
 
 import hashlib
 import json
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Any, Mapping
 
 import numpy
 
 from .background import CustomCMBSpectrumData
+
+_COMPLETED_PRODUCT_CONSUMER = ContextVar(
+    "completed_cmb_product_consumer", default=None
+)
+
+
+@contextmanager
+def capture_completed_cmb_products(consumer):
+    """Observe completed numerical products without selecting solver controls.
+
+    The synchronous consumer must persist borrowed arrays before returning.
+    It may not mutate them. Nested requests/refinements share the context;
+    cleanup restores any surrounding consumer even after a solver failure.
+    Ordinary execution retains no additional arrays when capture is absent.
+    """
+
+    token = _COMPLETED_PRODUCT_CONSUMER.set(consumer)
+    try:
+        yield
+    finally:
+        _COMPLETED_PRODUCT_CONSUMER.reset(token)
+
+
+def has_completed_cmb_product_capture():
+    """Return whether a caller explicitly requested durable observations."""
+
+    return _COMPLETED_PRODUCT_CONSUMER.get() is not None
+
+
+def publish_completed_cmb_products(kind, products):
+    """Send actual completed arrays to an observer without copying history."""
+
+    consumer = _COMPLETED_PRODUCT_CONSUMER.get()
+    if consumer is not None:
+        consumer(kind, products)
 
 
 def _canonical_source_history_value(value: Any) -> Any:

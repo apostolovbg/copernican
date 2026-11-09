@@ -34,6 +34,21 @@ from copernican.lib.likelihoods.cmb.runtime.adaptive import (
 class AdaptiveControlsTestCase(unittest.TestCase):
     """Validate physical grid refinement and convergence failure behavior."""
 
+    def test_informative_selection_progresses_across_unsplittable_gaps(self):
+        """A large logarithmic gap between adjacent nodes cannot be split."""
+
+        waves = numpy.r_[1e-6, numpy.linspace(0.01, 0.3, 98)]
+        for count in range(1, waves.size + 1):
+            indices = informative_k_indices(
+                waves, count=count, feature_k=(0.003, 0.008, 0.015)
+            )
+            self.assertEqual(len(indices), count)
+            self.assertEqual(tuple(sorted(set(indices))), indices)
+            if count > 1:
+                self.assertEqual(
+                    (indices[0], indices[-1]), (0, waves.size - 1)
+                )
+
     def test_rate_switches_are_located_independently_of_output_mesh(self):
         """Changing event-sampling seeds keeps the same physical crossings."""
 

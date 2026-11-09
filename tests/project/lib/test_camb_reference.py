@@ -1,5 +1,6 @@
 """Focused tests for the independent CAMB reference helper."""
 
+import gzip
 import tempfile
 import unittest
 from pathlib import Path
@@ -621,6 +622,130 @@ if __name__ == "__main__":  # pragma: no cover
 
 class CompletionReferenceWindowTestCase(unittest.TestCase):
     """Freeze window selection independently from the engine residuals."""
+
+    def test_portable_references_preserve_all_frozen_numeric_products(self):
+        import json
+
+        root = Path(__file__).resolve().parents[1] / "fixtures"
+        contract = json.loads(
+            (root / "ccmbs_completion_contract.json").read_text()
+        )
+        archive = json.loads(
+            gzip.decompress(
+                (root / "ccmbs_comparable_camb.json.gz").read_bytes()
+            )
+        )
+        required = {
+            name: value
+            for name, value in contract["cases"].items()
+            if value["reference_kind"] == "camb"
+        }
+        self.assertEqual(set(archive["references"]), set(required))
+        self.assertEqual(len(required), 12)
+        for name, requirement in required.items():
+            reference = archive["references"][name]
+            body = {
+                key: value
+                for key, value in reference.items()
+                if key != "fixture_sha256"
+            }
+            self.assertEqual(
+                camb_reference.reference_fixture_sha256(body),
+                requirement["reference_sha256"],
+            )
+            self.assertEqual(reference["ell_values"], requirement["ells"])
+            self.assertEqual(
+                set(reference["spectra"]), set(requirement["surfaces"])
+            )
+            self.assertEqual(reference["features"], requirement["features"])
+            self.assertEqual(
+                reference["resolved_parameters"],
+                requirement["resolved_reference_inputs"],
+            )
+            for surface in reference["spectra"].values():
+                for values in surface.values():
+                    self.assertEqual(len(values), len(requirement["ells"]))
+                    self.assertTrue(numpy.all(numpy.isfinite(values)))
+
+    def test_planck_density_matches_fermi_dirac_and_unmodified_camb(self):
+        import json
+        import math
+
+        from scipy import constants, special
+
+        path = (
+            Path(__file__).resolve().parents[1]
+            / "fixtures/ccmbs_completion_contract.json"
+        )
+        fixture = json.loads(path.read_text())
+        inputs = fixture["cases"]["model_ref_planck2018.yml:initial"][
+            "resolved_reference_inputs"
+        ]
+        params = camb_reference.camb.CAMBparams()
+        params.set_cosmology(
+            H0=inputs["H0"],
+            ombh2=inputs["ombh2"],
+            omch2=inputs["omch2"],
+            mnu=0.06,
+            nnu=3.044,
+            num_massive_neutrinos=3,
+            standard_neutrino_neff=3.044,
+            TCMB=2.7255,
+        )
+        self.assertEqual(params.omnuh2, inputs["omnuh2"])
+        temperature = 2.7255 * (4 / 11) ** (1 / 3) * (3.044 / 3) ** 0.25
+        number = (
+            3
+            * special.zeta(3)
+            / (2 * math.pi**2)
+            * (constants.k * temperature / (constants.hbar * constants.c)) ** 3
+        )
+        hubble = 100000 / (constants.parsec * 1e6)
+        critical = 3 * hubble**2 / (8 * math.pi * constants.G)
+        independent = (
+            number * 0.06 * constants.electron_volt / constants.c**2 / critical
+        )
+        self.assertLess(abs(independent / inputs["omnuh2"] - 1), 1e-8)
+
+    def test_reference_refresh_preserves_explicit_windows_and_surfaces(self):
+        import copy
+
+        requirement = {
+            "ells": [2, 20, 21],
+            "surfaces": ["EE", "TT"],
+            "features": [
+                {
+                    "kind": "peak",
+                    "surface": "TT",
+                    "ell": 20,
+                    "lower": 20,
+                    "upper": 21,
+                }
+            ],
+            "damping_windows": [[20, 21]],
+        }
+        dense = {"ell_values": requirement["ells"], "fixture_sha256": "old"}
+        with mock.patch.object(
+            camb_reference,
+            "build_camb_full_reference_fixture",
+            return_value=copy.deepcopy(dense),
+        ) as build:
+            reference = camb_reference.build_completion_camb_reference(
+                camb_reference.FIXED_LCDM_REFERENCE_CONTRACT,
+                model_name="declared",
+                fixed_point="initial",
+                requirement=requirement,
+            )
+        self.assertEqual(build.call_args.args[1], requirement["ells"])
+        self.assertEqual(
+            set(build.call_args.kwargs["spectra"]),
+            set(requirement["surfaces"]),
+        )
+        self.assertEqual(reference["features"], requirement["features"])
+        self.assertEqual(
+            reference["damping_windows"], requirement["damping_windows"]
+        )
+        self.assertNotEqual(reference["fixture_sha256"], "old")
 
     def test_completion_windows_require_dense_reference_and_cover_features(
         self,

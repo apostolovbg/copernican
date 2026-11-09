@@ -1868,6 +1868,7 @@ def run_cmb_parity_matrix(
     ) = None,
     require_runtime_evidence: bool = False,
     require_scientific_provenance: bool = False,
+    model_records: Iterable[CMBModelDiscoveryRecord] | None = None,
 ) -> dict[str, Any]:
     """Run one explicit ordinary-route CCMBS/CAMB parity matrix.
 
@@ -1881,17 +1882,21 @@ def run_cmb_parity_matrix(
 
     requested_models = tuple(str(name) for name in required_models)
     requested_ells = tuple(int(value) for value in ell_values)
-    canonical_ells = tuple(
-        int(value) for value in CMB_PARITY_CERTIFICATION_TIER["ells"]
-    )
-    if requested_ells != canonical_ells:
+    if (
+        not requested_ells
+        or min(requested_ells) < 2
+        or tuple(sorted(set(requested_ells))) != requested_ells
+    ):
         raise ValueError(
-            "Slice Fourteen parity execution requires the canonical sparse "
-            "ell grid"
+            "Parity ell requests must be sorted, unique and at least two"
         )
     discovery = {
         record.model_filename: record
-        for record in discover_cmb_model_records(model_directory)
+        for record in (
+            discover_cmb_model_records(model_directory)
+            if model_records is None
+            else model_records
+        )
     }
     supplied_contracts = contract_by_model or {}
     supplied_spectra = spectra_by_model or {}
@@ -2024,6 +2029,7 @@ def run_cmb_parity_matrix(
                     requested_ells,
                     spectra=requested_spectra,
                     workload="full_spectrum",
+                    solver="ccmbs",
                 )
                 result = cmb_api._LAST_CMB_RESULT.get()
                 if result is None or not result.success:
@@ -4695,6 +4701,7 @@ def cmb_completion_source_identity(
     ):
         paths.add(root / "tests/project/lib" / name)
     paths.add(root / "tests/project/fixtures/ccmbs_completion_contract.json")
+    paths.add(root / "tests/project/fixtures/ccmbs_comparable_camb.json.gz")
     paths.add(root / "tests/copernican/lib/likelihoods/cmb/test_cmb.py")
     files = {}
     for path in sorted(paths):
@@ -4704,24 +4711,328 @@ def cmb_completion_source_identity(
     return {"files": files, "sha256": _canonical_sha256(files)}
 
 
+def cmb_completion_dependency_identity(
+    physical_inputs,
+    request,
+    numerical_plan,
+    reference,
+    requirement,
+    *,
+    repository_root,
+):
+    """Identify forward work separately from references and assessment.
+
+    Forward dependencies conservatively cover the core library. Pure GUI,
+    CLI and plotting sources do not feed the solver; diagnostics instead
+    invalidate assessment. Original producer provenance is never rewritten.
+    """
+
+    import ast
+    import os
+    import platform
+
+    import scipy
+    import sympy
+
+    root = Path(repository_root)
+    forward = {}
+    for path in sorted((root / "copernican/lib").rglob("*.py")):
+        relative = path.relative_to(root).as_posix()
+        if {"gui", "cli", "__pycache__"} & set(
+            path.relative_to(root / "copernican/lib").parts[:-1]
+        ) or relative in {
+            "copernican/lib/plotter.py",
+            "copernican/lib/likelihoods/cmb/diagnostics.py",
+        }:
+            continue
+        # Whole-checkout provenance retains exact bytes separately. Product
+        # dependencies ignore formatting/comments while preserving the full
+        # parsed program, so a formatter cannot force a fresh physical solve.
+        forward[relative] = _canonical_sha256(
+            ast.dump(
+                ast.parse(path.read_text(encoding="utf-8")),
+                include_attributes=False,
+            )
+        )
+    reference_source = root / "tests/project/lib/camb_reference.py"
+    assessment_source = root / "copernican/lib/likelihoods/cmb/diagnostics.py"
+
+    source_digests = {
+        name: (
+            hashlib.sha256(path.read_bytes()).hexdigest()
+            if path.exists()
+            else None
+        )
+        for name, path in (
+            ("reference", reference_source),
+            ("assessment", assessment_source),
+        )
+    }
+
+    roles = {
+        "physical": _canonical_sha256(
+            {"sources": forward, "inputs": physical_inputs}
+        ),
+        "numerical": _canonical_sha256(
+            {
+                "request": request,
+                "plan": numerical_plan,
+                "backend": "ccmbs:cpu:reference",
+                "environment": {
+                    "python": platform.python_version(),
+                    "machine": platform.machine(),
+                    "numpy": numpy.__version__,
+                    "scipy": scipy.__version__,
+                    "sympy": sympy.__version__,
+                    "threads": {
+                        name: os.environ.get(name)
+                        for name in (
+                            "OMP_NUM_THREADS",
+                            "OPENBLAS_NUM_THREADS",
+                            "MKL_NUM_THREADS",
+                        )
+                    },
+                },
+            }
+        ),
+        "reference": _canonical_sha256(
+            {"source": source_digests["reference"], "fixture": reference}
+        ),
+        "assessment": _canonical_sha256(
+            {
+                "source": source_digests["assessment"],
+                "requirement": requirement,
+                "metrics": CMB_COMPLETION_METRICS,
+            }
+        ),
+    }
+    return {**roles, "sha256": _canonical_sha256(roles)}
+
+
 def _completion_artifact(
     root: Path, entry: Mapping[str, Any]
 ) -> dict[str, Any]:
     """Read a digest-bound JSON payload inside its portable artifact root."""
 
-    relative = Path(str(entry.get("path", "")))
-    if relative.is_absolute() or ".." in relative.parts or not relative.parts:
-        raise ValueError("artifact path must be a relative contained path")
-    path = (root / relative).resolve()
-    if not path.is_relative_to(root.resolve()):
-        raise ValueError("artifact path escapes its evidence root")
-    contents = path.read_bytes()
-    if hashlib.sha256(contents).hexdigest() != entry.get("sha256"):
-        raise ValueError("artifact content digest is invalid")
-    payload = json.loads(contents)
-    if not isinstance(payload, dict):
-        raise ValueError("artifact payload must be a mapping")
-    return payload
+    from .evidence_assets import read_json_artifact
+
+    return read_json_artifact(root, entry)
+
+
+def validate_cmb_completion_products(products):
+    """Require actual verified grids and dimensionally compatible arrays.
+
+    Shapes come from the archive reader after byte/dtype/content checks;
+    dictionaries that merely describe purported arrays cannot satisfy this
+    boundary. Native refinements retain their separate effective grids.
+    """
+
+    from .evidence_assets import RetainedArrayInfo
+
+    if "source_components" in products:
+        eta_count = len(products["source_grid"])
+        source_count = len(products["source_k"])
+        transfer_shape = (len(products["ell"]), len(products["transfer_k"]))
+        if products["eta_weights"].shape != (eta_count,):
+            raise ValueError("retained eta weights do not match their grid")
+        for name, rows in products["source_components"].items():
+            if len(rows) != source_count or any(
+                not isinstance(row, RetainedArrayInfo)
+                or row.shape != (eta_count,)
+                for row in rows
+            ):
+                raise ValueError(
+                    f"retained source {name} grid dimensions differ"
+                )
+        if not products["transfer_components"]:
+            raise ValueError("retained transfer products are missing")
+        for name, array in products["transfer_components"].items():
+            if (
+                not isinstance(array, RetainedArrayInfo)
+                or array.shape != transfer_shape
+            ):
+                raise ValueError(
+                    f"retained transfer {name} grid dimensions differ"
+                )
+        if (
+            not products["source_components"]
+            or products["quadrature_count"] < 1
+        ):
+            raise ValueError(
+                "retained numerical product inventory is incomplete"
+            )
+        return
+
+    def shape(group, name):
+        """Read only archive-backed metadata, never a JSON scalar claim."""
+
+        array = products.get(group, {}).get(name)
+        if not isinstance(array, RetainedArrayInfo) or not array.shape:
+            raise ValueError(f"retained {group}/{name} is not an array")
+        if any(size <= 0 for size in array.shape):
+            raise ValueError(f"retained {group}/{name} is empty")
+        return array.shape
+
+    sizes = {}
+    for name in ("k", "eta", "ell"):
+        grid_shape = shape("grids", name)
+        if len(grid_shape) != 1:
+            raise ValueError(f"retained {name} grid is not a vector")
+        sizes[name] = grid_shape[0]
+    for name in ("k", "eta"):
+        if shape("weights", name) != (sizes[name],):
+            raise ValueError(
+                f"retained {name} weights do not match their grid"
+            )
+    for group, expected in (
+        ("sources", (sizes["k"], sizes["eta"])),
+        ("transfers", (sizes["ell"], sizes["k"])),
+    ):
+        arrays = products.get(group, {})
+        if not isinstance(arrays, Mapping) or not arrays:
+            raise ValueError(f"retained {group} are missing")
+        for name in arrays:
+            if shape(group, name) != expected:
+                raise ValueError(
+                    f"retained {group}/{name} grid dimensions differ"
+                )
+
+
+def read_cmb_completion_products(root, entry):
+    """Reopen the complete observed array chain with bounded working memory.
+
+    Composite manifests reference immutable archives emitted by the actual
+    numerical owners. Quadrature contributions are recomputed, rather than
+    accepted from a hash or a reported status alone.
+    """
+
+    from .evidence_assets import read_array_products
+    from .runtime.spectrum_projection import power_spectrum_quadrature_weights
+
+    manifest = _completion_artifact(Path(root), entry)
+    if manifest.get("schema_version") != 2:
+        raise ValueError(
+            "completion products require the complete archive chain"
+        )
+    sources = read_array_products(
+        root, manifest["source"], array_paths=(("k",), ("eta",))
+    )
+    projection = read_array_products(
+        root, manifest["projection"], array_paths=(("ell",), ("k",))
+    )
+    source_k = sources["k"]
+    ordered = sorted(sources["sources_by_k"], key=float)
+    if not numpy.array_equal(
+        numpy.asarray([float(key) for key in ordered]), source_k
+    ):
+        raise ValueError(
+            "retained source modes do not match their actual grid"
+        )
+    for name, grid in (
+        ("source k", source_k),
+        ("transfer k", projection["k"]),
+        ("eta", sources["eta"]),
+        ("ell", projection["ell"]),
+    ):
+        if (
+            numpy.asarray(grid).ndim != 1
+            or not len(grid)
+            or numpy.any(numpy.diff(grid) <= 0)
+        ):
+            raise ValueError(f"retained {name} grid is not strictly ordered")
+    names = set(sources["sources_by_k"][ordered[0]])
+    if any(set(sources["sources_by_k"][key]) != names for key in ordered):
+        raise ValueError(
+            "retained source component inventory differs between modes"
+        )
+    quadratures = manifest.get("quadratures", [])
+    if not quadratures:
+        raise ValueError("retained spectrum quadrature operators are missing")
+    for quadrature in quadratures:
+        payload = read_array_products(
+            root,
+            quadrature,
+            array_paths=tuple(
+                (name,)
+                for name in (
+                    "weights",
+                    "positive_weights",
+                    "weighted_transfer_products",
+                    "positive_fallback_rows",
+                    "C_ell",
+                    "log_k",
+                )
+            ),
+        )
+        weights = numpy.asarray(payload["weights"])
+        values = numpy.asarray(payload["weighted_transfer_products"])
+        if (
+            values.ndim != 2
+            or values.shape[1:] != weights.shape
+            or weights.shape != payload["log_k"].shape
+        ):
+            raise ValueError("retained quadrature grid dimensions differ")
+        expected_weights = power_spectrum_quadrature_weights(
+            payload["log_k"], payload["rule"]
+        )
+        positive_weights = power_spectrum_quadrature_weights(
+            payload["log_k"], "trapezoid"
+        )
+        if not numpy.array_equal(
+            weights, expected_weights
+        ) or not numpy.array_equal(
+            payload["positive_weights"], positive_weights
+        ):
+            raise ValueError(
+                "retained quadrature operator differs from its rule"
+            )
+        integral = numpy.sum(values * weights, axis=1)
+        fallback = numpy.asarray(payload["positive_fallback_rows"], dtype=bool)
+        if fallback.shape != (values.shape[0],):
+            raise ValueError("retained quadrature fallback dimensions differ")
+        integral = numpy.where(
+            fallback,
+            numpy.sum(values * payload["positive_weights"], axis=1),
+            integral,
+        )
+        if payload["auto_spectrum"]:
+            integral = numpy.maximum(integral, 0)
+        actual = 4 * numpy.longdouble(numpy.pi) * integral
+        expected = numpy.asarray(payload["C_ell"])
+        if expected.shape != (values.shape[0],):
+            raise ValueError("retained quadrature spectrum dimensions differ")
+        # Cancellation can make a cross spectrum nearly zero. Bound only
+        # roundoff in this integral's own operands, without a foreign auto
+        # spectrum floor or a relaxed physical comparison tolerance.
+        floor = (
+            64
+            * numpy.finfo(float).eps
+            * 4
+            * numpy.pi
+            * numpy.sum(abs(values * weights), axis=1)
+        )
+        if not numpy.allclose(
+            actual,
+            expected,
+            rtol=CMB_COMPLETION_METRICS["conversion_relative_tolerance"],
+            atol=floor,
+        ):
+            raise ValueError(
+                "retained quadrature does not reproduce its spectrum"
+            )
+    return {
+        "source_grid": sources["eta"],
+        "source_k": source_k,
+        "transfer_k": projection["k"],
+        "ell": projection["ell"],
+        "source_components": {
+            name: [sources["sources_by_k"][key][name] for key in ordered]
+            for name in names
+        },
+        "eta_weights": sources["eta_weights"],
+        "transfer_components": projection["transfers"],
+        "quadrature_count": len(quadratures),
+    }
 
 
 def compare_cmb_completion_spectra(
@@ -4895,6 +5206,7 @@ def assess_cmb_completion_evidence(
     *,
     evidence_root: str | Path | None,
     repository_root: str | Path | None = None,
+    required_case_ids: Iterable[str] | None = None,
 ) -> dict[str, Any]:
     """Reject incomplete, synthetic, stale, or unreloadable final evidence.
 
@@ -4924,16 +5236,35 @@ def assess_cmb_completion_evidence(
     if contract.get("metrics") != _jsonable(CMB_COMPLETION_METRICS):
         issues.append("completion metrics differ from the frozen contract")
     root = Path(repository_root or Path(__file__).resolve().parents[4])
-    try:
-        frozen = json.loads(
-            (
-                root / "tests/project/fixtures/ccmbs_completion_contract.json"
-            ).read_text()
+    bindings = contract.get("bindings", {})
+    selected = (
+        required if required_case_ids is None else set(required_case_ids)
+    )
+    if not selected or not selected <= required:
+        issues.append(
+            "completion selection is empty or contains unknown cases"
         )
+    if contract.get("schema_version") != 2:
+        issues.append(
+            "completion contract schema requires current case bindings"
+        )
+    try:
+        frozen_path = (
+            root / "tests/project/fixtures/ccmbs_completion_contract.json"
+        )
+        frozen = json.loads(frozen_path.read_text())
+        if (
+            contract.get("frozen_fixture_sha256")
+            != hashlib.sha256(frozen_path.read_bytes()).hexdigest()
+        ):
+            issues.append("frozen completion fixture identity differs")
+        if (
+            contract.get("frozen_materialization_sha256")
+            != frozen["case_sha256"]
+        ):
+            issues.append("historical materialization identities were changed")
         for case_id in required:
-            if _canonical_sha256(requirements.get(case_id, {})) != frozen[
-                "case_sha256"
-            ].get(case_id):
+            if requirements.get(case_id) != frozen["cases"].get(case_id):
                 issues.append(
                     f"{case_id}: required physics/reference contract "
                     "differs from the frozen inventory"
@@ -4951,20 +5282,52 @@ def assess_cmb_completion_evidence(
     if evidence_root is None:
         issues.append("persistent evidence root is missing")
     supplied = rows or {}
-    if set(supplied) != required:
+    if set(supplied) != selected:
         issues.append(
             "actual completion case inventory is incomplete or unexpected"
         )
-    for case_id in sorted(required):
+    for case_id in sorted(selected & required):
         row_issues: list[str] = []
         row = supplied.get(case_id, {})
         requirement = requirements.get(case_id, {})
+        binding = bindings.get(case_id, {})
+        filename = binding.get("model_filename")
+        if filename:
+            declaration = root / "copernican/models" / str(filename)
+            if (
+                Path(str(filename)).name != filename
+                or not declaration.is_file()
+                or hashlib.sha256(declaration.read_bytes()).hexdigest()
+                != binding.get("declaration_sha256")
+            ):
+                row_issues.append("case declaration dependency is stale")
         if row.get("execution_kind") != "ordinary_ccmbs":
             row_issues.append("real ordinary CCMBS execution is missing")
         if row.get("status") != "accepted":
             row_issues.append("case has no accepted numerical decision")
-        if row.get("source_sha256") != identity["sha256"]:
-            row_issues.append("case source identity is stale")
+        try:
+            expected_dependency = cmb_completion_dependency_identity(
+                {
+                    "runtime": binding["physical_inputs"],
+                    "declaration_sha256": binding.get("declaration_sha256"),
+                },
+                binding["request"],
+                binding["numerical_plan"],
+                {
+                    "reference_identity": requirement.get(
+                        "reference_identity"
+                    ),
+                    "reference_sha256": requirement.get("reference_sha256"),
+                },
+                requirement,
+                repository_root=root,
+            )
+            if row.get("dependency_identity") != expected_dependency:
+                row_issues.append("case dependency/source identity is stale")
+        except (KeyError, TypeError, ValueError):
+            row_issues.append(
+                "case source identity lacks current dependency bindings"
+            )
         if row.get("requirement_sha256") != _canonical_sha256(requirement):
             row_issues.append(
                 "case declaration/reference/request identity is stale"
@@ -4982,8 +5345,21 @@ def assess_cmb_completion_evidence(
                 row_issues.append(f"{name} retained artifact is missing")
                 continue
             try:
-                loaded[name] = _completion_artifact(Path(evidence_root), entry)
-            except (OSError, UnicodeError, ValueError, TypeError) as error:
+                if name == "raw_products":
+                    loaded[name] = read_cmb_completion_products(
+                        Path(evidence_root), entry
+                    )
+                else:
+                    loaded[name] = _completion_artifact(
+                        Path(evidence_root), entry
+                    )
+            except (
+                OSError,
+                UnicodeError,
+                ValueError,
+                TypeError,
+                KeyError,
+            ) as error:
                 row_issues.append(f"{name} artifact rejected: {error}")
         execution = loaded.get("execution", {})
         if execution.get("solver_id") != "ccmbs" or execution.get(
@@ -4996,13 +5372,25 @@ def assess_cmb_completion_evidence(
             requirement.get("surfaces", ())
         ):
             row_issues.append("complete declared output surfaces are missing")
-        if execution.get("physical_inputs") != requirement.get(
-            "physical_inputs"
-        ):
+        if execution.get("physical_inputs") != binding.get("physical_inputs"):
             row_issues.append(
                 "execution physical inputs differ from the contract"
             )
-        if not requirement.get("surfaces") or not requirement.get(
+        if execution.get("request") != binding.get("request"):
+            row_issues.append(
+                "execution request differs from the current binding"
+            )
+        request = binding.get("request", {})
+        if (
+            request.get("ells") != requirement.get("ells")
+            or request.get("spectra") != requirement.get("surfaces")
+            or request.get("numerical_overrides") != {}
+            or request.get("workload") != "full_spectrum"
+        ):
+            row_issues.append(
+                "case request differs from the frozen requirements"
+            )
+        if not requirement.get("surfaces") or not binding.get(
             "physical_inputs"
         ):
             row_issues.append("case lacks a resolved physical/output contract")
@@ -5021,18 +5409,27 @@ def assess_cmb_completion_evidence(
             row_issues.append("raw spectrum units are unresolved")
         products = loaded.get("raw_products", {})
         for product_name in ("grids", "weights", "sources", "transfers"):
-            if not products.get(product_name):
+            if "source_components" in products:
+                break
+            product = products.get(product_name)
+            if not isinstance(product, Mapping) or not product:
                 row_issues.append(
                     f"retained numerical products lack {product_name}"
                 )
+        try:
+            validate_cmb_completion_products(products)
+        except (ValueError, TypeError, AttributeError) as error:
+            row_issues.append(f"raw numerical payload rejected: {error}")
         if requirement.get("graph_required"):
             try:
                 graph = loaded["graph"]
                 image_entry = graph["image"]
                 image_path = Path(image_entry["path"])
-                root = Path(evidence_root).resolve()
-                target = (root / image_path).resolve()
-                if image_path.is_absolute() or not target.is_relative_to(root):
+                artifact_root = Path(evidence_root).resolve()
+                target = (artifact_root / image_path).resolve()
+                if image_path.is_absolute() or not target.is_relative_to(
+                    artifact_root
+                ):
                     raise ValueError("graph escapes evidence root")
                 if (
                     hashlib.sha256(target.read_bytes()).hexdigest()

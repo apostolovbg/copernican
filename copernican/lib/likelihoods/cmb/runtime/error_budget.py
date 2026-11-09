@@ -242,6 +242,86 @@ def combine_observable_errors(
     }
 
 
+def source_representation_envelope(
+    source_eta, sources, reference_eta, reference
+):
+    """Bound sparse-source interpolation against independent native samples.
+
+    Each sparse interval retains its largest observed discrepancy at both
+    ends. Linear resampling of this envelope therefore cannot erase a peak
+    between saved source nodes. Reference sources are freshly reevaluated
+    from the accepted native states, not interpolated from the sparse data.
+    """
+
+    source_eta = numpy.asarray(source_eta)
+    reference_eta = numpy.asarray(reference_eta)
+    if (
+        source_eta.ndim != 1
+        or reference_eta.ndim != 1
+        or source_eta.size < 2
+        or reference_eta.size < 2
+        or not numpy.all(numpy.isfinite(source_eta))
+        or not numpy.all(numpy.isfinite(reference_eta))
+        or numpy.any(numpy.diff(source_eta) <= 0)
+        or numpy.any(numpy.diff(reference_eta) <= 0)
+        or reference_eta[0] < source_eta[0]
+        or reference_eta[-1] > source_eta[-1]
+        or not sources
+        or set(sources) != set(reference)
+    ):
+        raise ValueError(
+            "Source representation requires contained matching samples"
+        )
+    segments = numpy.clip(
+        numpy.searchsorted(source_eta, reference_eta, side="right") - 1,
+        0,
+        source_eta.size - 2,
+    )
+    relative, absolute, errors = {}, {}, {}
+    for name, samples in sources.items():
+        values = numpy.asarray(reference[name])
+        if (
+            numpy.asarray(samples).shape != source_eta.shape
+            or values.shape != reference_eta.shape
+        ):
+            raise ValueError("Source representation history dimensions differ")
+        interpolated = CubicSpline(source_eta, samples, extrapolate=False)(
+            reference_eta
+        )
+        if not numpy.all(numpy.isfinite(values)) or not numpy.all(
+            numpy.isfinite(interpolated)
+        ):
+            raise ValueError("Source representation requires finite values")
+        discrepancy = abs(interpolated - values)
+        peak = float(numpy.max(discrepancy))
+        reference_scale = max(
+            float(numpy.max(abs(values))),
+            float(numpy.max(abs(interpolated))),
+            numpy.finfo(float).tiny,
+        )
+        scale = float(numpy.max(abs(interpolated)))
+        interval_peaks = numpy.zeros(source_eta.size - 1)
+        numpy.maximum.at(interval_peaks, segments, discrepancy)
+        envelope = numpy.zeros(source_eta.size)
+        envelope[:-1] = numpy.maximum(envelope[:-1], interval_peaks)
+        envelope[1:] = numpy.maximum(envelope[1:], interval_peaks)
+        if scale > 0 and scale >= peak / float(numpy.finfo(float).max):
+            relative[name], absolute[name] = (
+                envelope / scale,
+                numpy.zeros_like(envelope),
+            )
+        else:
+            relative[name], absolute[name] = (
+                numpy.zeros_like(envelope),
+                envelope,
+            )
+        errors[name] = {
+            "relative_error": peak / reference_scale,
+            "absolute_error": peak,
+        }
+    return relative, absolute, errors
+
+
 def update_source_error_envelope(
     envelope: dict[str, numpy.ndarray],
     fine: Mapping[str, numpy.ndarray],

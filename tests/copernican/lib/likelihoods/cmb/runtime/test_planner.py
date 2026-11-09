@@ -62,6 +62,8 @@ class AutomaticCMBPlannerTestCase(unittest.TestCase):
             high.numerical_controls["k_max"],
             low.numerical_controls["k_max"],
         )
+        extended = plan_cmb_numerics(contract, ells=(2, 10000))
+        self.assertGreater(extended.numerical_controls["k_max"], 1.0)
         for value in low.numerical_controls.values():
             if value is not None:
                 self.assertTrue(float(value) == float(value))
@@ -166,7 +168,7 @@ class AutomaticCMBPlannerTestCase(unittest.TestCase):
         )
         self.assertEqual(
             controls["adaptive_transfer"]["algorithm"],
-            "nested_independent_source_projection",
+            "independent_source_interpolation",
         )
         self.assertLessEqual(
             float(controls["adaptive_source"]["relative_tolerance"]),

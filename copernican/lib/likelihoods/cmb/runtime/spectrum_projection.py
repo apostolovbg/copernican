@@ -7,7 +7,7 @@ from typing import Any, Mapping, Sequence
 
 import numpy
 from scipy.integrate import simpson
-from scipy.interpolate import CubicSpline
+from scipy.interpolate import CubicSpline, make_interp_spline
 
 from ....cmb_projection_contract import (
     SUPPORTED_DECLARED_TRANSFER_PROJECTIONS,
@@ -24,6 +24,48 @@ from .background import (
 )
 
 
+def power_spectrum_quadrature_weights(nodes, rule):
+    """Retain the actual linear integration operator in bounded memory.
+
+    Simpson's final odd interval uses the same Cartwright correction as
+    SciPy. These signed weights are observations of the chosen rule; they
+    do not replace the production integral or alter its positivity checks.
+    """
+
+    x = numpy.asarray(nodes, dtype=numpy.longdouble)
+    steps = numpy.diff(x)
+    if (
+        x.ndim != 1
+        or x.size < 2
+        or not numpy.all(numpy.isfinite(x))
+        or numpy.any(steps <= 0)
+    ):
+        raise ValueError("Quadrature weights need ordered finite nodes")
+    weights = numpy.zeros_like(x)
+    if rule == "cubic" and x.size >= 3:
+        from .error_budget import spline_integral_weights
+
+        return spline_integral_weights(tuple(float(value) for value in x))
+    if rule == "trapezoid" or x.size == 2:
+        weights[:-1] += steps / 2
+        weights[1:] += steps / 2
+        return weights
+    if rule != "simpson":
+        raise ValueError("Unknown spectrum quadrature rule")
+    for index in range(0, x.size - 2, 2):
+        left, right = steps[index : index + 2]
+        total = left + right
+        weights[index] += total / 6 * (2 - right / left)
+        weights[index + 1] += total**3 / (6 * left * right)
+        weights[index + 2] += total / 6 * (2 - left / right)
+    if x.size % 2 == 0:
+        left, right = steps[-2:]
+        weights[-1] += (2 * right**2 + 3 * left * right) / (6 * (left + right))
+        weights[-2] += (right**2 + 3 * left * right) / (6 * left)
+        weights[-3] -= right**3 / (6 * left * (left + right))
+    return weights
+
+
 def _integrate_power_spectrum(
     primordial_grid: numpy.ndarray,
     log_k_values: numpy.ndarray,
@@ -33,6 +75,7 @@ def _integrate_power_spectrum(
     auto_spectrum: bool = False,
     use_cubic_spline: bool = True,
     use_positive_trapezoid: bool = False,
+    product_observer=None,
 ) -> numpy.ndarray:
     """Return one finite power-spectrum quadrature in extended precision.
 
@@ -89,6 +132,7 @@ def _integrate_power_spectrum(
         secondary_ld = secondary_ld[..., keep]
     weighted = primordial_ld[numpy.newaxis, :] * (primary_ld * secondary_ld)
     log_k_steps = numpy.diff(log_k_ld)
+    negative_rows = numpy.zeros(weighted.shape[0], dtype=bool)
 
     # The phase-aware grid intentionally combines a logarithmic scaffold with
     # linear phase nodes.  A cubic spline antiderivative integrates that
@@ -162,9 +206,207 @@ def _integrate_power_spectrum(
             )
         integral = numpy.maximum(integral, 0.0)
     integrated = 4.0 * numpy.longdouble(math.pi) * integral
+    if product_observer is not None:
+        rule = (
+            "trapezoid"
+            if use_positive_trapezoid
+            else (
+                "cubic"
+                if use_cubic_spline and log_k_ld.size >= 3
+                else "simpson"
+            )
+        )
+        product_observer(
+            "spectrum_quadrature",
+            {
+                "log_k": log_k_ld,
+                "weighted_transfer_products": weighted,
+                "weights": power_spectrum_quadrature_weights(log_k_ld, rule),
+                "rule": rule,
+                "positive_fallback_rows": negative_rows,
+                "positive_weights": power_spectrum_quadrature_weights(
+                    log_k_ld, "trapezoid"
+                ),
+                "C_ell": integrated,
+                "auto_spectrum": auto_spectrum,
+            },
+        )
     # Keep the raw spectrum in extended precision until the public solver
     # applies its final float conversion.
     return numpy.asarray(integrated, dtype=numpy.longdouble)
+
+
+def project_interpolated_source_histories(
+    *,
+    base_k,
+    base_sources,
+    refined_k,
+    refined_sources,
+    angular_k,
+    ell_values,
+    eta,
+    eta_weights,
+    chi,
+    source_chi,
+    components,
+    kernel_provider,
+    coarse_indices=None,
+    coarse_weights=None,
+    uncertainty_projector=None,
+    uncertainty_axes=(),
+    heartbeat=None,
+    source_eta=None,
+):
+    """Project two independently evolved source meshes on one angular mesh.
+
+    Interpolation applies only to physical sources. The Bessel phase is
+    evaluated at each angular node, never interpolated from sparse transfer
+    functions. Comparing the two source meshes at identical angular nodes
+    isolates source-k representation error. A nested angular submesh then
+    isolates integration error without another hierarchy solve.
+    """
+
+    base_k = numpy.asarray(base_k, dtype=float)
+    refined_k = numpy.asarray(refined_k, dtype=float)
+    angular_k = numpy.asarray(angular_k, dtype=float)
+    eta = numpy.asarray(eta, dtype=float)
+    source_eta = (
+        eta if source_eta is None else numpy.asarray(source_eta, dtype=float)
+    )
+    if (
+        numpy.any(numpy.diff(source_eta) <= 0)
+        or eta[0] < source_eta[0]
+        or eta[-1] > source_eta[-1]
+    ):
+        raise ValueError("Source time samples must contain the radial domain")
+    for label, nodes in (
+        ("base", base_k),
+        ("refined", refined_k),
+        ("angular", angular_k),
+    ):
+        if (
+            nodes.ndim != 1
+            or nodes.size < 2
+            or not numpy.all(numpy.isfinite(nodes))
+            or numpy.any(nodes <= 0)
+            or numpy.any(numpy.diff(nodes) <= 0)
+        ):
+            raise ValueError(f"Invalid {label} source-projection nodes")
+    if (
+        not numpy.all(numpy.isin(base_k, refined_k))
+        or refined_k.size <= base_k.size
+        or base_k[0] != refined_k[0]
+        or base_k[-1] != refined_k[-1]
+        or angular_k[0] < base_k[0]
+        or angular_k[-1] > base_k[-1]
+    ):
+        raise ValueError(
+            "Source refinement must be distinct, nested and contained"
+        )
+    if set(base_sources) != set(refined_sources) or not base_sources:
+        raise ValueError(
+            "Source interpolation requires matching physical roles"
+        )
+    interpolants = []
+    for nodes, histories in (
+        (base_k, base_sources),
+        (refined_k, refined_sources),
+    ):
+        current = {}
+        for name, values in histories.items():
+            values = numpy.asarray(values, dtype=float)
+            if values.shape != (nodes.size, source_eta.size) or not numpy.all(
+                numpy.isfinite(values)
+            ):
+                raise ValueError(
+                    f"Source interpolation dimensions differ: {name}"
+                )
+            # B-spline coefficients retain linear storage in the native data
+            # size. A piecewise-polynomial tensor would retain four copies.
+            current[name] = make_interp_spline(
+                nodes, values, k=min(3, nodes.size - 1), axis=0
+            )
+        interpolants.append(current)
+    shape = (len(ell_values), angular_k.size)
+    transfers = [
+        {name: numpy.zeros(shape) for name in components} for _ in range(2)
+    ]
+    coarse_eta = {name: numpy.zeros(shape) for name in components}
+    uncertainties = {
+        axis: {name: numpy.zeros(shape) for name in components}
+        for axis in uncertainty_axes
+    }
+    eta0 = float(eta[-1])
+    for wave_index, wave in enumerate(angular_k):
+        kernels = kernel_provider(
+            tuple(int(value) for value in ell_values), wave * (eta0 - eta)
+        )
+        for mesh_index, splines in enumerate(interpolants):
+            sources = {
+                name: numpy.asarray(spline(float(wave)))
+                for name, spline in splines.items()
+            }
+            if not numpy.array_equal(source_eta, eta):
+                sources = {
+                    name: CubicSpline(source_eta, values, extrapolate=False)(
+                        eta
+                    )
+                    for name, values in sources.items()
+                }
+            for name, component in components.items():
+                histories = _bind_declared_source_histories(
+                    component_name=name,
+                    component_entry=component,
+                    source_arrays=sources,
+                )
+                arguments = dict(
+                    projection=str(component.projection or ""),
+                    kernel=component.kernel,
+                    sector=component.sector,
+                    kernel_batch=kernels,
+                    k_value=float(wave),
+                    eta_weights=eta_weights,
+                    chi_grid=chi,
+                    source_chi=source_chi,
+                    source_histories=histories,
+                )
+                transfers[mesh_index][name][:, wave_index] = (
+                    _declared_graph_projection(**arguments)
+                )
+                if mesh_index == 0:
+                    continue
+                if coarse_indices is not None:
+                    coarse_eta[name][:, wave_index] = (
+                        _declared_graph_projection(
+                            **{
+                                **arguments,
+                                "kernel_batch": _slice_projection_kernel_batch(
+                                    kernels, coarse_indices
+                                ),
+                                "eta_weights": coarse_weights,
+                                "chi_grid": chi[coarse_indices],
+                                "source_histories": {
+                                    role: values[coarse_indices]
+                                    for role, values in histories.items()
+                                },
+                            }
+                        )
+                    )
+                if uncertainty_projector is not None:
+                    for axis in uncertainty_axes:
+                        uncertainties[axis][name][:, wave_index] = (
+                            uncertainty_projector(
+                                axis, component, sources, kernels, float(wave)
+                            )
+                        )
+        if heartbeat is not None:
+            heartbeat(wave_index + 1, angular_k.size)
+    return {
+        "base": transfers[0],
+        "refined": transfers[1],
+        "coarse_eta": coarse_eta,
+        "uncertainties": uncertainties,
+    }
 
 
 def _configured_reference_ells(
@@ -257,6 +499,7 @@ def _build_projection_k_grid(
     surface_ell_max_override: int | None = None,
     retain_declared_surface: bool = False,
     refinement_anchors: Sequence[float] | None = None,
+    source_sampling: bool = False,
 ) -> numpy.ndarray:
     """Return a projection k-grid that satisfies declared numerical bounds.
 
@@ -351,9 +594,13 @@ def _build_projection_k_grid(
             *configured_reference_ells,
         )
     )
-    k_min = max(
-        declared_k_min,
-        0.2 * max(float(grid_ell_min), 2.0) / eta0_floor,
+    k_min = (
+        declared_k_min
+        if source_sampling
+        else max(
+            declared_k_min,
+            0.2 * max(float(grid_ell_min), 2.0) / eta0_floor,
+        )
     )
     required_k_max = 1.5 * ((float(grid_ell_max) + 16.0) / eta_rec_distance)
     refinement_factor = max(
@@ -369,7 +616,9 @@ def _build_projection_k_grid(
             sample_count * refinement_factor,
             int(numerics.k_sample_count) * refinement_factor,
         )
-    if manifest_summary.get("generated_tensor_hierarchy"):
+    if source_sampling:
+        k_floor = declared_k_max
+    elif manifest_summary.get("generated_tensor_hierarchy"):
         # Tensor spin-2 kernels retain an oscillatory high-k tail beyond the
         # scalar projection envelope.  Keep that tail in the fixed node
         # budget so the absolute tensor surfaces converge at the reference
@@ -384,10 +633,6 @@ def _build_projection_k_grid(
         )
         k_floor = max(12.0 * k_min, tensor_tail_floor)
     else:
-        # Keep scalar quadrature nodes on the requested projection surface.
-        # A fixed 0.08/Mpc floor spends the declared node budget on modes
-        # that cannot project to the requested ell range and leaves the
-        # visibility-scale Bessel oscillations under-resolved.
         k_floor = max(12.0 * k_min, required_k_max)
     if k_min > declared_k_max or required_k_max > declared_k_max:
         raise ValueError(
@@ -467,7 +712,11 @@ def _build_projection_k_grid(
                 )
                 or 8.0
             ),
-            eta_distance=eta_rec_distance,
+            eta_distance=(
+                max(float(background.sound_horizon_mpc), 1.0)
+                if source_sampling
+                else eta_rec_distance
+            ),
             sound_horizon=max(float(background.sound_horizon_mpc), 1.0),
         )
         # The physical phase floor is a lower bound for the base ladder.  A
@@ -587,7 +836,11 @@ def _build_projection_k_grid(
             minimum_nodes=sample_count,
             maximum_nodes=sample_count,
             phase_points_per_cycle=phase_points_per_cycle,
-            eta_distance=eta_rec_distance,
+            eta_distance=(
+                max(float(background.sound_horizon_mpc), 1.0)
+                if source_sampling
+                else eta_rec_distance
+            ),
             sound_horizon=max(float(background.sound_horizon_mpc), 1.0),
             anchors=anchor_nodes,
             require_phase_resolution=bool(require_phase_resolution),
@@ -674,6 +927,7 @@ def _integrate_declared_spectra(
     transfer_components: Mapping[str, numpy.ndarray],
     k_values: numpy.ndarray,
     log_k_values: numpy.ndarray,
+    product_observer=None,
 ) -> dict[str, numpy.ndarray]:
     """Integrate declared spectra from transfer products and current tilt."""
 
@@ -708,6 +962,7 @@ def _integrate_declared_spectra(
             use_cubic_spline=(
                 str(getattr(observable_entry, "sector", "")) != "tensor"
             ),
+            product_observer=product_observer,
         )
     return spectra_results
 

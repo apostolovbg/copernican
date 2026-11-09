@@ -13,6 +13,287 @@ from copernican.lib.likelihoods.cmb.runtime import execution
 class ExecutionModuleTestCase(unittest.TestCase):
     """Exercise public numerical execution composition directly."""
 
+    def test_independent_source_times_rebind_and_restore_physical_context(
+        self,
+    ):
+        """Native reevaluation preserves shared nodes without another solve."""
+
+        from copernican.lib.likelihoods.cmb.runtime import mode_evolution
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._speedup_contract(test_cmb._custom_contract())
+        contract = test_cmb._prepare_declared_contract(raw)
+        execution.cache.clear_cmb_caches()
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        captured = {}
+        build = execution.build_declared_mode_evolution
+
+        class Prepared(BaseException):
+            """Stop after preparing the real runtime, before evolution."""
+
+        def capture_runtime(inputs):
+            captured["runtime"] = build(inputs)
+            captured["source_eta"] = inputs.source_grids["eta"].copy()
+            raise Prepared()
+
+        wave = 0.001
+        with mock.patch.object(
+            execution, "build_declared_mode_evolution", capture_runtime
+        ):
+            with self.assertRaises(Prepared):
+                execution._compute_custom_cmb_spectrum_data_impl(
+                    contract,
+                    (2,),
+                    source_probe=numpy.array([wave]),
+                    requested_spectra=("TT",),
+                    performance_timer=execution.PhaseTimer(),
+                )
+        sink = {}
+        _, expected_sources = captured["runtime"].evolve_declared_mode(
+            wave, history_sink=sink, collect_diagnostics=False
+        )
+        epoch = captured["source_eta"]
+        resample = captured["runtime"].resample_mode_history
+        arguments = (wave, sink["evolution_eta"], sink["evolution_histories"])
+        _, baseline = resample(*arguments, collect_diagnostics=False)
+        target = numpy.unique(
+            numpy.r_[
+                epoch,
+                (epoch[:-1] + epoch[1:]) / 2,
+            ]
+        )
+        with mock.patch.object(
+            mode_evolution,
+            "_integrate_batched_rk4",
+            side_effect=AssertionError("No new ODE work"),
+        ):
+            _, evaluated = resample(
+                *arguments, target_eta=target, collect_diagnostics=False
+            )
+            shared = numpy.searchsorted(target, epoch)
+            for name, expected in expected_sources.items():
+                self.assertEqual(evaluated[name].shape, target.shape)
+                numpy.testing.assert_allclose(
+                    evaluated[name][shared], expected, rtol=1e-12, atol=1e-20
+                )
+            with self.assertRaises(ValueError):
+                resample(*arguments, target_eta=numpy.array([numpy.nan]))
+            _, restored = resample(*arguments, collect_diagnostics=False)
+        for name, expected in baseline.items():
+            numpy.testing.assert_array_equal(restored[name], expected)
+
+    def test_source_interpolation_executes_independent_physical_modes(self):
+        """A bounded declared graph uses real sources and radial operators."""
+
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._speedup_contract(test_cmb._custom_contract())
+        raw["numerical"].update(k_sample_count=8, k_max=0.03, ell_max=20)
+        controls = {
+            "adaptive_transfer": {
+                "enabled": True,
+                "minimum_nodes": 8,
+                "maximum_nodes": 16,
+                "relative_tolerance": 0.01,
+                "algorithm": "independent_source_interpolation",
+            }
+        }
+        raw["perturbations"]["accuracy_controls"] = controls
+        contract = test_cmb._prepare_declared_contract(raw)
+        contract["_engine_numerical_plan"] = contract.pop("numerical")
+        contract["_engine_accuracy_controls"] = controls
+        execution.cache.clear_cmb_caches()
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        with mock.patch.object(
+            execution,
+            "project_interpolated_source_histories",
+            wraps=execution.project_interpolated_source_histories,
+        ) as projection:
+            result = execution._compute_custom_cmb_spectrum_data(
+                contract,
+                (2, 10),
+                requested_spectra=("TT",),
+                workload="fixed_parameter_diagnostic",
+            )
+        envelope = result.runtime_envelope
+        self.assertEqual(
+            envelope["adaptive_transfer_algorithm"],
+            "independent_source_interpolation",
+        )
+        self.assertGreater(
+            envelope["adaptive_transfer_new_node_work_units"], 0
+        )
+        self.assertGreater(
+            len(result.k_grid), len(envelope["native_source_k_grid"])
+        )
+        self.assertEqual(result.k_grid[-1], 0.03)
+        self.assertEqual(
+            envelope["projection_bessel_mode_count"], result.k_grid.size
+        )
+        self.assertTrue(
+            numpy.all(numpy.isfinite(result.spectra["TT"])),
+            "integrate_projected must retain finite physical spectra",
+        )
+        supplied = projection.call_args.kwargs
+        x = supplied["angular_k"][0] * (supplied["eta"][-1] - supplied["eta"])
+        from scipy.special import spherical_jn
+
+        source_kernel_provider = supplied["kernel_provider"]
+        kernels = source_kernel_provider((2, 10), x)
+        numpy.testing.assert_allclose(
+            kernels.j_l,
+            numpy.stack([spherical_jn(ell, x) for ell in (2, 10)]),
+            rtol=1e-12,
+            atol=1e-15,
+            err_msg="source_kernel_provider must use the actual radial phase",
+        )
+        component = next(iter(supplied["components"].values()))
+        sources = {
+            name: values[0]
+            for name, values in supplied["base_sources"].items()
+        }
+        source_uncertainty_projector = supplied["uncertainty_projector"]
+        missing_uncertainty = "Missing source uncertainty"
+        # on_projection_grid must not invent missing source measurements.
+        with self.assertRaisesRegex(ValueError, missing_uncertainty):
+            source_uncertainty_projector(
+                "source", component, sources, kernels, supplied["angular_k"][0]
+            )
+        with mock.patch.object(execution.PhaseTimer, "heartbeat") as heartbeat:
+            supplied["heartbeat"](5, len(supplied["angular_k"]))
+        self.assertEqual(
+            heartbeat.call_args.kwargs["completed"],
+            5,
+            "projection_progress must retain actual completed work",
+        )
+        self.assertEqual(
+            heartbeat.call_args.kwargs["total"], len(supplied["angular_k"])
+        )
+
+    def test_native_pilot_admission_starts_with_one_interior_mode(self):
+        """An early pilot failure must precede remaining physical modes."""
+
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._speedup_contract(
+            test_cmb._declared_scalar_hierarchy_contract()
+        )
+        raw["perturbations"]["accuracy_controls"] = {
+            "adaptive_evolution": {
+                "enabled": True,
+                "minimum_nodes": 32,
+                "maximum_nodes": 1024,
+                "relative_tolerance": 0.02,
+            }
+        }
+        contract = test_cmb._prepare_declared_contract(raw)
+        calls = []
+        build = execution.build_declared_mode_evolution
+
+        class Admitted(BaseException):
+            """Observe work admission before any numerical trajectory."""
+
+        def admit(waves, **kwargs):
+            calls.append(numpy.array(waves, copy=True))
+            raise Admitted()
+
+        def capture(inputs):
+            return replace(build(inputs), evolve_declared_modes_batched=admit)
+
+        execution.cache.clear_cmb_caches()
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        with mock.patch.object(
+            execution, "build_declared_mode_evolution", capture
+        ):
+            with self.assertRaises(Admitted):
+                execution._compute_custom_cmb_spectrum_data_impl(
+                    contract,
+                    (2,),
+                    requested_spectra=("TT",),
+                    performance_timer=execution.PhaseTimer(),
+                )
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(
+            calls[0].size,
+            1,
+            "evolve_pilots must validate one mode before more work",
+        )
+        self.assertGreater(calls[0][0], raw["numerical"]["k_min"])
+        self.assertLess(calls[0][0], raw["numerical"]["k_max"])
+
+    def test_ordinary_background_and_source_controls_remain_independent(
+        self,
+    ):
+        """A dense physical background cannot silently multiply other axes."""
+
+        from copernican.lib.likelihoods.cmb import cmb
+        from tests.project.lib.ccmbs_production_graph import _build_lcdm_plugin
+
+        class Captured(BaseException):
+            pass
+
+        plugin = _build_lcdm_plugin()
+        runtime = plugin.get_cmb_declared_runtime(plugin.INITIAL_GUESSES)
+        observed = {}
+
+        def capture(inputs):
+            observed.update(
+                background=len(inputs.background.eta_grid),
+                source=len(inputs.source_grids["eta"]),
+                evolution=inputs.numerics.evolution_eta_sample_count,
+                numerical_overrides=inputs.contract_or_params.get(
+                    "_numerical_overrides", {}
+                ),
+            )
+            raise Captured()
+
+        execution.cache.clear_cmb_caches()
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        with mock.patch.object(
+            execution, "build_declared_mode_evolution", side_effect=capture
+        ):
+            with self.assertRaises(Captured):
+                cmb.compute_cmb_spectrum_from_contract(
+                    runtime,
+                    [2, 20, 100],
+                    spectra=["TT", "TE", "EE"],
+                    workload="full_spectrum",
+                )
+        self.assertEqual(observed["numerical_overrides"], {})
+        self.assertGreater(observed["background"], observed["evolution"])
+        self.assertLess(observed["source"], 2 * observed["background"])
+
+    def test_optional_quadrature_capture_preserves_actual_kernel_results(self):
+        from copernican.lib.likelihoods.cmb.runtime import (
+            evidence,
+            spectrum_projection,
+        )
+
+        arguments = dict(
+            primordial_grid=numpy.ones(5),
+            log_k_values=numpy.linspace(-2, 0, 5),
+            primary=numpy.arange(5.0),
+            secondary=numpy.arange(5.0),
+        )
+        expected = spectrum_projection._integrate_power_spectrum(**arguments)
+        events = []
+        with evidence.capture_completed_cmb_products(
+            lambda *event: events.append(event)
+        ):
+            self.assertEqual(
+                execution._integrate_power_spectrum(**arguments).tolist(),
+                expected.tolist(),
+            )
+        self.assertEqual(events[0][0], "spectrum_quadrature")
+        sentinel = {"TT": expected}
+        with mock.patch.object(
+            execution,
+            "_integrate_declared_spectra_kernel",
+            return_value=sentinel,
+        ) as kernel:
+            self.assertIs(execution._integrate_declared_spectra(), sentinel)
+        self.assertIsNone(kernel.call_args.kwargs["product_observer"])
+
     def test_prepare_projection_chunk_bounds_live_kernels_and_retains_axes(
         self,
     ):
@@ -349,6 +630,9 @@ class ExecutionModuleTestCase(unittest.TestCase):
                     ]["fine_eta_nodes"],
                     "source_seed": inputs.numerics.eta_sample_count,
                     "source": inputs.source_grids["eta"].copy(),
+                    "radial_count": inputs.runtime_envelope[
+                        "los_phase_eta_sample_count"
+                    ],
                     "native": {k: v.copy() for k, v in native.items()},
                 }
             )
@@ -405,6 +689,10 @@ class ExecutionModuleTestCase(unittest.TestCase):
         )
         after = observations[1]
         self.assertGreater(after["source"].size, before["source"].size)
+        self.assertTrue(
+            numpy.all(numpy.isin(before["source"], after["source"]))
+        )
+        self.assertEqual(after["radial_count"], before["radial_count"])
         numpy.testing.assert_array_equal(
             after["background"], before["background"]
         )
@@ -537,27 +825,15 @@ class ExecutionModuleTestCase(unittest.TestCase):
         )
         self.assertEqual(last["evolution_eta_sample_count"], 256)
         self.assertEqual(trials[1]["unproductive_budget_axes"], ["source"])
-        self.assertTrue(
-            compute.call_args_list[0].kwargs["initialize_resolution"]
-        )
-        for call in compute.call_args_list[1:]:
+        for call in compute.call_args_list:
             self.assertNotIn("initialize_resolution", call.kwargs)
 
-    def test_initial_candidate_still_requires_full_independent_acceptance(
+    def test_numerical_candidate_requires_full_independent_acceptance(
         self,
     ):
         execution.cache.clear_cmb_caches()
         self.addCleanup(execution.cache.clear_cmb_caches)
         contract = {"_engine_numerical_plan": {"eta_sample_count": 192}}
-        candidate = execution.InitialResolutionCandidate(
-            contract={
-                "_engine_numerical_plan": {
-                    "eta_sample_count": 192,
-                    "evolution_eta_sample_count": 3796,
-                }
-            },
-            evidence={"acceptance_reused": False},
-        )
         base = execution.CustomCMBSpectrumData(
             ell_grid=numpy.array((2,)),
             k_grid=numpy.array((0.01, 0.02)),
@@ -587,7 +863,7 @@ class ExecutionModuleTestCase(unittest.TestCase):
             mock.patch.object(
                 execution,
                 "_compute_custom_cmb_spectrum_data_impl",
-                side_effect=(candidate, base),
+                return_value=base,
             ) as compute,
             mock.patch.object(
                 execution,
@@ -599,15 +875,9 @@ class ExecutionModuleTestCase(unittest.TestCase):
             execution._compute_custom_cmb_spectrum_data(
                 contract, (2,), requested_spectra=("TT",)
             )
-        self.assertEqual(compute.call_count, 2)
-        self.assertTrue(
-            compute.call_args_list[0].kwargs["initialize_resolution"]
-        )
-        self.assertNotIn(
-            "initialize_resolution", compute.call_args_list[1].kwargs
-        )
+        self.assertEqual(compute.call_count, 1)
         refine.assert_called_once()
-        self.assertEqual(refine.call_args.args[0], candidate.contract)
+        self.assertEqual(refine.call_args.args[0], contract)
         self.assertFalse(execution.cache.has_cmb_spectrum("candidate-test"))
 
         accepted = execution.CustomCMBSpectrumData(
@@ -634,18 +904,55 @@ class ExecutionModuleTestCase(unittest.TestCase):
             mock.patch.object(
                 execution,
                 "_compute_custom_cmb_spectrum_data_impl",
-                side_effect=(candidate, accepted),
+                return_value=accepted,
             ),
         ):
             result = execution._compute_custom_cmb_spectrum_data(
                 contract, (2,), requested_spectra=("TT",)
             )
-        self.assertFalse(
-            result.runtime_envelope["initial_resolution_candidate"][
-                "acceptance_reused"
-            ]
-        )
         self.assertTrue(execution.cache.has_cmb_spectrum("candidate-test"))
+        numpy.testing.assert_array_equal(
+            result.spectra["TT"], accepted.spectra["TT"]
+        )
+
+    def test_failed_base_budget_stops_before_independent_k_solve(self):
+        """Extra k work cannot repair an excessive nonnegative axis bound."""
+
+        result = execution.CustomCMBSpectrumData(
+            ell_grid=numpy.asarray((2,)),
+            k_grid=numpy.asarray((0.01, 0.02)),
+            transfer_components={},
+            spectra={"TT": numpy.ones(1)},
+            runtime_envelope={
+                "observable_axis_error_bounds": {"evolution": {"TT": [0.02]}}
+            },
+        )
+        with mock.patch.object(
+            execution, "_compute_custom_cmb_spectrum_data_impl"
+        ) as solve:
+            with self.assertRaises(
+                execution.AdaptiveNonConvergenceError
+            ) as caught:
+                execution._compute_production_refinement(
+                    {},
+                    result,
+                    (2,),
+                    background_provider=None,
+                    effective_requested_spectra=("TT",),
+                    requested=("TT",),
+                    production_controls=SimpleNamespace(
+                        relative_tolerances={"TT": 0.01}
+                    ),
+                    timer=execution.PhaseTimer(),
+                    workload="full_spectrum",
+                    diagnostic_request=False,
+                )
+        solve.assert_not_called()
+        self.assertEqual(caught.exception.label, "observable-error-budget")
+        self.assertEqual(
+            caught.exception.evidence["assessment_stage"],
+            "before_k_refinement",
+        )
 
     def test_finer_axis_evidence_cannot_be_hidden_by_coarse_budget(self):
         base = execution.CustomCMBSpectrumData(
@@ -673,27 +980,44 @@ class ExecutionModuleTestCase(unittest.TestCase):
             relative_tolerances={"TT": 0.01},
             fail_on_nonconvergence=True,
         )
-        with mock.patch.object(
-            execution,
-            "_compute_custom_cmb_spectrum_data_impl",
-            return_value=fine,
-        ):
-            with self.assertRaises(
-                execution.AdaptiveNonConvergenceError
-            ) as caught:
-                execution._compute_production_refinement(
-                    {"_engine_numerical_plan": {"k_sample_count": 2}},
+        for axis in ("evolution", "k", "angular_k"):
+            with self.subTest(axis=axis):
+                coarse_case = replace(
                     base,
-                    (2,),
-                    background_provider=None,
-                    effective_requested_spectra=("TT",),
-                    requested=("TT",),
-                    production_controls=controls,
-                    timer=execution.PhaseTimer(),
-                    workload="full_spectrum",
-                    diagnostic_request=False,
+                    runtime_envelope={
+                        "observable_axis_error_bounds": {axis: {"TT": [0.001]}}
+                    },
                 )
-        self.assertEqual(caught.exception.label, "observable-error-budget")
+                fine_case = replace(
+                    fine,
+                    runtime_envelope={
+                        **dict(fine.runtime_envelope),
+                        "observable_axis_error_bounds": {axis: {"TT": [0.02]}},
+                    },
+                )
+                with mock.patch.object(
+                    execution,
+                    "_compute_custom_cmb_spectrum_data_impl",
+                    return_value=fine_case,
+                ):
+                    with self.assertRaises(
+                        execution.AdaptiveNonConvergenceError
+                    ) as caught:
+                        execution._compute_production_refinement(
+                            {"_engine_numerical_plan": {"k_sample_count": 2}},
+                            coarse_case,
+                            (2,),
+                            background_provider=None,
+                            effective_requested_spectra=("TT",),
+                            requested=("TT",),
+                            production_controls=controls,
+                            timer=execution.PhaseTimer(),
+                            workload="full_spectrum",
+                            diagnostic_request=False,
+                        )
+                self.assertEqual(
+                    caught.exception.label, "observable-error-budget"
+                )
 
     def test_hint_seeds_resolution_but_recomputes_the_current_acceptance(self):
         cache = execution.cache

@@ -18,6 +18,41 @@ from copernican.lib.likelihoods.cmb.runtime.history_store import (
 class RequestSourceHistoryStoreTestCase(unittest.TestCase):
     """Check exact identities, bounded retention and unconditional cleanup."""
 
+    def test_scheduled_columns_survive_working_cache_eviction(self):
+        """Scalar and momentum rows keep exact future values compactly."""
+
+        keys = [(0, 0.0), (0, 0.5), (0, 1.0), (1, 0.0)]
+        epochs = numpy.array([2.0, 3.0, 4.0, 4.0])
+        velocities = numpy.arange(12.0).reshape(4, 3)
+        columns = history_store.StageContextColumns(
+            keys,
+            {"eta": epochs, "velocity": velocities},
+            static={"mass": 0.06},
+        )
+        working_cache = {}
+        for key, epoch, velocity in zip(keys, epochs, velocities):
+            working_cache[key] = columns.get(key)
+            self.assertEqual(working_cache[key]["eta"], epoch)
+            numpy.testing.assert_array_equal(
+                working_cache[key]["velocity"], velocity
+            )
+            self.assertEqual(working_cache[key]["mass"], 0.06)
+            working_cache.clear()
+        self.assertIsNone(columns.get((2, 0.0)))
+        self.assertEqual(columns.get((0, 0.0))["eta"], 2.0)
+        row = columns.get((0, 0.5))
+        row.pop("eta")
+        self.assertIn("eta", columns.get((0, 0.5)))
+        self.assertTrue(
+            numpy.shares_memory(columns.columns["velocity"], velocities)
+        )
+        with self.assertRaises(ValueError):
+            columns.get((0, 0.5))["velocity"][0] = -1.0
+        with self.assertRaisesRegex(ValueError, "unique"):
+            history_store.StageContextColumns([keys[0]] * 2, {})
+        with self.assertRaisesRegex(ValueError, "match stages"):
+            history_store.StageContextColumns(keys, {"eta": epochs[:2]})
+
     def test_native_mapping_preserves_full_arrays_and_cleans_up_on_error(self):
         self.assertEqual(
             history_store.allocate_native_history((3, 2)).shape, (3, 2)

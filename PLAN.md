@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-11-08
+**Last Updated:** 2026-11-09
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -38,12 +38,13 @@ Historical plans and evidence remain in Git and CHANGELOG.md. Unpushed
 experiments on another machine are not part of this accepted baseline.
 
 **Current state:** Slices One through Five are complete. Their closure
-records identify the successful human workflows and tested states. Slice Six
-is reopened: the subsequent full workflow exposed production-scale discovery
-work, excessive projection memory and untested regressions. Its earlier
-focused/sparse numerical record does not establish practical suite closure.
-Slices Seven through Ten remain
-pending. Implementation proceeds one explicitly
+records identify the successful human workflows and tested states. The
+repaired Slice Six full workflow passed on 2026-11-08 (1144 tests; 5978.307
+seconds), and the human confirmed gate closure. Its ordinary angular
+acceptance cost remains unresolved. Slice Seven is in progress. Its Planck
+reference mismatch has been independently checked and explicitly repaired;
+actual angular parity and the complete durable case matrix remain open.
+Slices Eight through Ten remain pending. Implementation proceeds one explicitly
 authorized slice at a time. A green policy gate, a generated report, or a
 successful mock cannot close a physical acceptance requirement.
 
@@ -1268,8 +1269,9 @@ claim that those later tasks are complete.
 
 ## Slice Six - make automatic production planning accurate and practical
 
-**Status:** reopened (2026-10-29), pending repaired full-workflow evidence.
-The earlier closure claim below is superseded. **Entry:** matched component
+**Status:** open for ordinary angular acceptance cost; repaired full workflow
+passed on 2026-11-08. The earlier closure claim below is superseded.
+**Entry:** matched component
 physics and the repaired full-discovery workflow both pass.
 
 Use the accepted native component report above as the physical baseline.
@@ -1551,8 +1553,10 @@ The first measured candidate completed all seven LCDM operations, with cold
 execution in 894.059 seconds. The Planck cold request accepted in 4,697.143
 seconds, but that cost still required work; its later workload was interrupted
 and cannot close the slice. The retained producer identities remain intact.
-The final proposal starts evolution at measured background density and LOS
-products at paired density. Measured mixed equation operands now gather
+The historical final proposal started evolution at measured background
+density and LOS products at paired density. Slice Seven removed that
+coupling after profiling its excessive work; those historical measurements
+do not describe the current starting proposal. Mixed equation operands gather
 interior state rows directly and bind only boundary/rebound replacements;
 RHS contexts retain only actual dependencies. Full diagnostic, collision,
 custom-coordinate and independent scalar contexts retain their semantics.
@@ -1722,10 +1726,12 @@ also imported all 1144 tests, included graph artifact checks and excluded the
 explicit dense acceptance case. The retained profile manifests record these
 producer boundaries under the output root's
 `ccmbs-acceptance/completion-evidence/workflow-repair-20261029*` directories.
-These are focused verification measurements, not a new full workflow verdict
-or a rerun of scientific acceptance. Slice Six remains open until the human's
-complete workflow demonstrates its actual development-loop cost; another
-green policy gate alone cannot close it.
+These partitioned measurements were followed by the successful full workflow
+`devcovenant/logs/20261108T012634504227Z-run`: 1144 tests in 5978.307 seconds.
+The human confirmed that run passed and the gate closed before authorizing
+Slice Seven. That establishes the repaired development-loop result, not
+ordinary angular acceptance or its cost; the remaining cost obligation is
+recorded with the Slice Seven investigation below.
 
 **Focused owners:** all direct runtime numerical/physics tests, public
 `test_cmb` method selectors, cache/performance tests, and the existing
@@ -1740,7 +1746,143 @@ Finite output and a cheap diagnostic path alone cannot close this slice.
 
 ## Slice Seven - demonstrate actual matched CAMB parity
 
-**Status:** pending. **Entry:** ordinary execution is accurate and practical.
+**Status:** in progress (2026-11-08); physical acceptance is not complete.
+**Entry:** ordinary execution is accurate and practical. The current
+low-ell ordinary-route investigation has not yet established this condition.
+
+### Reference and durable-product prerequisites (2026-11-08)
+
+The existing runner now exposes `--completion-preflight`, which performs no
+CCMBS solve and retains every success/failure attempt with original checkout
+provenance. Compact frozen requirements, historical full-case hashes and
+current declaration bindings have separate roles. A corrupt retained
+reference is rejected rather than silently regenerated. Numerical product
+archives retain actual typed arrays, survive producer exit/temporary cleanup,
+publish immutable binaries before atomic manifests and reject tampering,
+missing arrays, wrong dimensions and escaped paths. Physical, numerical,
+reference and assessment dependency identities are tested separately; pure
+rendering changes do not invalidate the forward identity. These are
+prerequisites, not accepted physical rows or a completed resume runner.
+
+Preflight exposed an actual Planck normalization change made before this
+slice: the current declaration resolves `omnuh2=0.000644866570625114` and
+`omch2=0.11935498653217487`; the frozen independent point instead has
+`omnuh2=0.0006441915396177796` and `omch2=0.1193556615631822`. Restoring a
+missing default-temperature spelling recovers the massless reference hashes
+without changing physics, but cannot reconcile these different densities.
+The human authorized updating the affected independent reference after
+checking the current normalization. Unmodified CAMB and an independent
+Fermi-Dirac number-density calculation both reproduce the current density;
+the latter agrees within 3.2e-10 fractionally. Only the Planck reference
+changed, from SHA-256
+`277731908a3ef8fe8c4a4ebfc8e759e94a53999e73b3e17153230b730027b206`
+to `7f23ae11b641aa9f02aff6c6ead03fdeeedce76b1196ec6fe8ab297e5d40d769`.
+The frozen requirements record the decision and preserve every physical
+case, multipole, window, surface and tolerance. A lossless portable archive
+retains all twelve canonical CAMB references; preflight validates those
+arrays and their resolved physical inputs rather than expecting different
+CAMB builds to reproduce an identical floating-point serialization.
+
+A current LCDM native-history component comparison completed in 55.684
+seconds. The main temperature/polarization/lensing source errors were below
+0.4%; the small E quadrupole alone had a 1.24% relative difference. This is
+component evidence, not angular parity. The ordinary unmodified TT/TE/EE
+request at ell 2, 20 and 100 was interrupted after more than 36 minutes,
+still in adaptive evolution. It produced no accepted angular spectrum.
+Subsequent profiling found that the old initial-density proposal forced
+unrelated background, native and source resolutions to grow together. That
+proposal is removed. Native refinements now obey their phase criteria at
+every level and share meshes within deterministic wave cohorts. Compatible
+schedule batching preserves each mode's minimum subdivisions and limits
+both total and per-interval extra work. The singleton executor uses the
+measured faster equivalent scalar-row kernel. Independent validation remains
+required. Already excessive observable-axis bounds now reject before the
+separate doubled-k calculation; final acceptance still includes that
+independent calculation when the preliminary bounds permit it.
+
+A later ordinary diagnostic retained actual projected candidates at ell
+2, 20 and 100. Its TT ratios to CAMB were approximately 0.980, 0.962 and
+0.681; doubling the k grid left the last ratio effectively unchanged.
+The actual upper wave number was 0.014965389806815388 inverse Mpc.
+Independently truncating CAMB's transfer integral at that same endpoint
+retained about 0.669 of its TT power near ell 100, while TE and EE retained
+0.932 and 0.982. This isolates omitted high-k radial tails as a material
+physical-domain defect. Increasing density inside the truncated domain
+cannot repair missing support. This is diagnostic evidence from unaccepted
+calculations, not a passing angular row.
+
+Before expanding the matrix, repair physical-domain planning and validate
+source sampling independently from the denser angular quadrature. Merely
+checking the endpoint against the planner's own projection heuristic does
+not measure omitted power. The older optional source-interpolation path
+does not provide the independent interpolation evidence required here;
+enabling it alone cannot establish fidelity. Ordinary low/full request
+consistency, actual tail convergence and reasonable measured costs remain
+open. Slice Seven therefore remains in progress.
+
+### Source, angular and metric repairs (2026-11-08)
+
+The ordinary planner now retains its full proposed k domain and separates
+independently evolved native source meshes from angular-k quadrature.
+Sources, rather than oscillatory transfers, are interpolated onto a common
+angular grid. Separate nested angular and native-k calculations retain their
+actual spectra and error bounds. Saved source times are independent of the
+radial phase grid; freshly reevaluated native-time sources check that the
+saved representation has not missed oscillations or a signal between knots.
+Source promotion must strictly enlarge its actual representation while
+preserving native evolution, background and radial resolution. The outer
+k comparison must preserve the larger measured native-source bound, including
+axes present only in its finer calculation.
+
+An ordinary full-domain probe exposed overflow at k approximately 0.0371
+inverse Mpc and eta approximately 10485 Mpc. The generated energy-only metric
+equation introduces a k-squared/H expansion-time stiffness. Its owning
+materializer now combines the equivalent Einstein energy and momentum
+equations using dimensionally matched horizon weights. Both constraints
+remain independently audited. Manufactured horizon limits, the scalar
+correctness reference and gauge regressions check the formulation; these
+checks do not certify its final angular spectra.
+
+The pilot selector previously could keep splitting an already adjacent pair
+of indices on an uneven wave grid. It now chooses only refinable gaps.
+Scheduled physical stage contexts are stored as compact columns instead of
+one dictionary per microstep. Evicting transient caches leaves future
+precomputed values intact, and momentum lookups use their actual stage key.
+The scalar RHS avoids singleton array allocation without changing equations,
+collision stages or RK schedules. Focused storage, evolution and equation
+checks passed (109 tests in 198.064 seconds), as did 81 angular, planning and
+budget tests in 61.041 seconds. Source/axis repairs have their own regressions.
+The ordinary diagnostic retained at
+`ordinary-preflight/20261108T173531Z/report.json` was interrupted after
+1383.238 seconds while still preparing independent native references. It
+produced no accepted angular spectrum. There is no accepted full-window
+physical case from these repairs yet.
+
+Before closure, finish actual physical k-domain/tail verification, complete
+the ordinary full-window comparisons, and supply independently verified axis,
+graph, consumer and reload evidence for all twelve comparable points. A
+corrected proposal, a component pass or an interrupted ordinary probe must
+not be recorded as that closure.
+
+Durable investigation artifacts live below the configured output root's
+`ccmbs-acceptance/completion-evidence/` directory, including
+`native-components/current-lcdm-20261108T081437Z.json`, the preflight attempts
+and the ordinary probe interruption record. Scientific acceptance remains
+explicit and outside ordinary discovery and `devcovenant run`.
+
+Focused prerequisite verification passed: 30 tests in 2.225 seconds. The
+exact selection is:
+
+```bash
+source .venv/bin/activate
+completion_test_owner=tests.copernican.lib.likelihoods.cmb
+python -m unittest -q \
+  "${completion_test_owner}.test_evidence_assets" \
+  "${completion_test_owner}.test_diagnostics.CompletionContractTestCase" \
+  "${completion_test_owner}.test_diagnostics.CompletionPersistenceTestCase" \
+  "${completion_test_owner}.test_diagnostics.CompletionDependencyTestCase" \
+  tests.project.lib.test_scientific_acceptance
+```
 
 **Owners:** extracted physics/numerical owners for residual defects, existing
 CAMB fixtures, diagnostics, acceptance runner, graph tests, and readers.

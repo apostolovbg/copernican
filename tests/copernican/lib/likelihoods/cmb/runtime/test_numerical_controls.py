@@ -3,81 +3,57 @@
 import unittest
 from types import SimpleNamespace
 
+import numpy
+
 from copernican.lib.likelihoods.cmb.runtime import numerical_controls
 
 
 class NumericalControlsTestCase(unittest.TestCase):
     """Exercise numerical-control decisions without spectrum orchestration."""
 
-    def test_background_density_is_only_an_initial_resolution_candidate(self):
-        contract = {
-            "_engine_numerical_plan": {
-                "eta_sample_count": 192,
-                "evolution_eta_sample_count": 128,
-            },
-            "_engine_accuracy_controls": {
-                "adaptive_evolution": {
-                    "enabled": True,
-                    "maximum_nodes": 512,
-                    "relative_tolerance": 0.01,
-                },
-                "adaptive_source": {
-                    "enabled": True,
-                    "minimum_nodes": 32,
-                    "maximum_nodes": 512,
-                    "relative_tolerance": 0.02,
-                },
-                "adaptive_projection": False,
-            },
-        }
-        self.assertIsInstance(
-            numerical_controls.seed_resolution_from_background(contract, 3796),
-            numerical_controls.InitialResolutionCandidate,
-        )
-        candidate = numerical_controls.seed_resolution_from_background(
-            contract, 3796
-        )
-        controls = candidate.contract["_engine_accuracy_controls"]
-        self.assertEqual(
-            candidate.contract["_engine_numerical_plan"][
-                "evolution_eta_sample_count"
-            ],
-            3796,
-        )
-        self.assertEqual(controls["adaptive_source"]["minimum_nodes"], 7592)
-        self.assertEqual(controls["adaptive_source"]["maximum_nodes"], 15184)
-        self.assertEqual(controls["adaptive_projection"], False)
-        self.assertEqual(
-            controls["adaptive_source"]["relative_tolerance"], 0.02
-        )
-        self.assertEqual(
-            candidate.contract["_engine_numerical_plan"]["eta_sample_count"],
-            192,
-        )
-        self.assertNotIn("background_minimum_nodes", controls)
-        self.assertEqual(
-            contract["_engine_numerical_plan"]["evolution_eta_sample_count"],
-            128,
-        )
-        self.assertFalse(candidate.evidence["acceptance_reused"])
-        self.assertIsNone(
-            numerical_controls.seed_resolution_from_background(
-                candidate.contract, 3796
+    def test_total_work_grouping_preserves_every_mode_schedule(self):
+        rows = []
+        eta = numpy.linspace(0, 1, 1001)
+        for index in range(20):
+            schedule = numpy.ones(1000, dtype=int)
+            schedule[index] = 2
+            rows.append(
+                {
+                    "index": index,
+                    "k": 0.01 + index * 0.00001,
+                    "eta": eta,
+                    "grids": {"eta": eta},
+                    "schedule": schedule,
+                }
             )
+        groups = numerical_controls.group_mode_schedules(rows)
+        self.assertEqual(len(groups), 1)
+        group = groups[0]
+        for row in rows:
+            self.assertTrue(
+                numpy.all(group["schedule_max"] >= row["schedule"])
+            )
+            self.assertTrue(
+                numpy.all(group["schedule_max"] <= 2 * row["schedule"])
+            )
+        self.assertLessEqual(
+            len(rows) * numpy.sum(group["schedule_max"]),
+            2 * group["native_work"],
         )
-        changed, _ = numerical_controls.refine_numerical_axis(
-            candidate.contract, "background"
-        )
+        rows[-1]["eta"] = eta + 0.1
+        self.assertEqual(len(numerical_controls.group_mode_schedules(rows)), 2)
         self.assertEqual(
-            changed["_engine_numerical_plan"],
-            candidate.contract["_engine_numerical_plan"],
+            len(
+                numerical_controls.group_mode_schedules(
+                    rows[:4], maximum_modes=2
+                )
+            ),
+            2,
         )
-        self.assertEqual(
-            changed["_engine_accuracy_controls"]["adaptive_source"],
-            controls["adaptive_source"],
+        rows[0]["schedule"][0] = 8
+        self.assertGreater(
+            len(numerical_controls.group_mode_schedules(rows[:-1])), 1
         )
-        with self.assertRaises(ValueError):
-            numerical_controls.seed_resolution_from_background(contract, 1)
 
     def test_unrecognized_failure_does_not_promote_a_grid(self):
         self.assertIsNone(
@@ -105,6 +81,8 @@ class NumericalControlsTestCase(unittest.TestCase):
         }
         for axis in (
             "background",
+            "angular_k",
+            "physical_limits",
             "hierarchy_depth",
             "momentum_q",
             "evolution",
@@ -122,7 +100,7 @@ class NumericalControlsTestCase(unittest.TestCase):
                 ],
                 0.01,
             )
-            if axis in {"source", "projection", "background"}:
+            if axis in {"source", "projection", "background", "angular_k"}:
                 self.assertEqual(
                     changed["_engine_numerical_plan"],
                     contract["_engine_numerical_plan"],

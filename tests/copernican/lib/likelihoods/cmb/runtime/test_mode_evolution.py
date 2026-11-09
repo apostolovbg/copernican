@@ -443,6 +443,178 @@ class ModeEvolutionTestCase(unittest.TestCase):
             numpy.sqrt(observed["tolerance"]) * (1.0 + 1e-12),
         )
 
+    def test_native_reference_phase_work_follows_wave_cohorts(self):
+        """A low wave need not resolve unrelated high-wave oscillations."""
+
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        build = mode_evolution.build_declared_mode_evolution
+        observed = {}
+
+        def capture(inputs):
+            runtime = build(
+                replace(
+                    inputs,
+                    numerics=replace(
+                        inputs.numerics, evolution_eta_sample_count=128
+                    ),
+                    adaptive_controls=replace(
+                        inputs.adaptive_controls,
+                        evolution_enabled=True,
+                        evolution_minimum_nodes=128,
+                    ),
+                )
+            )
+            for name, wave in (
+                ("low", 0.001),
+                ("same", 0.0011),
+                ("high", 0.03),
+            ):
+                observed[name] = runtime.mode_grids_for_k(
+                    wave, evolution_sample_count_override=80
+                )[0]["eta"].copy()
+            observed["tolerance"] = (
+                inputs.adaptive_controls.evolution_relative_tolerance
+            )
+            raise _ModeHistoryCaptured()
+
+        contract = test_cmb._prepare_declared_contract(
+            test_cmb._speedup_contract(
+                test_cmb._declared_scalar_hierarchy_contract()
+            )
+        )
+        with (
+            mock.patch.object(
+                test_cmb.cmb_execution,
+                "build_declared_mode_evolution",
+                side_effect=capture,
+            ),
+            self.assertRaises(_ModeHistoryCaptured),
+        ):
+            test_cmb.cmb_execution._compute_custom_cmb_spectrum_data(
+                contract,
+                (20,),
+                requested_spectra=("TT",),
+                workload="fixed_parameter_diagnostic",
+            )
+        numpy.testing.assert_array_equal(observed["low"], observed["same"])
+        self.assertLess(len(observed["low"]), len(observed["high"]))
+        for name, wave in (("low", 0.001), ("high", 0.03)):
+            self.assertLessEqual(
+                wave * numpy.max(numpy.diff(observed[name])),
+                numpy.sqrt(observed["tolerance"]) * 128 / 80 * (1 + 1e-12),
+            )
+
+    def test_promoted_final_native_ladder_keeps_coarse_and_fine_ordered(self):
+        """Background seeding cannot invert or freeze the evolution ladder."""
+
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        build = mode_evolution.build_declared_mode_evolution
+        observed = {}
+
+        def capture(inputs):
+            runtime = build(
+                replace(
+                    inputs,
+                    numerics=replace(
+                        inputs.numerics, evolution_eta_sample_count=512
+                    ),
+                    adaptive_controls=replace(
+                        inputs.adaptive_controls,
+                        evolution_enabled=True,
+                        evolution_minimum_nodes=128,
+                    ),
+                    declared_accuracy_controls={
+                        **inputs.declared_accuracy_controls,
+                        "accuracy_tier": "final",
+                    },
+                )
+            )
+            for name, count in (
+                ("coarse", 128),
+                ("middle", 320),
+                ("fine", None),
+            ):
+                observed[name] = runtime.mode_grids_for_k(
+                    0.03, evolution_sample_count_override=count
+                )[0]["eta"].copy()
+            observed["tolerance"] = (
+                inputs.adaptive_controls.evolution_relative_tolerance
+            )
+            raise _ModeHistoryCaptured()
+
+        contract = test_cmb._prepare_declared_contract(
+            test_cmb._speedup_contract(
+                test_cmb._declared_scalar_hierarchy_contract()
+            )
+        )
+        with (
+            mock.patch.object(
+                test_cmb.cmb_execution,
+                "build_declared_mode_evolution",
+                side_effect=capture,
+            ),
+            self.assertRaises(_ModeHistoryCaptured),
+        ):
+            test_cmb.cmb_execution._compute_custom_cmb_spectrum_data(
+                contract,
+                (20,),
+                requested_spectra=("TT",),
+                workload="fixed_parameter_diagnostic",
+            )
+        self.assertLess(len(observed["coarse"]), len(observed["middle"]))
+        self.assertLess(len(observed["middle"]), len(observed["fine"]))
+        self.assertLessEqual(
+            0.03 * numpy.max(numpy.diff(observed["fine"])),
+            numpy.sqrt(observed["tolerance"]) * 128 / 512 * (1 + 1e-12),
+        )
+
+    def test_new_k_anchors_preserve_existing_native_meshes(self):
+        """Independent k quadrature refinement reuses exact native work."""
+
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        build = mode_evolution.build_declared_mode_evolution
+        observed = []
+
+        def capture(inputs):
+            for waves in ((0.001, 0.03), (0.001, 0.002, 0.007, 0.03)):
+                runtime = build(
+                    replace(
+                        inputs,
+                        k_values=numpy.asarray(waves),
+                        adaptive_controls=replace(
+                            inputs.adaptive_controls, evolution_enabled=True
+                        ),
+                    )
+                )
+                observed.append(
+                    runtime.mode_grids_for_k(
+                        0.001, evolution_sample_count_override=64
+                    )[0]["eta"].copy()
+                )
+            raise _ModeHistoryCaptured()
+
+        contract = test_cmb._prepare_declared_contract(
+            test_cmb._speedup_contract(
+                test_cmb._declared_scalar_hierarchy_contract()
+            )
+        )
+        with mock.patch.object(
+            test_cmb.cmb_execution,
+            "build_declared_mode_evolution",
+            side_effect=capture,
+        ):
+            with self.assertRaises(_ModeHistoryCaptured):
+                test_cmb.cmb_execution._compute_custom_cmb_spectrum_data(
+                    contract,
+                    (20,),
+                    requested_spectra=("TT",),
+                    workload="fixed_parameter_diagnostic",
+                )
+        numpy.testing.assert_array_equal(observed[0], observed[1])
+
     def test_superhorizon_polarization_matches_frozen_camb_after_decoupling(
         self,
     ):

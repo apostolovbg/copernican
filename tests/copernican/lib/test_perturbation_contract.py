@@ -2428,6 +2428,49 @@ class PerturbationContractTestCase(unittest.TestCase):
                     atol=1e-12 * float(numpy.max(numpy.abs(expected))),
                 )
 
+    def test_conditioned_metric_equations_agree_on_both_constraints(self):
+        """Horizon conditioning preserves GR and bounds the damping rate."""
+
+        compiled = self._compile(_scalar_metadata_only_contract())
+        derivative = compiled.derived["Phi_tau"].compiled_expression
+        for ratio in numpy.logspace(-6, 6, 25):
+            expansion = 0.003
+            wave_squared = (ratio * expansion) ** 2
+            expected_derivative = 0.3 * expansion
+            phi, psi, gravity = 0.7, 0.6, 0.4
+            momentum_combination = expected_derivative + expansion * psi
+            context = {
+                "Phi": phi,
+                "Psi": psi,
+                "Hconf": expansion,
+                "einstein_gravity_strength": gravity,
+                "acoustic_k_sq": wave_squared,
+                "total_density_source": -(
+                    wave_squared * phi + 3 * expansion * momentum_combination
+                )
+                / (1.5 * gravity),
+                "total_momentum_source": wave_squared
+                * momentum_combination
+                / (1.5 * gravity),
+            }
+            actual = float(evaluate_compiled_expression(derivative, context))
+            self.assertAlmostEqual(
+                actual / expected_derivative, 1.0, places=12
+            )
+            # On an off-constraint test perturbation, the energy equation's
+            # stiff k^2/(3H) diagonal is bounded by H/3 after conditioning.
+            zero = {
+                **context,
+                "Phi": 0.0,
+                "Psi": 0.0,
+                "total_density_source": 0.0,
+                "total_momentum_source": 0.0,
+            }
+            slope = float(
+                evaluate_compiled_expression(derivative, {**zero, "Phi": 1.0})
+            )
+            self.assertLessEqual(abs(slope), expansion / 3 * (1 + 1e-14))
+
     def test_momentum_combination_preserves_a_small_einstein_source(self):
         """Eliminating the declared Phi' keeps a small momentum combination."""
 
@@ -2456,8 +2499,8 @@ class PerturbationContractTestCase(unittest.TestCase):
         )
         self.assertEqual(float(actual), 1.0)
 
-    def test_energy_metric_evolution_retains_independent_momentum_check(self):
-        """Einstein 00 determines Phi'; 0i must reject a wrong velocity."""
+    def test_metric_evolution_retains_independent_momentum_check(self):
+        """The stored metric derivative cannot hide a wrong velocity."""
 
         compiled = self._compile(_scalar_metadata_only_contract())
         for k_squared in (1e-12, 0.1):

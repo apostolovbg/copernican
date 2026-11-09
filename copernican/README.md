@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-11-08
+**Last Updated:** 2026-11-09
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -336,6 +336,29 @@ surfaces, independent reference windows, and resolved numerical axes;
 synthetic wiring reports cannot certify CCMBS. `diagnostics.py` applies both
 raw and public spectrum bounds without fitting amplitude or phase.
 
+Before an explicit completion-matrix attempt, run
+`python -m tests.project.lib.scientific_acceptance --completion-preflight`
+in the activated repository environment. This validates the frozen physical
+points and independent reference identities without starting CCMBS evolution.
+Every attempt persists its original checkout provenance and any mismatch;
+preflight readiness never means scientific acceptance. Current declaration
+bindings remain separate from frozen requirements and historical full-case
+hashes. The portable `ccmbs_comparable_camb.json.gz` fixture preserves all
+twelve canonical reference arrays and the approved Planck density update;
+no acceptance window or tolerance changes with that update.
+The explicit `--completion-point CASE_ID` option retains named ordinary
+attempts and completed numerical arrays, including failed or interrupted
+attempts. Its quantitative parity flags remain separate from completion;
+the full physical-domain, independent-axis and consumer evidence is still
+required. `PLAN.md` records the unresolved low-ell high-k-tail defect.
+The `evidence_assets` owner retains immutable compressed arrays with
+atomic manifests, verifies every array on readback, and rejects missing,
+tampered or escaped artifacts. Completion diagnostics require actual grid,
+weight, source and transfer payloads with compatible dimensions. Separate
+physical, numerical, reference and assessment identities distinguish reusable
+forward products from rendering changes. The acceptance matrix remains
+explicit and outside ordinary test discovery and `devcovenant run`.
+
 Generated model plugins expose separate recombination and drag-epoch sound
 horizons. BAO selects `get_sound_horizon_rs_drag_Mpc()` and records its
 epoch, source, and fitted drag redshift; the CMB background continues to use
@@ -455,10 +478,15 @@ a second cold solve. A compact ordinary final-tier graph also runs both a
 multi-spectrum request and its TT subset, requires every active numerical
 axis to meet its measured budget, and verifies that the shared TT result is
 unchanged.
-The final LambdaCDM declaration keeps one fixed phase-aware production
-surface for k, eta, and evolution. CCMBS keeps the generated hierarchy
-history at the declared LOS phase resolution so
-acoustic sources are not aliased by sparse-history interpolation. Joint MCMC
+The production planner separates native wave modes, saved source times and
+angular quadrature. `spectrum_projection` interpolates independently evolved
+source meshes onto a common angular mesh and evaluates the radial kernels
+there. It measures source-k and angular-k errors separately. Source-time
+interpolation is checked against sources reevaluated from native histories;
+radial refinement holds those physical histories fixed. The full planned k
+support is retained independently of the requested multipole subset. These
+checks do not by themselves establish convergence of the physical k domain.
+Joint MCMC
 evaluation may defer the doubled-grid comparison, but it cannot bypass the
 declared final phase-grid floor; a low-node smoke path is restricted to the
 explicit diagnostic matrix.
@@ -468,6 +496,11 @@ one schedule; incompatible scalar, vector, tensor, and q-resolved modes remain
 partitioned. Initial states and phase schedules use bounded, full-identity
 caches, and runtime envelopes report schedule signatures, cache reuse, and
 the hidden early-prefix decision alongside the raw spectra.
+The `mode_evolution` stage cache keeps precomputed background and momentum
+contexts in compact columns. Bounded working dictionaries can be evicted
+without dropping future sampled values or changing RK stages. The adaptive
+pilot selector excludes adjacent indices when splitting gaps, so irregular
+wave grids cannot stall preparation.
 The fixed Planck-reference declaration maps its 0.06 eV neutrino mass to
 `omnuh2` and subtracts that contribution from `omch2`; the generated mixed
 hierarchy weights the residual massless-neutrino source by its own density.
@@ -535,9 +568,11 @@ component. Automatically planned momentum grids generate q-resolved scalar
 states with physical energy, momentum and shear normalization.
 
 The scalar hierarchy in `perturbation_contract.py` evolves the curvature
-potential with the Einstein energy equation. This avoids dividing the
-velocity source by k squared during superhorizon evolution. The momentum
-equation remains an independent constraint; initial radiation-density
+potential with a conditioning-weighted combination of the Einstein energy
+and momentum equations. This avoids both a singular velocity division near
+the superhorizon limit and the energy equation's stiff k-squared/H damping
+at large wave number. Both constraints remain independent checks; initial
+radiation-density
 projection closes both constraints while preserving the primordial metric.
 `runtime/mode_evolution.py` retains the evolved metric and source histories.
 Its scalar stage contexts reuse compiler-ordered slot names. The graph
@@ -566,12 +601,12 @@ and acceptance checks are recomputed from the retained raw states.
 Background refinement starts from its accepted internal seed through a
 separate control, so an obsolete input cannot cause a no-op refinement or
 silently increase the unrelated LOS sampling seed.
-An ordinary generated-scalar request first proposes active evolution and LOS
-densities from its accepted physical background grid. This proposal avoids
-repeated full solves from undersized default guesses. It carries no spectrum
-or acceptance certificate; every independent native and observable check
-still runs. Later axis refinements remain independent, disabled checks retain
-their settings, and already finer starting controls are preserved.
+Native and LOS densities remain independent of the background node count.
+Native wave cohorts share phase-resolved meshes, and compatible schedule
+groups preserve every mode's required subdivisions while bounding total
+extra work. Promoted coarse/intermediate/fine comparisons apply the same
+resolution criteria at every level. Every independent native and observable
+check still runs; no starting proposal is an acceptance certificate.
 Fresh requests still perform their numerical checks; exact accepted results
 retain their usual cache identity. Clearing result products preserves these
 starting hints, while clearing parameter caches removes them.

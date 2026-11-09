@@ -6,6 +6,7 @@ provide an external comparison surface for declared solver acceptance tests.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import logging
@@ -1533,9 +1534,41 @@ def completion_reference_windows(fixture: Mapping[str, Any]) -> list[dict]:
 
 
 def build_completion_camb_reference(
-    contract: Mapping[str, Any], *, model_name: str, fixed_point: str
+    contract: Mapping[str, Any],
+    *,
+    model_name: str,
+    fixed_point: str,
+    requirement: Mapping[str, Any] | None = None,
 ) -> dict:
-    """Retain resolved defaults and reference-selected acoustic windows."""
+    """Retain resolved defaults and the explicitly frozen acoustic windows.
+
+    Updating a physical reference must not move its tested windows or drop
+    surfaces. Initial contract creation alone selects windows from CAMB.
+    """
+
+    if requirement is not None:
+        reference = build_camb_full_reference_fixture(
+            contract,
+            requirement["ells"],
+            model_name=model_name,
+            fixed_point=fixed_point,
+            spectra=tuple(
+                name
+                for name in CAMB_PARITY_SPECTRA
+                if name in requirement["surfaces"]
+            ),
+        )
+        reference["ell_values"] = list(requirement["ells"])
+        reference["features"] = copy.deepcopy(requirement["features"])
+        reference["damping_windows"] = copy.deepcopy(
+            requirement["damping_windows"]
+        )
+        reference["resolved_defaults"] = str(
+            _make_camb_params(contract, lmax=max(requirement["ells"]))
+        )
+        reference.pop("fixture_sha256")
+        reference["fixture_sha256"] = reference_fixture_sha256(reference)
+        return reference
 
     dense = build_camb_full_reference_fixture(
         contract,

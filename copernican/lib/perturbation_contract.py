@@ -2407,9 +2407,12 @@ def _materialize_declared_scalar_hierarchy_contract(
                 "Phi_tau": {
                     "kind": "metric_potential_time_derivative",
                     "expression": (
-                        "-Hconf * Psi - (acoustic_k_sq * Phi + "
+                        "-Hconf * Psi + (1.5 * "
+                        "einstein_gravity_strength * total_momentum_source - "
+                        "Hconf * (acoustic_k_sq * Phi + "
                         "1.5 * einstein_gravity_strength * "
-                        "total_density_source) / (3.0 * Hconf)"
+                        "total_density_source) / 3.0) / "
+                        "(Hconf * Hconf + acoustic_k_sq)"
                     ),
                     "description": (
                         "Observable-basis curvature-potential derivative."
@@ -2424,9 +2427,12 @@ def _materialize_declared_scalar_hierarchy_contract(
                 "Phi_tau": {
                     "kind": "metric_potential_time_derivative",
                     "expression": (
-                        "-Hconf * Psi - (acoustic_k_sq * Phi + "
+                        "-Hconf * Psi + (1.5 * "
+                        "einstein_gravity_strength * total_momentum_source - "
+                        "Hconf * (acoustic_k_sq * Phi + "
                         "1.5 * einstein_gravity_strength * "
-                        "total_density_source) / (3.0 * Hconf)"
+                        "total_density_source) / 3.0) / "
+                        "(Hconf * Hconf + acoustic_k_sq)"
                     ),
                     "description": (
                         "Gauge-invariant curvature-potential derivative."
@@ -2441,9 +2447,12 @@ def _materialize_declared_scalar_hierarchy_contract(
                 "Phi_tau": {
                     "kind": "metric_potential_time_derivative",
                     "expression": (
-                        "-Hconf * Psi - (acoustic_k_sq * Phi + "
+                        "-Hconf * Psi + (1.5 * "
+                        "einstein_gravity_strength * total_momentum_source - "
+                        "Hconf * (acoustic_k_sq * Phi + "
                         "1.5 * einstein_gravity_strength * "
-                        "total_density_source) / (3.0 * Hconf)"
+                        "total_density_source) / 3.0) / "
+                        "(Hconf * Hconf + acoustic_k_sq)"
                     ),
                     "description": (
                         "Scalar Einstein-system relation for the curvature "
@@ -2456,18 +2465,21 @@ def _materialize_declared_scalar_hierarchy_contract(
     derived_entries.update(
         {
             "metric_momentum_constraint": {
-                # Eliminate Phi_tau using the energy equation before adding
-                # Hconf*Psi. Keep the independently measured momentum source
-                # separate, so its residual remains a physical check.
+                # Eliminate the common -Hconf*Psi term algebraically.
+                # Horizon conditioning combines equivalent energy/momentum
+                # equations without k^-2 amplification or k^2/H stiffness.
+                # Both Einstein residuals remain independent checks.
                 "expression": (
-                    "-(acoustic_k_sq * Phi + "
+                    "(1.5 * einstein_gravity_strength * "
+                    "total_momentum_source - Hconf * (acoustic_k_sq * Phi + "
                     "1.5 * einstein_gravity_strength * "
-                    "total_density_source) / (3.0 * Hconf)"
+                    "total_density_source) / 3.0) / "
+                    "(Hconf * Hconf + acoustic_k_sq)"
                 ),
                 "description": (
                     "Scalar momentum-constraint combination "
-                    "Phi_tau + Hconf Psi, evaluated after eliminating the "
-                    "generated Phi_tau equation to avoid cancellation."
+                    "Conditioned Phi_tau + Hconf Psi, evaluated without "
+                    "cancelling the common expansion term."
                 ),
                 "units": _INVERSE_MPC_UNITS,
             },
@@ -7106,6 +7118,7 @@ def validate_generated_scalar_source_graph(contract: Any) -> None:
             "Psi",
             "einstein_gravity_strength",
             "total_density_source",
+            "total_momentum_source",
         ):
             if dependency not in phi_tau_dependencies:
                 issues.append(

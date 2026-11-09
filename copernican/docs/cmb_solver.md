@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-11-08
+**Last Updated:** 2026-11-09
 **Project Version:** 12.0.26
 
 ## Overview
@@ -152,17 +152,17 @@ inserts only declared boundary or rebound values from the context. RHS
 contexts bind the state dependencies actually consumed by that graph;
 diagnostics, collisions and custom coordinates retain their full contexts.
 Independent scalar comparisons cover mixed bindings and numeric promotion.
-Before ordinary generated-scalar evolution, `numerical_controls.py` can
-propose active grid densities from the accepted physical background's actual
-sample count: evolution starts at that density, and LOS products start at
-paired density to sample background/state products and their derivatives.
-The orchestrator treats `InitialResolutionCandidate` solely as
-a starting proposal, then performs the full native, physical-axis, angular
-and finer-grid acceptance. It never publishes a candidate as a spectrum.
-Existing finer controls and disabled sections are preserved. This one-time
-proposal does not couple subsequent background and LOS refinements, or alter
-diagnostic requests. Accepted results retain the original request's exact
-cache identity together with their effective numerical controls.
+Background, native evolution and source sampling retain independent
+controls and measured acceptance. Background sample count no longer seeds
+unrelated native/source densities. Every native refinement applies its
+phase and feature criteria, including promoted final-tier references.
+Deterministic wave cohorts share native grids without letting unrelated
+high-k modes impose their phase resolution on every low-k trajectory.
+Compatible schedules preserve each mode's required subdivisions and limit
+total and per-interval extra work. Cohort grids require independent native
+acceptance; requests without that check retain their shared request mesh.
+Accepted results retain the original request's
+exact cache identity together with their effective numerical controls.
 The historical ordinary LCDM and kinetic Planck measurements each pass cold,
 exact-repeat, warm, changed-request, subset, changed-parameter and ordered
 batch checks under the same final accuracy requirements. Their retained
@@ -1284,20 +1284,27 @@ the metric system through `massive_neutrino_density_source`,
 thermally weighted physical `q` integrals, including their time-dependent
 background fractions, without renaming the public Einstein-input surface.
 
-The generated hierarchy evolves `Phi` from the Einstein energy equation
-and reconstructs `Psi` from the shear constraint:
+The generated hierarchy evolves `Phi` using a conditioning-weighted
+combination of the Einstein energy and momentum equations, and reconstructs
+`Psi` from the shear constraint:
 
 ```text
-Phi' = -Hconf*Psi
-       - (k^2*Phi + 1.5*(H0/c)^2*total_density_source)/(3*Hconf)
+Phi' = -Hconf*Psi +
+       [1.5*G*total_momentum_source
+        - Hconf*(k^2*Phi + 1.5*G*total_density_source)/3]
+       / (Hconf^2 + k^2)
+G = (H0/c)^2
 ```
 
-On constraint-satisfying data this is equivalent to the momentum equation.
-It avoids a `1/k^2` velocity-source division in the evolved derivative,
-which amplified small numerical errors into a spurious superhorizon mode.
+The energy and momentum weights are respectively `Hconf^2/(Hconf^2+k^2)`
+and `k^2/(Hconf^2+k^2)`. Both equations give the same derivative on
+constraint-satisfying data. The combined expression avoids `1/k^2`
+velocity amplification at superhorizon scales and the energy equation's
+stiff `k^2/(3*Hconf)` damping at large wave number. This changes numerical
+conditioning without adding a physical scale or fitting parameter.
 `metric_constraint_scale = k^2` remains the exact shear scale, with no
 low-k bridge. The momentum residual remains an independent physical check;
-the energy residual is algebraic for this evolution choice. Finite-difference
+both residuals check the actual combined evolution. Finite-difference
 history audits additionally check that evolution follows the declared RHS.
 The initial photon-density correction evaluates 00 using the independent
 0i source, then validates both constraints while retaining the metric seed.
@@ -2003,9 +2010,16 @@ Generated state and residual units are checked before projection.
 Adaptive refinement is driven by the engine planner. The canonical runtime
 stages are transfer, source, projection, and evolution:
 
-Transfer refinement places nodes from the requested radial phase, acoustic
-sound-horizon phase, and declared reference multipoles, then performs actual
-new-mode evolution on the nested ladder. Evolution refinement runs coarse,
+Production selects `independent_source_interpolation`: native wave modes
+resolve the acoustic source phase over the full proposed k domain. Two
+distinct nested source meshes receive actual mode evolution. Their sources
+are interpolated onto the same independently resolved angular-k mesh;
+radial kernels are evaluated at each angular node. No transfer interpolation
+or frozen reference enters the physical solve. Native-k and angular-k errors
+are measured separately, and the outer doubled-k check retains the larger
+measured source-k error instead of replacing it. This establishes separate
+quadrature checks, not a proof of the physical k-domain tail.
+Evolution refinement runs coarse,
 intermediate, and reference state and source histories for the same cosmology.
 Those independently evolved histories are compared at every shared node and
 interval midpoint, with named coordinates taken from visibility onset, peak,
@@ -2016,13 +2030,20 @@ on a nested eta grid while holding the accepted evolution fixed. It adapts the
 coarse representation up to 87.5% of the fine grid, reports global
 per-product L-infinity errors for acceptance, and retains local near-zero
 relative errors as diagnostics. Projection refinement builds genuinely
-distinct nested phase-aware eta plans, uses positive trapezoid quadrature,
-and compares the resulting requested spectra per product. Its phase target is
-the effective projected k endpoint rather than the broader declared domain.
-Dense background samples seed the plan without consuming its refinement
-budget. The runtime envelope retains both adjacent evolution comparisons,
+distinct nested phase-aware eta plans and compares the resulting requested
+spectra per product. Production radial projection uses Simpson weights on
+its actual dense grid. Saved source times are separate: their cubic
+representation is checked against sources freshly evaluated on the native
+evolution grid. Interval error maxima survive positive envelope resampling
+onto the radial grid, including signals absent from the sparse samples.
+Background density does not determine native or source sample counts.
+The runtime envelope retains both adjacent evolution comparisons,
 source and projection product errors, grid identities, feature values, actual
 sample counts, and refinement levels for all enabled surfaces.
+Scheduled background and momentum samples use compact column storage;
+evicting transient stage dictionaries preserves all future physical samples.
+The RK schedule, collision equations and saved native states are unchanged
+by that storage choice.
 
 The declared projection request resolves the dependency closure of the selected
 `requested_spectra`. It evaluates only the transfer components and source
@@ -2205,6 +2226,33 @@ gauge, and vector acceptance use their own declared surfaces and thresholds
 in `PLAN.md`.
 
 ## Development Checks
+
+The explicit completion-matrix preflight uses the same runner:
+
+```bash
+source .venv/bin/activate
+python -m tests.project.lib.scientific_acceptance --completion-preflight
+```
+
+It validates frozen reference identities and physical inputs before any
+CCMBS evolution. Each attempt remains under `preflight/` in the configured
+evidence root; `completion-preflight.json` identifies the latest attempt.
+A successful preflight is a prerequisite, never scientific acceptance.
+Changed physical parameters require a reviewed independent-reference update;
+the runner rejects a mismatch instead of quietly replacing a frozen hash.
+It also rejects a corrupt retained reference instead of silently regenerating
+it. Frozen compact requirements and historical full-materialization hashes
+remain distinct from current declaration bindings in the schema-2 contract.
+
+The `evidence_assets` owner saves typed arrays in immutable content-addressed
+compressed archives and publishes their manifests atomically. Readers verify
+contained paths, binary bytes, array inventory, dtype, shape, finite values
+and content digests after producer exit. Completion diagnostics additionally
+check source/transfer dimensions against actual k/eta/ell grids and weights.
+Original producer provenance is separate from physical, numerical, reference
+and assessment dependencies; a rendering change alone does not change the
+forward dependency identity. These storage tests and preflight checks do not
+replace actual ordinary-route numerical and CAMB comparisons.
 
 Slice Four's development loop separates independently derived equation and
 application tests from bounded real solver execution. Neither workload
@@ -2436,7 +2484,7 @@ adiabatic cooling, with a zero-scattering negative control.
 ### Bounded Native Component Acceptance
 
 Generated velocity-isocurvature density seeds use the independently measured
-Einstein momentum source. The evolved energy equation cannot supply this
+Einstein momentum source. The evolved metric equation cannot supply this
 initial density without a circular dependency. Initial-state controls check
 all five scalar families in Newtonian, synchronous and invariant gauges,
 with and without massive neutrinos, starting without provisional states.

@@ -2777,7 +2777,7 @@
       "reference_identity": "camb:1.6.0",
       "reference_kind": "camb",
       "reference_sha256":
-        "277731908a3ef8fe8c4a4ebfc8e759e94a53999e73b3e17153230b730027b206",
+        "7f23ae11b641aa9f02aff6c6ead03fdeeedce76b1196ec6fe8ab297e5d40d769",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -2802,9 +2802,9 @@
         "num_nu_massive": 3,
         "num_nu_massless": 0.0,
         "ombh2": 0.0224178568132,
-        "omch2": 0.1193556615631822,
+        "omch2": 0.11935498653217487,
         "omk": 0.0,
-        "omnuh2": 0.0006441915396177796,
+        "omnuh2": 0.000644866570625114,
         "tau": 0.054
       },
       "sectors": [
@@ -5075,5 +5075,52 @@
     "window_half_width_ell": 8,
     "window_maximum_spacing_ell": 1
   },
+  "reference_updates": [
+    {
+      "case_id": "model_ref_planck2018.yml:initial",
+      "date": "2026-11-08",
+      "previous_resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 67.66,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0224178568132,
+        "omch2": 0.1193556615631822,
+        "omk": 0.0,
+        "omnuh2": 0.0006441915396177796,
+        "tau": 0.054
+      },
+      "previous_sha256":
+        "277731908a3ef8fe8c4a4ebfc8e759e94a53999e73b3e17153230b730027b206",
+      "reason":
+        "Verified FD and unmodified CAMB density; human-authorized update.",
+      "reference_sha256":
+        "7f23ae11b641aa9f02aff6c6ead03fdeeedce76b1196ec6fe8ab297e5d40d769",
+      "resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 67.66,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0224178568132,
+        "omch2": 0.11935498653217487,
+        "omk": 0.0,
+        "omnuh2": 0.000644866570625114,
+        "tau": 0.054
+      },
+      "unchanged_requirements": [
+        "case_inventory",
+        "ells",
+        "surfaces",
+        "features",
+        "damping_windows",
+        "metrics",
+        "case_sha256"
+      ]
+    }
+  ],
   "schema_version": 1
 }
