@@ -246,6 +246,7 @@ _SUPPORTED_SPECIES_KEYS = {
     "equation_of_state",
     "hierarchy_family",
     "notes",
+    "scalar_closure",
     "sector",
     "sound_speed",
 }
@@ -1124,12 +1125,46 @@ def _materialize_bounded_derived_sum(
     return " + ".join(active_names)
 
 
+def _validate_species_scalar_closure(value: Any, name: str) -> dict[str, str]:
+    """Validate an optional explicitly chosen scalar component closure."""
+    if value is None:
+        return {}
+    required = {
+        "kind",
+        "density_fraction",
+        "other_enthalpy",
+        "transition",
+        "initial",
+    }
+    if not isinstance(value, Mapping) or set(value) != required:
+        raise ValueError(f"Species '{name}' has an invalid scalar closure")
+    if value["kind"] != "ppf":
+        raise ValueError(f"Species '{name}' has an unsupported scalar closure")
+    for key in required - {"kind"}:
+        if not isinstance(value[key], str) or not value[key].strip():
+            raise ValueError(f"Species '{name}' scalar closure needs {key}")
+    return dict(value)
+
+
 def _materialize_declared_scalar_hierarchy_contract(
     contract: Mapping[str, Any],
 ) -> tuple[Mapping[str, Any], bool]:
     """Return a generated scalar hierarchy contract when metadata is enough."""
 
     if _has_explicit_declared_runtime_graph(contract):
+        declared_species = contract.get("species", {}) or {}
+        if any(
+            isinstance(entry, Mapping)
+            and entry.get("scalar_closure") is not None
+            for entry in (
+                declared_species.values()
+                if isinstance(declared_species, Mapping)
+                else ()
+            )
+        ):
+            raise ValueError(
+                "A scalar closure cannot be combined with an explicit graph"
+            )
         return contract, False
 
     sectors = contract.get("sectors", {}) or {}
@@ -1149,11 +1184,47 @@ def _materialize_declared_scalar_hierarchy_contract(
         return contract, False
     if not isinstance(initial_condition_families, Mapping):
         return contract, False
+    closure_species = [
+        (
+            name,
+            _validate_species_scalar_closure(
+                entry.get("scalar_closure"), name
+            ),
+        )
+        for name, entry in species.items()
+        if isinstance(entry, Mapping)
+        and entry.get("scalar_closure") is not None
+    ]
+    if len(closure_species) > 1:
+        raise ValueError(
+            "The scalar PPF closure supports one declared component"
+        )
+    if closure_species:
+        closure_name, ppf_closure = closure_species[0]
+        closure_entry = species[closure_name]
+        if closure_entry.get("sector") != "scalar":
+            raise ValueError(
+                "A scalar PPF component must belong to scalar sector"
+            )
+        if not isinstance(closure_entry.get("equation_of_state"), str):
+            raise ValueError(
+                "A scalar PPF component requires equation_of_state"
+            )
+        if closure_entry.get("anisotropic_stress") != "zero":
+            raise ValueError("The declared PPF closure requires zero shear")
+    else:
+        ppf_closure = None
     if _SCALAR_HIERARCHY_REQUIRED_SECTOR not in sectors:
+        if ppf_closure is not None:
+            raise ValueError("PPF requires a generated scalar hierarchy")
         return contract, False
     if not _SCALAR_HIERARCHY_REQUIRED_SPECIES.issubset(species):
+        if ppf_closure is not None:
+            raise ValueError("PPF requires a generated scalar hierarchy")
         return contract, False
     if not _SCALAR_HIERARCHY_REQUIRED_FAMILIES.issubset(hierarchy_families):
+        if ppf_closure is not None:
+            raise ValueError("PPF requires a generated scalar hierarchy")
         return contract, False
     declared_modes = _standard_initial_mode_names(initial_condition_families)
     if len(declared_modes) > 1:
@@ -1163,6 +1234,8 @@ def _materialize_declared_scalar_hierarchy_contract(
         )
     initial_mode = _select_standard_initial_mode(initial_condition_families)
     if initial_mode is None:
+        if ppf_closure is not None:
+            raise ValueError("PPF requires declared scalar initial conditions")
         return contract, False
 
     numerics = contract.get("numerics", {}) or {}
@@ -1414,6 +1487,12 @@ def _materialize_declared_scalar_hierarchy_contract(
         ),
         **metric_variables,
     }
+    if ppf_closure is not None:
+        variables["ppf_gamma"] = _metadata_entry(
+            "ppf_metric_correction",
+            "Conserved PPF comoving-metric correction Gamma.",
+            units=_DIMENSIONLESS_UNITS,
+        )
     if has_cdm:
         variables.update(
             {
@@ -1769,6 +1848,21 @@ def _materialize_declared_scalar_hierarchy_contract(
                 },
             }
         )
+
+    if ppf_closure is not None:
+        equations["evolve_ppf_gamma"] = {
+            "lhs": {
+                "kind": "derivative",
+                "variable": "ppf_gamma",
+                "wrt": "tau",
+                "order": 1,
+            },
+            "rhs": (
+                "Hconf * (ppf_source / ppf_transition_factor - "
+                "ppf_transition_factor * ppf_gamma)"
+            ),
+            "role": "metric",
+        }
 
     def _uses_scalar_terminal_closure(family_name: str) -> bool:
         """Validate and select the declared scalar hierarchy closure."""
@@ -2771,6 +2865,62 @@ def _materialize_declared_scalar_hierarchy_contract(
                 ),
                 "units": _DIMENSIONLESS_UNITS,
             }
+    if ppf_closure is not None:
+        # Fang, Hu and Lewis (2008), equations 8 and 14-16.  The declared
+        # component supplies its own density, equation of state and total
+        # non-component enthalpy; no species is inferred from its name.
+        other_momentum = derived_entries["total_momentum_source"]["expression"]
+        other_density = derived_entries["total_density_source"]["expression"]
+        ppf_expressions = {
+            "ppf_other_momentum": other_momentum,
+            "ppf_other_enthalpy": f"({ppf_closure['other_enthalpy']})",
+            "ppf_density_background": (
+                f"a * a * ({ppf_closure['density_fraction']})"
+            ),
+            "ppf_equation_of_state": closure_entry["equation_of_state"],
+            "ppf_curvature_factor": (
+                "1.0 + 3.0 * Omega_k0 * einstein_gravity_strength "
+                "/ acoustic_k_sq"
+            ),
+            "ppf_transition_squared": (
+                f"(({ppf_closure['transition']}) * acoustic_k / Hconf) ** 2"
+            ),
+            "ppf_transition_factor": "1.0 + ppf_transition_squared",
+            "ppf_source": (
+                "1.5 * einstein_gravity_strength * ppf_density_background "
+                "* (1.0 + ppf_equation_of_state) * ppf_other_momentum / "
+                "(Hconf * acoustic_k_sq * ppf_other_enthalpy)"
+            ),
+            "ppf_momentum_factor": (
+                "1.0 + 4.5 * einstein_gravity_strength * "
+                "ppf_other_enthalpy / (acoustic_k_sq * ppf_curvature_factor)"
+            ),
+            "ppf_momentum_source": (
+                "ppf_density_background * (1.0 + ppf_equation_of_state) "
+                "* ppf_other_momentum / ppf_other_enthalpy - "
+                "(2.0 * acoustic_k_sq * Hconf / "
+                "(3.0 * einstein_gravity_strength)) * "
+                "(ppf_source * ppf_transition_squared / "
+                "ppf_transition_factor + ppf_transition_squared * ppf_gamma) "
+                "/ ppf_momentum_factor"
+            ),
+            "ppf_density_source": (
+                "-2.0 * acoustic_k_sq * ppf_curvature_factor * ppf_gamma / "
+                "(3.0 * einstein_gravity_strength) - "
+                "3.0 * Hconf * ppf_momentum_source / acoustic_k_sq"
+            ),
+        }
+        for name, expression in ppf_expressions.items():
+            derived_entries[name] = {
+                "expression": expression,
+                "description": "Declared conserved PPF scalar closure.",
+            }
+        total_momentum = derived_entries["total_momentum_source"]
+        total_density = derived_entries["total_density_source"]
+        total_momentum["expression"] = (
+            f"({other_momentum}) + ppf_momentum_source"
+        )
+        total_density["expression"] = f"({other_density}) + ppf_density_source"
     materialized["derived"] = derived_entries
     materialized["equations"] = equations
     collision_operator_entries = dict(
@@ -3077,6 +3227,11 @@ def _materialize_declared_scalar_hierarchy_contract(
     initial_conditions = copy.deepcopy(
         dict(materialized.get("initial_conditions", {}) or {})
     )
+    if ppf_closure is not None:
+        initial_conditions["ppf_gamma_seed"] = {
+            "target": {"variable": "ppf_gamma", "wrt": "tau", "order": 0},
+            "expression": ppf_closure["initial"],
+        }
     for variable_name, expression in sorted(
         _scalar_hierarchy_base_seed_expressions(
             initial_mode,
@@ -5175,6 +5330,7 @@ class PerturbationSpeciesData:
     sound_speed: str | None = None
     anisotropic_stress: str | None = None
     background_reference: str | None = None
+    scalar_closure: Mapping[str, Any] = field(default_factory=FrozenMapping)
     collision_operators: tuple[str, ...] = ()
 
 
@@ -5937,6 +6093,11 @@ def _compile_species_metadata(
                 label=(
                     "cmb.perturbations.species." f"{name}.background_reference"
                 ),
+            ),
+            scalar_closure=FrozenMapping(
+                _validate_species_scalar_closure(
+                    species_def.get("scalar_closure"), name
+                )
             ),
             collision_operators=_validate_optional_string_list(
                 species_def.get("collision_operators"),

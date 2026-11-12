@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-11-09
+**Last Updated:** 2026-11-12
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -455,6 +455,15 @@ cannot report parity until the retained comparisons pass.
 arrays and its integrity digest, for reload verification in another process.
 Named fixed-point contracts and CAMB rows are supported for response points;
 each point receives its own ordinary-route execution and parity decision.
+The completion archive distinguishes stock CAMB results from separately
+identified experimental references for nonstandard physical inputs. Those
+references retain independent thermal tables, complete coarse and refined
+spectra, source digests, and their earlier stock reference arrays. Reference
+refinement error consumes the same physical comparison allowance; it does
+not certify CCMBS parity by itself.
+The wCDM and w0wa comparison points select the stock CAMB PPF closure in
+the temporary input-matched build; their superseded no-stress arrays remain
+available as historical references.
 `run_fixed_lcdm_cmb_parity()` defines the explicit scientific handoff:
 fixed massless-neutrino LCDM with TT/TE/EE on the canonical sparse grid. It
 rejects mismatched CCMBS/CAMB physical inputs, requires CAMB's resolved
@@ -466,6 +475,14 @@ explicit handoff and `--verify PATH` reloads the durable report in a separate
 process through `read_cmb_parity_matrix_report()`. The handoff returns a
 quantitative accepted/rejected decision and remains outside ordinary test
 discovery and full-resolution production work.
+Completion evidence binds each retained spectrum quadrature to the projection
+actually returned after refinement. Readback checks its radial grid and
+quadrature weights, named transfer components, wave grid, primordial weights
+and resulting integral. A later refinement cannot silently replace the
+returned calculation's product chain.
+Measured completion axes also require retained base and refined spectra on
+their actual distinct grids. The assessor recomputes their discrepancy
+instead of accepting a hash of a caller-supplied error claim.
 The ordinary production planner owns transfer, source, projection, and
 evolution refinement. Independently evolved dense feature histories and
 compact evidence for background, q, hierarchy, evolution, source, projection,
@@ -486,6 +503,10 @@ interpolation is checked against sources reevaluated from native histories;
 radial refinement holds those physical histories fixed. The full planned k
 support is retained independently of the requested multipole subset. These
 checks do not by themselves establish convergence of the physical k domain.
+When its bounded working memory permits, `spectrum_projection` samples each
+native source onto the radial grid once before interpolating in k. For larger
+representations it streams the equivalent time interpolation per angular
+node. Both paths retain the same physical grids and numerical checks.
 Joint MCMC
 evaluation may defer the doubled-grid comparison, but it cannot bypass the
 declared final phase-grid floor; a low-node smoke path is restricted to the
@@ -553,6 +574,23 @@ horizons from the same native expansion and atomic histories as CMB.
 A separately fitted recombination-redshift parameter and duplicate symbolic
 H(z)/sound-horizon formulas are removed from these two models. Other models
 can retain their symbolic geometry or explicitly select the shared route.
+An optional `sound_horizon_redshift` expression selects the recombination
+sound-horizon endpoint when using shared geometry; the BAO drag ruler remains
+at the independently resolved drag epoch. LCDM+Mν, wCDM and w0wa select this
+route and retain their sampled `z_rec` endpoint, so their distance and CMB
+expansion histories include the same kinetic neutrino energy.
+
+Models may declare `transverse_geometry` independently of their H(z) source.
+The `flrw` form declares dimensionless `curvature` and `hubble` in km/s/Mpc;
+the `expression` form declares a distance in Mpc using `z`, `radial_distance`
+in Mpc, and model parameters. Without this declaration the transverse
+distance equals the radial integral. The generated BAO, luminosity and angular
+diameter distances all use the declared transverse distance. The wCDM and
+w0wa models explicitly select FLRW curvature; the complete convention and
+an expression example are in `docs/model_template.yml`.
+Kinetic phase-space expressions also receive declared `model_parameters` in
+background evaluation, with `param_map` taking precedence for shared names,
+matching the parameters used during hierarchy evolution.
 
 Their `effective_three_level` recombination prescription uses coupled
 hydrogen, helium and gas-temperature evolution in `runtime/recombination.py`,
@@ -677,6 +715,14 @@ Hierarchy families declare `physical_role` and kinetic `phase_space` metadata.
 temperature, mass and quadrature support independently of species labels.
 Numerical support and density are measured separately, including nonthermal
 features outside the initial thermal search interval.
+Kinetic families may declare `relativistic_density` as the density fraction
+today in the distribution's zero-mass limit, or `density_parameter` for its
+actual present energy density. These alternatives are exclusive. The q moment
+then determines the massive density continuously from the declared amplitude
+and temperature. LCDM+Mnu, wCDM and w0wa declare the relativistic amplitude
+from their own photon and neutrino inputs; their rest-density and cold-matter
+normalizations follow the same distribution. The Planck reference retains its
+own explicitly declared thermal mass-density convention.
 
 Ordinary production checks independently finer background, hierarchy depth,
 and applicable momentum quadrature on informative actual modes before the
@@ -765,10 +811,13 @@ continuous zero-mass limit.
 The wCDM and w0waCDM CMB declarations use that same density closure while
 evolving constant-`w0` and CPL dark-energy factors, respectively; their
 `w=-1`, `wa=0` limit is continuous with the shared background path.
-Both contracts declare dark energy as a smooth background component with
-unit rest-frame sound speed and zero anisotropic stress. CCMBS validates the
-analytic density and pressure factors on the full scale-factor grid before
-recombination and line-of-sight evolution.
+Both contracts explicitly select a conserved parameterized post-Friedmann
+(PPF) scalar closure with zero anisotropic stress. Its transition parameter,
+background density, other-component enthalpy, and initial value are declared
+by the model; theories without this closure do not acquire a PPF state.
+CCMBS validates the background density and pressure factors before evolving
+the declared graph. PPF is an approximation with its own physical assumptions,
+not a replacement for a theory's independently specified perturbations.
 QAUC and QRSF likewise expose their theory-specific background terms
 explicitly: QAUC normalizes its oscillatory attractor at the present epoch,
 while QRSF normalizes its baryon-locking and relational-release sectors.
@@ -916,6 +965,9 @@ arch="$(uname -m)"
 case "$(uname -s)" in
     Darwin)
         plat="apple-darwin"
+        if [ "$arch" = "arm64" ]; then
+            arch="aarch64"
+        fi
         ;;
     Linux)
         plat="unknown-linux-gnu"

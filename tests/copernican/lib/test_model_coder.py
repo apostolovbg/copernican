@@ -35,6 +35,112 @@ def _evaluate_declared_geometry(request):
 class DeclaredBackgroundGeometryTestCase(unittest.TestCase):
     """Distances and rulers consume the actual declared background."""
 
+    def test_curved_bundled_distances_match_independent_flrw_geometry(self):
+        """Both curvature signs propagate to SNe and BAO distances."""
+        import numpy
+
+        from tests.copernican.lib.test_model_adapter import (
+            DeclaredLCDMModelTestCase,
+        )
+
+        for filename in ("model_wcdm.yml", "model_w0wa.yml"):
+            plugin = DeclaredLCDMModelTestCase._build_plugin(filename)
+            for curvature in (-0.1, 0.0, 0.1):
+                with self.subTest(model=filename, curvature=curvature):
+                    values = list(plugin.INITIAL_GUESSES)
+                    values[list(plugin.PARAMETER_NAMES).index("Omega_k")] = (
+                        curvature
+                    )
+                    z = 2.0
+                    radial = quad(
+                        lambda epoch: 299792.458
+                        / plugin.get_Hz_per_Mpc(epoch, *values),
+                        0.0,
+                        z,
+                    )[0]
+                    if curvature:
+                        scale = 299792.458 / (
+                            values[0] * math.sqrt(abs(curvature))
+                        )
+                        function = math.sinh if curvature > 0 else math.sin
+                        expected = scale * function(radial / scale)
+                    else:
+                        expected = radial
+                    distance = plugin.get_comoving_distance_Mpc(z, *values)
+                    self.assertAlmostEqual(distance / expected, 1.0, places=11)
+                    self.assertAlmostEqual(
+                        plugin.get_luminosity_distance_Mpc(z, *values)
+                        / ((1 + z) * expected),
+                        1.0,
+                        places=11,
+                    )
+                    self.assertAlmostEqual(
+                        plugin.get_angular_diameter_distance_Mpc(z, *values)
+                        / (expected / (1 + z)),
+                        1.0,
+                        places=11,
+                    )
+                    expected_dv = (
+                        expected**2
+                        * 299792.458
+                        * z
+                        / plugin.get_Hz_per_Mpc(z, *values)
+                    ) ** (1 / 3)
+                    self.assertAlmostEqual(
+                        plugin.get_DV_Mpc(z, *values) / expected_dv,
+                        1.0,
+                        places=11,
+                    )
+                    if curvature == 0.1:
+                        with multiprocessing_module.get_context("spawn").Pool(
+                            1
+                        ) as pool:
+                            restored = pool.apply(
+                                _evaluate_declared_geometry,
+                                (
+                                    (
+                                        plugin.get_comoving_distance_Mpc,
+                                        z,
+                                        values,
+                                    ),
+                                ),
+                            )
+                        self.assertAlmostEqual(restored, distance, places=10)
+                    sampled = plugin.get_comoving_distance_Mpc(
+                        numpy.asarray([0.0, z]), *values
+                    )
+                    self.assertEqual(sampled[0], 0.0)
+                    self.assertAlmostEqual(
+                        sampled[1] / expected, 1.0, places=6
+                    )
+
+    def test_transverse_geometry_expression_and_invalid_fields(self):
+        """A theory can declare a non-FLRW law without hidden name rules."""
+        parameter = sympy.Symbol("strength")
+        law = model_coder._compile_transverse_distance(
+            {
+                "kind": "expression",
+                "expression": "radial_distance*(1+strength*z)",
+            },
+            model_coder._ComovingDistance(lambda epoch, strength: 100.0),
+            (parameter,),
+            {"strength": parameter},
+        )
+        self.assertAlmostEqual(law(1.0, 0.2), 299792.458 / 100.0 * 1.2)
+        for declaration in (
+            {"kind": "flrw", "curvature": "strength"},
+            {"kind": "expression", "expression": "unknown_symbol"},
+            {"kind": "other", "expression": "strength"},
+        ):
+            with self.subTest(declaration=declaration):
+                with self.assertRaises(ValueError):
+                    model_coder._compile_transverse_distance(
+                        declaration,
+                        None,
+                        (parameter,),
+                        {"strength": parameter},
+                    )
+
     def test_shared_geometry_matches_native_expansion_and_spawn(self):
         import numpy
 
@@ -117,6 +223,82 @@ class DeclaredBackgroundGeometryTestCase(unittest.TestCase):
         self.assertGreater(
             physical.drag_sound_horizon_mpc, physical.sound_horizon_mpc
         )
+
+    def test_declared_endpoint_shares_expansion_and_preserves_response(self):
+        """Every affected model uses one H(z) and its selected ruler epoch."""
+        import numpy
+
+        from copernican.lib.likelihoods.cmb.runtime import background
+        from tests.copernican.lib.test_model_adapter import (
+            DeclaredLCDMModelTestCase,
+        )
+
+        redshifts = numpy.asarray((0.0, 1.0, 100.0, 1100.0))
+        for filename in (
+            "model_lcdm_mnu.yml",
+            "model_wcdm.yml",
+            "model_w0wa.yml",
+        ):
+            with self.subTest(model=filename):
+                plugin = DeclaredLCDMModelTestCase._build_plugin(filename)
+                values = tuple(plugin.INITIAL_GUESSES)
+                runtime = plugin.get_cmb_declared_runtime(values)
+                expected_hubble = (
+                    background._resolve_declared_background_context(
+                        runtime,
+                        a_values=1.0 / (1.0 + redshifts),
+                        z_values=redshifts,
+                    )["H"]
+                )
+                numpy.testing.assert_allclose(
+                    plugin.get_Hz_per_Mpc(redshifts, *values),
+                    expected_hubble,
+                    rtol=1e-12,
+                )
+                redshift_index = list(plugin.PARAMETER_NAMES).index("z_rec")
+                earlier = list(values)
+                earlier[redshift_index] = 1200.0
+                later = list(values)
+                later[redshift_index] = 1000.0
+                earlier_ruler = plugin.get_sound_horizon_rs_Mpc(*earlier)
+                later_ruler = plugin.get_sound_horizon_rs_rec_Mpc(*later)
+                self.assertGreater(later_ruler, earlier_ruler)
+                physical = plugin.get_Hz_per_Mpc.background(values)
+                peak_values = list(values)
+                peak_values[redshift_index] = physical.z_rec
+                self.assertAlmostEqual(
+                    plugin.get_sound_horizon_rs_Mpc(*peak_values)
+                    / physical.sound_horizon_mpc,
+                    1.0,
+                    delta=3e-4,
+                )
+
+    def test_declared_sound_horizon_redshift_rejects_invalid_contracts(self):
+        """Reject ignored endpoints and unknown names."""
+        from tests.copernican.lib.test_model_adapter import (
+            DeclaredLCDMModelTestCase,
+        )
+
+        source = Path("copernican/models/model_wcdm.yml")
+        model = yaml.safe_load(source.read_text())
+        for field, value in (
+            ("geometry", None),
+            ("sound_horizon_redshift", "unknown_endpoint"),
+            ("bao_drag_redshift_expression", "z_rec"),
+        ):
+            changed = copy.deepcopy(model)
+            changed[field] = value
+            with self.subTest(field=field):
+                with tempfile.TemporaryDirectory() as directory:
+                    path = Path(directory) / "model.yml"
+                    path.write_text(yaml.safe_dump(changed))
+                    with self.assertRaises(ValueError):
+                        model_coder.generate_callables(path)
+        plugin = DeclaredLCDMModelTestCase._build_plugin("model_wcdm.yml")
+        values = list(plugin.INITIAL_GUESSES)
+        values[list(plugin.PARAMETER_NAMES).index("z_rec")] = -1.0
+        with self.assertRaisesRegex(ValueError, "redshift"):
+            plugin.get_sound_horizon_rs_Mpc(*values)
 
 
 class TestModelCoderSecurity(unittest.TestCase):

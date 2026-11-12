@@ -855,6 +855,7 @@
         60,
         61,
         100,
+        131,
         132,
         133,
         134,
@@ -873,6 +874,7 @@
         147,
         148,
         200,
+        204,
         205,
         206,
         207,
@@ -892,6 +894,9 @@
         221,
         222,
         223,
+        224,
+        225,
+        226,
         372,
         373,
         374,
@@ -909,6 +914,11 @@
         386,
         387,
         388,
+        389,
+        390,
+        391,
+        392,
+        393,
         394,
         395,
         396,
@@ -949,6 +959,10 @@
         532,
         533,
         534,
+        535,
+        536,
+        537,
+        538,
         617,
         618,
         619,
@@ -983,6 +997,23 @@
         660,
         661,
         662,
+        666,
+        667,
+        668,
+        669,
+        670,
+        671,
+        672,
+        673,
+        674,
+        675,
+        676,
+        677,
+        678,
+        679,
+        680,
+        681,
+        682,
         767,
         768,
         769,
@@ -1000,7 +1031,23 @@
         781,
         782,
         783,
+        790,
+        791,
+        792,
+        793,
+        794,
+        795,
+        796,
+        797,
+        798,
+        799,
         800,
+        801,
+        802,
+        803,
+        804,
+        805,
+        806,
         965,
         966,
         967,
@@ -1018,6 +1065,23 @@
         979,
         980,
         981,
+        988,
+        989,
+        990,
+        991,
+        992,
+        993,
+        994,
+        995,
+        996,
+        997,
+        998,
+        999,
+        1000,
+        1001,
+        1002,
+        1003,
+        1004,
         1200,
         1500,
         1988,
@@ -1069,25 +1133,25 @@
       ],
       "features": [
         {
-          "ell": 213,
+          "ell": 218,
           "kind": "peak",
-          "lower": 205,
+          "lower": 210,
           "surface": "TT",
-          "upper": 221
+          "upper": 226
         },
         {
-          "ell": 526,
+          "ell": 530,
           "kind": "peak",
-          "lower": 518,
+          "lower": 522,
           "surface": "TT",
-          "upper": 534
+          "upper": 538
         },
         {
-          "ell": 775,
+          "ell": 798,
           "kind": "peak",
-          "lower": 767,
+          "lower": 790,
           "surface": "TT",
-          "upper": 783
+          "upper": 806
         },
         {
           "ell": 407,
@@ -1097,39 +1161,39 @@
           "upper": 415
         },
         {
-          "ell": 625,
-          "kind": "trough",
-          "lower": 617,
-          "surface": "TT",
-          "upper": 633
-        },
-        {
-          "ell": 973,
-          "kind": "trough",
-          "lower": 965,
-          "surface": "TT",
-          "upper": 981
-        },
-        {
-          "ell": 140,
-          "kind": "peak",
-          "lower": 132,
-          "surface": "EE",
-          "upper": 148
-        },
-        {
-          "ell": 380,
-          "kind": "peak",
-          "lower": 372,
-          "surface": "EE",
-          "upper": 388
-        },
-        {
           "ell": 654,
-          "kind": "peak",
+          "kind": "trough",
           "lower": 646,
-          "surface": "EE",
+          "surface": "TT",
           "upper": 662
+        },
+        {
+          "ell": 996,
+          "kind": "trough",
+          "lower": 988,
+          "surface": "TT",
+          "upper": 1004
+        },
+        {
+          "ell": 139,
+          "kind": "peak",
+          "lower": 131,
+          "surface": "EE",
+          "upper": 147
+        },
+        {
+          "ell": 388,
+          "kind": "peak",
+          "lower": 380,
+          "surface": "EE",
+          "upper": 396
+        },
+        {
+          "ell": 674,
+          "kind": "peak",
+          "lower": 666,
+          "surface": "EE",
+          "upper": 682
         },
         {
           "ell": 53,
@@ -1139,27 +1203,28 @@
           "upper": 61
         },
         {
-          "ell": 215,
+          "ell": 212,
           "kind": "zero_crossing",
-          "lower": 207,
+          "lower": 204,
           "surface": "TE",
-          "upper": 223
+          "upper": 220
         },
         {
-          "ell": 402,
+          "ell": 398,
           "kind": "zero_crossing",
-          "lower": 394,
+          "lower": 390,
           "surface": "TE",
-          "upper": 410
+          "upper": 406
         }
       ],
       "graph_required": false,
       "model_filename": "model_lcdm_mnu.yml",
       "point": "initial",
-      "reference_identity": "camb:1.6.0",
+      "reference_identity":
+        "camb:experimental:1.6.0:eg9o_4lZRQCxjtYNgbv2eYfMf7a3KKXHickRUAR484Q",
       "reference_kind": "camb",
       "reference_sha256":
-        "14ae324e0344445cc8f1616d248f031ebc438527d3b643aa3c6b6270a18d620e",
+        "c3075e6290d7c888c641495e55c3b8a5fda44cd279eb665f3b391ed235a3500a",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -1184,9 +1249,9 @@
         "num_nu_massive": 3,
         "num_nu_massless": 0.0,
         "ombh2": 0.0309375,
-        "omch2": 0.1773158685849259,
+        "omch2": 0.1766750776291311,
         "omk": 0.0,
-        "omnuh2": 0.002684131415074082,
+        "omnuh2": 0.0033250094201093014,
         "tau": 0.054
       },
       "sectors": [
@@ -1258,6 +1323,7 @@
         147,
         148,
         200,
+        205,
         206,
         207,
         208,
@@ -1277,6 +1343,8 @@
         222,
         223,
         224,
+        225,
+        226,
         373,
         374,
         375,
@@ -1294,6 +1362,11 @@
         387,
         388,
         389,
+        390,
+        391,
+        392,
+        393,
+        394,
         395,
         396,
         397,
@@ -1334,6 +1407,11 @@
         533,
         534,
         535,
+        536,
+        537,
+        538,
+        539,
+        540,
         618,
         619,
         620,
@@ -1368,6 +1446,23 @@
         662,
         663,
         664,
+        667,
+        668,
+        669,
+        670,
+        671,
+        672,
+        673,
+        674,
+        675,
+        676,
+        677,
+        678,
+        679,
+        680,
+        681,
+        682,
+        683,
         769,
         770,
         771,
@@ -1385,7 +1480,23 @@
         783,
         784,
         785,
+        792,
+        793,
+        794,
+        795,
+        796,
+        797,
+        798,
+        799,
         800,
+        801,
+        802,
+        803,
+        804,
+        805,
+        806,
+        807,
+        808,
         968,
         969,
         970,
@@ -1403,6 +1514,23 @@
         982,
         983,
         984,
+        991,
+        992,
+        993,
+        994,
+        995,
+        996,
+        997,
+        998,
+        999,
+        1000,
+        1001,
+        1002,
+        1003,
+        1004,
+        1005,
+        1006,
+        1007,
         1200,
         1500,
         1988,
@@ -1454,25 +1582,25 @@
       ],
       "features": [
         {
-          "ell": 214,
+          "ell": 218,
           "kind": "peak",
-          "lower": 206,
+          "lower": 210,
           "surface": "TT",
-          "upper": 222
+          "upper": 226
         },
         {
-          "ell": 527,
+          "ell": 532,
           "kind": "peak",
-          "lower": 519,
+          "lower": 524,
           "surface": "TT",
-          "upper": 535
+          "upper": 540
         },
         {
-          "ell": 777,
+          "ell": 800,
           "kind": "peak",
-          "lower": 769,
+          "lower": 792,
           "surface": "TT",
-          "upper": 785
+          "upper": 808
         },
         {
           "ell": 408,
@@ -1482,18 +1610,18 @@
           "upper": 416
         },
         {
-          "ell": 626,
+          "ell": 656,
           "kind": "trough",
-          "lower": 618,
+          "lower": 648,
           "surface": "TT",
-          "upper": 634
+          "upper": 664
         },
         {
-          "ell": 976,
+          "ell": 999,
           "kind": "trough",
-          "lower": 968,
+          "lower": 991,
           "surface": "TT",
-          "upper": 984
+          "upper": 1007
         },
         {
           "ell": 140,
@@ -1503,18 +1631,18 @@
           "upper": 148
         },
         {
-          "ell": 381,
+          "ell": 389,
           "kind": "peak",
-          "lower": 373,
+          "lower": 381,
           "surface": "EE",
-          "upper": 389
+          "upper": 397
         },
         {
-          "ell": 656,
+          "ell": 675,
           "kind": "peak",
-          "lower": 648,
+          "lower": 667,
           "surface": "EE",
-          "upper": 664
+          "upper": 683
         },
         {
           "ell": 53,
@@ -1524,27 +1652,28 @@
           "upper": 61
         },
         {
-          "ell": 216,
+          "ell": 213,
           "kind": "zero_crossing",
-          "lower": 208,
+          "lower": 205,
           "surface": "TE",
-          "upper": 224
+          "upper": 221
         },
         {
-          "ell": 403,
+          "ell": 399,
           "kind": "zero_crossing",
-          "lower": 395,
+          "lower": 391,
           "surface": "TE",
-          "upper": 411
+          "upper": 407
         }
       ],
       "graph_required": false,
       "model_filename": "model_lcdm_mnu.yml",
       "point": "mass_006",
-      "reference_identity": "camb:1.6.0",
+      "reference_identity":
+        "camb:experimental:1.6.0:eg9o_4lZRQCxjtYNgbv2eYfMf7a3KKXHickRUAR484Q",
       "reference_kind": "camb",
       "reference_sha256":
-        "e77d1f0d2b8425982292e5d969c6d771f24a3e54978fc33d6821048ecf50a104",
+        "0002830a39f69bacda9d986c8a090f8d641bf5d73ec53cd952332ca1afdbbc1f",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -1569,9 +1698,9 @@
         "num_nu_massive": 3,
         "num_nu_massless": 0.0,
         "ombh2": 0.0309375,
-        "omch2": 0.1793558084603822,
+        "omch2": 0.17920201863099147,
         "omk": 0.0,
-        "omnuh2": 0.0006441915396177796,
+        "omnuh2": 0.0007983438906364692,
         "tau": 0.054
       },
       "sectors": [
@@ -1643,6 +1772,8 @@
         146,
         147,
         200,
+        203,
+        204,
         205,
         206,
         207,
@@ -1661,6 +1792,9 @@
         220,
         221,
         222,
+        223,
+        224,
+        225,
         371,
         372,
         373,
@@ -1678,6 +1812,11 @@
         385,
         386,
         387,
+        388,
+        389,
+        390,
+        391,
+        392,
         393,
         394,
         395,
@@ -1718,6 +1857,10 @@
         530,
         531,
         532,
+        533,
+        534,
+        535,
+        536,
         616,
         617,
         618,
@@ -1752,6 +1895,23 @@
         659,
         660,
         661,
+        663,
+        664,
+        665,
+        666,
+        667,
+        668,
+        669,
+        670,
+        671,
+        672,
+        673,
+        674,
+        675,
+        676,
+        677,
+        678,
+        679,
         765,
         766,
         767,
@@ -1769,7 +1929,23 @@
         779,
         780,
         781,
+        788,
+        789,
+        790,
+        791,
+        792,
+        793,
+        794,
+        795,
+        796,
+        797,
+        798,
+        799,
         800,
+        801,
+        802,
+        803,
+        804,
         963,
         964,
         965,
@@ -1787,6 +1963,23 @@
         977,
         978,
         979,
+        985,
+        986,
+        987,
+        988,
+        989,
+        990,
+        991,
+        992,
+        993,
+        994,
+        995,
+        996,
+        997,
+        998,
+        999,
+        1000,
+        1001,
         1200,
         1500,
         1988,
@@ -1838,25 +2031,25 @@
       ],
       "features": [
         {
-          "ell": 213,
+          "ell": 217,
           "kind": "peak",
-          "lower": 205,
+          "lower": 209,
           "surface": "TT",
-          "upper": 221
+          "upper": 225
         },
         {
-          "ell": 524,
+          "ell": 528,
           "kind": "peak",
-          "lower": 516,
+          "lower": 520,
           "surface": "TT",
-          "upper": 532
+          "upper": 536
         },
         {
-          "ell": 773,
+          "ell": 796,
           "kind": "peak",
-          "lower": 765,
+          "lower": 788,
           "surface": "TT",
-          "upper": 781
+          "upper": 804
         },
         {
           "ell": 406,
@@ -1866,18 +2059,18 @@
           "upper": 414
         },
         {
-          "ell": 624,
+          "ell": 653,
           "kind": "trough",
-          "lower": 616,
+          "lower": 645,
           "surface": "TT",
-          "upper": 632
+          "upper": 661
         },
         {
-          "ell": 971,
+          "ell": 993,
           "kind": "trough",
-          "lower": 963,
+          "lower": 985,
           "surface": "TT",
-          "upper": 979
+          "upper": 1001
         },
         {
           "ell": 139,
@@ -1887,18 +2080,18 @@
           "upper": 147
         },
         {
-          "ell": 379,
+          "ell": 387,
           "kind": "peak",
-          "lower": 371,
+          "lower": 379,
           "surface": "EE",
-          "upper": 387
+          "upper": 395
         },
         {
-          "ell": 653,
+          "ell": 671,
           "kind": "peak",
-          "lower": 645,
+          "lower": 663,
           "surface": "EE",
-          "upper": 661
+          "upper": 679
         },
         {
           "ell": 53,
@@ -1908,27 +2101,28 @@
           "upper": 61
         },
         {
-          "ell": 214,
+          "ell": 211,
           "kind": "zero_crossing",
-          "lower": 206,
+          "lower": 203,
           "surface": "TE",
-          "upper": 222
+          "upper": 219
         },
         {
-          "ell": 401,
+          "ell": 396,
           "kind": "zero_crossing",
-          "lower": 393,
+          "lower": 388,
           "surface": "TE",
-          "upper": 409
+          "upper": 404
         }
       ],
       "graph_required": false,
       "model_filename": "model_lcdm_mnu.yml",
       "point": "mass_050",
-      "reference_identity": "camb:1.6.0",
+      "reference_identity":
+        "camb:experimental:1.6.0:eg9o_4lZRQCxjtYNgbv2eYfMf7a3KKXHickRUAR484Q",
       "reference_kind": "camb",
       "reference_sha256":
-        "44f749bd3bee09fb2c67d59510c2762a0845d364d9011e20a6554035f205d972",
+        "408a66a244167391a52a638be29500c255b06f0dd1eb4538ce77436315d2b54d",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -1953,9 +2147,9 @@
         "num_nu_massive": 3,
         "num_nu_massless": 0.0,
         "ombh2": 0.0309375,
-        "omch2": 0.17463173716985184,
+        "omch2": 0.17335015525826225,
         "omk": 0.0,
-        "omnuh2": 0.005368262830148164,
+        "omnuh2": 0.006649888267374749,
         "tau": 0.054
       },
       "sectors": [
@@ -2029,6 +2223,7 @@
         147,
         148,
         200,
+        205,
         206,
         207,
         208,
@@ -2048,6 +2243,9 @@
         222,
         223,
         224,
+        225,
+        226,
+        227,
         373,
         374,
         375,
@@ -2065,6 +2263,12 @@
         387,
         388,
         389,
+        390,
+        391,
+        392,
+        393,
+        394,
+        395,
         396,
         397,
         398,
@@ -2105,6 +2309,11 @@
         533,
         534,
         535,
+        536,
+        537,
+        538,
+        539,
+        540,
         618,
         619,
         620,
@@ -2139,6 +2348,23 @@
         662,
         663,
         664,
+        668,
+        669,
+        670,
+        671,
+        672,
+        673,
+        674,
+        675,
+        676,
+        677,
+        678,
+        679,
+        680,
+        681,
+        682,
+        683,
+        684,
         769,
         770,
         771,
@@ -2156,7 +2382,23 @@
         783,
         784,
         785,
+        792,
+        793,
+        794,
+        795,
+        796,
+        797,
+        798,
+        799,
         800,
+        801,
+        802,
+        803,
+        804,
+        805,
+        806,
+        807,
+        808,
         968,
         969,
         970,
@@ -2174,6 +2416,23 @@
         982,
         983,
         984,
+        991,
+        992,
+        993,
+        994,
+        995,
+        996,
+        997,
+        998,
+        999,
+        1000,
+        1001,
+        1002,
+        1003,
+        1004,
+        1005,
+        1006,
+        1007,
         1200,
         1500,
         1988,
@@ -2225,25 +2484,25 @@
       ],
       "features": [
         {
-          "ell": 214,
+          "ell": 219,
           "kind": "peak",
-          "lower": 206,
+          "lower": 211,
           "surface": "TT",
-          "upper": 222
+          "upper": 227
         },
         {
-          "ell": 527,
+          "ell": 532,
           "kind": "peak",
-          "lower": 519,
+          "lower": 524,
           "surface": "TT",
-          "upper": 535
+          "upper": 540
         },
         {
-          "ell": 777,
+          "ell": 800,
           "kind": "peak",
-          "lower": 769,
+          "lower": 792,
           "surface": "TT",
-          "upper": 785
+          "upper": 808
         },
         {
           "ell": 409,
@@ -2253,18 +2512,18 @@
           "upper": 417
         },
         {
-          "ell": 626,
+          "ell": 656,
           "kind": "trough",
-          "lower": 618,
+          "lower": 648,
           "surface": "TT",
-          "upper": 634
+          "upper": 664
         },
         {
-          "ell": 976,
+          "ell": 999,
           "kind": "trough",
-          "lower": 968,
+          "lower": 991,
           "surface": "TT",
-          "upper": 984
+          "upper": 1007
         },
         {
           "ell": 140,
@@ -2274,18 +2533,18 @@
           "upper": 148
         },
         {
-          "ell": 381,
+          "ell": 389,
           "kind": "peak",
-          "lower": 373,
+          "lower": 381,
           "surface": "EE",
-          "upper": 389
+          "upper": 397
         },
         {
-          "ell": 656,
+          "ell": 676,
           "kind": "peak",
-          "lower": 648,
+          "lower": 668,
           "surface": "EE",
-          "upper": 664
+          "upper": 684
         },
         {
           "ell": 53,
@@ -2295,27 +2554,28 @@
           "upper": 61
         },
         {
-          "ell": 216,
+          "ell": 213,
           "kind": "zero_crossing",
-          "lower": 208,
+          "lower": 205,
           "surface": "TE",
-          "upper": 224
+          "upper": 221
         },
         {
-          "ell": 404,
+          "ell": 399,
           "kind": "zero_crossing",
-          "lower": 396,
+          "lower": 391,
           "surface": "TE",
-          "upper": 412
+          "upper": 407
         }
       ],
       "graph_required": false,
       "model_filename": "model_lcdm_mnu.yml",
       "point": "mass_zero",
-      "reference_identity": "camb:1.6.0",
+      "reference_identity":
+        "camb:experimental:1.6.0:eg9o_4lZRQCxjtYNgbv2eYfMf7a3KKXHickRUAR484Q",
       "reference_kind": "camb",
       "reference_sha256":
-        "8b7110ba0a6857ad4314d64a9a5de9c6d93f0a5401352d10e606384f7d25b98f",
+        "7de5d6e5da5799d15e7ddc409805716cacdba5d5db9417669116e60b9de30074",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -2997,6 +3257,7 @@
         147,
         148,
         200,
+        205,
         206,
         207,
         208,
@@ -3016,6 +3277,8 @@
         222,
         223,
         224,
+        225,
+        226,
         373,
         374,
         375,
@@ -3033,6 +3296,11 @@
         387,
         388,
         389,
+        390,
+        391,
+        392,
+        393,
+        394,
         395,
         396,
         397,
@@ -3073,6 +3341,11 @@
         533,
         534,
         535,
+        536,
+        537,
+        538,
+        539,
+        540,
         618,
         619,
         620,
@@ -3107,6 +3380,23 @@
         662,
         663,
         664,
+        667,
+        668,
+        669,
+        670,
+        671,
+        672,
+        673,
+        674,
+        675,
+        676,
+        677,
+        678,
+        679,
+        680,
+        681,
+        682,
+        683,
         769,
         770,
         771,
@@ -3124,7 +3414,23 @@
         783,
         784,
         785,
+        792,
+        793,
+        794,
+        795,
+        796,
+        797,
+        798,
+        799,
         800,
+        801,
+        802,
+        803,
+        804,
+        805,
+        806,
+        807,
+        808,
         968,
         969,
         970,
@@ -3142,6 +3448,23 @@
         982,
         983,
         984,
+        991,
+        992,
+        993,
+        994,
+        995,
+        996,
+        997,
+        998,
+        999,
+        1000,
+        1001,
+        1002,
+        1003,
+        1004,
+        1005,
+        1006,
+        1007,
         1200,
         1500,
         1988,
@@ -3193,25 +3516,25 @@
       ],
       "features": [
         {
-          "ell": 214,
+          "ell": 218,
           "kind": "peak",
-          "lower": 206,
+          "lower": 210,
           "surface": "TT",
-          "upper": 222
+          "upper": 226
         },
         {
-          "ell": 527,
+          "ell": 532,
           "kind": "peak",
-          "lower": 519,
+          "lower": 524,
           "surface": "TT",
-          "upper": 535
+          "upper": 540
         },
         {
-          "ell": 777,
+          "ell": 800,
           "kind": "peak",
-          "lower": 769,
+          "lower": 792,
           "surface": "TT",
-          "upper": 785
+          "upper": 808
         },
         {
           "ell": 408,
@@ -3221,18 +3544,18 @@
           "upper": 416
         },
         {
-          "ell": 626,
+          "ell": 656,
           "kind": "trough",
-          "lower": 618,
+          "lower": 648,
           "surface": "TT",
-          "upper": 634
+          "upper": 664
         },
         {
-          "ell": 976,
+          "ell": 999,
           "kind": "trough",
-          "lower": 968,
+          "lower": 991,
           "surface": "TT",
-          "upper": 984
+          "upper": 1007
         },
         {
           "ell": 140,
@@ -3242,18 +3565,18 @@
           "upper": 148
         },
         {
-          "ell": 381,
+          "ell": 389,
           "kind": "peak",
-          "lower": 373,
+          "lower": 381,
           "surface": "EE",
-          "upper": 389
+          "upper": 397
         },
         {
-          "ell": 656,
+          "ell": 675,
           "kind": "peak",
-          "lower": 648,
+          "lower": 667,
           "surface": "EE",
-          "upper": 664
+          "upper": 683
         },
         {
           "ell": 53,
@@ -3263,27 +3586,28 @@
           "upper": 61
         },
         {
-          "ell": 216,
+          "ell": 213,
           "kind": "zero_crossing",
-          "lower": 208,
+          "lower": 205,
           "surface": "TE",
-          "upper": 224
+          "upper": 221
         },
         {
-          "ell": 403,
+          "ell": 399,
           "kind": "zero_crossing",
-          "lower": 395,
+          "lower": 391,
           "surface": "TE",
-          "upper": 411
+          "upper": 407
         }
       ],
       "graph_required": false,
       "model_filename": "model_w0wa.yml",
       "point": "initial",
-      "reference_identity": "camb:1.6.0",
+      "reference_identity":
+        "camb:experimental:1.6.0:2pD9xAqKN0ro2saUjkx4N8R7Hww2VKvQM5zapceotpU",
       "reference_kind": "camb",
       "reference_sha256":
-        "a2c5189c5721e5da8d8f63a3a59b2bd65643a5eaf0b7e3a50858ceb27db42822",
+        "ae685f36445c9235a394c6a3370d5121f2fe9ef5c6c0197d435b03e018f0d025",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -3308,9 +3632,9 @@
         "num_nu_massive": 3,
         "num_nu_massless": 0.0,
         "ombh2": 0.0309375,
-        "omch2": 0.1793558084603822,
+        "omch2": 0.17920201863099147,
         "omk": 0.0,
-        "omnuh2": 0.0006441915396177796,
+        "omnuh2": 0.0007983438906364692,
         "tau": 0.054
       },
       "sectors": [
@@ -3382,6 +3706,7 @@
         146,
         147,
         200,
+        203,
         204,
         205,
         206,
@@ -3401,6 +3726,9 @@
         220,
         221,
         222,
+        223,
+        224,
+        225,
         370,
         371,
         372,
@@ -3418,6 +3746,11 @@
         384,
         385,
         386,
+        387,
+        388,
+        389,
+        390,
+        391,
         392,
         393,
         394,
@@ -3458,6 +3791,11 @@
         529,
         530,
         531,
+        532,
+        533,
+        534,
+        535,
+        536,
         613,
         614,
         615,
@@ -3492,6 +3830,23 @@
         657,
         658,
         659,
+        662,
+        663,
+        664,
+        665,
+        666,
+        667,
+        668,
+        669,
+        670,
+        671,
+        672,
+        673,
+        674,
+        675,
+        676,
+        677,
+        678,
         763,
         764,
         765,
@@ -3509,7 +3864,23 @@
         777,
         778,
         779,
+        786,
+        787,
+        788,
+        789,
+        790,
+        791,
+        792,
+        793,
+        794,
+        795,
+        796,
+        797,
+        798,
+        799,
         800,
+        801,
+        802,
         960,
         961,
         962,
@@ -3527,6 +3898,23 @@
         974,
         975,
         976,
+        983,
+        984,
+        985,
+        986,
+        987,
+        988,
+        989,
+        990,
+        991,
+        992,
+        993,
+        994,
+        995,
+        996,
+        997,
+        998,
+        999,
         1200,
         1500,
         1988,
@@ -3578,25 +3966,25 @@
       ],
       "features": [
         {
-          "ell": 212,
+          "ell": 217,
           "kind": "peak",
-          "lower": 204,
+          "lower": 209,
           "surface": "TT",
-          "upper": 220
+          "upper": 225
         },
         {
-          "ell": 523,
+          "ell": 528,
           "kind": "peak",
-          "lower": 515,
+          "lower": 520,
           "surface": "TT",
-          "upper": 531
+          "upper": 536
         },
         {
-          "ell": 771,
+          "ell": 794,
           "kind": "peak",
-          "lower": 763,
+          "lower": 786,
           "surface": "TT",
-          "upper": 779
+          "upper": 802
         },
         {
           "ell": 405,
@@ -3606,18 +3994,18 @@
           "upper": 413
         },
         {
-          "ell": 621,
+          "ell": 651,
           "kind": "trough",
-          "lower": 613,
+          "lower": 643,
           "surface": "TT",
-          "upper": 629
+          "upper": 659
         },
         {
-          "ell": 968,
+          "ell": 991,
           "kind": "trough",
-          "lower": 960,
+          "lower": 983,
           "surface": "TT",
-          "upper": 976
+          "upper": 999
         },
         {
           "ell": 139,
@@ -3627,18 +4015,18 @@
           "upper": 147
         },
         {
-          "ell": 378,
+          "ell": 386,
           "kind": "peak",
-          "lower": 370,
+          "lower": 378,
           "surface": "EE",
-          "upper": 386
+          "upper": 394
         },
         {
-          "ell": 651,
+          "ell": 670,
           "kind": "peak",
-          "lower": 643,
+          "lower": 662,
           "surface": "EE",
-          "upper": 659
+          "upper": 678
         },
         {
           "ell": 53,
@@ -3648,27 +4036,28 @@
           "upper": 61
         },
         {
-          "ell": 214,
+          "ell": 211,
           "kind": "zero_crossing",
-          "lower": 206,
+          "lower": 203,
           "surface": "TE",
-          "upper": 222
+          "upper": 219
         },
         {
-          "ell": 400,
+          "ell": 396,
           "kind": "zero_crossing",
-          "lower": 392,
+          "lower": 388,
           "surface": "TE",
-          "upper": 408
+          "upper": 404
         }
       ],
       "graph_required": false,
       "model_filename": "model_w0wa.yml",
       "point": "w0_minus_09",
-      "reference_identity": "camb:1.6.0",
+      "reference_identity":
+        "camb:experimental:1.6.0:2pD9xAqKN0ro2saUjkx4N8R7Hww2VKvQM5zapceotpU",
       "reference_kind": "camb",
       "reference_sha256":
-        "328ac6f2742405bc7245b6d6b8df074be96fefcc2d3ddf3c13a020068dab6b9c",
+        "0412fa25490a17656e3d6a0f757f62796faf04548abcf5e2e21071003ed93af1",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -3693,9 +4082,9 @@
         "num_nu_massive": 3,
         "num_nu_massless": 0.0,
         "ombh2": 0.0309375,
-        "omch2": 0.1793558084603822,
+        "omch2": 0.17920201863099147,
         "omk": 0.0,
-        "omnuh2": 0.0006441915396177796,
+        "omnuh2": 0.0007983438906364692,
         "tau": 0.054
       },
       "sectors": [
@@ -3767,6 +4156,7 @@
         146,
         147,
         200,
+        204,
         205,
         206,
         207,
@@ -3786,6 +4176,8 @@
         221,
         222,
         223,
+        224,
+        225,
         371,
         372,
         373,
@@ -3803,6 +4195,12 @@
         385,
         386,
         387,
+        388,
+        389,
+        390,
+        391,
+        392,
+        393,
         394,
         395,
         396,
@@ -3843,6 +4241,11 @@
         531,
         532,
         533,
+        534,
+        535,
+        536,
+        537,
+        538,
         615,
         616,
         617,
@@ -3877,6 +4280,23 @@
         659,
         660,
         661,
+        665,
+        666,
+        667,
+        668,
+        669,
+        670,
+        671,
+        672,
+        673,
+        674,
+        675,
+        676,
+        677,
+        678,
+        679,
+        680,
+        681,
         765,
         766,
         767,
@@ -3894,7 +4314,23 @@
         779,
         780,
         781,
+        789,
+        790,
+        791,
+        792,
+        793,
+        794,
+        795,
+        796,
+        797,
+        798,
+        799,
         800,
+        801,
+        802,
+        803,
+        804,
+        805,
         964,
         965,
         966,
@@ -3912,6 +4348,23 @@
         978,
         979,
         980,
+        986,
+        987,
+        988,
+        989,
+        990,
+        991,
+        992,
+        993,
+        994,
+        995,
+        996,
+        997,
+        998,
+        999,
+        1000,
+        1001,
+        1002,
         1200,
         1500,
         1988,
@@ -3963,25 +4416,25 @@
       ],
       "features": [
         {
-          "ell": 213,
+          "ell": 217,
           "kind": "peak",
-          "lower": 205,
+          "lower": 209,
           "surface": "TT",
-          "upper": 221
+          "upper": 225
         },
         {
-          "ell": 525,
+          "ell": 530,
           "kind": "peak",
-          "lower": 517,
+          "lower": 522,
           "surface": "TT",
-          "upper": 533
+          "upper": 538
         },
         {
-          "ell": 773,
+          "ell": 797,
           "kind": "peak",
-          "lower": 765,
+          "lower": 789,
           "surface": "TT",
-          "upper": 781
+          "upper": 805
         },
         {
           "ell": 407,
@@ -3991,18 +4444,18 @@
           "upper": 415
         },
         {
-          "ell": 623,
+          "ell": 653,
           "kind": "trough",
-          "lower": 615,
+          "lower": 645,
           "surface": "TT",
-          "upper": 631
+          "upper": 661
         },
         {
-          "ell": 972,
+          "ell": 994,
           "kind": "trough",
-          "lower": 964,
+          "lower": 986,
           "surface": "TT",
-          "upper": 980
+          "upper": 1002
         },
         {
           "ell": 139,
@@ -4012,18 +4465,18 @@
           "upper": 147
         },
         {
-          "ell": 379,
+          "ell": 388,
           "kind": "peak",
-          "lower": 371,
+          "lower": 380,
           "surface": "EE",
-          "upper": 387
+          "upper": 396
         },
         {
-          "ell": 653,
+          "ell": 673,
           "kind": "peak",
-          "lower": 645,
+          "lower": 665,
           "surface": "EE",
-          "upper": 661
+          "upper": 681
         },
         {
           "ell": 53,
@@ -4033,27 +4486,28 @@
           "upper": 61
         },
         {
-          "ell": 215,
+          "ell": 212,
           "kind": "zero_crossing",
-          "lower": 207,
+          "lower": 204,
           "surface": "TE",
-          "upper": 223
+          "upper": 220
         },
         {
-          "ell": 402,
+          "ell": 398,
           "kind": "zero_crossing",
-          "lower": 394,
+          "lower": 390,
           "surface": "TE",
-          "upper": 410
+          "upper": 406
         }
       ],
       "graph_required": false,
       "model_filename": "model_w0wa.yml",
       "point": "wa_plus_02",
-      "reference_identity": "camb:1.6.0",
+      "reference_identity":
+        "camb:experimental:1.6.0:2pD9xAqKN0ro2saUjkx4N8R7Hww2VKvQM5zapceotpU",
       "reference_kind": "camb",
       "reference_sha256":
-        "e44e75115cb37527fbf94c46ba7e6fea2169589c781d73ddd61bf9ac097bfeb1",
+        "a6b7983df52773252063bcef22d1805e245ad37e953d5852d03f42f7a8b9a797",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -4078,9 +4532,9 @@
         "num_nu_massive": 3,
         "num_nu_massless": 0.0,
         "ombh2": 0.0309375,
-        "omch2": 0.1793558084603822,
+        "omch2": 0.17920201863099147,
         "omk": 0.0,
-        "omnuh2": 0.0006441915396177796,
+        "omnuh2": 0.0007983438906364692,
         "tau": 0.054
       },
       "sectors": [
@@ -4152,6 +4606,7 @@
         147,
         148,
         200,
+        205,
         206,
         207,
         208,
@@ -4171,6 +4626,8 @@
         222,
         223,
         224,
+        225,
+        226,
         373,
         374,
         375,
@@ -4188,6 +4645,11 @@
         387,
         388,
         389,
+        390,
+        391,
+        392,
+        393,
+        394,
         395,
         396,
         397,
@@ -4228,6 +4690,11 @@
         533,
         534,
         535,
+        536,
+        537,
+        538,
+        539,
+        540,
         618,
         619,
         620,
@@ -4262,6 +4729,23 @@
         662,
         663,
         664,
+        667,
+        668,
+        669,
+        670,
+        671,
+        672,
+        673,
+        674,
+        675,
+        676,
+        677,
+        678,
+        679,
+        680,
+        681,
+        682,
+        683,
         769,
         770,
         771,
@@ -4279,7 +4763,23 @@
         783,
         784,
         785,
+        792,
+        793,
+        794,
+        795,
+        796,
+        797,
+        798,
+        799,
         800,
+        801,
+        802,
+        803,
+        804,
+        805,
+        806,
+        807,
+        808,
         968,
         969,
         970,
@@ -4297,6 +4797,23 @@
         982,
         983,
         984,
+        991,
+        992,
+        993,
+        994,
+        995,
+        996,
+        997,
+        998,
+        999,
+        1000,
+        1001,
+        1002,
+        1003,
+        1004,
+        1005,
+        1006,
+        1007,
         1200,
         1500,
         1988,
@@ -4348,25 +4865,25 @@
       ],
       "features": [
         {
-          "ell": 214,
+          "ell": 218,
           "kind": "peak",
-          "lower": 206,
+          "lower": 210,
           "surface": "TT",
-          "upper": 222
+          "upper": 226
         },
         {
-          "ell": 527,
+          "ell": 532,
           "kind": "peak",
-          "lower": 519,
+          "lower": 524,
           "surface": "TT",
-          "upper": 535
+          "upper": 540
         },
         {
-          "ell": 777,
+          "ell": 800,
           "kind": "peak",
-          "lower": 769,
+          "lower": 792,
           "surface": "TT",
-          "upper": 785
+          "upper": 808
         },
         {
           "ell": 408,
@@ -4376,18 +4893,18 @@
           "upper": 416
         },
         {
-          "ell": 626,
+          "ell": 656,
           "kind": "trough",
-          "lower": 618,
+          "lower": 648,
           "surface": "TT",
-          "upper": 634
+          "upper": 664
         },
         {
-          "ell": 976,
+          "ell": 999,
           "kind": "trough",
-          "lower": 968,
+          "lower": 991,
           "surface": "TT",
-          "upper": 984
+          "upper": 1007
         },
         {
           "ell": 140,
@@ -4397,18 +4914,18 @@
           "upper": 148
         },
         {
-          "ell": 381,
+          "ell": 389,
           "kind": "peak",
-          "lower": 373,
+          "lower": 381,
           "surface": "EE",
-          "upper": 389
+          "upper": 397
         },
         {
-          "ell": 656,
+          "ell": 675,
           "kind": "peak",
-          "lower": 648,
+          "lower": 667,
           "surface": "EE",
-          "upper": 664
+          "upper": 683
         },
         {
           "ell": 53,
@@ -4418,27 +4935,28 @@
           "upper": 61
         },
         {
-          "ell": 216,
+          "ell": 213,
           "kind": "zero_crossing",
-          "lower": 208,
+          "lower": 205,
           "surface": "TE",
-          "upper": 224
+          "upper": 221
         },
         {
-          "ell": 403,
+          "ell": 399,
           "kind": "zero_crossing",
-          "lower": 395,
+          "lower": 391,
           "surface": "TE",
-          "upper": 411
+          "upper": 407
         }
       ],
       "graph_required": false,
       "model_filename": "model_wcdm.yml",
       "point": "initial",
-      "reference_identity": "camb:1.6.0",
+      "reference_identity":
+        "camb:experimental:1.6.0:2pD9xAqKN0ro2saUjkx4N8R7Hww2VKvQM5zapceotpU",
       "reference_kind": "camb",
       "reference_sha256":
-        "f1a7ca78d1b02ac6a1f9806b078f93a709877b71b10da0d4c892b6aa91fb81b1",
+        "aae13ed6805eaaa5e9d893b9854fe0dccc99d19784778e616efa0c4c08cd1215",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -4463,9 +4981,9 @@
         "num_nu_massive": 3,
         "num_nu_massless": 0.0,
         "ombh2": 0.0309375,
-        "omch2": 0.1793558084603822,
+        "omch2": 0.17920201863099147,
         "omk": 0.0,
-        "omnuh2": 0.0006441915396177796,
+        "omnuh2": 0.0007983438906364692,
         "tau": 0.054
       },
       "sectors": [
@@ -4537,6 +5055,7 @@
         146,
         147,
         200,
+        203,
         204,
         205,
         206,
@@ -4556,6 +5075,9 @@
         220,
         221,
         222,
+        223,
+        224,
+        225,
         370,
         371,
         372,
@@ -4573,6 +5095,11 @@
         384,
         385,
         386,
+        387,
+        388,
+        389,
+        390,
+        391,
         392,
         393,
         394,
@@ -4613,6 +5140,11 @@
         529,
         530,
         531,
+        532,
+        533,
+        534,
+        535,
+        536,
         613,
         614,
         615,
@@ -4647,6 +5179,23 @@
         657,
         658,
         659,
+        662,
+        663,
+        664,
+        665,
+        666,
+        667,
+        668,
+        669,
+        670,
+        671,
+        672,
+        673,
+        674,
+        675,
+        676,
+        677,
+        678,
         763,
         764,
         765,
@@ -4664,7 +5213,23 @@
         777,
         778,
         779,
+        786,
+        787,
+        788,
+        789,
+        790,
+        791,
+        792,
+        793,
+        794,
+        795,
+        796,
+        797,
+        798,
+        799,
         800,
+        801,
+        802,
         960,
         961,
         962,
@@ -4682,6 +5247,23 @@
         974,
         975,
         976,
+        983,
+        984,
+        985,
+        986,
+        987,
+        988,
+        989,
+        990,
+        991,
+        992,
+        993,
+        994,
+        995,
+        996,
+        997,
+        998,
+        999,
         1200,
         1500,
         1988,
@@ -4733,25 +5315,25 @@
       ],
       "features": [
         {
-          "ell": 212,
+          "ell": 217,
           "kind": "peak",
-          "lower": 204,
+          "lower": 209,
           "surface": "TT",
-          "upper": 220
+          "upper": 225
         },
         {
-          "ell": 523,
+          "ell": 528,
           "kind": "peak",
-          "lower": 515,
+          "lower": 520,
           "surface": "TT",
-          "upper": 531
+          "upper": 536
         },
         {
-          "ell": 771,
+          "ell": 794,
           "kind": "peak",
-          "lower": 763,
+          "lower": 786,
           "surface": "TT",
-          "upper": 779
+          "upper": 802
         },
         {
           "ell": 405,
@@ -4761,18 +5343,18 @@
           "upper": 413
         },
         {
-          "ell": 621,
+          "ell": 651,
           "kind": "trough",
-          "lower": 613,
+          "lower": 643,
           "surface": "TT",
-          "upper": 629
+          "upper": 659
         },
         {
-          "ell": 968,
+          "ell": 991,
           "kind": "trough",
-          "lower": 960,
+          "lower": 983,
           "surface": "TT",
-          "upper": 976
+          "upper": 999
         },
         {
           "ell": 139,
@@ -4782,18 +5364,18 @@
           "upper": 147
         },
         {
-          "ell": 378,
+          "ell": 386,
           "kind": "peak",
-          "lower": 370,
+          "lower": 378,
           "surface": "EE",
-          "upper": 386
+          "upper": 394
         },
         {
-          "ell": 651,
+          "ell": 670,
           "kind": "peak",
-          "lower": 643,
+          "lower": 662,
           "surface": "EE",
-          "upper": 659
+          "upper": 678
         },
         {
           "ell": 53,
@@ -4803,27 +5385,28 @@
           "upper": 61
         },
         {
-          "ell": 214,
+          "ell": 211,
           "kind": "zero_crossing",
-          "lower": 206,
+          "lower": 203,
           "surface": "TE",
-          "upper": 222
+          "upper": 219
         },
         {
-          "ell": 400,
+          "ell": 396,
           "kind": "zero_crossing",
-          "lower": 392,
+          "lower": 388,
           "surface": "TE",
-          "upper": 408
+          "upper": 404
         }
       ],
       "graph_required": false,
       "model_filename": "model_wcdm.yml",
       "point": "w_minus_09",
-      "reference_identity": "camb:1.6.0",
+      "reference_identity":
+        "camb:experimental:1.6.0:2pD9xAqKN0ro2saUjkx4N8R7Hww2VKvQM5zapceotpU",
       "reference_kind": "camb",
       "reference_sha256":
-        "7804534792ea9be22afe5eacd6a15fb6a81f790801cd3499d2401d5657c360c8",
+        "99ab5ba56876b4f2d2baf7412010570ec406ceb6d8063b7b78168fee616983ea",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -4848,9 +5431,9 @@
         "num_nu_massive": 3,
         "num_nu_massless": 0.0,
         "ombh2": 0.0309375,
-        "omch2": 0.1793558084603822,
+        "omch2": 0.17920201863099147,
         "omk": 0.0,
-        "omnuh2": 0.0006441915396177796,
+        "omnuh2": 0.0007983438906364692,
         "tau": 0.054
       },
       "sectors": [
@@ -5119,6 +5702,1840 @@
         "damping_windows",
         "metrics",
         "case_sha256"
+      ]
+    },
+    {
+      "case_id": "model_lcdm_mnu.yml:initial",
+      "date": "2026-11-11",
+      "previous_features": [
+        {
+          "ell": 213,
+          "kind": "peak",
+          "lower": 205,
+          "surface": "TT",
+          "upper": 221
+        },
+        {
+          "ell": 526,
+          "kind": "peak",
+          "lower": 518,
+          "surface": "TT",
+          "upper": 534
+        },
+        {
+          "ell": 775,
+          "kind": "peak",
+          "lower": 767,
+          "surface": "TT",
+          "upper": 783
+        },
+        {
+          "ell": 407,
+          "kind": "trough",
+          "lower": 399,
+          "surface": "TT",
+          "upper": 415
+        },
+        {
+          "ell": 625,
+          "kind": "trough",
+          "lower": 617,
+          "surface": "TT",
+          "upper": 633
+        },
+        {
+          "ell": 973,
+          "kind": "trough",
+          "lower": 965,
+          "surface": "TT",
+          "upper": 981
+        },
+        {
+          "ell": 140,
+          "kind": "peak",
+          "lower": 132,
+          "surface": "EE",
+          "upper": 148
+        },
+        {
+          "ell": 380,
+          "kind": "peak",
+          "lower": 372,
+          "surface": "EE",
+          "upper": 388
+        },
+        {
+          "ell": 654,
+          "kind": "peak",
+          "lower": 646,
+          "surface": "EE",
+          "upper": 662
+        },
+        {
+          "ell": 53,
+          "kind": "zero_crossing",
+          "lower": 45,
+          "surface": "TE",
+          "upper": 61
+        },
+        {
+          "ell": 215,
+          "kind": "zero_crossing",
+          "lower": 207,
+          "surface": "TE",
+          "upper": 223
+        },
+        {
+          "ell": 402,
+          "kind": "zero_crossing",
+          "lower": 394,
+          "surface": "TE",
+          "upper": 410
+        }
+      ],
+      "previous_resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.1773158685849259,
+        "omk": 0.0,
+        "omnuh2": 0.002684131415074082,
+        "tau": 0.054
+      },
+      "previous_sha256":
+        "14ae324e0344445cc8f1616d248f031ebc438527d3b643aa3c6b6270a18d620e",
+      "reason": "Matched inputs with refined experimental references.",
+      "reference_identity":
+        "camb:experimental:1.6.0:eg9o_4lZRQCxjtYNgbv2eYfMf7a3KKXHickRUAR484Q",
+      "reference_sha256":
+        "c3075e6290d7c888c641495e55c3b8a5fda44cd279eb665f3b391ed235a3500a",
+      "resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.1766750776291311,
+        "omk": 0.0,
+        "omnuh2": 0.0033250094201093014,
+        "tau": 0.054
+      },
+      "unchanged_requirements": [
+        "case_inventory",
+        "surfaces",
+        "damping_windows",
+        "metrics",
+        "case_sha256",
+        "prior_ell_coverage"
+      ]
+    },
+    {
+      "case_id": "model_lcdm_mnu.yml:mass_006",
+      "date": "2026-11-11",
+      "previous_features": [
+        {
+          "ell": 214,
+          "kind": "peak",
+          "lower": 206,
+          "surface": "TT",
+          "upper": 222
+        },
+        {
+          "ell": 527,
+          "kind": "peak",
+          "lower": 519,
+          "surface": "TT",
+          "upper": 535
+        },
+        {
+          "ell": 777,
+          "kind": "peak",
+          "lower": 769,
+          "surface": "TT",
+          "upper": 785
+        },
+        {
+          "ell": 408,
+          "kind": "trough",
+          "lower": 400,
+          "surface": "TT",
+          "upper": 416
+        },
+        {
+          "ell": 626,
+          "kind": "trough",
+          "lower": 618,
+          "surface": "TT",
+          "upper": 634
+        },
+        {
+          "ell": 976,
+          "kind": "trough",
+          "lower": 968,
+          "surface": "TT",
+          "upper": 984
+        },
+        {
+          "ell": 140,
+          "kind": "peak",
+          "lower": 132,
+          "surface": "EE",
+          "upper": 148
+        },
+        {
+          "ell": 381,
+          "kind": "peak",
+          "lower": 373,
+          "surface": "EE",
+          "upper": 389
+        },
+        {
+          "ell": 656,
+          "kind": "peak",
+          "lower": 648,
+          "surface": "EE",
+          "upper": 664
+        },
+        {
+          "ell": 53,
+          "kind": "zero_crossing",
+          "lower": 45,
+          "surface": "TE",
+          "upper": 61
+        },
+        {
+          "ell": 216,
+          "kind": "zero_crossing",
+          "lower": 208,
+          "surface": "TE",
+          "upper": 224
+        },
+        {
+          "ell": 403,
+          "kind": "zero_crossing",
+          "lower": 395,
+          "surface": "TE",
+          "upper": 411
+        }
+      ],
+      "previous_resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.1793558084603822,
+        "omk": 0.0,
+        "omnuh2": 0.0006441915396177796,
+        "tau": 0.054
+      },
+      "previous_sha256":
+        "e77d1f0d2b8425982292e5d969c6d771f24a3e54978fc33d6821048ecf50a104",
+      "reason": "Matched inputs with refined experimental references.",
+      "reference_identity":
+        "camb:experimental:1.6.0:eg9o_4lZRQCxjtYNgbv2eYfMf7a3KKXHickRUAR484Q",
+      "reference_sha256":
+        "0002830a39f69bacda9d986c8a090f8d641bf5d73ec53cd952332ca1afdbbc1f",
+      "resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.17920201863099147,
+        "omk": 0.0,
+        "omnuh2": 0.0007983438906364692,
+        "tau": 0.054
+      },
+      "unchanged_requirements": [
+        "case_inventory",
+        "surfaces",
+        "damping_windows",
+        "metrics",
+        "case_sha256",
+        "prior_ell_coverage"
+      ]
+    },
+    {
+      "case_id": "model_lcdm_mnu.yml:mass_050",
+      "date": "2026-11-11",
+      "previous_features": [
+        {
+          "ell": 213,
+          "kind": "peak",
+          "lower": 205,
+          "surface": "TT",
+          "upper": 221
+        },
+        {
+          "ell": 524,
+          "kind": "peak",
+          "lower": 516,
+          "surface": "TT",
+          "upper": 532
+        },
+        {
+          "ell": 773,
+          "kind": "peak",
+          "lower": 765,
+          "surface": "TT",
+          "upper": 781
+        },
+        {
+          "ell": 406,
+          "kind": "trough",
+          "lower": 398,
+          "surface": "TT",
+          "upper": 414
+        },
+        {
+          "ell": 624,
+          "kind": "trough",
+          "lower": 616,
+          "surface": "TT",
+          "upper": 632
+        },
+        {
+          "ell": 971,
+          "kind": "trough",
+          "lower": 963,
+          "surface": "TT",
+          "upper": 979
+        },
+        {
+          "ell": 139,
+          "kind": "peak",
+          "lower": 131,
+          "surface": "EE",
+          "upper": 147
+        },
+        {
+          "ell": 379,
+          "kind": "peak",
+          "lower": 371,
+          "surface": "EE",
+          "upper": 387
+        },
+        {
+          "ell": 653,
+          "kind": "peak",
+          "lower": 645,
+          "surface": "EE",
+          "upper": 661
+        },
+        {
+          "ell": 53,
+          "kind": "zero_crossing",
+          "lower": 45,
+          "surface": "TE",
+          "upper": 61
+        },
+        {
+          "ell": 214,
+          "kind": "zero_crossing",
+          "lower": 206,
+          "surface": "TE",
+          "upper": 222
+        },
+        {
+          "ell": 401,
+          "kind": "zero_crossing",
+          "lower": 393,
+          "surface": "TE",
+          "upper": 409
+        }
+      ],
+      "previous_resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.17463173716985184,
+        "omk": 0.0,
+        "omnuh2": 0.005368262830148164,
+        "tau": 0.054
+      },
+      "previous_sha256":
+        "44f749bd3bee09fb2c67d59510c2762a0845d364d9011e20a6554035f205d972",
+      "reason": "Matched inputs with refined experimental references.",
+      "reference_identity":
+        "camb:experimental:1.6.0:eg9o_4lZRQCxjtYNgbv2eYfMf7a3KKXHickRUAR484Q",
+      "reference_sha256":
+        "408a66a244167391a52a638be29500c255b06f0dd1eb4538ce77436315d2b54d",
+      "resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.17335015525826225,
+        "omk": 0.0,
+        "omnuh2": 0.006649888267374749,
+        "tau": 0.054
+      },
+      "unchanged_requirements": [
+        "case_inventory",
+        "surfaces",
+        "damping_windows",
+        "metrics",
+        "case_sha256",
+        "prior_ell_coverage"
+      ]
+    },
+    {
+      "case_id": "model_lcdm_mnu.yml:mass_zero",
+      "date": "2026-11-11",
+      "previous_features": [
+        {
+          "ell": 214,
+          "kind": "peak",
+          "lower": 206,
+          "surface": "TT",
+          "upper": 222
+        },
+        {
+          "ell": 527,
+          "kind": "peak",
+          "lower": 519,
+          "surface": "TT",
+          "upper": 535
+        },
+        {
+          "ell": 777,
+          "kind": "peak",
+          "lower": 769,
+          "surface": "TT",
+          "upper": 785
+        },
+        {
+          "ell": 409,
+          "kind": "trough",
+          "lower": 401,
+          "surface": "TT",
+          "upper": 417
+        },
+        {
+          "ell": 626,
+          "kind": "trough",
+          "lower": 618,
+          "surface": "TT",
+          "upper": 634
+        },
+        {
+          "ell": 976,
+          "kind": "trough",
+          "lower": 968,
+          "surface": "TT",
+          "upper": 984
+        },
+        {
+          "ell": 140,
+          "kind": "peak",
+          "lower": 132,
+          "surface": "EE",
+          "upper": 148
+        },
+        {
+          "ell": 381,
+          "kind": "peak",
+          "lower": 373,
+          "surface": "EE",
+          "upper": 389
+        },
+        {
+          "ell": 656,
+          "kind": "peak",
+          "lower": 648,
+          "surface": "EE",
+          "upper": 664
+        },
+        {
+          "ell": 53,
+          "kind": "zero_crossing",
+          "lower": 45,
+          "surface": "TE",
+          "upper": 61
+        },
+        {
+          "ell": 216,
+          "kind": "zero_crossing",
+          "lower": 208,
+          "surface": "TE",
+          "upper": 224
+        },
+        {
+          "ell": 404,
+          "kind": "zero_crossing",
+          "lower": 396,
+          "surface": "TE",
+          "upper": 412
+        }
+      ],
+      "previous_resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 0,
+        "num_nu_massless": 3.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.18,
+        "omk": 0.0,
+        "omnuh2": 0.0,
+        "tau": 0.054
+      },
+      "previous_sha256":
+        "8b7110ba0a6857ad4314d64a9a5de9c6d93f0a5401352d10e606384f7d25b98f",
+      "reason": "Matched inputs with refined experimental references.",
+      "reference_identity":
+        "camb:experimental:1.6.0:eg9o_4lZRQCxjtYNgbv2eYfMf7a3KKXHickRUAR484Q",
+      "reference_sha256":
+        "7de5d6e5da5799d15e7ddc409805716cacdba5d5db9417669116e60b9de30074",
+      "resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 0,
+        "num_nu_massless": 3.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.18,
+        "omk": 0.0,
+        "omnuh2": 0.0,
+        "tau": 0.054
+      },
+      "unchanged_requirements": [
+        "case_inventory",
+        "surfaces",
+        "damping_windows",
+        "metrics",
+        "case_sha256",
+        "prior_ell_coverage"
+      ]
+    },
+    {
+      "case_id": "model_w0wa.yml:initial",
+      "date": "2026-11-11",
+      "previous_features": [
+        {
+          "ell": 214,
+          "kind": "peak",
+          "lower": 206,
+          "surface": "TT",
+          "upper": 222
+        },
+        {
+          "ell": 527,
+          "kind": "peak",
+          "lower": 519,
+          "surface": "TT",
+          "upper": 535
+        },
+        {
+          "ell": 777,
+          "kind": "peak",
+          "lower": 769,
+          "surface": "TT",
+          "upper": 785
+        },
+        {
+          "ell": 408,
+          "kind": "trough",
+          "lower": 400,
+          "surface": "TT",
+          "upper": 416
+        },
+        {
+          "ell": 626,
+          "kind": "trough",
+          "lower": 618,
+          "surface": "TT",
+          "upper": 634
+        },
+        {
+          "ell": 976,
+          "kind": "trough",
+          "lower": 968,
+          "surface": "TT",
+          "upper": 984
+        },
+        {
+          "ell": 140,
+          "kind": "peak",
+          "lower": 132,
+          "surface": "EE",
+          "upper": 148
+        },
+        {
+          "ell": 381,
+          "kind": "peak",
+          "lower": 373,
+          "surface": "EE",
+          "upper": 389
+        },
+        {
+          "ell": 656,
+          "kind": "peak",
+          "lower": 648,
+          "surface": "EE",
+          "upper": 664
+        },
+        {
+          "ell": 53,
+          "kind": "zero_crossing",
+          "lower": 45,
+          "surface": "TE",
+          "upper": 61
+        },
+        {
+          "ell": 216,
+          "kind": "zero_crossing",
+          "lower": 208,
+          "surface": "TE",
+          "upper": 224
+        },
+        {
+          "ell": 403,
+          "kind": "zero_crossing",
+          "lower": 395,
+          "surface": "TE",
+          "upper": 411
+        }
+      ],
+      "previous_resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.1793558084603822,
+        "omk": 0.0,
+        "omnuh2": 0.0006441915396177796,
+        "tau": 0.054
+      },
+      "previous_sha256":
+        "a2c5189c5721e5da8d8f63a3a59b2bd65643a5eaf0b7e3a50858ceb27db42822",
+      "reason": "Matched inputs with refined experimental references.",
+      "reference_identity":
+        "camb:experimental:1.6.0:eg9o_4lZRQCxjtYNgbv2eYfMf7a3KKXHickRUAR484Q",
+      "reference_sha256":
+        "d922874164b8bb9bb678a68babb853b8345a9bfb1317ee7d4195450f81cabb39",
+      "resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.17920201863099147,
+        "omk": 0.0,
+        "omnuh2": 0.0007983438906364692,
+        "tau": 0.054
+      },
+      "unchanged_requirements": [
+        "case_inventory",
+        "surfaces",
+        "damping_windows",
+        "metrics",
+        "case_sha256",
+        "prior_ell_coverage"
+      ]
+    },
+    {
+      "case_id": "model_w0wa.yml:w0_minus_09",
+      "date": "2026-11-11",
+      "previous_features": [
+        {
+          "ell": 212,
+          "kind": "peak",
+          "lower": 204,
+          "surface": "TT",
+          "upper": 220
+        },
+        {
+          "ell": 523,
+          "kind": "peak",
+          "lower": 515,
+          "surface": "TT",
+          "upper": 531
+        },
+        {
+          "ell": 771,
+          "kind": "peak",
+          "lower": 763,
+          "surface": "TT",
+          "upper": 779
+        },
+        {
+          "ell": 405,
+          "kind": "trough",
+          "lower": 397,
+          "surface": "TT",
+          "upper": 413
+        },
+        {
+          "ell": 621,
+          "kind": "trough",
+          "lower": 613,
+          "surface": "TT",
+          "upper": 629
+        },
+        {
+          "ell": 968,
+          "kind": "trough",
+          "lower": 960,
+          "surface": "TT",
+          "upper": 976
+        },
+        {
+          "ell": 139,
+          "kind": "peak",
+          "lower": 131,
+          "surface": "EE",
+          "upper": 147
+        },
+        {
+          "ell": 378,
+          "kind": "peak",
+          "lower": 370,
+          "surface": "EE",
+          "upper": 386
+        },
+        {
+          "ell": 651,
+          "kind": "peak",
+          "lower": 643,
+          "surface": "EE",
+          "upper": 659
+        },
+        {
+          "ell": 53,
+          "kind": "zero_crossing",
+          "lower": 45,
+          "surface": "TE",
+          "upper": 61
+        },
+        {
+          "ell": 214,
+          "kind": "zero_crossing",
+          "lower": 206,
+          "surface": "TE",
+          "upper": 222
+        },
+        {
+          "ell": 400,
+          "kind": "zero_crossing",
+          "lower": 392,
+          "surface": "TE",
+          "upper": 408
+        }
+      ],
+      "previous_resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.1793558084603822,
+        "omk": 0.0,
+        "omnuh2": 0.0006441915396177796,
+        "tau": 0.054
+      },
+      "previous_sha256":
+        "328ac6f2742405bc7245b6d6b8df074be96fefcc2d3ddf3c13a020068dab6b9c",
+      "reason": "Matched inputs with refined experimental references.",
+      "reference_identity":
+        "camb:experimental:1.6.0:eg9o_4lZRQCxjtYNgbv2eYfMf7a3KKXHickRUAR484Q",
+      "reference_sha256":
+        "0b72c40021d2b5a1a054887daa356a571b80309e19d3f50388e5e020a8f8e1cc",
+      "resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.17920201863099147,
+        "omk": 0.0,
+        "omnuh2": 0.0007983438906364692,
+        "tau": 0.054
+      },
+      "unchanged_requirements": [
+        "case_inventory",
+        "surfaces",
+        "damping_windows",
+        "metrics",
+        "case_sha256",
+        "prior_ell_coverage"
+      ]
+    },
+    {
+      "case_id": "model_w0wa.yml:wa_plus_02",
+      "date": "2026-11-11",
+      "previous_features": [
+        {
+          "ell": 213,
+          "kind": "peak",
+          "lower": 205,
+          "surface": "TT",
+          "upper": 221
+        },
+        {
+          "ell": 525,
+          "kind": "peak",
+          "lower": 517,
+          "surface": "TT",
+          "upper": 533
+        },
+        {
+          "ell": 773,
+          "kind": "peak",
+          "lower": 765,
+          "surface": "TT",
+          "upper": 781
+        },
+        {
+          "ell": 407,
+          "kind": "trough",
+          "lower": 399,
+          "surface": "TT",
+          "upper": 415
+        },
+        {
+          "ell": 623,
+          "kind": "trough",
+          "lower": 615,
+          "surface": "TT",
+          "upper": 631
+        },
+        {
+          "ell": 972,
+          "kind": "trough",
+          "lower": 964,
+          "surface": "TT",
+          "upper": 980
+        },
+        {
+          "ell": 139,
+          "kind": "peak",
+          "lower": 131,
+          "surface": "EE",
+          "upper": 147
+        },
+        {
+          "ell": 379,
+          "kind": "peak",
+          "lower": 371,
+          "surface": "EE",
+          "upper": 387
+        },
+        {
+          "ell": 653,
+          "kind": "peak",
+          "lower": 645,
+          "surface": "EE",
+          "upper": 661
+        },
+        {
+          "ell": 53,
+          "kind": "zero_crossing",
+          "lower": 45,
+          "surface": "TE",
+          "upper": 61
+        },
+        {
+          "ell": 215,
+          "kind": "zero_crossing",
+          "lower": 207,
+          "surface": "TE",
+          "upper": 223
+        },
+        {
+          "ell": 402,
+          "kind": "zero_crossing",
+          "lower": 394,
+          "surface": "TE",
+          "upper": 410
+        }
+      ],
+      "previous_resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.1793558084603822,
+        "omk": 0.0,
+        "omnuh2": 0.0006441915396177796,
+        "tau": 0.054
+      },
+      "previous_sha256":
+        "e44e75115cb37527fbf94c46ba7e6fea2169589c781d73ddd61bf9ac097bfeb1",
+      "reason": "Matched inputs with refined experimental references.",
+      "reference_identity":
+        "camb:experimental:1.6.0:eg9o_4lZRQCxjtYNgbv2eYfMf7a3KKXHickRUAR484Q",
+      "reference_sha256":
+        "60c9e7a70ceee0041f1e213b9314d531dcc6abdba607ae516088d696ae560445",
+      "resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.17920201863099147,
+        "omk": 0.0,
+        "omnuh2": 0.0007983438906364692,
+        "tau": 0.054
+      },
+      "unchanged_requirements": [
+        "case_inventory",
+        "surfaces",
+        "damping_windows",
+        "metrics",
+        "case_sha256",
+        "prior_ell_coverage"
+      ]
+    },
+    {
+      "case_id": "model_wcdm.yml:initial",
+      "date": "2026-11-11",
+      "previous_features": [
+        {
+          "ell": 214,
+          "kind": "peak",
+          "lower": 206,
+          "surface": "TT",
+          "upper": 222
+        },
+        {
+          "ell": 527,
+          "kind": "peak",
+          "lower": 519,
+          "surface": "TT",
+          "upper": 535
+        },
+        {
+          "ell": 777,
+          "kind": "peak",
+          "lower": 769,
+          "surface": "TT",
+          "upper": 785
+        },
+        {
+          "ell": 408,
+          "kind": "trough",
+          "lower": 400,
+          "surface": "TT",
+          "upper": 416
+        },
+        {
+          "ell": 626,
+          "kind": "trough",
+          "lower": 618,
+          "surface": "TT",
+          "upper": 634
+        },
+        {
+          "ell": 976,
+          "kind": "trough",
+          "lower": 968,
+          "surface": "TT",
+          "upper": 984
+        },
+        {
+          "ell": 140,
+          "kind": "peak",
+          "lower": 132,
+          "surface": "EE",
+          "upper": 148
+        },
+        {
+          "ell": 381,
+          "kind": "peak",
+          "lower": 373,
+          "surface": "EE",
+          "upper": 389
+        },
+        {
+          "ell": 656,
+          "kind": "peak",
+          "lower": 648,
+          "surface": "EE",
+          "upper": 664
+        },
+        {
+          "ell": 53,
+          "kind": "zero_crossing",
+          "lower": 45,
+          "surface": "TE",
+          "upper": 61
+        },
+        {
+          "ell": 216,
+          "kind": "zero_crossing",
+          "lower": 208,
+          "surface": "TE",
+          "upper": 224
+        },
+        {
+          "ell": 403,
+          "kind": "zero_crossing",
+          "lower": 395,
+          "surface": "TE",
+          "upper": 411
+        }
+      ],
+      "previous_resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.1793558084603822,
+        "omk": 0.0,
+        "omnuh2": 0.0006441915396177796,
+        "tau": 0.054
+      },
+      "previous_sha256":
+        "f1a7ca78d1b02ac6a1f9806b078f93a709877b71b10da0d4c892b6aa91fb81b1",
+      "reason": "Matched inputs with refined experimental references.",
+      "reference_identity":
+        "camb:experimental:1.6.0:eg9o_4lZRQCxjtYNgbv2eYfMf7a3KKXHickRUAR484Q",
+      "reference_sha256":
+        "66bfd0803907b2be82b9f3e763352a17dbfe41bc6ab617a3f7d16ce5b242bbe9",
+      "resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.17920201863099147,
+        "omk": 0.0,
+        "omnuh2": 0.0007983438906364692,
+        "tau": 0.054
+      },
+      "unchanged_requirements": [
+        "case_inventory",
+        "surfaces",
+        "damping_windows",
+        "metrics",
+        "case_sha256",
+        "prior_ell_coverage"
+      ]
+    },
+    {
+      "case_id": "model_wcdm.yml:w_minus_09",
+      "date": "2026-11-11",
+      "previous_features": [
+        {
+          "ell": 212,
+          "kind": "peak",
+          "lower": 204,
+          "surface": "TT",
+          "upper": 220
+        },
+        {
+          "ell": 523,
+          "kind": "peak",
+          "lower": 515,
+          "surface": "TT",
+          "upper": 531
+        },
+        {
+          "ell": 771,
+          "kind": "peak",
+          "lower": 763,
+          "surface": "TT",
+          "upper": 779
+        },
+        {
+          "ell": 405,
+          "kind": "trough",
+          "lower": 397,
+          "surface": "TT",
+          "upper": 413
+        },
+        {
+          "ell": 621,
+          "kind": "trough",
+          "lower": 613,
+          "surface": "TT",
+          "upper": 629
+        },
+        {
+          "ell": 968,
+          "kind": "trough",
+          "lower": 960,
+          "surface": "TT",
+          "upper": 976
+        },
+        {
+          "ell": 139,
+          "kind": "peak",
+          "lower": 131,
+          "surface": "EE",
+          "upper": 147
+        },
+        {
+          "ell": 378,
+          "kind": "peak",
+          "lower": 370,
+          "surface": "EE",
+          "upper": 386
+        },
+        {
+          "ell": 651,
+          "kind": "peak",
+          "lower": 643,
+          "surface": "EE",
+          "upper": 659
+        },
+        {
+          "ell": 53,
+          "kind": "zero_crossing",
+          "lower": 45,
+          "surface": "TE",
+          "upper": 61
+        },
+        {
+          "ell": 214,
+          "kind": "zero_crossing",
+          "lower": 206,
+          "surface": "TE",
+          "upper": 222
+        },
+        {
+          "ell": 400,
+          "kind": "zero_crossing",
+          "lower": 392,
+          "surface": "TE",
+          "upper": 408
+        }
+      ],
+      "previous_resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.1793558084603822,
+        "omk": 0.0,
+        "omnuh2": 0.0006441915396177796,
+        "tau": 0.054
+      },
+      "previous_sha256":
+        "7804534792ea9be22afe5eacd6a15fb6a81f790801cd3499d2401d5657c360c8",
+      "reason": "Matched inputs with refined experimental references.",
+      "reference_identity":
+        "camb:experimental:1.6.0:eg9o_4lZRQCxjtYNgbv2eYfMf7a3KKXHickRUAR484Q",
+      "reference_sha256":
+        "038fb60265af511bfda093cafdc2f111aebdbe91316b22e432ff0f5545026145",
+      "resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.17920201863099147,
+        "omk": 0.0,
+        "omnuh2": 0.0007983438906364692,
+        "tau": 0.054
+      },
+      "unchanged_requirements": [
+        "case_inventory",
+        "surfaces",
+        "damping_windows",
+        "metrics",
+        "case_sha256",
+        "prior_ell_coverage"
+      ]
+    },
+    {
+      "case_id": "model_w0wa.yml:initial",
+      "date": "2026-11-11",
+      "previous_features": [
+        {
+          "ell": 218,
+          "kind": "peak",
+          "lower": 210,
+          "surface": "TT",
+          "upper": 226
+        },
+        {
+          "ell": 532,
+          "kind": "peak",
+          "lower": 524,
+          "surface": "TT",
+          "upper": 540
+        },
+        {
+          "ell": 800,
+          "kind": "peak",
+          "lower": 792,
+          "surface": "TT",
+          "upper": 808
+        },
+        {
+          "ell": 408,
+          "kind": "trough",
+          "lower": 400,
+          "surface": "TT",
+          "upper": 416
+        },
+        {
+          "ell": 656,
+          "kind": "trough",
+          "lower": 648,
+          "surface": "TT",
+          "upper": 664
+        },
+        {
+          "ell": 999,
+          "kind": "trough",
+          "lower": 991,
+          "surface": "TT",
+          "upper": 1007
+        },
+        {
+          "ell": 140,
+          "kind": "peak",
+          "lower": 132,
+          "surface": "EE",
+          "upper": 148
+        },
+        {
+          "ell": 389,
+          "kind": "peak",
+          "lower": 381,
+          "surface": "EE",
+          "upper": 397
+        },
+        {
+          "ell": 675,
+          "kind": "peak",
+          "lower": 667,
+          "surface": "EE",
+          "upper": 683
+        },
+        {
+          "ell": 53,
+          "kind": "zero_crossing",
+          "lower": 45,
+          "surface": "TE",
+          "upper": 61
+        },
+        {
+          "ell": 213,
+          "kind": "zero_crossing",
+          "lower": 205,
+          "surface": "TE",
+          "upper": 221
+        },
+        {
+          "ell": 399,
+          "kind": "zero_crossing",
+          "lower": 391,
+          "surface": "TE",
+          "upper": 407
+        }
+      ],
+      "previous_resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.17920201863099147,
+        "omk": 0.0,
+        "omnuh2": 0.0007983438906364692,
+        "tau": 0.054
+      },
+      "previous_sha256":
+        "d922874164b8bb9bb678a68babb853b8345a9bfb1317ee7d4195450f81cabb39",
+      "reason": "Matched the declared PPF perturbation closure.",
+      "reference_identity":
+        "camb:experimental:1.6.0:2pD9xAqKN0ro2saUjkx4N8R7Hww2VKvQM5zapceotpU",
+      "reference_sha256":
+        "ae685f36445c9235a394c6a3370d5121f2fe9ef5c6c0197d435b03e018f0d025",
+      "resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.17920201863099147,
+        "omk": 0.0,
+        "omnuh2": 0.0007983438906364692,
+        "tau": 0.054
+      },
+      "unchanged_requirements": [
+        "case_inventory",
+        "surfaces",
+        "damping_windows",
+        "metrics",
+        "case_sha256",
+        "prior_ell_coverage"
+      ]
+    },
+    {
+      "case_id": "model_w0wa.yml:w0_minus_09",
+      "date": "2026-11-11",
+      "previous_features": [
+        {
+          "ell": 217,
+          "kind": "peak",
+          "lower": 209,
+          "surface": "TT",
+          "upper": 225
+        },
+        {
+          "ell": 528,
+          "kind": "peak",
+          "lower": 520,
+          "surface": "TT",
+          "upper": 536
+        },
+        {
+          "ell": 794,
+          "kind": "peak",
+          "lower": 786,
+          "surface": "TT",
+          "upper": 802
+        },
+        {
+          "ell": 405,
+          "kind": "trough",
+          "lower": 397,
+          "surface": "TT",
+          "upper": 413
+        },
+        {
+          "ell": 651,
+          "kind": "trough",
+          "lower": 643,
+          "surface": "TT",
+          "upper": 659
+        },
+        {
+          "ell": 991,
+          "kind": "trough",
+          "lower": 983,
+          "surface": "TT",
+          "upper": 999
+        },
+        {
+          "ell": 139,
+          "kind": "peak",
+          "lower": 131,
+          "surface": "EE",
+          "upper": 147
+        },
+        {
+          "ell": 386,
+          "kind": "peak",
+          "lower": 378,
+          "surface": "EE",
+          "upper": 394
+        },
+        {
+          "ell": 670,
+          "kind": "peak",
+          "lower": 662,
+          "surface": "EE",
+          "upper": 678
+        },
+        {
+          "ell": 53,
+          "kind": "zero_crossing",
+          "lower": 45,
+          "surface": "TE",
+          "upper": 61
+        },
+        {
+          "ell": 211,
+          "kind": "zero_crossing",
+          "lower": 203,
+          "surface": "TE",
+          "upper": 219
+        },
+        {
+          "ell": 396,
+          "kind": "zero_crossing",
+          "lower": 388,
+          "surface": "TE",
+          "upper": 404
+        }
+      ],
+      "previous_resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.17920201863099147,
+        "omk": 0.0,
+        "omnuh2": 0.0007983438906364692,
+        "tau": 0.054
+      },
+      "previous_sha256":
+        "0b72c40021d2b5a1a054887daa356a571b80309e19d3f50388e5e020a8f8e1cc",
+      "reason": "Matched the declared PPF perturbation closure.",
+      "reference_identity":
+        "camb:experimental:1.6.0:2pD9xAqKN0ro2saUjkx4N8R7Hww2VKvQM5zapceotpU",
+      "reference_sha256":
+        "0412fa25490a17656e3d6a0f757f62796faf04548abcf5e2e21071003ed93af1",
+      "resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.17920201863099147,
+        "omk": 0.0,
+        "omnuh2": 0.0007983438906364692,
+        "tau": 0.054
+      },
+      "unchanged_requirements": [
+        "case_inventory",
+        "surfaces",
+        "damping_windows",
+        "metrics",
+        "case_sha256",
+        "prior_ell_coverage"
+      ]
+    },
+    {
+      "case_id": "model_w0wa.yml:wa_plus_02",
+      "date": "2026-11-11",
+      "previous_features": [
+        {
+          "ell": 217,
+          "kind": "peak",
+          "lower": 209,
+          "surface": "TT",
+          "upper": 225
+        },
+        {
+          "ell": 530,
+          "kind": "peak",
+          "lower": 522,
+          "surface": "TT",
+          "upper": 538
+        },
+        {
+          "ell": 797,
+          "kind": "peak",
+          "lower": 789,
+          "surface": "TT",
+          "upper": 805
+        },
+        {
+          "ell": 407,
+          "kind": "trough",
+          "lower": 399,
+          "surface": "TT",
+          "upper": 415
+        },
+        {
+          "ell": 653,
+          "kind": "trough",
+          "lower": 645,
+          "surface": "TT",
+          "upper": 661
+        },
+        {
+          "ell": 994,
+          "kind": "trough",
+          "lower": 986,
+          "surface": "TT",
+          "upper": 1002
+        },
+        {
+          "ell": 139,
+          "kind": "peak",
+          "lower": 131,
+          "surface": "EE",
+          "upper": 147
+        },
+        {
+          "ell": 388,
+          "kind": "peak",
+          "lower": 380,
+          "surface": "EE",
+          "upper": 396
+        },
+        {
+          "ell": 673,
+          "kind": "peak",
+          "lower": 665,
+          "surface": "EE",
+          "upper": 681
+        },
+        {
+          "ell": 53,
+          "kind": "zero_crossing",
+          "lower": 45,
+          "surface": "TE",
+          "upper": 61
+        },
+        {
+          "ell": 212,
+          "kind": "zero_crossing",
+          "lower": 204,
+          "surface": "TE",
+          "upper": 220
+        },
+        {
+          "ell": 398,
+          "kind": "zero_crossing",
+          "lower": 390,
+          "surface": "TE",
+          "upper": 406
+        }
+      ],
+      "previous_resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.17920201863099147,
+        "omk": 0.0,
+        "omnuh2": 0.0007983438906364692,
+        "tau": 0.054
+      },
+      "previous_sha256":
+        "60c9e7a70ceee0041f1e213b9314d531dcc6abdba607ae516088d696ae560445",
+      "reason": "Matched the declared PPF perturbation closure.",
+      "reference_identity":
+        "camb:experimental:1.6.0:2pD9xAqKN0ro2saUjkx4N8R7Hww2VKvQM5zapceotpU",
+      "reference_sha256":
+        "a6b7983df52773252063bcef22d1805e245ad37e953d5852d03f42f7a8b9a797",
+      "resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.17920201863099147,
+        "omk": 0.0,
+        "omnuh2": 0.0007983438906364692,
+        "tau": 0.054
+      },
+      "unchanged_requirements": [
+        "case_inventory",
+        "surfaces",
+        "damping_windows",
+        "metrics",
+        "case_sha256",
+        "prior_ell_coverage"
+      ]
+    },
+    {
+      "case_id": "model_wcdm.yml:initial",
+      "date": "2026-11-11",
+      "previous_features": [
+        {
+          "ell": 218,
+          "kind": "peak",
+          "lower": 210,
+          "surface": "TT",
+          "upper": 226
+        },
+        {
+          "ell": 532,
+          "kind": "peak",
+          "lower": 524,
+          "surface": "TT",
+          "upper": 540
+        },
+        {
+          "ell": 800,
+          "kind": "peak",
+          "lower": 792,
+          "surface": "TT",
+          "upper": 808
+        },
+        {
+          "ell": 408,
+          "kind": "trough",
+          "lower": 400,
+          "surface": "TT",
+          "upper": 416
+        },
+        {
+          "ell": 656,
+          "kind": "trough",
+          "lower": 648,
+          "surface": "TT",
+          "upper": 664
+        },
+        {
+          "ell": 999,
+          "kind": "trough",
+          "lower": 991,
+          "surface": "TT",
+          "upper": 1007
+        },
+        {
+          "ell": 140,
+          "kind": "peak",
+          "lower": 132,
+          "surface": "EE",
+          "upper": 148
+        },
+        {
+          "ell": 389,
+          "kind": "peak",
+          "lower": 381,
+          "surface": "EE",
+          "upper": 397
+        },
+        {
+          "ell": 675,
+          "kind": "peak",
+          "lower": 667,
+          "surface": "EE",
+          "upper": 683
+        },
+        {
+          "ell": 53,
+          "kind": "zero_crossing",
+          "lower": 45,
+          "surface": "TE",
+          "upper": 61
+        },
+        {
+          "ell": 213,
+          "kind": "zero_crossing",
+          "lower": 205,
+          "surface": "TE",
+          "upper": 221
+        },
+        {
+          "ell": 399,
+          "kind": "zero_crossing",
+          "lower": 391,
+          "surface": "TE",
+          "upper": 407
+        }
+      ],
+      "previous_resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.17920201863099147,
+        "omk": 0.0,
+        "omnuh2": 0.0007983438906364692,
+        "tau": 0.054
+      },
+      "previous_sha256":
+        "66bfd0803907b2be82b9f3e763352a17dbfe41bc6ab617a3f7d16ce5b242bbe9",
+      "reason": "Matched the declared PPF perturbation closure.",
+      "reference_identity":
+        "camb:experimental:1.6.0:2pD9xAqKN0ro2saUjkx4N8R7Hww2VKvQM5zapceotpU",
+      "reference_sha256":
+        "aae13ed6805eaaa5e9d893b9854fe0dccc99d19784778e616efa0c4c08cd1215",
+      "resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.17920201863099147,
+        "omk": 0.0,
+        "omnuh2": 0.0007983438906364692,
+        "tau": 0.054
+      },
+      "unchanged_requirements": [
+        "case_inventory",
+        "surfaces",
+        "damping_windows",
+        "metrics",
+        "case_sha256",
+        "prior_ell_coverage"
+      ]
+    },
+    {
+      "case_id": "model_wcdm.yml:w_minus_09",
+      "date": "2026-11-11",
+      "previous_features": [
+        {
+          "ell": 217,
+          "kind": "peak",
+          "lower": 209,
+          "surface": "TT",
+          "upper": 225
+        },
+        {
+          "ell": 528,
+          "kind": "peak",
+          "lower": 520,
+          "surface": "TT",
+          "upper": 536
+        },
+        {
+          "ell": 794,
+          "kind": "peak",
+          "lower": 786,
+          "surface": "TT",
+          "upper": 802
+        },
+        {
+          "ell": 405,
+          "kind": "trough",
+          "lower": 397,
+          "surface": "TT",
+          "upper": 413
+        },
+        {
+          "ell": 651,
+          "kind": "trough",
+          "lower": 643,
+          "surface": "TT",
+          "upper": 659
+        },
+        {
+          "ell": 991,
+          "kind": "trough",
+          "lower": 983,
+          "surface": "TT",
+          "upper": 999
+        },
+        {
+          "ell": 139,
+          "kind": "peak",
+          "lower": 131,
+          "surface": "EE",
+          "upper": 147
+        },
+        {
+          "ell": 386,
+          "kind": "peak",
+          "lower": 378,
+          "surface": "EE",
+          "upper": 394
+        },
+        {
+          "ell": 670,
+          "kind": "peak",
+          "lower": 662,
+          "surface": "EE",
+          "upper": 678
+        },
+        {
+          "ell": 53,
+          "kind": "zero_crossing",
+          "lower": 45,
+          "surface": "TE",
+          "upper": 61
+        },
+        {
+          "ell": 211,
+          "kind": "zero_crossing",
+          "lower": 203,
+          "surface": "TE",
+          "upper": 219
+        },
+        {
+          "ell": 396,
+          "kind": "zero_crossing",
+          "lower": 388,
+          "surface": "TE",
+          "upper": 404
+        }
+      ],
+      "previous_resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.17920201863099147,
+        "omk": 0.0,
+        "omnuh2": 0.0007983438906364692,
+        "tau": 0.054
+      },
+      "previous_sha256":
+        "038fb60265af511bfda093cafdc2f111aebdbe91316b22e432ff0f5545026145",
+      "reason": "Matched the declared PPF perturbation closure.",
+      "reference_identity":
+        "camb:experimental:1.6.0:2pD9xAqKN0ro2saUjkx4N8R7Hww2VKvQM5zapceotpU",
+      "reference_sha256":
+        "99ab5ba56876b4f2d2baf7412010570ec406ceb6d8063b7b78168fee616983ea",
+      "resolved_inputs": {
+        "As": 2.1e-09,
+        "H0": 75.0,
+        "YHe": 0.245,
+        "ns": 0.965,
+        "num_nu_massive": 3,
+        "num_nu_massless": 0.0,
+        "ombh2": 0.0309375,
+        "omch2": 0.17920201863099147,
+        "omk": 0.0,
+        "omnuh2": 0.0007983438906364692,
+        "tau": 0.054
+      },
+      "unchanged_requirements": [
+        "case_inventory",
+        "surfaces",
+        "damping_windows",
+        "metrics",
+        "case_sha256",
+        "prior_ell_coverage"
       ]
     }
   ],

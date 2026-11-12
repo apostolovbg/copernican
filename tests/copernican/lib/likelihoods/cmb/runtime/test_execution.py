@@ -85,6 +85,7 @@ class ExecutionModuleTestCase(unittest.TestCase):
     def test_source_interpolation_executes_independent_physical_modes(self):
         """A bounded declared graph uses real sources and radial operators."""
 
+        from copernican.lib.likelihoods.cmb.runtime import evidence
         from tests.copernican.lib.likelihoods.cmb import test_cmb
 
         raw = test_cmb._speedup_contract(test_cmb._custom_contract())
@@ -104,17 +105,68 @@ class ExecutionModuleTestCase(unittest.TestCase):
         contract["_engine_accuracy_controls"] = controls
         execution.cache.clear_cmb_caches()
         self.addCleanup(execution.cache.clear_cmb_caches)
-        with mock.patch.object(
-            execution,
-            "project_interpolated_source_histories",
-            wraps=execution.project_interpolated_source_histories,
-        ) as projection:
+        events = []
+        numerical_products = []
+
+        def retain_final(kind, payload):
+            if kind == "accepted_numerical_spectrum":
+                events.append(payload)
+            elif kind in {"projection", "spectrum_quadrature"}:
+                numerical_products.append((kind, payload))
+
+        with (
+            evidence.capture_completed_cmb_products(retain_final),
+            mock.patch.object(
+                execution,
+                "project_interpolated_source_histories",
+                wraps=execution.project_interpolated_source_histories,
+            ) as projection,
+        ):
             result = execution._compute_custom_cmb_spectrum_data(
                 contract,
                 (2, 10),
                 requested_spectra=("TT",),
                 workload="fixed_parameter_diagnostic",
             )
+        self.assertEqual(len(events), 1)
+        numpy.testing.assert_array_equal(events[0]["k"], result.k_grid)
+        numpy.testing.assert_array_equal(events[0]["ell"], result.ell_grid)
+        numpy.testing.assert_array_equal(
+            events[0]["spectra"]["TT"], result.spectra["TT"]
+        )
+        projected = next(
+            payload
+            for kind, payload in reversed(numerical_products)
+            if kind == "projection"
+        )
+        matching = [
+            payload
+            for kind, payload in numerical_products
+            if kind == "spectrum_quadrature"
+            and payload.get("observable") == "TT"
+            and numpy.array_equal(payload["C_ell"], projected["spectra"]["TT"])
+            and numpy.array_equal(payload["log_k"], numpy.log(projected["k"]))
+        ]
+        self.assertTrue(matching)
+        self.assertTrue(
+            any(
+                numpy.array_equal(
+                    row["weighted_transfer_products"],
+                    row["primordial"][None, :]
+                    * (
+                        numpy.asarray(
+                            projected["transfers"][row["primary_component"]],
+                            dtype=numpy.longdouble,
+                        )
+                        * numpy.asarray(
+                            projected["transfers"][row["secondary_component"]],
+                            dtype=numpy.longdouble,
+                        )
+                    ),
+                )
+                for row in matching
+            )
+        )
         envelope = result.runtime_envelope
         self.assertEqual(
             envelope["adaptive_transfer_algorithm"],

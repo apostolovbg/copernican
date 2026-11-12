@@ -1600,6 +1600,55 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
             places=15,
         )
 
+    def test_independent_declared_photon_density_and_temperature(self):
+        """Distinct declared photon densities survive at fixed temperature."""
+
+        for model_name in (
+            "model_lcdm_mnu.yml",
+            "model_wcdm.yml",
+            "model_w0wa.yml",
+        ):
+            with self.subTest(model=model_name):
+                plugin = self._build_plugin(model_name)
+                initial = list(plugin.INITIAL_GUESSES)
+                varied = list(initial)
+                index = list(plugin.PARAMETER_NAMES).index("Omega_gamma")
+                varied[index] *= 1.1
+                base = plugin.get_cmb_declared_runtime(initial)
+                changed = plugin.get_cmb_declared_runtime(varied)
+                resolver = (
+                    cmb_background._resolve_custom_cmb_physical_parameters
+                )
+                original_physical = resolver(base)
+                changed_physical = resolver(changed)
+                self.assertAlmostEqual(
+                    original_physical.Omega_gamma0, initial[index], places=15
+                )
+                self.assertAlmostEqual(
+                    changed_physical.Omega_gamma0, varied[index], places=15
+                )
+                self.assertEqual(
+                    original_physical.Tcmb_K, changed_physical.Tcmb_K
+                )
+                self.assertEqual(
+                    dict(changed_physical.quantity_provenance)["Omega_gamma0"],
+                    "background.derived:Omega_gamma0",
+                )
+                early = {"a_values": 1 / 1101, "z_values": 1100.0}
+                original_context = (
+                    cmb_background._resolve_declared_background_context(
+                        base, **early
+                    )
+                )
+                changed_context = (
+                    cmb_background._resolve_declared_background_context(
+                        changed, **early
+                    )
+                )
+                self.assertNotEqual(
+                    original_context["H"], changed_context["H"]
+                )
+
     def test_reference_photons_follow_one_blackbody_temperature(self):
         """Temperature determines the same density in all declared routes."""
 
@@ -1710,17 +1759,8 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
         physical = cmb_background._resolve_custom_cmb_physical_parameters(
             runtime
         )
-        # The mass sum fixes rest density; expansion also retains kinetic
-        # energy, independently checked by the Fermi-Dirac energy integral.
-        count = float(runtime["param_map"]["num_massive_neutrinos"])
-        expected_rest = (
-            float(runtime["param_map"]["sum_mnu"])
-            / (93.14 * physical.hubble_ratio**2)
-            * min(float(physical.Neff), count) / count
-        )
-        self.assertAlmostEqual(
-            float(context["Omega_nu_massive_nr0"]), expected_rest, places=15
-        )
+        # The declared early radiation density fixes the phase-space
+        # amplitude; independent integrals determine rest and total energy.
         temperature_ev = (
             physical.Tcmb_K * (4 / 11)**(1 / 3) * Boltzmann / electron_volt
         )
@@ -1731,6 +1771,25 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
             lambda momentum: momentum**2 * numpy.exp(-momentum)
             / (1 + numpy.exp(-momentum)), 0.0, numpy.inf,
         )[0]
+        relativistic_moment = quad(
+            lambda momentum: momentum**3 * numpy.exp(-momentum)
+            / (1 + numpy.exp(-momentum)), 0.0, numpy.inf,
+        )[0]
+        expected_rest = (
+            float(context["Omega_nu_massive_rel0"])
+            * mass_ratio * number_moment / relativistic_moment
+        )
+        self.assertAlmostEqual(
+            float(runtime["param_map"]["omnuh2"])
+            / physical.hubble_ratio**2 / expected_rest,
+            1.0, delta=1e-10,
+        )
+        # The independently planned finite q grid has its own integration
+        # error; the declared normalization above is checked more tightly.
+        self.assertAlmostEqual(
+            float(context["Omega_nu_massive_nr0"]) / expected_rest,
+            1.0, delta=1e-6,
+        )
         energy_moment = quad(
             lambda momentum: (
                 momentum**2 * numpy.hypot(momentum, mass_ratio)
@@ -1738,9 +1797,8 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
             ),
             0.0, numpy.inf,
         )[0]
-        expected_total = (
-            float(context["Omega_nu_massive_nr0"])
-            * energy_moment / (mass_ratio * number_moment)
+        expected_total = float(context["Omega_nu_massive_rel0"]) * (
+            energy_moment / relativistic_moment
         )
         self.assertGreater(
             float(context["Omega_nu_massive0"]),
@@ -1748,7 +1806,58 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
         )
         self.assertAlmostEqual(
             float(context["Omega_nu_massive0"]) / expected_total,
+            1.0, delta=1e-6,
+        )
+        expected_from_rest = (
+            float(context["Omega_nu_massive_nr0"])
+            * energy_moment / (mass_ratio * number_moment)
+        )
+        self.assertAlmostEqual(
+            float(context["Omega_nu_massive0"]) / expected_from_rest,
             1.0, delta=1e-9,
+        )
+
+    def test_phase_space_model_parameter_reaches_background(self) -> None:
+        """A declared temperature symbol works in either parameter source."""
+        source = (
+            Path(__file__).resolve().parents[3]
+            / "copernican/models/model_wcdm.yml"
+        )
+        model = yaml.safe_load(source.read_text(encoding="utf-8"))
+        model["cmb"]["model_parameters"]["species_temperature_ratio"] = (
+            (4.0 / 11.0) ** (1.0 / 3.0)
+        )
+        family = model["cmb"]["perturbations"]["hierarchy_families"]
+        family["massive_neutrino"]["phase_space"]["temperature_ratio"] = (
+            "species_temperature_ratio"
+        )
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "model_custom.yml"
+            path.write_text(yaml.safe_dump(model), encoding="utf-8")
+            cached = model_spec_validator.validate_and_cache_model(
+                path, folder
+            )
+            functions, parsed = model_coder.generate_callables(cached)
+        plugin = model_plugin_validation.build_plugin(parsed, functions)
+        baseline = self._build_plugin("model_wcdm.yml")
+        epochs = numpy.asarray((0.001, 0.01, 1.0))
+        histories = []
+        for current in (plugin, baseline):
+            runtime = current.get_cmb_declared_runtime(current.INITIAL_GUESSES)
+            histories.append(
+                cmb_background._resolve_declared_background_context(
+                    runtime, a_values=epochs, z_values=1.0 / epochs - 1.0
+                )["H"]
+            )
+        numpy.testing.assert_allclose(histories[0], histories[1], rtol=1e-12)
+        changed = dict(plugin.get_cmb_declared_runtime(plugin.INITIAL_GUESSES))
+        changed["model_parameters"] = dict(changed["model_parameters"])
+        changed["model_parameters"]["species_temperature_ratio"] *= 1.2
+        changed_history = cmb_background._resolve_declared_background_context(
+            changed, a_values=epochs, z_values=1.0 / epochs - 1.0
+        )["H"]
+        self.assertGreater(
+            float(numpy.max(numpy.abs(changed_history - histories[0]))), 1.0
         )
 
     def test_lcdm_mnu_zero_mass_limit_remains_finite(self) -> None:
@@ -1757,6 +1866,7 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
         plugin = self._build_plugin("model_lcdm_mnu.yml")
         scale_factors = numpy.asarray((1.0e-6, 1.0e-3, 1.0e-2, 1.0))
         zero_mass_context = None
+        near_zero_mass_context = None
         for sum_mnu in (0.0, 1.0e-8, 0.06):
             values = list(plugin.INITIAL_GUESSES)
             values[5] = sum_mnu
@@ -1770,12 +1880,48 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
             self.assertTrue(numpy.all(context["H"] > 0.0))
             if sum_mnu == 0.0:
                 zero_mass_context = context
+            elif sum_mnu == 1.0e-8:
+                near_zero_mass_context = context
         self.assertIsNotNone(zero_mass_context)
+        self.assertIsNotNone(near_zero_mass_context)
+        numpy.testing.assert_allclose(
+            zero_mass_context["H"], near_zero_mass_context["H"], rtol=1e-6
+        )
         self.assertAlmostEqual(
             float(zero_mass_context["Omega_nu_massive0"]),
             float(zero_mass_context["Omega_nu_massive_rel0"]),
             places=15,
         )
+
+    def test_dark_energy_kinetic_amplitude_tracks_photon_density(self) -> None:
+        """Photon changes preserve both matter and radiation splits."""
+        for filename in ("model_wcdm.yml", "model_w0wa.yml"):
+            plugin = self._build_plugin(filename)
+            for multiplier in (0.8, 1.2):
+                with self.subTest(model=filename, multiplier=multiplier):
+                    values = list(plugin.INITIAL_GUESSES)
+                    names = list(plugin.PARAMETER_NAMES)
+                    values[names.index("Omega_gamma")] *= multiplier
+                    runtime = plugin.get_cmb_declared_runtime(values)
+                    context = (
+                        cmb_background._resolve_declared_background_context(
+                            runtime, a_values=1.0, z_values=0.0
+                        )
+                    )
+                    neff = values[names.index("Neff")]
+                    expected_rel = (
+                        0.22710731766 * values[names.index("Omega_gamma")]
+                        * min(neff, 3.0)
+                    )
+                    self.assertAlmostEqual(
+                        context["Omega_nu_massive_rel0"], expected_rel,
+                        places=15,
+                    )
+                    self.assertAlmostEqual(
+                        context["Omega_b0"] + context["Omega_c0"]
+                        + context["Omega_nu_massive_nr0"],
+                        values[names.index("Omega_m0")], delta=1e-8,
+                    )
 
     def test_lcdm_mnu_low_neff_does_not_overcount_neutrinos(self) -> None:
         """Low ``N_eff`` must allocate the available species only once."""
@@ -1795,7 +1941,9 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
         )
         momentum = evolution._declared_momentum_grid_context(
             runtime["perturbation_data"],
-            model_parameters=runtime["param_map"],
+            model_parameters=cmb_background._momentum_model_parameters(
+                runtime
+            ),
             physical_params=physical,
             scale_factor=numpy.asarray((1.0e-6, 1.0)),
         )
@@ -1855,7 +2003,9 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
                     )
                     momentum = evolution._declared_momentum_grid_context(
                         runtime["perturbation_data"],
-                        model_parameters=runtime["param_map"],
+                        model_parameters=(
+                            cmb_background._momentum_model_parameters(runtime)
+                        ),
                         physical_params=physical,
                         scale_factor=numpy.asarray((1.0e-6, 1.0)),
                     )
@@ -2229,10 +2379,10 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
                     )
                 )
 
-    def test_dark_energy_contract_declares_smooth_background_closure(
+    def test_dark_energy_contract_declares_conserved_ppf_closure(
         self,
     ) -> None:
-        """Dark-energy metadata and analytic pressure remain explicit."""
+        """The analytic background and PPF perturbation are explicit."""
 
         scale_factors = numpy.asarray((1.0e-3, 0.01, 0.1, 1.0))
         for model_name in ("model_wcdm.yml", "model_w0wa.yml"):
@@ -2248,6 +2398,9 @@ class DeclaredLCDMModelTestCase(unittest.TestCase):
                 self.assertEqual(dark_energy.background_reference, "Omega_de0")
                 self.assertEqual(dark_energy.anisotropic_stress, "zero")
                 self.assertEqual(dark_energy.sound_speed, "1.0")
+                self.assertEqual(dark_energy.scalar_closure["kind"], "ppf")
+                self.assertIn("ppf_gamma", perturbations.variables)
+                self.assertIn("evolve_ppf_gamma", perturbations.equations)
                 runtime = plugin.get_cmb_declared_runtime(
                     plugin.INITIAL_GUESSES
                 )

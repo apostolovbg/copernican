@@ -16,6 +16,18 @@ from copernican.lib.likelihoods.cmb.runtime import (
 class BackgroundModuleTestCase(unittest.TestCase):
     """Exercise declared background helpers directly."""
 
+    def test_momentum_model_parameters_preserve_declared_precedence(self):
+        """Kinetic parameters include both sources without shadowing maps."""
+        self.assertEqual(
+            background._momentum_model_parameters(
+                {
+                    "param_map": {"shared": 1, "mass": 2},
+                    "model_parameters": {"shared": 3, "temperature": 4},
+                }
+            ),
+            {"shared": 1, "mass": 2, "temperature": 4},
+        )
+
     def test_bessel_column_partition_preserves_reference_values(self):
         """Workspace partitioning keeps every requested physical column."""
 

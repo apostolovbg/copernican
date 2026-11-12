@@ -416,6 +416,17 @@ def _evaluate_declared_symbol_plan(
     return resolved
 
 
+def _momentum_model_parameters(contract: Mapping[str, Any]) -> dict[str, Any]:
+    """Combine declared scalar sources with param-map precedence for q."""
+    result: dict[str, Any] = {}
+    for source in ("param_map", "model_parameters"):
+        values = contract.get(source, {}) or {}
+        if isinstance(values, Mapping):
+            for name, value in values.items():
+                result.setdefault(str(name), value)
+    return result
+
+
 def _resolve_declared_background_context(
     contract: Mapping[str, Any],
     *,
@@ -494,7 +505,7 @@ def _resolve_declared_background_context(
             )
             q_context = _declared_momentum_grid_context(
                 perturbation_data,
-                model_parameters=(contract.get("param_map", {}) or {}),
+                model_parameters=_momentum_model_parameters(contract),
                 physical_params=physical_stub,
                 scale_factor=numpy.asarray(a_values, dtype=float),
             )
@@ -3731,7 +3742,7 @@ def _build_custom_cmb_background_impl(
 
         momentum_context = _declared_momentum_grid_context(
             perturbation_data,
-            model_parameters=contract.get("param_map", {}) or {},
+            model_parameters=_momentum_model_parameters(contract),
             physical_params=physical_params,
             scale_factor=a_grid,
         )

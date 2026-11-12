@@ -6,8 +6,10 @@ provide an external comparison surface for declared solver acceptance tests.
 
 from __future__ import annotations
 
+import base64
 import copy
 import hashlib
+import io
 import json
 import logging
 import re
@@ -22,6 +24,16 @@ _LMAX_PADDING = 300
 _LENS_POTENTIAL_ACCURACY = 0
 _MNU_PATTERN = re.compile(r"^mnu(\d+)$")
 CAMB_REFERENCE_IDENTITY = f"camb:{camb.__version__}"
+
+
+def experimental_reference_identity(source_digest: str) -> str:
+    """Encode the complete SHA-256 source identity compactly and losslessly."""
+    raw = bytes.fromhex(source_digest)
+    if len(raw) != 32:
+        raise ValueError("Experimental source digest must be SHA-256")
+    encoded = base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+    return f"camb:experimental:{camb.__version__}:{encoded}"
+
 
 # This contract is intentionally frozen in the test-owned reference surface.
 # It mirrors the bundled LambdaCDM initial point but never enters production
@@ -1596,3 +1608,141 @@ def build_completion_camb_reference(
     dense.pop("fixture_sha256")
     dense["fixture_sha256"] = reference_fixture_sha256(dense)
     return dense
+
+
+def build_experimental_completion_reference(
+    coarse: Mapping[str, Any],
+    fine: Mapping[str, Any],
+    requirement: Mapping[str, Any],
+    *,
+    input_tables: Mapping[str, Mapping[str, Any]],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Bind independently refined experimental arrays to preserved windows.
+
+    The supplied candidates must contain dense ell 2..2500. Original required
+    multipoles remain sampled while new feature windows follow the changed
+    physical reference. Both complete candidate calculations and their
+    physical tables survive so acceptance can recompute reference uncertainty.
+    """
+    from copernican.lib.likelihoods.cmb import diagnostics
+
+    identity = str(fine.get("reference_identity", ""))
+    if not identity.startswith("camb:experimental:"):
+        raise ValueError("Experimental reference identity is required")
+    for label, candidate in (("coarse", coarse), ("fine", fine)):
+        body = {
+            name: value
+            for name, value in candidate.items()
+            if name != "fixture_sha256"
+        }
+        if (
+            candidate.get("fixture_sha256") != reference_fixture_sha256(body)
+            or candidate.get("reference_identity") != identity
+            or candidate.get("contract") != fine.get("contract")
+            or candidate.get("ell_values") != list(range(2, 2501))
+            or set(candidate.get("spectra", {}))
+            != set(requirement["surfaces"])
+            or candidate.get("experimental_inputs", {}).get(
+                "physical_inputs_sha256"
+            )
+            != fine.get("experimental_inputs", {}).get(
+                "physical_inputs_sha256"
+            )
+        ):
+            raise ValueError(f"Invalid {label} experimental candidate")
+
+    retained_tables = {}
+    for label, candidate in (("coarse", coarse), ("fine", fine)):
+        retained_tables[label] = {}
+        for name, columns in (("recombination", 3), ("reionization", 2)):
+            table = numpy.asarray(input_tables[label][name], dtype=float)
+            if (
+                table.ndim != 2
+                or table.shape[0] < 2
+                or table.shape[1] != columns
+                or not numpy.all(numpy.isfinite(table))
+                or numpy.any(numpy.diff(table[:, 0]) <= 0)
+                or numpy.any(table[:, 1:] < 0)
+            ):
+                raise ValueError(f"Invalid {label} {name} table")
+            serialized = io.StringIO()
+            numpy.savetxt(serialized, table, fmt="%.17e")
+            digest = hashlib.sha256(serialized.getvalue().encode()).hexdigest()
+            if (
+                digest
+                != candidate["experimental_inputs"][f"{name}_table_sha256"]
+            ):
+                raise ValueError(f"Changed {label} {name} table")
+            retained_tables[label][name] = table.tolist()
+    for name in ("recombination", "reionization"):
+        if len(retained_tables["fine"][name]) <= len(
+            retained_tables["coarse"][name]
+        ):
+            raise ValueError(f"{name} refinement did not increase sampling")
+
+    features = completion_reference_windows(fine)
+    ells = set(int(value) for value in requirement["ells"])
+    for feature in features:
+        ells.update(range(feature["lower"], feature["upper"] + 1))
+    if not ells or min(ells) < 2 or max(ells) > 2500:
+        raise ValueError("Experimental feature windows exceed dense coverage")
+    selected = sorted(ells)
+    indices = numpy.asarray(selected, dtype=int) - 2
+
+    def select_spectra(candidate):
+        """Select the same raw and public samples from one dense solve."""
+        return {
+            name: {
+                representation: numpy.asarray(values)[indices].tolist()
+                for representation, values in surface.items()
+            }
+            for name, surface in candidate["spectra"].items()
+        }
+
+    result = copy.deepcopy(dict(fine))
+    source_digest = result["experimental_inputs"].get("source_identity_sha256")
+    if source_digest is not None:
+        identity = experimental_reference_identity(source_digest)
+        result["reference_identity"] = identity
+        result["provenance"]["reference_identity"] = identity
+    result["ell_values"] = selected
+    result["spectra"] = select_spectra(fine)
+    result["features"] = features
+    result["damping_windows"] = copy.deepcopy(requirement["damping_windows"])
+    result["experimental_inputs"]["previous_feature_windows"] = copy.deepcopy(
+        requirement["features"]
+    )
+    result["reference_refinement"] = {
+        "ell_values": selected,
+        "spectra": select_spectra(coarse),
+        "input_tables": retained_tables,
+        "table_sha256": {
+            label: {
+                name: candidate["experimental_inputs"][f"{name}_table_sha256"]
+                for name in ("recombination", "reionization")
+            }
+            for label, candidate in (("coarse", coarse), ("fine", fine))
+        },
+        "candidate_payloads": {"coarse": coarse, "fine": fine},
+        "coarse_fixture_sha256": coarse["fixture_sha256"],
+        "fine_fixture_sha256": fine["fixture_sha256"],
+    }
+    result.pop("fixture_sha256", None)
+    result["fixture_sha256"] = reference_fixture_sha256(result)
+    updated = copy.deepcopy(dict(requirement))
+    updated.update(
+        ells=selected,
+        features=features,
+        reference_identity=identity,
+        reference_sha256=result["fixture_sha256"],
+        resolved_reference_inputs=copy.deepcopy(result["resolved_parameters"]),
+    )
+    comparison = diagnostics.compare_cmb_completion_spectra(
+        result, result, updated
+    )
+    if not comparison["accepted"]:
+        raise ValueError(
+            "Experimental reference refinement or features failed: "
+            + "; ".join(comparison["issues"])
+        )
+    return result, updated

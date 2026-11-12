@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-11-09
+**Last Updated:** 2026-11-12
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,251 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-11-12:
+  Change: Prepared the CCMBS transfer package and fixed bootstrap.
+  Why: Preserved independent reference provenance across machines.
+  Impact: Documented setup, rebuild, verification and remaining work.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  copernican/lib/model_coder.py
+  copernican/lib/model_spec_validator.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/phase_space.py
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_model_coder.py
+  tests/copernican/lib/test_model_spec_validator.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/test_phase_space.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_ppf_camb.json
+  tests/project/lib/camb_reference.py
+  tests/project/lib/ppf_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+  handoff/HANDOFF.md
+  handoff/tmp/SHA256SUMS
+  handoff/tmp/ccmbs-reference-handoff.tar.gz
+
+- 2026-11-12:
+  Change: Verified declared PPF closure and refined its integration.
+  Why: Preserved conserved dark-energy dynamics through crossing.
+  Impact: Compared PPF histories and bounded solver paths independently.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  copernican/lib/model_coder.py
+  copernican/lib/model_spec_validator.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/phase_space.py
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_model_coder.py
+  tests/copernican/lib/test_model_spec_validator.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/test_phase_space.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_ppf_camb.json
+  tests/project/lib/camb_reference.py
+  tests/project/lib/ppf_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-11:
+  Change: Implemented declared conserved PPF scalar perturbations.
+  Why: Corrected dark-energy stress while preserving other theories.
+  Impact: Added independent CAMB crossing checks and matched PPF references.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  copernican/lib/model_coder.py
+  copernican/lib/model_spec_validator.py
+  copernican/lib/perturbation_contract.py
+  copernican/lib/phase_space.py
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_model_coder.py
+  tests/copernican/lib/test_model_spec_validator.py
+  tests/copernican/lib/test_perturbation_contract.py
+  tests/copernican/lib/test_phase_space.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_ppf_camb.json
+  tests/project/lib/camb_reference.py
+  tests/project/lib/ppf_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-11:
+  Change: Aligned model geometry and added experimental reference validation.
+  Why: Corrected divergent expansion histories and mismatched reference
+    physics.
+  Impact: Preserved declared ruler endpoints and strengthened independent
+    checks.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  copernican/lib/model_coder.py
+  copernican/lib/model_spec_validator.py
+  copernican/lib/phase_space.py
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_model_coder.py
+  tests/copernican/lib/test_model_spec_validator.py
+  tests/copernican/lib/test_phase_space.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-10:
+  Change: Added transverse geometry, kinetic normalization, and reference work.
+  Why: Corrected curved distances and discontinuous neutrino normalization.
+  Impact: Strengthened theory-specific evidence and screened mismatched inputs.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/docs/model_template.yml
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  copernican/lib/model_coder.py
+  copernican/lib/phase_space.py
+  copernican/models/model_lcdm_mnu.yml
+  copernican/models/model_w0wa.yml
+  copernican/models/model_wcdm.yml
+  docs/model_template.yml
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/copernican/lib/test_model_coder.py
+  tests/copernican/lib/test_phase_space.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-09:
+  Change: Linked completion evidence and screened physical reference inputs.
+  Why: Prevented unrelated products and metadata-only error claims from
+    replacing the returned spectrum and its measured refinements.
+  Impact: Verified operators and discrepancies on readback, and detected
+    sampled photon-density and reionization mismatches before full solves.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/test_model_adapter.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-09:
+  Change: Optimized bounded projection source-time interpolation.
+  Why: Removed repeated construction of the same linear time interpolant.
+  Impact: Preserved physical grids and uncertainty propagation in both
+    precomputed and streamed paths while reducing measured interpolation work.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
 
 - 2026-11-09:
   Change: Corrected the ordinary request subset axis assertions.

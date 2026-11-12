@@ -30,6 +30,19 @@ class PublicSymbolCoverageTestCase(unittest.TestCase):
 class CMBDeclarationFirewallTestCase(unittest.TestCase):
     """Ensure solver controls cannot enter through the YAML boundary."""
 
+    def test_sound_horizon_redshift_requires_a_nonempty_expression(self):
+        """A declared endpoint has to be an explicit expression."""
+        source = Path("copernican/models/model_wcdm.yml")
+        model = yaml.safe_load(source.read_text())
+        for value in ("", [], 1100):
+            model["sound_horizon_redshift"] = value
+            with self.subTest(value=value):
+                with tempfile.TemporaryDirectory() as folder:
+                    path = Path(folder) / "model.yml"
+                    path.write_text(yaml.safe_dump(model))
+                    with self.assertRaises(ValueError):
+                        module.validate_and_cache_model(path, folder)
+
     def test_solver_controls_are_rejected_in_yaml_declarations(self) -> None:
         """Reject top-level and nested legacy numerical controls."""
 

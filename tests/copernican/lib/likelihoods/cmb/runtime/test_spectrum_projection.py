@@ -4,6 +4,7 @@ import unittest
 import warnings
 from pathlib import Path
 from types import SimpleNamespace
+from unittest import mock
 
 import numpy
 from scipy.special import sici
@@ -134,7 +135,7 @@ class SpectrumProjectionTestCase(unittest.TestCase):
             return {"s": (1 + nodes**2)[:, None] * (source_eta / 100) ** 3}
 
         weights = spectrum_projection._simpson_weights(radial_eta)
-        result = spectrum_projection.project_interpolated_source_histories(
+        arguments = dict(
             base_k=base,
             base_sources=sources(base),
             refined_k=fine,
@@ -149,6 +150,41 @@ class SpectrumProjectionTestCase(unittest.TestCase):
             components={"T": component},
             kernel_provider=kernel_provider,
         )
+        with mock.patch.object(
+            spectrum_projection,
+            "CubicSpline",
+            wraps=spectrum_projection.CubicSpline,
+        ) as time_interpolator:
+            result = spectrum_projection.project_interpolated_source_histories(
+                **arguments
+            )
+        self.assertEqual(time_interpolator.call_count, 2)
+        with mock.patch.object(
+            spectrum_projection,
+            "CubicSpline",
+            wraps=spectrum_projection.CubicSpline,
+        ) as sparse_interpolator:
+            spectrum_projection.project_interpolated_source_histories(
+                **{**arguments, "angular_k": angular[[0, -1]]}
+            )
+        self.assertEqual(sparse_interpolator.call_count, 4)
+        with mock.patch.object(
+            spectrum_projection, "_SOURCE_RADIAL_PRECOMPUTE_BYTES", 0
+        ):
+            streamed = (
+                spectrum_projection.project_interpolated_source_histories(
+                    **arguments
+                )
+            )
+        for level in ("base", "refined", "coarse_eta"):
+            for name in result[level]:
+                numpy.testing.assert_allclose(
+                    result[level][name],
+                    streamed[level][name],
+                    rtol=1e-12,
+                    atol=1e-15,
+                    err_msg="Time and wave interpolation must commute",
+                )
         expected = numpy.asarray(
             [
                 numpy.sum(
@@ -162,6 +198,53 @@ class SpectrumProjectionTestCase(unittest.TestCase):
         )
         numpy.testing.assert_allclose(
             result["refined"]["T"][0], expected, rtol=1e-12, atol=1e-15
+        )
+
+        rng = numpy.random.default_rng(723)
+
+        def source_uncertainty(_axis, _component, values, kernel, _wave):
+            """Apply an absolute radial operator to the sampled source."""
+
+            return numpy.sum(
+                numpy.abs(kernel.j_l * values["s"] * weights), axis=1
+            )
+
+        irregular = {
+            **arguments,
+            "base_sources": {"s": rng.normal(size=(base.size, 9))},
+            "refined_sources": {"s": rng.normal(size=(fine.size, 9))},
+            "coarse_indices": numpy.arange(0, radial_eta.size, 2),
+            "coarse_weights": spectrum_projection._simpson_weights(
+                radial_eta[::2]
+            ),
+            "uncertainty_axes": ("source",),
+            "uncertainty_projector": source_uncertainty,
+        }
+        precomputed = (
+            spectrum_projection.project_interpolated_source_histories(
+                **irregular
+            )
+        )
+        with mock.patch.object(
+            spectrum_projection, "_SOURCE_RADIAL_PRECOMPUTE_BYTES", 0
+        ):
+            streamed = (
+                spectrum_projection.project_interpolated_source_histories(
+                    **irregular
+                )
+            )
+        for level in ("base", "refined", "coarse_eta"):
+            numpy.testing.assert_allclose(
+                precomputed[level]["T"],
+                streamed[level]["T"],
+                rtol=1e-12,
+                atol=1e-13,
+            )
+        numpy.testing.assert_allclose(
+            precomputed["uncertainties"]["source"]["T"],
+            streamed["uncertainties"]["source"]["T"],
+            rtol=1e-12,
+            atol=1e-13,
         )
 
     def test_source_mesh_retains_full_support_at_acoustic_spacing(

@@ -4907,10 +4907,13 @@ def read_cmb_completion_products(root, entry):
     """
 
     from .evidence_assets import read_array_products
-    from .runtime.spectrum_projection import power_spectrum_quadrature_weights
+    from .runtime.spectrum_projection import (
+        _simpson_weights,
+        power_spectrum_quadrature_weights,
+    )
 
     manifest = _completion_artifact(Path(root), entry)
-    if manifest.get("schema_version") != 2:
+    if manifest.get("schema_version") != 3:
         raise ValueError(
             "completion products require the complete archive chain"
         )
@@ -4918,7 +4921,9 @@ def read_cmb_completion_products(root, entry):
         root, manifest["source"], array_paths=(("k",), ("eta",))
     )
     projection = read_array_products(
-        root, manifest["projection"], array_paths=(("ell",), ("k",))
+        root,
+        manifest["projection"],
+        array_paths=(("ell",), ("k",), ("eta",), ("eta_weights",), ("chi",)),
     )
     source_k = sources["k"]
     ordered = sorted(sources["sources_by_k"], key=float)
@@ -4932,6 +4937,7 @@ def read_cmb_completion_products(root, entry):
         ("source k", source_k),
         ("transfer k", projection["k"]),
         ("eta", sources["eta"]),
+        ("projection eta", projection["eta"]),
         ("ell", projection["ell"]),
     ):
         if (
@@ -4940,18 +4946,51 @@ def read_cmb_completion_products(root, entry):
             or numpy.any(numpy.diff(grid) <= 0)
         ):
             raise ValueError(f"retained {name} grid is not strictly ordered")
+    radial_eta = projection["eta"]
+    if (
+        radial_eta[0] < sources["eta"][0]
+        or radial_eta[-1] > sources["eta"][-1]
+        or projection["chi"].shape != radial_eta.shape
+        or not numpy.array_equal(
+            projection["eta_weights"], _simpson_weights(radial_eta)
+        )
+        or not numpy.isfinite(float(projection["source_chi"]))
+    ):
+        raise ValueError("retained radial projection grid or weights differ")
     names = set(sources["sources_by_k"][ordered[0]])
     if any(set(sources["sources_by_k"][key]) != names for key in ordered):
         raise ValueError(
             "retained source component inventory differs between modes"
         )
-    quadratures = manifest.get("quadratures", [])
-    if not quadratures:
+    quadratures = manifest.get("quadratures", {})
+    if (
+        not isinstance(quadratures, Mapping)
+        or not quadratures
+        or set(quadratures) != set(projection["spectra"])
+    ):
         raise ValueError("retained spectrum quadrature operators are missing")
-    for quadrature in quadratures:
+    required_components = {
+        str(binding[component])
+        for binding in quadratures.values()
+        for component in ("primary_component", "secondary_component")
+    }
+    projection_arrays = read_array_products(
+        root,
+        manifest["projection"],
+        array_paths=(
+            ("ell",),
+            ("k",),
+            *(("transfers", name) for name in sorted(required_components)),
+            *(("spectra", name) for name in sorted(quadratures)),
+        ),
+    )
+    expected_log_k = numpy.asarray(
+        numpy.log(projection_arrays["k"]), dtype=numpy.longdouble
+    )
+    for observable, binding in quadratures.items():
         payload = read_array_products(
             root,
-            quadrature,
+            binding["artifact"],
             array_paths=tuple(
                 (name,)
                 for name in (
@@ -4961,17 +5000,55 @@ def read_cmb_completion_products(root, entry):
                     "positive_fallback_rows",
                     "C_ell",
                     "log_k",
+                    "primordial",
                 )
             ),
         )
         weights = numpy.asarray(payload["weights"])
         values = numpy.asarray(payload["weighted_transfer_products"])
+        primary = binding["primary_component"]
+        secondary = binding["secondary_component"]
+        if (
+            payload.get("observable") != observable
+            or payload.get("primary_component") != primary
+            or payload.get("secondary_component") != secondary
+            or bool(payload["auto_spectrum"]) != (primary == secondary)
+            or not numpy.array_equal(payload["log_k"], expected_log_k)
+            or not numpy.array_equal(
+                payload["C_ell"], projection_arrays["spectra"][observable]
+            )
+        ):
+            raise ValueError("quadrature does not match its projection")
         if (
             values.ndim != 2
             or values.shape[1:] != weights.shape
             or weights.shape != payload["log_k"].shape
         ):
             raise ValueError("retained quadrature grid dimensions differ")
+        first = numpy.asarray(projection_arrays["transfers"][primary])
+        second = numpy.asarray(projection_arrays["transfers"][secondary])
+        primordial = numpy.asarray(
+            payload["primordial"], dtype=numpy.longdouble
+        )
+        if (
+            first.shape != values.shape
+            or second.shape != values.shape
+            or primordial.shape != weights.shape
+            or any(
+                not numpy.array_equal(
+                    values[index],
+                    primordial
+                    * (
+                        numpy.asarray(first[index], dtype=numpy.longdouble)
+                        * numpy.asarray(second[index], dtype=numpy.longdouble)
+                    ),
+                )
+                for index in range(values.shape[0])
+            )
+        ):
+            raise ValueError(
+                "quadrature weighted transfers differ from projection"
+            )
         expected_weights = power_spectrum_quadrature_weights(
             payload["log_k"], payload["rule"]
         )
@@ -4990,6 +5067,10 @@ def read_cmb_completion_products(root, entry):
         fallback = numpy.asarray(payload["positive_fallback_rows"], dtype=bool)
         if fallback.shape != (values.shape[0],):
             raise ValueError("retained quadrature fallback dimensions differ")
+        if not payload["auto_spectrum"] and numpy.any(fallback):
+            raise ValueError(
+                "cross-spectrum quadrature cannot use auto fallback"
+            )
         integral = numpy.where(
             fallback,
             numpy.sum(values * payload["positive_weights"], axis=1),
@@ -5022,6 +5103,9 @@ def read_cmb_completion_products(root, entry):
             )
     return {
         "source_grid": sources["eta"],
+        "projection_grid": projection["eta"],
+        "projection_weights": projection["eta_weights"],
+        "projection_chi": projection["chi"],
         "source_k": source_k,
         "transfer_k": projection["k"],
         "ell": projection["ell"],
@@ -5052,6 +5136,20 @@ def compare_cmb_completion_spectra(
     metrics: dict[str, Any] = {}
     ell = numpy.asarray(requirement["ells"], dtype=int)
     expected = set(requirement["surfaces"])
+    refinement = reference.get("reference_refinement")
+    experimental = str(reference.get("reference_identity", "")).startswith(
+        "camb:experimental:"
+    )
+    if experimental and not isinstance(refinement, Mapping):
+        issues.append("experimental reference refinement is missing")
+    if refinement is not None and (
+        not isinstance(refinement, Mapping)
+        or list(refinement.get("ell_values", ())) != ell.tolist()
+        or set(refinement.get("spectra", {})) != expected
+    ):
+        issues.append(
+            "reference refinement coverage differs from the contract"
+        )
     for label, payload in (("actual", actual), ("reference", reference)):
         if list(payload.get("ell_values", ())) != ell.tolist():
             issues.append(f"{label} ell coverage differs from the contract")
@@ -5108,6 +5206,7 @@ def compare_cmb_completion_spectra(
                     * float(numpy.max(numpy.abs(truth), initial=0.0))
                 )
                 allowance = tolerance * numpy.abs(truth) + roundoff
+                absolute = numpy.zeros_like(truth)
                 if token in crosses:
                     prefix = "lensed_" if name.startswith("lensed_") else ""
                     first, second = crosses[token]
@@ -5139,9 +5238,35 @@ def compare_cmb_completion_spectra(
                 elif numpy.any(values < 0.0):
                     issues.append(f"{name} auto-spectrum is negative")
                 residual = numpy.abs(values - truth)
-                passed = bool(numpy.all(residual <= allowance))
+                reference_error = numpy.zeros_like(residual)
+                if refinement is not None:
+                    coarse = numpy.asarray(
+                        refinement["spectra"][name][representation]
+                    )
+                    if representation == "C_ell":
+                        coarse = _native_c(refinement, name)
+                    if coarse.shape != ell.shape or not numpy.all(
+                        numpy.isfinite(coarse)
+                    ):
+                        raise ValueError("invalid reference refinement")
+                    reference_error = numpy.abs(truth - coarse)
+                    reference_allowance = (
+                        CMB_COMPLETION_METRICS["numerical_relative_budget"]
+                        * numpy.abs(truth)
+                        + roundoff
+                        + absolute
+                    )
+                    if numpy.any(reference_error > reference_allowance):
+                        issues.append(
+                            f"{name} {representation} reference refinement "
+                            "exceeds the numerical budget"
+                        )
+                passed = bool(
+                    numpy.all(residual + reference_error <= allowance)
+                )
                 metrics[f"{name}:{representation}"] = {
                     "absolute_residual": residual.tolist(),
+                    "reference_refinement_error": reference_error.tolist(),
                     "allowance": numpy.asarray(allowance).tolist(),
                     "accepted": passed,
                 }
@@ -5198,6 +5323,66 @@ def compare_cmb_completion_spectra(
         ):
             issues.append(f"{name} {kind} location exceeds its bound")
     return {"accepted": not issues, "issues": issues, "metrics": metrics}
+
+
+def _validate_measured_completion_axis(root, axis, surfaces, ells):
+    """Recompute an axis discrepancy from its retained physical products.
+
+    Every compared surface must cover the declared request. The effective
+    grids and results are loaded from digest-verified numerical archives;
+    hashes of caller-supplied metadata alone do not establish refinement.
+    """
+
+    from .evidence_assets import read_array_products
+    from .runtime.evidence import _projection_array_digest
+
+    retained = []
+    for label in ("base", "refined"):
+        record = axis[label]
+        products = read_array_products(
+            root, record["artifact"], materialize=True
+        )
+        grid = numpy.asarray(products["effective_grid"], dtype=float)
+        if (
+            grid.ndim != 1
+            or not grid.size
+            or not numpy.all(numpy.isfinite(grid))
+            or record.get("effective_grid") != _projection_array_digest(grid)
+        ):
+            raise ValueError("refinement effective grid is missing or stale")
+        if set(products["spectra"]) != set(surfaces):
+            raise ValueError("refinement surfaces differ from the request")
+        if not numpy.array_equal(products["ell"], numpy.asarray(ells)):
+            raise ValueError("refinement multipoles differ from the request")
+        retained.append((grid, products["spectra"]))
+    if numpy.array_equal(retained[0][0], retained[1][0]):
+        raise ValueError("refinement did not change the effective grid")
+    measured = 0.0
+    for name in surfaces:
+        base = numpy.asarray(retained[0][1][name])
+        refined = numpy.asarray(retained[1][1][name])
+        if (
+            base.ndim != 1
+            or not base.size
+            or base.size != len(ells)
+            or base.shape != refined.shape
+            or base.dtype.kind not in "iuf"
+            or refined.dtype.kind not in "iuf"
+            or not numpy.all(numpy.isfinite(base) & numpy.isfinite(refined))
+        ):
+            raise ValueError("refinement spectra have invalid dimensions")
+        base = numpy.asarray(base, dtype=numpy.longdouble)
+        refined = numpy.asarray(refined, dtype=numpy.longdouble)
+        scale = max(numpy.max(abs(base)), numpy.max(abs(refined)))
+        relative = (
+            0.0
+            if scale == 0
+            else float(numpy.max(abs(base / scale - refined / scale)))
+        )
+        measured = max(measured, relative)
+    if measured > float(axis["error"]) + 16 * numpy.finfo(float).eps:
+        raise ValueError("refinement error understates retained products")
+    return measured
 
 
 def assess_cmb_completion_evidence(
@@ -5504,16 +5689,19 @@ def assess_cmb_completion_evidence(
                             "refinement did not change "
                             "the effective calculation"
                         )
+                    _validate_measured_completion_axis(
+                        Path(evidence_root),
+                        axis,
+                        requirement["surfaces"],
+                        requirement["ells"],
+                    )
                 elif status == "validated_bound":
-                    validation = axis["validation"]
-                    if not validation.get("domain") or not validation.get(
-                        "assumptions"
-                    ):
-                        raise ValueError(
-                            "bound domain and assumptions are missing"
-                        )
-                    _completion_artifact(
-                        Path(evidence_root), validation["artifact"]
+                    # A declared domain, assumptions and digest do not prove
+                    # that the bound applies to this physical calculation.
+                    # Admit a bound only after an owning verifier can check
+                    # its derivation and numerical inputs independently.
+                    raise ValueError(
+                        "validated bound has no supported verifier"
                     )
                 else:
                     raise ValueError("axis is unresolved")

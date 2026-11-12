@@ -104,6 +104,25 @@ class PhaseSpaceTestCase(unittest.TestCase):
         with self.assertRaises(ValueError):
             phase_space_temperature({"temperature_ratio": "-1"}, {}, 2.0)
 
+    def test_relativistic_density_is_exclusive_and_declared(self):
+        """Kinetic abundance has one explicit physical normalization."""
+        law = {
+            "distribution": "fermi_dirac",
+            "mass_parameter": "mass",
+            "temperature_ratio": "ratio",
+            "relativistic_density": "early_density",
+        }
+        self.assertEqual(
+            validate_phase_space(
+                law, available_parameters={"mass", "ratio", "early_density"}
+            ),
+            law,
+        )
+        with self.assertRaisesRegex(ValueError, "undeclared"):
+            validate_phase_space(law, available_parameters={"mass", "ratio"})
+        with self.assertRaisesRegex(ValueError, "one density"):
+            validate_phase_space({**law, "density_parameter": "today"})
+
     def test_support_planning_finds_a_nonthermal_peak_beyond_neutrino_tail(
         self,
     ):

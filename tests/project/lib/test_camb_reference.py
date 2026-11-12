@@ -15,6 +15,125 @@ from tests.project.lib import camb_reference
 class CambReferenceModuleTestCase(unittest.TestCase):
     """Exercise the independent CAMB reference helper surface."""
 
+    def test_experimental_reference_retains_windows_and_real_refinement(self):
+        """Changed physics adds feature windows and retains numerical proof."""
+        import copy
+        import hashlib
+        import io
+        import math
+
+        ell = numpy.arange(2, 2501)
+        factor = ell * (ell + 1) / (2 * math.pi)
+        fine_spectra = {}
+        for name, values in {
+            "TT": 10 + numpy.cos(ell / 40),
+            "EE": 2 + numpy.cos(ell / 37),
+            "TE": 0.1 * numpy.sin(ell / 41),
+        }.items():
+            fine_spectra[name] = {
+                "C_ell": (values / factor).tolist(),
+                "D_ell": values.tolist(),
+            }
+        tables = {
+            "coarse": {
+                "recombination": [[0, 1, 10], [2, 1, 20]],
+                "reionization": [[0, 1], [2, 0.1]],
+            },
+            "fine": {
+                "recombination": [[0, 1, 10], [1, 1, 15], [2, 1, 20]],
+                "reionization": [[0, 1], [1, 0.5], [2, 0.1]],
+            },
+        }
+
+        def candidate(label, factor_value):
+            """Give each physical table and spectrum its actual digest."""
+            inputs = {"physical_inputs_sha256": "a" * 64}
+            for name, table in tables[label].items():
+                buffer = io.StringIO()
+                numpy.savetxt(buffer, table, fmt="%.17e")
+                inputs[name + "_table_sha256"] = hashlib.sha256(
+                    buffer.getvalue().encode()
+                ).hexdigest()
+            spectra = {
+                name: {
+                    representation: (
+                        numpy.asarray(values) * factor_value
+                    ).tolist()
+                    for representation, values in surface.items()
+                }
+                for name, surface in fine_spectra.items()
+            }
+            payload = {
+                "reference_identity": "camb:experimental:test",
+                "contract": {"param_map": {"H0": 70.0}},
+                "ell_values": ell.tolist(),
+                "spectra": spectra,
+                "experimental_inputs": inputs,
+                "resolved_parameters": {"H0": 70.0},
+                "resolved_defaults": "test",
+            }
+            payload["fixture_sha256"] = (
+                camb_reference.reference_fixture_sha256(payload)
+            )
+            return payload
+
+        old_windows = [{"surface": "TT", "lower": 100, "upper": 116}]
+        requirement = {
+            "ells": [2, 20, *range(100, 117), 2500],
+            "surfaces": ["TT", "EE", "TE"],
+            "features": old_windows,
+            "damping_windows": [[1988, 2012]],
+            "temperature_K": 2.7255,
+        }
+        coarse = candidate("coarse", 1.000001)
+        fine = candidate("fine", 1.0)
+        result, updated = (
+            camb_reference.build_experimental_completion_reference(
+                coarse, fine, requirement, input_tables=tables
+            )
+        )
+        self.assertTrue(set(requirement["ells"]) <= set(updated["ells"]))
+        self.assertEqual(
+            result["experimental_inputs"]["previous_feature_windows"],
+            old_windows,
+        )
+        self.assertEqual(len(updated["features"]), 12)
+        self.assertEqual(
+            result["reference_refinement"]["input_tables"], tables
+        )
+        from tests.project.lib import scientific_acceptance
+
+        scientific_acceptance._validate_experimental_refinement(
+            result, updated
+        )
+        changed_candidate = copy.deepcopy(result)
+        changed_candidate["reference_refinement"]["candidate_payloads"][
+            "coarse"
+        ]["spectra"]["TT"]["C_ell"][0] *= 2
+        with self.assertRaisesRegex(ValueError, "Invalid coarse reference"):
+            scientific_acceptance._validate_experimental_refinement(
+                changed_candidate, updated
+            )
+        changed = copy.deepcopy(result)
+        changed["reference_refinement"]["input_tables"]["coarse"][
+            "reionization"
+        ][0][1] = 0.7
+        with self.assertRaisesRegex(ValueError, "Changed coarse reionization"):
+            scientific_acceptance._validate_experimental_refinement(
+                changed, updated
+            )
+        altered = copy.deepcopy(tables)
+        altered["fine"]["reionization"][1][1] = 0.7
+        with self.assertRaisesRegex(ValueError, "Changed fine reionization"):
+            camb_reference.build_experimental_completion_reference(
+                coarse, fine, requirement, input_tables=altered
+            )
+        bad = candidate("coarse", 1.1)
+        with self.assertRaisesRegex(ValueError, "reference refinement"):
+            camb_reference.build_experimental_completion_reference(
+                bad, fine, requirement, input_tables=tables
+            )
+
     def test_newtonian_history_mapping_preserves_entropy_and_curvature(self):
         """Gauge changes retain entropy and the fixed seed convention."""
 
@@ -804,6 +923,80 @@ class CompletionReferenceWindowTestCase(unittest.TestCase):
                     set(
                         range(feature["lower"], feature["upper"] + 1)
                     ).issubset(row["ells"])
+                )
+
+    def test_experimental_completion_references_retain_real_refinement(self):
+        """Check preserved candidates, histories, and historical identities."""
+        import gzip
+        import json
+
+        from tests.project.lib import scientific_acceptance
+
+        fixtures = Path(__file__).resolve().parents[1] / "fixtures"
+        contract = json.loads(
+            (fixtures / "ccmbs_completion_contract.json").read_text()
+        )
+        archive = json.loads(
+            gzip.decompress(
+                (fixtures / "ccmbs_comparable_camb.json.gz").read_bytes()
+            )
+        )
+        historical = archive["historical_references"]
+        self.assertEqual(len(historical), 9)
+        for case, old in historical.items():
+            with self.subTest(case=case):
+                requirement = contract["cases"][case]
+                reference = archive["references"][case]
+                self.assertTrue(
+                    reference["reference_identity"].startswith(
+                        "camb:experimental:"
+                    )
+                )
+                scientific_acceptance._validate_completion_reference(
+                    reference,
+                    requirement["reference_sha256"],
+                    reference["contract"],
+                    case,
+                    expected_identity=requirement["reference_identity"],
+                )
+                scientific_acceptance._validate_experimental_refinement(
+                    reference, requirement
+                )
+                old_body = {
+                    name: value
+                    for name, value in old.items()
+                    if name != "fixture_sha256"
+                }
+                self.assertEqual(
+                    camb_reference.reference_fixture_sha256(old_body),
+                    old["fixture_sha256"],
+                )
+                self.assertTrue(
+                    set(old["ell_values"]) <= set(reference["ell_values"])
+                )
+        superseded = archive["superseded_experimental_references"]
+        self.assertEqual(len(superseded), 5)
+        for case, old in superseded.items():
+            with self.subTest(superseded=case):
+                current = archive["references"][case]
+                body = {
+                    name: value
+                    for name, value in old.items()
+                    if name != "fixture_sha256"
+                }
+                self.assertEqual(
+                    camb_reference.reference_fixture_sha256(body),
+                    old["fixture_sha256"],
+                )
+                self.assertNotEqual(
+                    old["fixture_sha256"], current["fixture_sha256"]
+                )
+                self.assertIn(
+                    "PPF",
+                    current["experimental_inputs"]["dark_energy_treatment"],
+                )
+                self.assertTrue(
+                    set(old["ell_values"]) <= set(current["ell_values"])
                 )
 
 

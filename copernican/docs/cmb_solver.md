@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-11-09
+**Last Updated:** 2026-11-12
 **Project Version:** 12.0.26
 
 ## Overview
@@ -59,6 +59,16 @@ The declared route uses conformal time `tau`, conformal distance
 dimensionless perturbations are Fourier amplitudes in the same plane-wave
 convention used by the declared graph compiler and the declared line-of-sight
 integrator.
+
+Kinetic phase-space expressions consume the resolved `param_map` and
+`model_parameters` in background and hierarchy execution. If both declare
+the same name, `param_map` has precedence. A model may declare its transverse
+distance separately through the `transverse_geometry` model convention;
+this distance is shared by the generated BAO and SNe geometry helpers.
+With `geometry: cmb.background`, `sound_horizon_redshift` can declare a
+parameter-dependent recombination-ruler endpoint. The generated helper
+integrates the sound speed over the same declared expansion; the drag ruler
+continues to use the independently resolved baryon-drag epoch.
 
 ## Fixed-Parameter Diagnostics
 
@@ -220,8 +230,11 @@ down to 1e-25 and a matrix that becomes dense after sparse startup.
 Families declare their `physical_role`; a kinetic family additionally declares
 its `phase_space` distribution or occupation/log-derivative expressions,
 physical mass/multiplicity parameters and present temperature ratio.
-Nonstandard populations declare their density parameter. `phase_space.py`
-measures support expansion and quadrature density independently using
+Nonstandard populations declare either a present density parameter or a
+`relativistic_density` expression, but not both. The expression gives the
+dimensionless density today in the zero-mass limit; actual massive density
+is that amplitude times the ratio of massive to massless q-energy moments.
+`phase_space.py` measures support expansion and quadrature density using
 positive relativistic/nonrelativistic moments. Names cannot assign an
 undeclared thermal distribution. Bound distributions participate in runtime
 and source-cache identities.
@@ -496,10 +509,22 @@ CPL factor `a**(-3*(1+w0+wa))*exp(-3*wa*(1-a))` for w0waCDM. Their CMB
 backgrounds normalize the dark-energy density at `a=1`, evolve the massive
 neutrino transition explicitly, and preserve a continuous `w=-1` and
 `wa=0` limit.
-The declarations also identify dark energy as a smooth background species
-with unit sound speed and zero anisotropic stress. The runtime checks the
-declared density and pressure factors against the analytic EoS on every
-background grid before using the expansion history.
+The declarations select a zero-shear PPF scalar closure and explicitly give
+its component density, other-component enthalpy, transition and initial
+Gamma. The generated graph includes Gamma and its density and momentum in
+the Einstein system. Compatible batches integrate its linear relaxation with
+exponential Runge-Kutta stages; the scalar fallback uses an implicit coupled
+solve. No small-scale cutoff suppresses the PPF contribution.
+The runtime checks the declared background density and pressure against the
+analytic equation of state. PPF is an approximation, and the generated
+closure uses the large-scale relative-momentum function f_zeta = 0 described
+by Fang, Hu and Lewis, https://arxiv.org/abs/0808.3125. Other theories do not
+acquire the closure unless they explicitly declare it.
+`tests/project/fixtures/ccmbs_ppf_camb.json` retains stock-CAMB Newtonian
+history samples for the PPF relations, including a phantom-divide crossing.
+The focused graph test uses those frozen samples without a compiler; their
+explicit generator is `python -m tests.project.lib.ppf_reference` and needs
+a Fortran compiler. Component agreement is not full CCMBS spectral parity.
 QAUC and QRSF expose their modified backgrounds through the same explicit
 route: QAUC normalizes its oscillatory attractor envelope at `a=1`, while
 QRSF normalizes baryon locking and relational release together. QRSF's
@@ -907,17 +932,20 @@ epsilon(q, a) = sqrt(q^2 + (a m_nu / T_nu0)^2)
 
 and the canonical background distribution is the thermal Fermi-Dirac shape.
 When `sum_mnu` or `mnu` is declared, the q family uses the per-species mass
-`sum_mnu / num_massive_neutrinos`; the total present density uses the declared
-mass sum for normalization.
+`sum_mnu / num_massive_neutrinos`. Its declared normalization determines the
+total present density.
 
 The declared background splits the neutrino density into the residual
 massless fraction and the q-resolved massive fraction. A smooth transition
 expression provides the model's algebraic baseline, then the background
 runtime replaces that term with the same q-resolved Fermi-Dirac density
-moment used by the hierarchy. The rest-mass normalization uses an explicit
-declared `omnuh2` when
-provided, otherwise the existing mass-sum density convention; an exactly
-massless family uses its radiation density. The Planck reference declares
+moment used by the hierarchy. An explicit `relativistic_density` normalizes
+the q moments at all masses, including zero. Alternatively a declared
+`density_parameter` specifies present total energy directly. For a massive
+neutrino family without either option, the rest-mass normalization uses an
+explicit `omnuh2` when provided, otherwise the mass-sum density convention;
+an exactly massless family uses its radiation density. The Planck reference
+declares
 `omnuh2 = sum_mnu/94.06410581217612*(3.044/3)**0.75*(Tcmb_K/2.7255)**3`,
 the Fermi-Dirac number-density integral with its explicit heating convention.
 The available massive effective count includes that heating, and only its
@@ -2036,6 +2064,23 @@ its actual dense grid. Saved source times are separate: their cubic
 representation is checked against sources freshly evaluated on the native
 evolution grid. Interval error maxima survive positive envelope resampling
 onto the radial grid, including signals absent from the sparse samples.
+For representations within the bounded working-memory budget, the runtime
+applies linear cubic source-time interpolation to each native history once,
+then interpolates the resulting values in k. For larger representations it
+streams time interpolation at each angular node. The operations commute;
+both routes retain the same independently evolved histories, radial kernels,
+quadrature grids and uncertainty propagation.
+The completion runner records the numerical spectrum returned after the
+independent refinements and links its source and projection products to named
+quadrature operators. The captured projection includes its actual radial time,
+distance and integration weights separately from the source-time grid.
+Readback requires the same radial weights, wave grid, transfer components,
+primordial weighting and integrated spectrum. Prior unbound product chains
+cannot establish this relationship and are rejected.
+For each measured completion axis, the assessor reopens the base and refined
+arrays, checks their actual grid identities and requested multipoles and
+surfaces, and recomputes the reported spectral discrepancy. Metadata alone
+does not establish a measured refinement.
 Background density does not determine native or source sample counts.
 The runtime envelope retains both adjacent evolution comparisons,
 source and projection product errors, grid identities, feature values, actual
@@ -2240,9 +2285,27 @@ evidence root; `completion-preflight.json` identifies the latest attempt.
 A successful preflight is a prerequisite, never scientific acceptance.
 Changed physical parameters require a reviewed independent-reference update;
 the runner rejects a mismatch instead of quietly replacing a frozen hash.
+Affected nonstandard models use separately identified experimental CAMB
+references, with original stock arrays retained for history. Each new row
+retains independent recombination and reionization tables, complete coarse
+and refined spectra, and source/build identities. The difference between
+the retained calculations consumes the physical comparison allowance.
+The temporary CAMB modifications are not shipped as a Copernican solver.
 It also rejects a corrupt retained reference instead of silently regenerating
 it. Frozen compact requirements and historical full-materialization hashes
 remain distinct from current declaration bindings in the schema-2 contract.
+Each named completion point also screens sampled late electron-fraction
+histories against CAMB before a full perturbation solve. It retains both
+background resolutions and their samples, and rejects a discrepancy beyond
+the physical-matching budget plus the observed resolution difference. Passing
+this preliminary screen does not certify physical matching. A separate screen
+first compares the declared photon density to the reference background and
+rejects an input mismatch before calculating the reionization histories.
+The background resolver honors an explicitly declared `Omega_gamma0`
+independently of `Tcmb_K`; it derives a blackbody density only when no
+photon density is declared.
+Completion assessment also rejects a declared numerical bound until an
+independent verifier can check its derivation and inputs.
 
 The `evidence_assets` owner saves typed arrays in immutable content-addressed
 compressed archives and publishes their manifests atomically. Readers verify

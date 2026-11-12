@@ -90,6 +90,7 @@ MODEL_SCHEMA = {
         },
         "equations": {"type": "object"},
         "rs_expression": {"type": "string"},
+        "sound_horizon_redshift": {"type": "string", "minLength": 1},
         "bao_drag_redshift_expression": {"type": "string"},
         "cmb": {"type": "object"},
         "gravitational_waves": {"type": "object"},

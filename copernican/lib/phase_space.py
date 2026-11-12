@@ -41,6 +41,7 @@ def validate_phase_space(
         "multiplicity_parameter",
         "temperature_ratio",
         "density_parameter",
+        "relativistic_density",
     }
     unknown = set(declaration) - allowed
     if unknown:
@@ -60,13 +61,20 @@ def validate_phase_space(
     elif "occupation" in result or "log_derivative" in result:
         raise ValueError("Named distributions cannot override their laws")
     result["distribution"] = distribution
-    for name in ("occupation", "log_derivative", "temperature_ratio"):
+    for name in (
+        "occupation",
+        "log_derivative",
+        "temperature_ratio",
+        "relativistic_density",
+    ):
         if name in result:
             _parse_safe_expression(str(result[name]))
     if "temperature_ratio" not in result:
         raise ValueError("Phase space must declare temperature_ratio")
     if not result.get("mass_parameter"):
         raise ValueError("Phase space must declare mass_parameter")
+    if result.get("density_parameter") and "relativistic_density" in result:
+        raise ValueError("Phase space must select one density normalization")
     if available_parameters is not None:
         available = set(available_parameters)
         for field_name in (
@@ -83,6 +91,7 @@ def validate_phase_space(
             "occupation",
             "log_derivative",
             "temperature_ratio",
+            "relativistic_density",
         ):
             if field_name not in result:
                 continue
@@ -94,7 +103,7 @@ def validate_phase_space(
             }
             allowed = available | set(_ALLOWED_MATH_FUNCS)
             allowed |= set(_ALLOWED_CONSTANTS)
-            if field_name != "temperature_ratio":
+            if field_name in ("occupation", "log_derivative"):
                 allowed.add("q")
             missing = names - allowed
             if missing:

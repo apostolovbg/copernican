@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-11-09
+**Last Updated:** 2026-11-12
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -44,9 +44,9 @@ seconds), and the human confirmed gate closure. Its ordinary angular
 acceptance cost remains unresolved. Slice Seven is in progress. Its Planck
 reference mismatch has been independently checked and explicitly repaired;
 actual angular parity and the complete durable case matrix remain open.
-Slices Eight through Ten remain pending. Implementation proceeds one explicitly
-authorized slice at a time. A green policy gate, a generated report, or a
-successful mock cannot close a physical acceptance requirement.
+Slices Eight through Eleven remain pending. Implementation proceeds one
+explicitly authorized slice at a time. A green policy gate, a generated report,
+or a successful mock cannot close a physical acceptance requirement.
 
 ## Execution principles
 
@@ -149,6 +149,65 @@ seconds and a bounded graph test in 691.749 seconds. Its full-suite baseline
 was about 56 minutes. These are historical observations, not current
 benchmarks, accepted spectra, or acceptable development-loop targets.
 
+### Bundled-model and convention investigation (2026-11-10)
+
+A read-only initial-point screen compared the distance-route expansion with
+CCMBS for every bundled model. The table reports
+`100 * (H_CMB / H_distance - 1)` in percent at the stated redshifts:
+
+| Model | z = 2 | z = 1100 |
+| --- | ---: | ---: |
+| LCDM | 0.000 | 0.000 |
+| Planck2018ref | 0.000 | 0.000 |
+| LCDM+Mnu | -0.014 | -1.293 |
+| wCDM | -0.013 | -0.955 |
+| w0wa | -0.013 | -0.955 |
+| QAUC | -0.197 | -31.657 |
+| QRSF | -0.025 | -14.063 |
+| TOG | -0.021 | +0.357 |
+| TORG | +0.813 | +0.130 |
+| USMF2 | 0.000 | 0.000 |
+
+These are diagnostic values at selected points, not an independent proof of
+any model or a completed parameter-space or perturbation-equation audit.
+LCDM and Planck2018ref partly share the background route, so agreement there
+is not independent evidence. Trace every discrepancy to its intended theory
+before choosing an owner or prescribing a correction.
+
+Additional bounded checks identified the following obligations:
+
+* QAUC's sampled total radiation changes its distance expansion but not its
+  CMB expansion. Changing its declared recombination redshift changed its BAO
+  sound horizon but not the CMB visibility peak. A bounded background check
+  also found different sound horizons at the same recombination endpoint;
+  establish intended parameter semantics and convergence before correction.
+* TORG permits a total radiation density below its photon contribution, while
+  its CMB residual is clipped to zero. One allowed point differed by about
+  35% in expansion at z=1100. Its BAO and CMB sound-speed equations also use
+  different radiation inputs. Establish the theory and valid domain rather
+  than silently clipping or applying an arbitrary universal constraint.
+* wCDM and w0wa allow curvature, but their generated BAO and luminosity
+  distances use a radial integral as the transverse distance. At z=2 and
+  Omega_k=0.1 the diagnostic discrepancy was about 2%; verify the intended
+  geometry independently and repair the owning distance route.
+* LCDM+Mnu's zero and 1e-8 eV neutrino mass cases differed in expansion by
+  about 0.84% at z=1100. Audit the shared massive and massless normalization
+  paths and the other declarations using them. A finite-result test alone
+  does not establish continuity.
+* Consistently renaming QRSF normalization symbols changed the q-resolved
+  background. Replace name-dependent physics with declared dependencies.
+  A valid phase-space temperature symbol in `model_parameters` compiled but
+  was unavailable during background evaluation; propagate it consistently.
+* The observable path currently uses a power-law primordial spectrum. Review
+  what the convention can express without assuming this suffices for every
+  intended theory. A necessary convention change requires the human's explicit
+  decision before implementation.
+
+Do not infer that independent photon density and temperature are always wrong
+or replace each theory's physics with LCDM. Slice Seven repairs the affecting
+comparable-case prerequisites; Slice Eight owns the full corpus and
+convention review before the universal execution work in Slice Nine.
+
 ## Test workloads and practical cost contract
 
 The deterministic forward solver and the stochastic sampler need different
@@ -187,7 +246,7 @@ return success even above the historical 60/300-second targets. Actual
 failures, skips, empty selections and rejecting controls retain their
 semantics, while timing remains telemetry. Its tests and documentation now
 agree with that behavior.
-Slice Six owns measured solver/suite performance improvements; Slice Nine
+Slice Six owns measured solver/suite performance improvements; Slice Ten
 verifies final application and suite cost. A completed Slice Four does not
 claim that the full discovery suite is already reasonably fast on Intel.
 
@@ -465,7 +524,7 @@ application tests, and the existing scientific acceptance runner.
    trust/hash tests separate from large covariance inversions and sampling.
    Use supported explicit spectrum tables for this initial application
    surface; reproduce and repair the shipped wide-table defect together in
-   Slice Nine. Do not leave intentionally failing discovery tests between
+   Slice Ten. Do not leave intentionally failing discovery tests between
    slices.
 6. Give each workload above an exact reproducible test command by selecting
    existing modules/methods and moving expensive assertions to their owning
@@ -611,7 +670,7 @@ remains assigned to its original later slice.
    contract rejection. The bounded vector refinement test remains real.
    Theory-faithful execution of the five non-CAMB theories and six auxiliary
    cases, including extra physical state and intended initial/boundary laws,
-   remains Slice Eight. Neither renaming nor manufactured scalar data
+   remains Slice Nine. Neither renaming nor manufactured scalar data
    certifies the unexecuted 23-case scientific matrix.
 9. **Application covariance, roles, dispatch, and complete outputs.**
    The existing synthetic solver fixture supplies controlled signed
@@ -630,7 +689,7 @@ remains assigned to its original later slice.
 10. **Shipped data and application completion.**
     Slice Four deliberately uses supported explicit spectrum tables.
     Shipped Planck TT-only covariance/wide-table selection and the
-    reference-manifest TORG selection remain Slice Nine owner repairs,
+    reference-manifest TORG selection remain Slice Ten owner repairs,
     together with parser trust/hash separation, complete/incomplete
     lifecycle, both samplers, GUI/CLI and complete consumer alignment.
     Existing parser/hash and dispatcher tests remain in discovery; the new
@@ -646,12 +705,12 @@ remains assigned to its original later slice.
     Development reports explicitly set `scientific_acceptance: false`.
     Dependency validation, safe resume and persistent physical/graph
     payloads are prerequisites within Slice Seven, before relying on reused
-    acceptance cases. Slice Nine extends that distinction to final consumer
+    acceptance cases. Slice Ten extends that distinction to final consumer
     and rendering invalidation. Whole-checkout identity alone does not yet
     implement selective reuse.
 12. **Broader review and final handoff.**
-    Slice Nine retains the whole-project code/docs/comments/docstrings/tests/
-    configuration/assets/mirror/performance/architecture review. Slice Ten
+    Slice Ten retains the whole-project code/docs/comments/docstrings/tests/
+    configuration/assets/mirror/performance/architecture review. Slice Eleven
     prepares the ordinary LCDM/Planck2018ref 5-burn/10-production handoff.
     The application behavior test above checks the actual free/fixed roles;
     it does not
@@ -926,7 +985,7 @@ The complete workflow command wall time was 8366.539 seconds. Full discovery
 is still about two hours nineteen minutes on this machine. Slice Four's
 closure records its behavioral success, not a claim that this recurring
 cost is satisfactory. Slice Six must profile the measured test/solver work
-and remove duplication while preserving coverage; Slice Nine verifies the
+and remove duplication while preserving coverage; Slice Ten verifies the
 final suite cost. Earlier M5 workload reports remain historical evidence
 for their own source identities; no new current-source M5 run is claimed.
 
@@ -1155,9 +1214,9 @@ Its actual scalar state counts grew from 89 to 169 for LCDM and from 1145 to
 | Largest coarse/fine change | 0.187% massless density | 0.218% Doppler |
 
 These are selected component measurements; dense angular spectra and the
-full 23-case scientific matrix remain Slice Seven/Eight work. In particular,
-passing the component check does not certify late-time free streaming,
-full support, lensing remapping or combined production error budgets.
+full 23-case scientific matrix remain Slices Seven through Nine work. Passing
+the component check does not certify late-time free streaming, full support,
+lensing remapping or combined production error budgets.
 Slice Six must establish those numerical/performance obligations using the
 repaired physical graph, before the unchanged later angular ceilings apply.
 
@@ -1634,7 +1693,7 @@ These results establish that recorded sparse workload only. They did not
 establish full-suite practicality, and their original closure claim is
 withdrawn. Dense matched CAMB angular parity remains Slice Seven;
 the universal matrix, sampler/application throughput and final bounded demo
-remain Slices Eight through Ten. Neither the scientific reference acceptance
+remain Slices Eight through Eleven. Neither the scientific reference acceptance
 nor these explicit numerical workload measurements join ordinary discovery.
 
 ### Full-workflow repair, 2026-10-29
@@ -1858,6 +1917,48 @@ The ordinary diagnostic retained at
 produced no accepted angular spectrum. There is no accepted full-window
 physical case from these repairs yet.
 
+On 2026-11-09, projection source-time interpolation was moved before the
+k interpolation when its working representation fits the memory budget.
+The streamed route remains available for larger representations. Independent
+manufactured tests compare both routes, including signed sources, coarse radial
+quadrature and propagated uncertainty. In one synthetic 2,000-node benchmark,
+interpolation took 0.039 seconds rather than 0.449 seconds; this is not a
+measurement of total scientific-acceptance runtime or evidence of parity.
+
+The completion product chain now identifies the numerical spectrum actually
+returned after refinement. Its named quadratures must match that projection's
+wave grid, transfer components, primordial weighting and spectra on reload;
+a later refinement cannot replace the returned result by event order. Tests
+also retain the actual radial time, distance and weights, and reject rehashed
+unrelated arrays and inconsistent operators. This repairs the
+product linkage only: independent domain and axis evidence, consumer/graph
+verification and the actual accepted cases remain open.
+Measured-axis assessment now also requires retained base and refined spectra
+on distinct effective grids and recomputes their discrepancy. This rejects
+metadata-only or understated error claims; it does not supply the missing
+physical calculations or validate an unmeasured domain bound. Declared
+bounds cannot satisfy the assessment until an independent verifier for their
+derivation and inputs is implemented.
+
+The named-point runner screens sampled late electron-fraction histories
+against CAMB before evolving perturbations. Its two background resolutions
+and sampled histories are retained; a passing screen is not a physical
+matching certificate. The initial massive-neutrino, wCDM and w0wa models
+declare collapse-source reionization while their frozen CAMB references use
+tanh. Representative background comparisons found maximum absolute electron
+fraction differences of about 0.148. The physics and independent reference
+must be matched before those cases can establish parity.
+The wCDM initial point also declares photon density 0.000055 while its
+2.7255 K CAMB reference resolves approximately 0.000043964; its expansion
+rates differ by about 1.36% at redshift 1100. The named-point runner now
+checks this physical input before the reionization screen or a full solve.
+The mismatch must be resolved without changing the declared physics silently.
+The existing declarations already allow independent photon density and
+temperature, and the background resolver retains the declared density. A
+focused model-adapter check varies that density at fixed temperature in all
+three models and checks that the declared expansion responds. Matching the
+independent reference does not require a model-convention change.
+
 Before closure, finish actual physical k-domain/tail verification, complete
 the ordinary full-window comparisons, and supply independently verified axis,
 graph, consumer and reload evidence for all twelve comparable points. A
@@ -1887,6 +1988,143 @@ python -m unittest -q \
 **Owners:** extracted physics/numerical owners for residual defects, existing
 CAMB fixtures, diagnostics, acceptance runner, graph tests, and readers.
 
+**Physical prerequisites:** Before expensive case execution, reproduce and
+resolve the applicable radiation and neutrino normalization, mass-limit,
+curved-distance, and declared parameter-propagation findings above. Test
+cross-route parameter responses and relevant physical domains with independent
+expectations. Match each independent reference to the same actual physics
+without silently replacing a declared law. CAMB in Copernican remains stock.
+For nonstandard physical inputs, the human authorized an experimental CAMB
+copy under `/tmp`; label its results separately from stock CAMB and record its
+source identity, physical changes, build and inputs. Check its standard limit
+against stock CAMB and its changed histories independently before trusting
+its spectra. A cheap preflight can reject an inconsistent point, but cannot
+certify physical parity.
+
+The human approved an explicit transverse-geometry convention on 2026-11-10.
+Models can declare FLRW curvature or a transverse-distance expression; wCDM
+and w0wa declare FLRW geometry. Independent signed-curvature tests cover their
+BAO and SNe distance helpers. This repair does not resolve the other physical
+prerequisites or establish angular acceptance.
+The q-resolved background now receives declared `model_parameters` as well
+as `param_map`, preserving the latter's precedence as in hierarchy evolution.
+A renamed phase-space temperature parameter is checked against the equivalent
+literal declaration and a changed value. The human also approved an explicit
+relativistic-density normalization. LCDM+Mnu, wCDM and w0wa now specify the
+zero-mass q amplitude from their declared radiation and derive rest density
+and cold-matter normalization from the same Fermi-Dirac moments. Independent
+moment tests and the LCDM+Mnu zero-mass limit check this change. Matched CAMB
+physical histories and affected reference identities required review.
+The frozen initial LCDM+Mnu reference has `omnuh2=0.002684131415074082`;
+the revised declaration resolves `0.0033249223708688874`. Both wCDM and w0wa
+initial references have `omnuh2=0.0006441915396177796`, while their revised
+declarations resolve `0.0007979813690085331`. Their complementary cold-matter
+inputs also change. These are physical identity changes, not permission to
+relabel the old CAMB arrays as matched. Standard CAMB's photon density and
+reionization differences motivated the independent matching reference
+described below; the affected cases still require actual parity comparisons.
+The explicit completion preflight rejected the first stale LCDM+Mnu reference
+in 133.004 seconds without running CCMBS. It now verifies artifact integrity
+separately from physical-input identity and records the old and current
+parameter values in the typed failure. This is an early diagnostic result,
+not a matched reference or accepted scientific case.
+With the revised wCDM initial point, a bounded screen found declared
+`Omega_gamma=0.000055` versus standard CAMB's `0.00004396400582895195`
+(25.1% relative difference). The sampled late ionization screen found a
+12.7% maximum difference normalized to the reference peak, with 0.17%
+between its two background resolutions. These are diagnostic screens, not
+complete histories or permission to change the declared theory or reference.
+The bounded `test_lcdm_mnu_declared_surfaces_are_finite` exercised the actual
+revised hierarchy and projection in 151.228 seconds on this Intel host; it
+used eight evolved modes and 19 multipoles. Its finite diagnostic output is
+not an ordinary-route or independent-parity acceptance.
+
+The prior distance and CMB expansion histories differed at redshift 1100 by
+about 0.56% for LCDM+Mnu and 0.15% for wCDM and w0wa at their initial points.
+The human approved extending the model convention with an explicit
+`sound_horizon_redshift` expression. These three models now select their
+declared CMB background for distance and ruler calculations, retain `z_rec`
+as the recombination-ruler endpoint, and resolve the BAO drag epoch from the
+same atomic background. This does not establish their full physical parity.
+
+### Temporary experimental reference investigation (2026-11-10)
+
+The authorized temporary CAMB 1.6.0 copy accepts an independent photon density
+and externally integrated recombination and collapse-reionization histories.
+Its neutrino radiation uses that photon normalization; an independent
+Fermi-Dirac energy integral supplies the present total massive density. With
+the experimental inputs absent, its H(z), electron fraction, and all raw
+unlensed, lensed and lens-potential arrays through ell 2500 matched the stock
+CAMB build exactly at one tested standard point. This is a standard-limit
+check, not a proof of every possible experimental configuration.
+
+For the revised wCDM initial point, sampled expansion agreed to 2.9e-8
+relative, total neutrino density to 8.9e-6, and matter temperature to 1.6e-5.
+The independent recombination and collapse integrations and temporary CAMB
+histories differed from the native electron fraction by at most 0.00132
+absolute on the sampled grid. These are component checks; they do not certify
+the spectra. Successively refined temporary reference calculations still show
+changes in low-ell EE and TE. Resolve and retain reference refinement evidence
+before freezing or accepting any affected spectrum. Existing stock reference
+arrays retain their original identities.
+The temporary source's natural-spline interpolation of the first spherical
+Bessel cell produced a spurious small-argument contribution when late
+polarization remained nonzero near the observer. Evaluating the same spherical
+Bessel function directly in that cell reduced the largest sampled raw-surface
+change from 6001 to 12001 reionization nodes to about 2.1e-5 of its surface
+scale for the checked wCDM point. Stock-mode behavior remains separately
+checked; repeat the physical and refinement checks for every reference case.
+
+The previous wCDM and w0wa declarations used a smooth dark-energy background
+without perturbation states. A representative w=-0.9 diagnostic changed
+low-ell TT by about 11% when CAMB's dark-energy stress was disabled. The
+human authorized a conserved PPF closure, explicitly selected in these models
+and absent from theories that do not declare it. Its Gamma equation and
+Einstein density and momentum sources use the zero large-scale relative
+momentum prescription of Fang, Hu and Lewis (2008). PPF is an approximation,
+not an assertion about every possible dark-energy theory. Independent PPF
+history, conservation, crossing, curvature and full-spectrum comparisons
+remain necessary before this physical change is accepted.
+An independent stock-CAMB PPF history fixture now checks the compiled Gamma,
+density and momentum relations at 16 points, including either side of a
+phantom-divide crossing. Gamma derivatives are independently estimated from
+nearby CAMB times. The check exposed and corrected a factor-of-three error
+in the momentum denominator. These local relations do not establish coupled
+CCMBS history or spectrum parity.
+For the w0wa initial point, the refreshed temporary PPF and previous
+no-stress CAMB references agree exactly on every dense raw surface in their
+shared w=-1, wa=0 limit. This checks that limit only.
+The stiff PPF relaxation now uses exponential integration for eligible
+batched modes and retains fully coupled BDF for the scalar fallback. In one
+bounded wCDM solve, batched and BDF TT, TE and EE differed by at most
+3.8e-5, 8.2e-6 and 2.7e-6 respectively when each difference was normalized
+by its surface peak. The batched solve took 119 seconds and BDF 352 seconds
+on this host. This comparison does not establish full-window accuracy or
+independent spectral parity.
+
+The nine affected physical points now have separately identified experimental
+references. Their archived coarse and fine calculations retain all multipoles
+from 2 through 2500, independently integrated input tables, background samples,
+source/build hashes and generator scripts. Every original required multipole
+remains in its comparison window; feature windows are also recalculated for
+the changed physical inputs. The original stock arrays remain in the archive.
+The reference comparator charges the measured coarse/fine discrepancy against
+the unchanged scientific allowance. The human authorized a temporary
+`handoff/` package containing the modified CAMB source, its generators and
+reference inputs for transfer to another computer. The normal Copernican
+dependency remains stock CAMB; see `handoff/HANDOFF.md` for recovery and
+provenance checks. These calculations do not establish CCMBS parity. The five
+wCDM and w0wa references now select
+stock CAMB's PPF perturbation closure in the temporary input-matched build;
+their superseded no-stress reference arrays remain archived separately.
+Before the later PPF declaration change, the explicit 23-case completion
+preflight passed in 118.497 seconds on this
+host. It verified reference and physical identities without a CCMBS solve;
+this is not scientific acceptance.
+After the PPF declaration and reference changes, the same preflight passed
+in 135.585 seconds before the subsequent integration changes. It likewise
+did not run or accept a CCMBS spectrum.
+
 **Work:**
 
 1. Extend the existing runner to execute and persist named frozen cases and
@@ -1897,7 +2135,7 @@ CAMB fixtures, diagnostics, acceptance runner, graph tests, and readers.
    dependency identities, payload validation and durable readback after
    producer exit. Reject stale/missing/tampered cases and distinguish whole
    checkout provenance from reusable product dependencies. Do not defer
-   these prerequisites to Slice Nine or relabel old payload identities.
+   these prerequisites to Slice Ten or relabel old payload identities.
 2. Execute massless LCDM first through the ordinary route without numerical
    overrides. Require quantitative TT/TE/EE raw/public parity, acoustic
    locations/amplitudes, TE signs/zeros, damping, numerical acceptance, and
@@ -1925,9 +2163,72 @@ have durable quantitative ordinary-route graphs. Independent numerical axes,
 physical matching, raw products, and reload verification pass. Commands,
 mocked reports, and accepted CAMB-versus-CAMB rows cannot close this slice.
 
-## Slice Eight - demonstrate universal declarations and active sectors
+## Slice Eight - reconcile all bundled theories and model convention
 
-**Status:** pending. **Entry:** comparable physical acceptance passes.
+**Status:** pending. **Entry:** Slice Seven's matched physical acceptance
+passes. Corrections discovered here that invalidate earlier evidence require
+selective revalidation before this slice closes.
+
+**Owners:** bundled model declarations and their theory sources; model
+validator, compiler and adapter; background, species and perturbation owners;
+SNe/BAO/CMB distance and sound-horizon paths; model templates and mirrors;
+existing focused tests, diagnostics and retained evidence.
+
+**Work:**
+
+1. Inventory all ten bundled models individually: equations, assumptions,
+   sampled and fixed parameters, units, domains, species and distributions,
+   interactions, gauges, initial/boundary conditions, physical limits and
+   observables. Map each equation and parameter to its implementation and
+   applicable independent derivation or reference. Identify unsupported,
+   missing or ambiguous mathematics instead of filling it with LCDM defaults.
+2. Trace each shared quantity and parameter through background, SNe, BAO and
+   CMB routes. Independently check expansion, curvature and distances, sound
+   horizon and drag/recombination endpoints, densities, temperatures,
+   neutrino mass limits, conservation, and response across representative
+   physical and boundary points. Respect intentional theory-specific
+   differences when explicitly justified; route agreement does not prove
+   physics.
+3. Resolve each investigation finding above, including QAUC radiation and
+   recombination, QRSF normalization, TOG temporal and early limits, TORG
+   radiation and sound speed, and USMF2 dynamics and constraints. Check all
+   perturbation equations and their source, gauge and initial-condition wiring.
+   Correct model declarations only where the model's own intended mathematics
+   requires it; correct shared implementation at its owner. Make valid
+   domains explicit without arbitrary clipping or a common thermal law.
+4. Audit and repair name-dependent behavior, parameter propagation through
+   phase-space backgrounds and evolution, dependencies and caches. Include
+   equivalent consistently renamed declarations, fixed versus sampled model
+   parameters, parameter changes and independent expected responses. Verify
+   that all active declarations use their own equations and that failures
+   distinguish invalid input from missing engine capability.
+5. Review the complete model convention, including primordial spectra, and
+   the canonical template and its package mirror against actual capability.
+   Correct misleading template examples and document supported theory inputs
+   and limitations. If required physics cannot be expressed without changing
+   the model convention, stop and present the proposed contract amendment to
+   the human for an explicit decision before implementing that change.
+6. For each model retain an evidence and disposition record identifying the
+   tested equations, domain and parameter responses, independent expectations,
+   corrections, unsupported capabilities and unresolved questions. Require
+   reproducible focused tests for each repair and relevant negative controls.
+   Use bounded checks before expensive acceptance; share setup and exact
+   products when valid without weakening independent or cold evidence.
+7. Rerun affected physical and numerical acceptance after model or engine
+   repairs, retaining unaffected products only under verified dependency
+   identities. Keep scientific acceptance explicit and outside ordinary
+   unittest discovery and `devcovenant run`; report actual measured cost.
+
+**Closure:** all ten models have complete theory-specific equation and
+parameter disposition, independent applicable checks, coherent shared routes,
+resolved identified defects, and current affected acceptance evidence. No
+model passes merely by loading, producing finite arrays, or agreeing with a
+route sharing the same error. Convention limitations and decisions are
+recorded honestly; unresolved required physics prevents closure.
+
+## Slice Nine - demonstrate universal declarations and active sectors
+
+**Status:** pending. **Entry:** Slice Eight model and convention review closes.
 
 **Owners:** validator/compiler/adapter, generic background/hierarchy/source
 and projection owners, corpus diagnostics, and existing declaration fixtures.
@@ -1948,7 +2249,10 @@ and projection owners, corpus diagnostics, and existing declaration fixtures.
 4. Verify declaration/parameter dependency separation, changed rates and
    distributions, nonstandard clocks, gauge/source/kernel routing, scalar
    versus batch ordering, failure isolation, and cross-theory cache identity.
-5. Preserve all applicable raw/public/sector/lensed surfaces and numerical
+5. Consume the per-model equation and disposition evidence from Slice Eight;
+   verify independent parameter responses and equivalent renamed declarations.
+   The 23 cases do not excuse unresolved model or convention defects.
+6. Preserve all applicable raw/public/sector/lensed surfaces and numerical
    axes. Document the demonstrated grammar and tested domain honestly:
    representative coverage supports a general engine, not a theorem that
    arbitrary mathematical systems are well posed or numerically tractable.
@@ -1962,7 +2266,7 @@ current evidence, with meaningful nonzero sector execution and no unresolved
 engine capability defect. New complete declarations retain automatic
 numerical enforcement; successful renaming alone is insufficient.
 
-## Slice Nine - close application integration and final readiness
+## Slice Ten - close application integration and final readiness
 
 **Status:** pending. **Entry:** accepted forward physics and universal cases.
 
@@ -2016,7 +2320,7 @@ outputs, practical cost, and durable current evidence. The complete audit
 finds no unresolved requirement; green workflow checks accompany that result
 and do not substitute for it.
 
-## Slice Ten - prepare the ordinary LCDM/Planck 5/10 demonstration
+## Slice Eleven - prepare the ordinary LCDM/Planck 5/10 demonstration
 
 **Status:** pending. **Entry:** final engine/application readiness accepted.
 
@@ -2063,8 +2367,12 @@ CCMBS and the application handoff are complete under this roadmap only when:
   application defects, and ordinary discovery remains meaningfully physical;
 * every comparable point has actual matched raw/public CAMB parity and
   quantitative wave/damping evidence through the ordinary engine;
+* every bundled model has a complete equation, domain and parameter review,
+  independent applicable evidence, and resolved cross-route discrepancies;
 * every bundled/auxiliary declaration and nonzero required sector has
   complete theory-faithful accepted output, without hidden substitutions;
+* solver and convention limitations are resolved or explicitly documented,
+  with any necessary convention changes approved by the human;
 * automatic engine planning meets the combined observable numerical budget
   with measured refinement or validated bounds over its declared domain;
 * execution and the development suite have reasonable measured costs,

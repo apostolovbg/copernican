@@ -23,6 +23,8 @@ from .background import (
     _DeclaredProjectionKernelBatch,
 )
 
+_SOURCE_RADIAL_PRECOMPUTE_BYTES = 64 * 1024 * 1024
+
 
 def power_spectrum_quadrature_weights(nodes, rule):
     """Retain the actual linear integration operator in bounded memory.
@@ -76,6 +78,7 @@ def _integrate_power_spectrum(
     use_cubic_spline: bool = True,
     use_positive_trapezoid: bool = False,
     product_observer=None,
+    product_identity=None,
 ) -> numpy.ndarray:
     """Return one finite power-spectrum quadrature in extended precision.
 
@@ -220,6 +223,7 @@ def _integrate_power_spectrum(
             "spectrum_quadrature",
             {
                 "log_k": log_k_ld,
+                "primordial": primordial_ld,
                 "weighted_transfer_products": weighted,
                 "weights": power_spectrum_quadrature_weights(log_k_ld, rule),
                 "rule": rule,
@@ -229,6 +233,7 @@ def _integrate_power_spectrum(
                 ),
                 "C_ell": integrated,
                 "auto_spectrum": auto_spectrum,
+                **(product_identity or {}),
             },
         )
     # Keep the raw spectrum in extended precision until the public solver
@@ -307,6 +312,20 @@ def project_interpolated_source_histories(
         raise ValueError(
             "Source interpolation requires matching physical roles"
         )
+    separate_time_grids = not numpy.array_equal(source_eta, eta)
+    radial_cells = sum(
+        nodes.size * eta.size * len(histories)
+        for nodes, histories in (
+            (base_k, base_sources),
+            (refined_k, refined_sources),
+        )
+    )
+    precompute_radial_sources = bool(
+        separate_time_grids
+        and base_k.size + refined_k.size < 2 * angular_k.size
+        and radial_cells * numpy.dtype(float).itemsize
+        <= _SOURCE_RADIAL_PRECOMPUTE_BYTES
+    )
     interpolants = []
     for nodes, histories in (
         (base_k, base_sources),
@@ -321,6 +340,13 @@ def project_interpolated_source_histories(
                 raise ValueError(
                     f"Source interpolation dimensions differ: {name}"
                 )
+            if precompute_radial_sources:
+                # Cubic time interpolation and B-spline k interpolation are
+                # linear operators. Applying the former once to each actual
+                # native history avoids rebuilding it at every angular node.
+                values = CubicSpline(
+                    source_eta, values, axis=1, extrapolate=False
+                )(eta)
             # B-spline coefficients retain linear storage in the native data
             # size. A piecewise-polynomial tensor would retain four copies.
             current[name] = make_interp_spline(
@@ -346,7 +372,7 @@ def project_interpolated_source_histories(
                 name: numpy.asarray(spline(float(wave)))
                 for name, spline in splines.items()
             }
-            if not numpy.array_equal(source_eta, eta):
+            if separate_time_grids and not precompute_radial_sources:
                 sources = {
                     name: CubicSpline(source_eta, values, extrapolate=False)(
                         eta
@@ -963,6 +989,11 @@ def _integrate_declared_spectra(
                 str(getattr(observable_entry, "sector", "")) != "tensor"
             ),
             product_observer=product_observer,
+            product_identity={
+                "observable": str(observable_name),
+                "primary_component": str(observable_entry.primary),
+                "secondary_component": str(observable_entry.secondary),
+            },
         )
     return spectra_results
 

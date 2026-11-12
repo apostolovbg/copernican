@@ -7,6 +7,7 @@ import copy
 import hashlib
 import json
 import keyword
+import math
 import os
 from dataclasses import dataclass
 from functools import lru_cache
@@ -15,7 +16,11 @@ from typing import Any, Callable, Mapping
 import numpy
 from scipy.interpolate import CubicHermiteSpline
 
-from ....model_adapter import FrozenMapping, _freeze_for_cache
+from ....model_adapter import (
+    FrozenMapping,
+    _evaluate_safe_expression,
+    _freeze_for_cache,
+)
 from ....perturbation_contract import (
     _ALLOWED_CONSTANTS,
     _ALLOWED_MATH_FUNCS,
@@ -591,6 +596,32 @@ def _split_collision_phase_scale(
     return result
 
 
+def _exponential_phi(argument: numpy.ndarray, order: int) -> numpy.ndarray:
+    """Evaluate an exponential-integrator phi function without cancellation."""
+    if order not in (1, 2, 3):
+        raise ValueError("Exponential phi order must be 1, 2 or 3")
+    argument = numpy.asarray(argument, dtype=float)
+    result = numpy.empty_like(argument)
+    small = numpy.abs(argument) < 0.05
+    if numpy.any(small):
+        values = argument[small]
+        term = numpy.full(values.shape, 1.0 / math.factorial(order))
+        total = term.copy()
+        for index in range(1, 12):
+            term = term * values / (order + index)
+            total += term
+        result[small] = total
+    if numpy.any(~small):
+        values = argument[~small]
+        result_values = numpy.expm1(values) / values
+        for current_order in range(2, order + 1):
+            result_values = (
+                result_values - 1.0 / math.factorial(current_order - 1)
+            ) / values
+        result[~small] = result_values
+    return result
+
+
 def _integrate_batched_rk4(
     initial_states: numpy.ndarray,
     eta_grid: numpy.ndarray,
@@ -602,6 +633,8 @@ def _integrate_batched_rk4(
     post_step: Callable[..., numpy.ndarray] | None = None,
     record_step: Callable[..., numpy.ndarray] | None = None,
     progress: Callable[..., None] | None = None,
+    relaxation_slot: int | None = None,
+    relaxation_rate: Callable[..., numpy.ndarray] | None = None,
 ) -> tuple[numpy.ndarray, numpy.ndarray, BatchedEvolutionStats]:
     """Integrate mode rows on a shared grid with a common RK4 schedule.
 
@@ -614,6 +647,15 @@ def _integrate_batched_rk4(
     states = numpy.asarray(initial_states, dtype=float).copy()
     if states.ndim != 2:
         raise ValueError("Batched evolution states must be a two-dimensional")
+    if (relaxation_slot is None) != (relaxation_rate is None):
+        raise ValueError(
+            "A relaxation slot and rate must be supplied together"
+        )
+    if (
+        relaxation_slot is not None
+        and not 0 <= relaxation_slot < states.shape[1]
+    ):
+        raise ValueError("Relaxation slot is outside the declared state")
     eta_values = numpy.asarray(eta_grid, dtype=float)
     if eta_values.ndim != 1 or eta_values.size < 1:
         raise ValueError("Batched evolution requires a one-dimensional grid")
@@ -689,28 +731,99 @@ def _integrate_batched_rk4(
                 blend=blend_start,
                 active=interval_active,
             )
+            if relaxation_slot is not None:
+                # Exponential RK4 integrates the declared linear damping
+                # exactly at the midpoint rate. The remaining time-dependent
+                # part stays in the four evaluated graph stages.
+                rate = numpy.broadcast_to(
+                    numpy.asarray(
+                        relaxation_rate(
+                            states,
+                            step_index=step_index,
+                            blend=blend_mid,
+                            active=interval_active,
+                        ),
+                        dtype=float,
+                    ),
+                    (mode_count,),
+                )
+                if not numpy.all(numpy.isfinite(rate)) or numpy.any(rate < 0):
+                    raise ValueError(
+                        "Relaxation rate must be finite and nonnegative"
+                    )
+                argument = -sub_dt * rate
+                full_decay = numpy.exp(argument)
+                half_decay = numpy.exp(0.5 * argument)
+                half_weight = (
+                    0.5 * sub_dt * _exponential_phi(0.5 * argument, 1)
+                )
+                phi_one = _exponential_phi(argument, 1)
+                phi_two = _exponential_phi(argument, 2)
+                phi_three = _exponential_phi(argument, 3)
+                first_weight = sub_dt * (phi_one - 3 * phi_two + 4 * phi_three)
+                middle_weight = sub_dt * (phi_two - 2 * phi_three)
+                last_weight = sub_dt * (-phi_two + 4 * phi_three)
+                rhs_a[:, relaxation_slot] += rate * states[:, relaxation_slot]
+                stage_b = states + 0.5 * sub_dt * rhs_a
+                stage_b[:, relaxation_slot] = (
+                    half_decay * states[:, relaxation_slot]
+                    + half_weight * rhs_a[:, relaxation_slot]
+                )
+            else:
+                stage_b = states + 0.5 * sub_dt * rhs_a
             rhs_b = rhs(
-                states + 0.5 * sub_dt * rhs_a,
+                stage_b,
                 step_index=step_index,
                 blend=blend_mid,
                 active=interval_active,
             )
+            if relaxation_slot is not None:
+                rhs_b[:, relaxation_slot] += rate * stage_b[:, relaxation_slot]
+                stage_c = states + 0.5 * sub_dt * rhs_b
+                stage_c[:, relaxation_slot] = (
+                    half_decay * states[:, relaxation_slot]
+                    + half_weight * rhs_b[:, relaxation_slot]
+                )
+            else:
+                stage_c = states + 0.5 * sub_dt * rhs_b
             rhs_c = rhs(
-                states + 0.5 * sub_dt * rhs_b,
+                stage_c,
                 step_index=step_index,
                 blend=blend_mid,
                 active=interval_active,
             )
+            if relaxation_slot is not None:
+                rhs_c[:, relaxation_slot] += rate * stage_c[:, relaxation_slot]
+                stage_d = states + sub_dt * rhs_c
+                stage_d[:, relaxation_slot] = half_decay * stage_b[
+                    :, relaxation_slot
+                ] + half_weight * (
+                    2.0 * rhs_c[:, relaxation_slot] - rhs_a[:, relaxation_slot]
+                )
+            else:
+                stage_d = states + sub_dt * rhs_c
             rhs_d = rhs(
-                states + sub_dt * rhs_c,
+                stage_d,
                 step_index=step_index,
                 blend=blend_end,
                 active=interval_active,
             )
+            if relaxation_slot is not None:
+                rhs_d[:, relaxation_slot] += rate * stage_d[:, relaxation_slot]
+                relaxed = (
+                    full_decay * states[:, relaxation_slot]
+                    + first_weight * rhs_a[:, relaxation_slot]
+                    + 2.0
+                    * middle_weight
+                    * (rhs_b[:, relaxation_slot] + rhs_c[:, relaxation_slot])
+                    + last_weight * rhs_d[:, relaxation_slot]
+                )
             rk_stage_count += 4
             states = states + (sub_dt / 6.0) * (
                 rhs_a + 2.0 * rhs_b + 2.0 * rhs_c + rhs_d
             )
+            if relaxation_slot is not None:
+                states[:, relaxation_slot] = relaxed
             if post_step is not None:
                 states = post_step(
                     states,
@@ -1251,6 +1364,7 @@ class _DeclaredMomentumGridRuntime:
     family_names: tuple[str, ...]
     phase_space: Mapping[str, Any] | None = None
     temperature_eV: float | None = None
+    relativistic_density: float | None = None
     occupation: tuple[float, ...] | None = None
     log_derivative: tuple[float, ...] | None = None
 
@@ -1882,7 +1996,12 @@ def _resolve_declared_momentum_grid_runtimes(
         ):
             if field in law:
                 relevant_parameter_names.add(str(law[field]))
-        for field in ("temperature_ratio", "occupation", "log_derivative"):
+        for field in (
+            "temperature_ratio",
+            "occupation",
+            "log_derivative",
+            "relativistic_density",
+        ):
             if field in law:
                 relevant_parameter_names.update(
                     node.id
@@ -2028,10 +2147,13 @@ def _resolve_declared_momentum_grid_runtimes(
                 "massive_neutrino" not in roles
                 or law.get("distribution") != "fermi_dirac"
             )
-            and not law.get("density_parameter")
+            and not (
+                law.get("density_parameter") or "relativistic_density" in law
+            )
         ):
             raise ValueError(
-                "A nonstandard kinetic species must declare density_parameter"
+                "A nonstandard kinetic species must declare a density "
+                "normalization parameter"
             )
         occupation, log_derivative = sample_distribution(
             topology.points,
@@ -2040,6 +2162,7 @@ def _resolve_declared_momentum_grid_runtimes(
         )
         mass = _grid_mass_eV(topology.name, grid_def)
         temperature = None
+        relativistic_density = None
         if law:
             parameter = str(law["mass_parameter"])
             if parameter not in model_parameters:
@@ -2060,6 +2183,18 @@ def _resolve_declared_momentum_grid_runtimes(
             temperature = phase_space_temperature(
                 law, model_parameters, physical_params.Tcmb_K
             )
+            if "relativistic_density" in law:
+                relativistic_density = float(
+                    _evaluate_safe_expression(
+                        str(law["relativistic_density"]), model_parameters
+                    )
+                )
+                if not numpy.isfinite(relativistic_density) or (
+                    relativistic_density < 0
+                ):
+                    raise ValueError(
+                        "Kinetic density must be finite and nonnegative"
+                    )
         runtimes.append(
             _DeclaredMomentumGridRuntime(
                 name=topology.name,
@@ -2070,6 +2205,7 @@ def _resolve_declared_momentum_grid_runtimes(
                 family_names=topology.family_names,
                 phase_space=law or None,
                 temperature_eV=temperature,
+                relativistic_density=relativistic_density,
                 occupation=tuple(float(value) for value in occupation),
                 log_derivative=tuple(float(value) for value in log_derivative),
             )
@@ -2327,13 +2463,20 @@ def _declared_momentum_grid_context(
         density_parameter = (runtime.phase_space or {}).get(
             "density_parameter"
         )
-        massive_omega0 = (
-            float(model_parameters[str(density_parameter)])
-            if density_parameter
-            else _massive_neutrino_omega0(
+        if density_parameter:
+            massive_omega0 = float(model_parameters[str(density_parameter)])
+        elif runtime.relativistic_density is not None:
+            massive_omega0 = (
+                runtime.relativistic_density
+                * density_moment_today
+                / massless_density_moment
+            )
+        else:
+            massive_omega0 = _massive_neutrino_omega0(
                 runtime, total_mass_eV, density_moment_today
             )
-        )
+        if not numpy.isfinite(massive_omega0) or massive_omega0 < 0.0:
+            raise ValueError("Kinetic density must be finite and nonnegative")
         scale_factor_array = numpy.maximum(a_values, 1.0e-30)
         density_fraction = (
             massive_omega0

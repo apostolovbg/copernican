@@ -9,6 +9,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import numpy
+from scipy.integrate import quad
 from scipy.linalg import expm
 
 from copernican.lib.likelihoods.cmb.runtime import background, cache, evolution
@@ -120,6 +121,151 @@ def _compiled_graph_fixture():
 
 class EvolutionModuleTestCase(unittest.TestCase):
     """Exercise declared evolution helpers directly."""
+
+    def test_exponential_rk4_resolves_coupled_variable_stiffness(self):
+        """Compare both mode rows with independently integrated stiff ODEs."""
+        from scipy.integrate import solve_ivp
+
+        eta = numpy.linspace(0.0, 2.0, 81)
+        strengths = numpy.asarray((100.0, 1e6))
+        initial = numpy.asarray(((1.0, 0.0), (1.0, 0.0)))
+
+        def rate(states, *, step_index, blend, active):
+            del states, active
+            time = eta[step_index] + blend * (
+                eta[step_index + 1] - eta[step_index]
+            )
+            return strengths * (1.0 + 0.8 * numpy.sin(time))
+
+        def rhs(states, *, step_index, blend, active):
+            stiffness = rate(
+                states, step_index=step_index, blend=blend, active=active
+            )
+            return numpy.column_stack(
+                (
+                    -states[:, 0] + states[:, 1],
+                    -stiffness * states[:, 1] + states[:, 0],
+                )
+            )
+
+        _, actual, _ = evolution._integrate_batched_rk4(
+            initial,
+            eta,
+            required_substeps=1,
+            active_intervals=numpy.ones((2, len(eta) - 1), dtype=bool),
+            rhs=rhs,
+            relaxation_slot=1,
+            relaxation_rate=rate,
+        )
+        for index, strength in enumerate(strengths):
+            expected = solve_ivp(
+                lambda time, values: (
+                    -values[0] + values[1],
+                    -strength * (1 + 0.8 * numpy.sin(time)) * values[1]
+                    + values[0],
+                ),
+                (eta[0], eta[-1]),
+                initial[index],
+                method="Radau",
+                rtol=1e-11,
+                atol=1e-14,
+            ).y[:, -1]
+            with self.subTest(strength=strength):
+                numpy.testing.assert_allclose(
+                    actual[index], expected, rtol=1e-5
+                )
+
+        def zero_rate(states, **unused):
+            return numpy.zeros(len(states))
+
+        def plain_rhs(states, **unused):
+            return numpy.column_stack((states[:, 1], -states[:, 0]))
+
+        options = {
+            "required_substeps": 1,
+            "active_intervals": numpy.ones((2, len(eta) - 1), dtype=bool),
+            "rhs": plain_rhs,
+        }
+        ordinary = evolution._integrate_batched_rk4(initial, eta, **options)[0]
+        zero = evolution._integrate_batched_rk4(
+            initial,
+            eta,
+            relaxation_slot=1,
+            relaxation_rate=zero_rate,
+            **options,
+        )[0]
+        numpy.testing.assert_allclose(zero, ordinary, rtol=1e-13, atol=1e-14)
+
+    def test_relativistic_kinetic_density_has_smooth_mass_limit(self):
+        """Independent moments fix normalization at every mass and epoch."""
+        family = SimpleNamespace(
+            momentum_grid="species_q",
+            physical_role="generic",
+            phase_space={
+                "distribution": "maxwell_boltzmann",
+                "mass_parameter": "mass",
+                "temperature_ratio": "ratio",
+                "relativistic_density": "early_density",
+            },
+        )
+        perturbation_data = SimpleNamespace(
+            hierarchy_families={"unrelated_species": family},
+            numerics={
+                "momentum_grids": {
+                    "species_q": {"count": 256, "q_min": 0.0001, "q_max": 40.0}
+                }
+            },
+            accuracy_controls={},
+        )
+        physical = SimpleNamespace(hubble_ratio=0.7, Omega_nu0=0.0, Tcmb_K=2.7)
+        parameters = {"mass": 0.0, "ratio": 0.5, "early_density": 1e-5}
+        epochs = numpy.asarray((0.001, 0.1, 1.0))
+        results = []
+        for mass in (0.0, 1e-10, 0.01):
+            parameters["mass"] = mass
+            result = evolution._declared_momentum_grid_context(
+                perturbation_data,
+                model_parameters=parameters,
+                physical_params=physical,
+                scale_factor=epochs,
+            )
+            density = result["momentum_grid_species_q_density_fraction"]
+            temperature = 0.5 * 2.7 * 8.617333262145e-5
+            expected = numpy.asarray(
+                [
+                    1e-5
+                    * epoch**-4
+                    / 6.0
+                    * quad(
+                        lambda momentum: momentum**2
+                        * numpy.hypot(momentum, epoch * mass / temperature)
+                        * numpy.exp(-momentum),
+                        0.0,
+                        numpy.inf,
+                    )[0]
+                    for epoch in epochs
+                ]
+            )
+            numpy.testing.assert_allclose(density, expected, rtol=2e-4)
+            results.append(density)
+        numpy.testing.assert_allclose(results[0], results[1], rtol=1e-10)
+        parameters["mass"] = 0.0
+        parameters["early_density"] = 2e-5
+        doubled = evolution._declared_momentum_grid_context(
+            perturbation_data,
+            model_parameters=parameters,
+            physical_params=physical,
+            scale_factor=epochs,
+        )["momentum_grid_species_q_density_fraction"]
+        numpy.testing.assert_allclose(doubled, 2 * results[0], rtol=1e-12)
+        parameters["early_density"] = -1.0
+        with self.assertRaisesRegex(ValueError, "nonnegative"):
+            evolution._declared_momentum_grid_context(
+                perturbation_data,
+                model_parameters=parameters,
+                physical_params=physical,
+                scale_factor=epochs,
+            )
 
     def test_kinetic_law_rebinding_invalidates_only_bound_distribution(self):
         law = {

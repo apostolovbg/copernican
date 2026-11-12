@@ -570,6 +570,7 @@ def _compile_declared_cmb_runtime_impl(
 
     phase_parameters = set(cmb_contract.get("param_map", {}) or {})
     phase_parameters.update(cmb_contract.get("model_parameters", {}) or {})
+    phase_parameters.update(parameter_names)
 
     for family_name, family in perturbation_contract.get(
         "hierarchy_families", {}
@@ -1146,17 +1147,51 @@ class _DeclaredBackgroundGeometry:
 class _DeclaredBackgroundSoundHorizon:
     """Expose the physical recombination or drag endpoint to BAO callers."""
 
-    def __init__(self, geometry, endpoint):
+    def __init__(self, geometry, endpoint, redshift=None):
         """Retain the shared background and the requested physical ruler."""
 
         self.geometry = geometry
         self.endpoint = endpoint
+        self.redshift = redshift
 
     def __call__(self, *parameters):
         """Read the accepted native ruler rather than a separate H(z) fit."""
 
-        background = self.geometry.background(parameters)
-        return float(getattr(background, self.endpoint))
+        if self.redshift is None:
+            background = self.geometry.background(parameters)
+            return float(getattr(background, self.endpoint))
+
+        from .likelihoods.cmb.runtime import background
+
+        redshift = float(self.redshift(*parameters))
+        if not numpy.isfinite(redshift) or redshift < 0:
+            raise ValueError("Sound-horizon redshift must be finite and >= 0")
+        contract = self.geometry.bound_contract(parameters)
+        physical = background._resolve_custom_cmb_physical_parameters(contract)
+        if physical.Omega_gamma0 <= 0 or physical.Omega_b0 < 0:
+            raise ValueError(
+                "Sound horizon requires physical photon and baryon densities"
+            )
+        endpoint_a = 1.0 / (1.0 + redshift)
+
+        def integrand(scale_factor):
+            """Integrate the acoustic speed over the declared expansion."""
+            hubble = self.geometry(1.0 / scale_factor - 1.0, *parameters)
+            if not numpy.isfinite(hubble) or hubble <= 0:
+                raise ValueError("Sound horizon requires positive expansion")
+            speed = 299792.458 / math.sqrt(
+                3.0
+                * (
+                    1.0
+                    + 3.0
+                    * physical.Omega_b0
+                    * scale_factor
+                    / (4.0 * physical.Omega_gamma0)
+                )
+            )
+            return speed / (scale_factor * scale_factor * hubble)
+
+        return float(robust_quad(integrand, 0.0, endpoint_a)[0])
 
 
 class _ComovingDistance:
@@ -1198,6 +1233,80 @@ class _ComovingDistance:
         cumulative = cumulative_trapezoid(integrand_vals, grid, initial=0.0)
         interp = numpy.interp(redshift_flat, grid, cumulative)
         return numpy.reshape(interp, numpy.shape(redshift_input))
+
+
+class _DeclaredTransverseDistance:
+    """Apply a declared geometry to a radial comoving distance in Mpc."""
+
+    def __init__(self, radial, kind, expressions):
+        """Retain the radial helper and compiled model-owned expressions."""
+        self.radial = radial
+        self.kind = kind
+        self.expressions = expressions
+
+    def __call__(self, redshift, *parameters):
+        """Evaluate the model's transverse distance without name dispatch."""
+        radial = self.radial(redshift, *parameters)
+        if self.kind == "expression":
+            result = self.expressions[0](redshift, radial, *parameters)
+        else:
+            curvature = float(self.expressions[0](*parameters))
+            hubble = float(self.expressions[1](*parameters))
+            if not numpy.isfinite(curvature) or not numpy.isfinite(hubble):
+                raise ValueError("Transverse geometry inputs must be finite")
+            if hubble <= 0:
+                raise ValueError("Transverse geometry H0 must be positive")
+            if curvature == 0:
+                return radial
+            scale = 299792.458 / (hubble * numpy.sqrt(abs(curvature)))
+            argument = numpy.asarray(radial, dtype=float) / scale
+            if curvature > 0:
+                result = scale * numpy.sinh(argument)
+            else:
+                result = scale * numpy.sin(argument)
+        values = numpy.asarray(result, dtype=float)
+        values = numpy.broadcast_to(values, numpy.shape(radial))
+        if not numpy.all(numpy.isfinite(values)):
+            raise ValueError("Transverse distance must be finite")
+        return float(values) if values.ndim == 0 else values
+
+
+def _compile_transverse_distance(declaration, radial, params, symbols):
+    """Compile a model's explicit transverse law, or retain flat geometry."""
+    if declaration is None:
+        return radial
+    if not isinstance(declaration, Mapping):
+        raise ValueError("transverse_geometry must be a mapping")
+    kind = declaration.get("kind")
+    keys = {
+        "flrw": {"kind", "curvature", "hubble"},
+        "expression": {"kind", "expression"},
+    }
+    if not isinstance(kind, str) or kind not in keys:
+        raise ValueError("Invalid transverse_geometry kind or fields")
+    if set(declaration) != keys[kind]:
+        raise ValueError("Invalid transverse_geometry kind or fields")
+    if kind == "flrw":
+        arguments = tuple(params)
+        local_symbols = dict(symbols)
+        sources = (declaration["curvature"], declaration["hubble"])
+    else:
+        redshift = sympy.Symbol("z")
+        radial_symbol = sympy.Symbol("radial_distance")
+        if radial_symbol in params:
+            raise ValueError("radial_distance is reserved for geometry")
+        arguments = (redshift, radial_symbol, *params)
+        local_symbols = dict(
+            symbols, z=redshift, radial_distance=radial_symbol
+        )
+        sources = (declaration["expression"],)
+    compiled = []
+    for source in sources:
+        expression = _safe_parse_expr(str(source), local_symbols)
+        if expression.free_symbols - set(arguments):
+            raise ValueError("Unknown symbol in transverse geometry")
+        compiled.append(_compile_sympy_expr(expression, arguments))
+    return _DeclaredTransverseDistance(radial, kind, tuple(compiled))
 
 
 class _LuminosityDistance:
@@ -2024,14 +2133,23 @@ def _generate_callables_impl(cache_path):
     code_dict = {}
 
     geometry_source = model_data.get("geometry")
+    sound_horizon_redshift = model_data.get("sound_horizon_redshift")
+    if sound_horizon_redshift is not None and not geometry_source:
+        raise ValueError("sound_horizon_redshift requires declared geometry")
+    if model_data.get("transverse_geometry") is not None and not (
+        model_data.get("Hz_expression") or geometry_source
+    ):
+        raise ValueError("transverse_geometry requires a background H(z)")
     if geometry_source not in (None, "cmb.background"):
         raise ValueError("geometry must name the declared cmb.background")
     if geometry_source and (
-        model_data.get("Hz_expression") or model_data.get("rs_expression")
+        model_data.get("Hz_expression")
+        or model_data.get("rs_expression")
+        or model_data.get("bao_drag_redshift_expression")
     ):
         raise ValueError(
             "Declared background geometry cannot also declare separate "
-            "Hz_expression or rs_expression"
+            "Hz_expression, rs_expression or bao_drag_redshift_expression"
         )
     hz_expr_str = model_data.get("Hz_expression")
     if hz_expr_str:
@@ -2066,27 +2184,35 @@ def _generate_callables_impl(cache_path):
             code_dict["get_Hz_per_Mpc"] = str(hz_sym)
             model_data["valid_for_distance_metrics"] = True
 
-            dm_fn = funcs.get("get_comoving_distance_Mpc")
-            if dm_fn is None:
-                dm_fn = _ComovingDistance(hz_fn)
-                funcs["get_comoving_distance_Mpc"] = dm_fn
-                code_dict["get_comoving_distance_Mpc"] = "integral(c/H(z))"
+            radial_fn = _ComovingDistance(hz_fn)
+            dm_fn = _compile_transverse_distance(
+                model_data.get("transverse_geometry"),
+                radial_fn,
+                param_syms,
+                local_dict,
+            )
+            funcs["get_comoving_distance_Mpc"] = dm_fn
+            code_dict["get_comoving_distance_Mpc"] = (
+                "declared transverse geometry of integral(c/H(z))"
+                if model_data.get("transverse_geometry")
+                else "integral(c/H(z))"
+            )
 
             if "get_luminosity_distance_Mpc" not in funcs:
                 funcs["get_luminosity_distance_Mpc"] = _LuminosityDistance(
                     dm_fn
                 )
-                code_dict["get_luminosity_distance_Mpc"] = "(1+z)*DC"
+                code_dict["get_luminosity_distance_Mpc"] = "(1+z)*DM"
 
             if "get_angular_diameter_distance_Mpc" not in funcs:
                 funcs["get_angular_diameter_distance_Mpc"] = (
                     _AngularDiameterDistance(dm_fn)
                 )
-                code_dict["get_angular_diameter_distance_Mpc"] = "DC/(1+z)"
+                code_dict["get_angular_diameter_distance_Mpc"] = "DM/(1+z)"
 
             if "get_DV_Mpc" not in funcs:
                 funcs["get_DV_Mpc"] = _VolumeAveragedDistance(dm_fn, hz_fn)
-                code_dict["get_DV_Mpc"] = "((DC^2 * c*z/H)^1/3)"
+                code_dict["get_DV_Mpc"] = "((DM^2 * c*z/H)^1/3)"
             logger.info(
                 "Derived distance functions from symbolic "
                 "Hz_expression in model YAML."
@@ -2253,7 +2379,20 @@ def _generate_callables_impl(cache_path):
             raise ValueError(msg) from e
     elif geometry_source:
         hz_fn = _DeclaredBackgroundGeometry(model_data)
-        dm_fn = _ComovingDistance(hz_fn)
+        redshift_fn = None
+        if sound_horizon_redshift is not None:
+            redshift_expr = _safe_parse_expr(
+                str(sound_horizon_redshift), local_dict
+            )
+            if redshift_expr.free_symbols - set(param_syms):
+                raise ValueError("Unknown symbol in sound_horizon_redshift")
+            redshift_fn = _compile_sympy_expr(redshift_expr, tuple(param_syms))
+        dm_fn = _compile_transverse_distance(
+            model_data.get("transverse_geometry"),
+            _ComovingDistance(hz_fn),
+            param_syms,
+            local_dict,
+        )
         funcs.update(
             get_Hz_per_Mpc=hz_fn,
             get_comoving_distance_Mpc=dm_fn,
@@ -2261,10 +2400,10 @@ def _generate_callables_impl(cache_path):
             get_angular_diameter_distance_Mpc=_AngularDiameterDistance(dm_fn),
             get_DV_Mpc=_VolumeAveragedDistance(dm_fn, hz_fn),
             get_sound_horizon_rs_Mpc=_DeclaredBackgroundSoundHorizon(
-                hz_fn, "sound_horizon_mpc"
+                hz_fn, "sound_horizon_mpc", redshift_fn
             ),
             get_sound_horizon_rs_rec_Mpc=_DeclaredBackgroundSoundHorizon(
-                hz_fn, "sound_horizon_mpc"
+                hz_fn, "sound_horizon_mpc", redshift_fn
             ),
             get_sound_horizon_rs_drag_Mpc=_DeclaredBackgroundSoundHorizon(
                 hz_fn, "drag_sound_horizon_mpc"

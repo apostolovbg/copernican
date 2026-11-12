@@ -6436,6 +6436,22 @@ def _compute_custom_cmb_spectrum_data_impl(
             {
                 "ell": ell_arr,
                 "k": spectrum_k_values,
+                "eta": (
+                    projection_eta
+                    if independent_source_projection
+                    else source_grids["eta"]
+                ),
+                "eta_weights": (
+                    angular_eta_weights
+                    if independent_source_projection
+                    else eta_integration_weights
+                ),
+                "chi": (
+                    projection_grids["chi"]
+                    if independent_source_projection
+                    else source_grids["chi"]
+                ),
+                "source_chi": float(source_chi),
                 "transfers": spectrum_transfer_components,
                 "spectra": spectra_results,
                 "runtime": runtime_envelope,
@@ -7077,4 +7093,13 @@ def _compute_custom_cmb_spectrum_data(
         work_units=timer.work_units,
         context=telemetry_context,
     )
+    if has_completed_cmb_product_capture():
+        publish_completed_cmb_products(
+            "accepted_numerical_spectrum",
+            {
+                "ell": result.ell_grid,
+                "k": result.k_grid,
+                "spectra": result.spectra,
+            },
+        )
     return result

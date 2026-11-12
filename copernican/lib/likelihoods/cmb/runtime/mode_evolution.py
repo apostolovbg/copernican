@@ -541,6 +541,17 @@ def build_declared_mode_evolution(
             for runtime in split_collision_runtimes
         )
     )
+    requires_continuous_collisions = continuous_collision_solver
+    has_ppf = any(
+        getattr(item, "scalar_closure", {}).get("kind") == "ppf"
+        for item in perturbation_data.species.values()
+    )
+    if has_ppf:
+        # PPF has a physical relaxation rate proportional to k^2/Hconf.
+        # Scalar fallbacks integrate the coupled graph implicitly. A later
+        # batch capability check can select exponential relaxation when the
+        # declared rate is independent of perturbation states.
+        continuous_collision_solver = True
     runtime_envelope["continuous_collision_solver"] = (
         continuous_collision_solver
     )
@@ -2574,7 +2585,13 @@ def build_declared_mode_evolution(
         # A state-dependent rate cannot have a fixed future split schedule.
         # Integrate its actual declared operator with local error control.
         continuous_collision_solver = True
+        requires_continuous_collisions = True
         runtime_envelope["continuous_collision_solver"] = True
+    ppf_batch_enabled = bool(
+        has_ppf
+        and not requires_continuous_collisions
+        and "ppf_transition_factor" not in state_dependent_names
+    )
     collision_phase_history_cache = {}
     collision_k_names = {"k"}
     for step in state_independent_value_steps:
@@ -4309,6 +4326,9 @@ def build_declared_mode_evolution(
             )
             state = numpy.asarray(initial_state, dtype=float).copy()
             if not split_collision_runtimes or continuous_collision_solver:
+                if has_ppf:
+                    runtime_envelope["ppf_scalar_evolution"] = True
+                    runtime_envelope["continuous_collision_solver"] = True
                 eta_values = numpy.asarray(active_grids["eta"], dtype=float)
 
                 def _continuous_rhs(
@@ -4792,7 +4812,9 @@ def build_declared_mode_evolution(
             adaptive_transfer_enabled=adaptive_controls.transfer_enabled,
             adaptive_projection_enabled=adaptive_controls.projection_enabled,
             adaptive_k_enabled=adaptive_k_enabled,
-            continuous_collision_solver=continuous_collision_solver,
+            continuous_collision_solver=(
+                continuous_collision_solver and not ppf_batch_enabled
+            ),
             has_declared_collision_operators=bool(
                 getattr(perturbation_data, "collision_operators", {})
             ),
@@ -6068,6 +6090,40 @@ def build_declared_mode_evolution(
                 for store in working_caches:
                     store.clear()
 
+            relaxation_slot = None
+            relaxation_rate = None
+            if ppf_batch_enabled:
+                runtime_envelope["ppf_batched_relaxation"] = True
+                if not runtime_envelope.get("ppf_scalar_evolution", False):
+                    runtime_envelope["continuous_collision_solver"] = False
+                ppf_variables = [
+                    name
+                    for name, metadata in perturbation_data.variables.items()
+                    if metadata.kind == "ppf_metric_correction"
+                ]
+                if len(ppf_variables) != 1:
+                    raise ValueError(
+                        "PPF requires exactly one relaxation state"
+                    )
+                relaxation_slot = runtime_spec.state_index_by_key[
+                    (ppf_variables[0], "tau", 0)
+                ]
+
+                def _ppf_relaxation_rate(
+                    state_rows, *, step_index, blend, active
+                ):
+                    """Resolve the graph's physical PPF damping rate."""
+                    del active
+                    context = _batched_state_context(
+                        state_rows,
+                        step_index=step_index,
+                        blend=blend,
+                        equations_only=True,
+                    )
+                    return context["Hconf"] * context["ppf_transition_factor"]
+
+                relaxation_rate = _ppf_relaxation_rate
+
             histories, _, batch_stats = _integrate_batched_rk4(
                 states,
                 eta_values,
@@ -6078,6 +6134,8 @@ def build_declared_mode_evolution(
                 post_step=_batch_post_step,
                 record_step=_batch_record_step,
                 progress=_report_batch_work,
+                relaxation_slot=relaxation_slot,
+                relaxation_rate=relaxation_rate,
             )
             scheduled_background_contexts = None
             momentum_context_by_stage = None

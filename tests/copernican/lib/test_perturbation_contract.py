@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -543,6 +544,224 @@ def _tensor_metadata_only_contract() -> dict[str, object]:
 
 class PerturbationContractTestCase(unittest.TestCase):
     """Validate the typed perturbation graph compiler."""
+
+    def test_declared_ppf_closure_reproduces_conserved_stress(self):
+        """PPF responds to declared enthalpy and remains finite at w=-1."""
+        contract = _scalar_metadata_only_contract()
+        baseline = self._compile(contract)
+        self.assertNotIn("ppf_gamma", baseline.variables)
+        contract["species"]["arbitrary_component"] = {
+            "sector": "scalar",
+            "equation_of_state": "-0.9",
+            "anisotropic_stress": "zero",
+            "scalar_closure": {
+                "kind": "ppf",
+                "density_fraction": "0.7",
+                "other_enthalpy": "0.3",
+                "transition": "0.4",
+                "initial": "0.0",
+            },
+        }
+        compiled = self._compile(contract)
+        self.assertIn("ppf_gamma", compiled.variables)
+        self.assertIn("evolve_ppf_gamma", compiled.equations)
+        self.assertIn("ppf_gamma_seed", compiled.initial_conditions)
+        renamed = copy.deepcopy(contract)
+        renamed["species"]["another_name"] = renamed["species"].pop(
+            "arbitrary_component"
+        )
+        renamed_compiled = self._compile(renamed)
+        self.assertEqual(
+            compiled.equations["evolve_ppf_gamma"].rhs,
+            renamed_compiled.equations["evolve_ppf_gamma"].rhs,
+        )
+        for ratio in (0.01, 1.0, 100.0):
+            for eos in (-1.1, -1.0, -0.9):
+                expansion = 0.002
+                wave = ratio * expansion
+                gravity = 0.0001
+                gamma = 2e-7
+                other_momentum = 0.001
+                context = {
+                    "a": 1.0,
+                    "Omega_k0": 0.0,
+                    "Hconf": expansion,
+                    "acoustic_k": wave,
+                    "acoustic_k_sq": wave**2,
+                    "einstein_gravity_strength": gravity,
+                    "ppf_other_momentum": other_momentum,
+                    "ppf_other_enthalpy": 0.3,
+                    "ppf_equation_of_state": eos,
+                    "ppf_gamma": gamma,
+                }
+                for name in (
+                    "ppf_density_background",
+                    "ppf_curvature_factor",
+                    "ppf_transition_squared",
+                    "ppf_transition_factor",
+                    "ppf_source",
+                    "ppf_momentum_factor",
+                    "ppf_momentum_source",
+                    "ppf_density_source",
+                ):
+                    context[name] = evaluate_compiled_expression(
+                        compiled.derived[name].compiled_expression, context
+                    )
+                source = (
+                    1.5
+                    * gravity
+                    * 0.7
+                    * (1 + eos)
+                    * other_momentum
+                    / (expansion * wave**2 * 0.3)
+                )
+                transition = (0.4 * ratio) ** 2
+                gamma_prime = expansion * (
+                    source / (1 + transition) - (1 + transition) * gamma
+                )
+                actual_prime = evaluate_compiled_expression(
+                    compiled.equations["evolve_ppf_gamma"].compiled_rhs,
+                    context,
+                )
+                correction = source - gamma_prime / expansion - gamma
+                factor = 1 + 4.5 * gravity * 0.3 / wave**2
+                momentum = 0.7 * (1 + eos) * other_momentum / 0.3 - 2 * (
+                    wave * wave
+                ) * expansion * correction / (3 * gravity * factor)
+                density = (
+                    -2 * wave**2 * gamma / (3 * gravity)
+                    - 3 * expansion * momentum / wave**2
+                )
+                with self.subTest(ratio=ratio, eos=eos):
+                    numpy.testing.assert_allclose(actual_prime, gamma_prime)
+                    numpy.testing.assert_allclose(
+                        context["ppf_momentum_source"], momentum, atol=1e-16
+                    )
+                    numpy.testing.assert_allclose(
+                        context["ppf_density_source"], density, atol=1e-16
+                    )
+        context["ppf_equation_of_state"] = -1.0
+        context["ppf_gamma"] = 0.0
+        for name in (
+            "ppf_source",
+            "ppf_momentum_source",
+            "ppf_density_source",
+        ):
+            context[name] = evaluate_compiled_expression(
+                compiled.derived[name].compiled_expression, context
+            )
+        self.assertEqual(context["ppf_density_source"], 0.0)
+        self.assertEqual(context["ppf_momentum_source"], 0.0)
+        curvature = evaluate_compiled_expression(
+            compiled.derived["ppf_curvature_factor"].compiled_expression,
+            {
+                "Omega_k0": 0.03,
+                "einstein_gravity_strength": 0.002,
+                "acoustic_k_sq": 0.1,
+            },
+        )
+        self.assertAlmostEqual(curvature, 1.0 + 3 * 0.03 * 0.002 / 0.1)
+
+    def test_invalid_ppf_declaration_fails_without_inferred_physics(self):
+        """Malformed or incompatible PPF input cannot become a default."""
+        component = {
+            "sector": "scalar",
+            "equation_of_state": "-0.9",
+            "anisotropic_stress": "zero",
+            "scalar_closure": {
+                "kind": "ppf",
+                "density_fraction": "0.7",
+                "other_enthalpy": "0.3",
+                "transition": "0.4",
+                "initial": "0.0",
+            },
+        }
+        for field, value in (
+            ("scalar_closure", {}),
+            ("scalar_closure", {"kind": "ppf"}),
+            ("anisotropic_stress", "supported"),
+            ("equation_of_state", None),
+        ):
+            contract = _scalar_metadata_only_contract()
+            changed = copy.deepcopy(component)
+            changed[field] = value
+            contract["species"]["some_component"] = changed
+            with self.subTest(field=field, value=value):
+                with self.assertRaises(ValueError):
+                    self._compile(contract)
+        contract = _scalar_metadata_only_contract()
+        contract["species"]["some_component"] = component
+        contract["variables"] = {"existing": {"kind": "density_contrast"}}
+        with self.assertRaisesRegex(ValueError, "explicit graph"):
+            self._compile(contract)
+
+    def test_ppf_sources_match_independent_camb_crossing_histories(self):
+        """Check Gamma and stress against independent PPF histories."""
+        contract = _scalar_metadata_only_contract()
+        contract["species"]["extra_component"] = {
+            "sector": "scalar",
+            "equation_of_state": "-0.9",
+            "anisotropic_stress": "zero",
+            "scalar_closure": {
+                "kind": "ppf",
+                "density_fraction": "0.7",
+                "other_enthalpy": "0.3",
+                "transition": "0.4",
+                "initial": "0.0",
+            },
+        }
+        compiled = self._compile(contract)
+        path = (
+            Path(__file__).resolve().parents[2]
+            / "project/fixtures"
+            / "ccmbs_ppf_camb.json"
+        )
+        fixture = json.loads(path.read_text())
+        self.assertEqual(fixture["camb_version"], "1.6.0")
+        self.assertEqual(len(fixture["rows"]), 16)
+        for row in fixture["rows"]:
+            with self.subTest(
+                w0=row["w0"], wa=row["wa"], z=row["redshift"], wave=row["wave"]
+            ):
+                context = {
+                    "a": row["a"],
+                    "Omega_k0": 0.0,
+                    "Hconf": row["hubble"],
+                    "acoustic_k": row["wave"],
+                    "acoustic_k_sq": row["wave"] ** 2,
+                    "einstein_gravity_strength": row["gravity"],
+                    "ppf_other_momentum": row["other_momentum"],
+                    "ppf_other_enthalpy": row["other_enthalpy"],
+                    "ppf_equation_of_state": row["eos"],
+                    "ppf_density_background": row["density_background"],
+                    "ppf_gamma": row["gamma"],
+                }
+                for name in (
+                    "ppf_curvature_factor",
+                    "ppf_transition_squared",
+                    "ppf_transition_factor",
+                    "ppf_source",
+                    "ppf_momentum_factor",
+                    "ppf_momentum_source",
+                    "ppf_density_source",
+                ):
+                    context[name] = evaluate_compiled_expression(
+                        compiled.derived[name].compiled_expression, context
+                    )
+                gamma_rate = evaluate_compiled_expression(
+                    compiled.equations["evolve_ppf_gamma"].compiled_rhs,
+                    context,
+                )
+                numpy.testing.assert_allclose(
+                    gamma_rate, row["gamma_derivative"], rtol=3e-6, atol=1e-15
+                )
+                for name in ("density_source", "momentum_source"):
+                    numpy.testing.assert_allclose(
+                        context["ppf_" + name],
+                        row[name],
+                        rtol=2e-12,
+                        atol=1e-15,
+                    )
 
     def test_usmf2_declares_complete_production_closure(self) -> None:
         """USMF2 must compile its complete declared production closure."""

@@ -7,6 +7,7 @@ import contextlib
 import copy
 import gzip
 import hashlib
+import io
 import json
 import logging
 import os
@@ -28,6 +29,7 @@ from copernican.lib.likelihoods.cmb.diagnostics import (
     read_cmb_parity_matrix_report,
     run_fixed_lcdm_cmb_parity,
 )
+from copernican.lib.likelihoods.cmb.errors import ContractError
 from copernican.lib.likelihoods.cmb.runtime import background, cache
 from copernican.workflow import _output_root
 from tests.project.lib import camb_reference
@@ -470,6 +472,212 @@ def _retain(path: Path, payload: dict) -> dict:
     )
 
 
+def _validate_completion_reference(
+    reference, digest, contract, case_name, *, expected_identity=None
+):
+    """Distinguish a damaged reference from changed physical inputs."""
+    if not isinstance(reference, dict):
+        raise ContractError(
+            "Independent reference payload is not an object",
+            context={"case_id": case_name},
+        )
+    body = {
+        key: value
+        for key, value in reference.items()
+        if key != "fixture_sha256"
+    }
+    identity = expected_identity or camb_reference.CAMB_REFERENCE_IDENTITY
+    experimental_prefix = (
+        f"camb:experimental:{camb_reference.camb.__version__}:"
+    )
+    if not (
+        identity == camb_reference.CAMB_REFERENCE_IDENTITY
+        or identity.startswith(experimental_prefix)
+    ):
+        raise ContractError(
+            "Independent reference identity is unsupported",
+            context={"case_id": case_name},
+        )
+    if (
+        reference.get("fixture_sha256") != digest
+        or camb_reference.reference_fixture_sha256(body) != digest
+        or reference.get("reference_identity") != identity
+    ):
+        raise ContractError(
+            "Independent reference integrity or identity failed",
+            context={"case_id": case_name},
+        )
+    if identity.startswith(experimental_prefix):
+        experimental = reference.get("experimental_inputs", {})
+        if not isinstance(experimental, dict):
+            raise ContractError(
+                "Experimental reference inputs are invalid",
+                context={"case_id": case_name},
+            )
+        sources = experimental.get("source_sha256", {})
+        scripts = experimental.get("independent_scripts", {})
+        if not isinstance(sources, dict) or not isinstance(scripts, dict):
+            raise ContractError(
+                "Experimental reference source identity is invalid",
+                context={"case_id": case_name},
+            )
+        source_digest = diagnostics._canonical_sha256(sources)
+        required_scripts = {
+            "ccmbs_experimental_helper.py",
+            "ccmbs-recombination-case.py",
+            "ccmbs-reionization-case.py",
+            "ccmbs-experimental-reference-case.py",
+        }
+        if (
+            not {
+                "results.f90",
+                "reionization.f90",
+                "recfast.f90",
+                "cmbmain.f90",
+            }
+            | required_scripts
+            <= set(sources)
+            or set(scripts) != required_scripts
+            or any(
+                not isinstance(value, str)
+                or len(value) != 64
+                or any(char not in "0123456789abcdef" for char in value)
+                for value in sources.values()
+            )
+            or any(
+                not isinstance(text, str)
+                or hashlib.sha256(text.encode()).hexdigest() != sources[name]
+                for name, text in scripts.items()
+            )
+            or experimental.get("source_identity_sha256") != source_digest
+            or identity
+            != camb_reference.experimental_reference_identity(source_digest)
+        ):
+            raise ContractError(
+                "Experimental reference source identity is invalid",
+                context={"case_id": case_name},
+            )
+    previous = reference.get("contract")
+    if not isinstance(previous, dict):
+        raise ContractError(
+            "Independent reference contract is not an object",
+            context={"case_id": case_name},
+        )
+    if previous != contract:
+        previous_map = previous.get("param_map", {})
+        current_map = contract.get("param_map", {})
+        if not isinstance(previous_map, dict) or not isinstance(
+            current_map, dict
+        ):
+            raise ContractError(
+                "Independent reference parameter map is not an object",
+                context={"case_id": case_name},
+            )
+        changed = {
+            name: {
+                "reference": previous_map.get(name),
+                "current": current_map.get(name),
+            }
+            for name in sorted(set(previous_map) | set(current_map))
+            if previous_map.get(name) != current_map.get(name)
+        }
+        raise ContractError(
+            "Independent reference physical inputs changed; a matched "
+            "reference is required",
+            context={
+                "case_id": case_name,
+                "changed_parameters": changed,
+                "reference_contract": previous,
+                "current_contract": contract,
+            },
+        )
+
+
+def _validate_experimental_refinement(reference, requirement):
+    """Check retained independent inputs and their numerical convergence."""
+    refinement = reference["reference_refinement"]
+    selected = numpy.asarray(reference["ell_values"], dtype=int) - 2
+    source_digest = reference["experimental_inputs"].get(
+        "source_identity_sha256"
+    )
+    candidate_identity = (
+        f"camb:experimental:{camb_reference.camb.__version__}:{source_digest}"
+        if source_digest is not None
+        else reference["reference_identity"]
+    )
+    for label in ("coarse", "fine"):
+        candidate = refinement["candidate_payloads"][label]
+        body = {
+            key: value
+            for key, value in candidate.items()
+            if key != "fixture_sha256"
+        }
+        if (
+            candidate["fixture_sha256"]
+            != refinement[f"{label}_fixture_sha256"]
+            or camb_reference.reference_fixture_sha256(body)
+            != candidate["fixture_sha256"]
+            or candidate["reference_identity"] != candidate_identity
+            or candidate["contract"] != reference["contract"]
+            or candidate["ell_values"] != list(range(2, 2501))
+        ):
+            raise ValueError(f"Invalid {label} reference candidate")
+        expected = refinement if label == "coarse" else reference
+        for name, surface in expected["spectra"].items():
+            for representation, values in surface.items():
+                full = numpy.asarray(
+                    candidate["spectra"][name][representation]
+                )
+                if not numpy.array_equal(
+                    full[selected], numpy.asarray(values)
+                ):
+                    raise ValueError(
+                        f"Changed {label} {name} reference samples"
+                    )
+    for name, columns in (("recombination", 3), ("reionization", 2)):
+        lengths = []
+        for label in ("coarse", "fine"):
+            table = numpy.asarray(refinement["input_tables"][label][name])
+            if (
+                table.ndim != 2
+                or table.shape[0] < 2
+                or table.shape[1] != columns
+                or not numpy.all(numpy.isfinite(table))
+                or numpy.any(numpy.diff(table[:, 0]) <= 0)
+                or numpy.any(table[:, 1:] < 0)
+            ):
+                raise ValueError(f"Invalid {label} {name} reference table")
+            serialized = io.StringIO()
+            numpy.savetxt(serialized, table, fmt="%.17e")
+            digest = hashlib.sha256(serialized.getvalue().encode()).hexdigest()
+            if digest != refinement["table_sha256"][label][name]:
+                raise ValueError(f"Changed {label} {name} reference table")
+            if (
+                digest
+                != refinement["candidate_payloads"][label][
+                    "experimental_inputs"
+                ][f"{name}_table_sha256"]
+            ):
+                raise ValueError(f"Mismatched {label} {name} candidate table")
+            if (
+                label == "fine"
+                and digest
+                != reference["experimental_inputs"][f"{name}_table_sha256"]
+            ):
+                raise ValueError(f"Mismatched {name} reference table")
+            lengths.append(len(table))
+        if lengths[1] <= lengths[0]:
+            raise ValueError(f"Unrefined {name} reference table")
+    comparison = diagnostics.compare_cmb_completion_spectra(
+        reference, reference, requirement
+    )
+    if not comparison["accepted"]:
+        raise ValueError(
+            "Experimental reference refinement failed: "
+            + "; ".join(comparison["issues"])
+        )
+
+
 def materialize_completion_contract(root: Path, *, model_records=None) -> dict:
     """Freeze exact points, independent references, and applicability.
 
@@ -561,22 +769,7 @@ def materialize_completion_contract(root: Path, *, model_records=None) -> dict:
                 path = evidence_assets.contained_path(root, relative)
                 reference = None
                 if path.exists():
-                    candidate = json.loads(path.read_text())
-                    saved = candidate.pop("fixture_sha256", None)
-                    if not (
-                        saved
-                        == reference_digest
-                        == camb_reference.reference_fixture_sha256(candidate)
-                        and candidate.get("contract") == reference_contract
-                        and candidate.get("reference_identity")
-                        == camb_reference.CAMB_REFERENCE_IDENTITY
-                    ):
-                        raise ValueError(
-                            "Retained independent reference is stale or "
-                            f"tampered: {record.model_filename}:{point}"
-                        )
-                    candidate["fixture_sha256"] = saved
-                    reference = candidate
+                    reference = json.loads(path.read_text())
                 if reference is None:
                     # Reopen the exact independently frozen arrays. Rebuilding
                     # on another compiler/architecture cannot be required to
@@ -586,22 +779,29 @@ def materialize_completion_contract(root: Path, *, model_records=None) -> dict:
                             f"{record.model_filename}:{point}"
                         ]
                     )
-                    body = {
-                        key: value
-                        for key, value in reference.items()
-                        if key != "fixture_sha256"
-                    }
-                    if (
-                        camb_reference.reference_fixture_sha256(body)
-                        != reference_digest
-                        or reference.get("contract") != reference_contract
-                        or reference.get("reference_identity")
-                        != camb_reference.CAMB_REFERENCE_IDENTITY
-                    ):
-                        raise ValueError(
-                            "Canonical independent reference is stale "
-                            "or tampered"
+                _validate_completion_reference(
+                    reference,
+                    reference_digest,
+                    reference_contract,
+                    f"{record.model_filename}:{point}",
+                    expected_identity=requirement["reference_identity"],
+                )
+                if reference["reference_identity"].startswith(
+                    "camb:experimental:"
+                ):
+                    expected_physics = diagnostics._canonical_sha256(physical)
+                    actual_physics = reference["experimental_inputs"].get(
+                        "physical_inputs_sha256"
+                    )
+                    if actual_physics != expected_physics:
+                        raise ContractError(
+                            "Experimental reference physical declaration "
+                            "changed",
+                            context={
+                                "case_id": f"{record.model_filename}:{point}"
+                            },
                         )
+                    _validate_experimental_refinement(reference, requirement)
                 if reference["fixture_sha256"] != reference_digest:
                     raise ValueError(
                         "Frozen independent reference differs: "
@@ -855,6 +1055,268 @@ def run_completion_preflight(root: Path) -> dict:
     return report
 
 
+def _experimental_reference_inputs(reference):
+    """Return explicitly labelled experimental inputs, if present."""
+    if not isinstance(reference, dict) or not str(
+        reference.get("reference_identity", "")
+    ).startswith("camb:experimental:"):
+        return None
+    inputs = reference.get("experimental_inputs")
+    if not isinstance(inputs, dict):
+        raise ContractError("Experimental reference inputs are missing")
+    return inputs
+
+
+def _screen_completion_photon_density(runtime, reference=None):
+    """Compare the declared photon density to the CAMB reference input."""
+
+    physical = background._resolve_custom_cmb_physical_parameters(runtime)
+    inputs = _experimental_reference_inputs(reference)
+    if inputs is None:
+        reference_background = camb_reference.camb.get_background(
+            camb_reference._make_camb_params(
+                completion_reference_contract(runtime)
+            )
+        )
+        expected = float(reference_background.get_Omega("photon"))
+    else:
+        expected = float(inputs["photon_density"])
+    actual = float(physical.Omega_gamma0)
+    if (
+        not numpy.isfinite(actual)
+        or not numpy.isfinite(expected)
+        or expected <= 0
+    ):
+        raise ValueError("Photon density screen requires finite densities")
+    return {
+        "declared": actual,
+        "reference": expected,
+        "relative_difference": abs(actual - expected) / expected,
+        "screen_threshold": diagnostics.CMB_COMPLETION_METRICS[
+            "numerical_relative_budget"
+        ],
+        "certifies_physical_matching": False,
+    }
+
+
+def _screen_completion_reionization(runtime, reference=None):
+    """Screen independently computed late histories before an expensive solve.
+
+    A passing screen is not physical certification: the sampled interval
+    and background discretizations cannot establish agreement everywhere.
+    """
+
+    redshift = numpy.linspace(0.0, 25.0, 251)
+    physical = background._resolve_custom_cmb_physical_parameters(runtime)
+    histories = []
+    for count in (1024, 2048):
+        actual = background._build_custom_cmb_background_impl(
+            runtime,
+            physical,
+            background._CustomCMBNumerics(eta_sample_count=count),
+        )
+        eta = actual.eta_of_a(1.0 / (1.0 + redshift))
+        histories.append(numpy.asarray(actual.x_e_of_eta(eta)))
+    inputs = _experimental_reference_inputs(reference)
+    if inputs is None:
+        reference_background = camb_reference.camb.get_background(
+            camb_reference._make_camb_params(
+                completion_reference_contract(runtime)
+            )
+        )
+        expected = numpy.asarray(
+            reference_background.get_background_redshift_evolution(
+                redshift, vars=("x_e",)
+            )["x_e"]
+        )
+    else:
+        samples = inputs["background_samples"]
+        sample_redshift = numpy.asarray(samples["redshift"], dtype=float)
+        sample_xe = numpy.asarray(samples["x_e"], dtype=float)
+        if (
+            sample_redshift.ndim != 1
+            or sample_redshift.size < 2
+            or sample_xe.shape != sample_redshift.shape
+            or not numpy.all(numpy.isfinite(sample_redshift))
+            or not numpy.all(numpy.isfinite(sample_xe))
+            or numpy.any(numpy.diff(sample_redshift) <= 0)
+            or sample_redshift[0] > redshift[0]
+            or sample_redshift[-1] < redshift[-1]
+        ):
+            raise ContractError("Experimental ionization samples are invalid")
+        expected = numpy.interp(redshift, sample_redshift, sample_xe)
+    if any(
+        values.shape != redshift.shape or not numpy.all(numpy.isfinite(values))
+        for values in (*histories, expected)
+    ):
+        raise ValueError("Non-finite or malformed reionization screen")
+    scale = max(float(numpy.max(numpy.abs(expected))), numpy.finfo(float).tiny)
+    discrepancy = numpy.abs(histories[-1] - expected) / scale
+    uncertainty = float(numpy.max(numpy.abs(histories[-1] - histories[0])))
+    uncertainty /= scale
+    index = int(numpy.argmax(discrepancy))
+    return {
+        "maximum_relative_difference": float(discrepancy[index]),
+        "redshift_at_maximum": float(redshift[index]),
+        "background_resolution_difference": uncertainty,
+        "screen_threshold": diagnostics.CMB_COMPLETION_METRICS[
+            "numerical_relative_budget"
+        ],
+        "redshift": redshift.tolist(),
+        "reference_x_e": expected.tolist(),
+        "coarse_x_e": histories[0].tolist(),
+        "fine_x_e": histories[1].tolist(),
+        "certifies_physical_matching": False,
+    }
+
+
+def _screen_experimental_background(runtime, reference):
+    """Screen retained independent histories before evolving the hierarchy."""
+    from copernican.lib.likelihoods.cmb.runtime import evolution
+
+    inputs = _experimental_reference_inputs(reference)
+    if inputs is None:
+        return None
+    samples = inputs["background_samples"]
+    redshift = numpy.asarray(samples["redshift"], dtype=float)
+    if (
+        redshift.ndim != 1
+        or redshift.size < 2
+        or not numpy.all(numpy.isfinite(redshift))
+        or numpy.any(numpy.diff(redshift) <= 0)
+        or redshift[0] != 0.0
+        or redshift[-1] < 2500.0
+    ):
+        raise ContractError("Experimental background redshifts are invalid")
+    expected = {}
+    for name in ("H", "x_e", "T_b", "neutrino_density"):
+        values = numpy.asarray(samples[name], dtype=float)
+        if (
+            values.shape != redshift.shape
+            or not numpy.all(numpy.isfinite(values))
+            or numpy.any(values <= 0)
+        ):
+            raise ContractError(f"Experimental {name} samples are invalid")
+        expected[name] = values
+    physical = background._resolve_custom_cmb_physical_parameters(runtime)
+    scales = 1.0 / (1.0 + redshift)
+    resolved = background._resolve_declared_background_context(
+        runtime, a_values=scales, z_values=redshift
+    )
+    native = background._build_custom_cmb_background_impl(
+        runtime, physical, background._CustomCMBNumerics(eta_sample_count=4096)
+    )
+    eta = native.eta_of_a(scales)
+    momentum = evolution._declared_momentum_grid_context(
+        runtime["perturbation_data"],
+        model_parameters=background._momentum_model_parameters(runtime),
+        physical_params=physical,
+        scale_factor=scales,
+    )
+    neutrino = (
+        numpy.asarray(momentum.get("massive_neutrino_density_fraction", 0.0))
+        + float(resolved.get("Omega_nu_massless0", 0.0)) / scales**4
+    )
+    recombination = redshift >= 25.0
+    differences = {
+        "H": float(numpy.max(numpy.abs(resolved["H"] / expected["H"] - 1))),
+        "x_e_recombination": float(
+            numpy.max(
+                numpy.abs(
+                    native.x_e_of_eta(eta)[recombination]
+                    / expected["x_e"][recombination]
+                    - 1
+                )
+            )
+        ),
+        "T_b": float(
+            numpy.max(
+                numpy.abs(
+                    native.matter_temperature_of_eta(eta) / expected["T_b"] - 1
+                )
+            )
+        ),
+        "neutrino_density": float(
+            numpy.max(numpy.abs(neutrino / expected["neutrino_density"] - 1))
+        ),
+    }
+    limits = {
+        "H": 0.0002,
+        "x_e_recombination": 0.001,
+        "T_b": 0.005,
+        "neutrino_density": 0.001,
+    }
+    if any(
+        not numpy.isfinite(value) or value > limits[name]
+        for name, value in differences.items()
+    ):
+        raise ContractError(
+            "Experimental reference background differs from the declaration",
+            context={"differences": differences, "limits": limits},
+        )
+    return {
+        "maximum_relative_differences": differences,
+        "limits": limits,
+        "sample_count": int(redshift.size),
+        "certifies_physical_matching": False,
+    }
+
+
+def _match_projection_quadratures(root, projection, candidates):
+    """Identify captured operators that produced this exact projection.
+
+    Refined, coarse and earlier calculations can have identical dimensions.
+    Match the grid, spectrum and each weighted transfer product rather than
+    guessing from event order or matching an aggregate integral alone.
+    """
+
+    waves = numpy.asarray(projection["k"])
+    expected_log_k = numpy.asarray(numpy.log(waves), dtype=numpy.longdouble)
+    transfers = projection["transfers"]
+    matches = {}
+    for name, spectrum in projection["spectra"].items():
+        for candidate in reversed(candidates):
+            if (
+                candidate["observable"] != name
+                or candidate["primary"] not in transfers
+                or candidate["secondary"] not in transfers
+                or not numpy.array_equal(candidate["log_k"], expected_log_k)
+                or not numpy.array_equal(candidate["C_ell"], spectrum)
+            ):
+                continue
+            payload = evidence_assets.read_array_products(
+                root,
+                candidate["artifact"],
+                array_paths=(("weighted_transfer_products",),),
+            )
+            weighted = payload["weighted_transfer_products"]
+            primordial = numpy.asarray(
+                candidate["primordial"], dtype=numpy.longdouble
+            )
+            first = numpy.asarray(transfers[candidate["primary"]])
+            second = numpy.asarray(transfers[candidate["secondary"]])
+            if first.shape != weighted.shape or second.shape != weighted.shape:
+                continue
+            if all(
+                numpy.array_equal(
+                    weighted[index],
+                    primordial
+                    * (
+                        numpy.asarray(first[index], dtype=numpy.longdouble)
+                        * numpy.asarray(second[index], dtype=numpy.longdouble)
+                    ),
+                )
+                for index in range(weighted.shape[0])
+            ):
+                matches[str(name)] = {
+                    "artifact": candidate["artifact"],
+                    "primary_component": candidate["primary"],
+                    "secondary_component": candidate["secondary"],
+                }
+                break
+    return matches
+
+
 def run_completion_point(
     root: Path, case_id: str, *, contract=None, model_records=None
 ) -> dict:
@@ -944,16 +1406,71 @@ def run_completion_point(
     evidence_assets.write_json_artifact(
         root, f"{prefix}/producer.json", report
     )
+    current_sources = None
+    current_quadratures = []
+    projection_records = []
+    accepted_projection = None
 
     def retain(kind, products):
         """Persist borrowed arrays synchronously, before their owner exits."""
 
+        nonlocal current_sources, current_quadratures, accepted_projection
         entry = evidence_assets.write_array_products(
             root,
             f"{prefix}/products/{len(report['observations']):05d}-{kind}",
             products,
         )
         report["observations"].append({"kind": kind, "artifact": entry})
+        if kind == "sources":
+            current_sources = entry
+            current_quadratures = []
+        elif kind == "spectrum_quadrature" and "observable" in products:
+            current_quadratures.append(
+                {
+                    "artifact": entry,
+                    "observable": products["observable"],
+                    "primary": products["primary_component"],
+                    "secondary": products["secondary_component"],
+                    "log_k": numpy.array(products["log_k"], copy=True),
+                    "C_ell": numpy.array(products["C_ell"], copy=True),
+                    "primordial": numpy.array(
+                        products["primordial"], copy=True
+                    ),
+                }
+            )
+        elif kind == "projection" and current_sources is not None:
+            quadratures = _match_projection_quadratures(
+                root, products, current_quadratures
+            )
+            projection_records.append(
+                {
+                    "source": current_sources,
+                    "projection": entry,
+                    "quadratures": quadratures,
+                    "ell": numpy.array(products["ell"], copy=True),
+                    "k": numpy.array(products["k"], copy=True),
+                    "spectra": {
+                        str(name): numpy.array(values, copy=True)
+                        for name, values in products["spectra"].items()
+                    },
+                }
+            )
+        elif kind == "accepted_numerical_spectrum":
+            accepted_projection = next(
+                (
+                    record
+                    for record in reversed(projection_records)
+                    if numpy.array_equal(record["ell"], products["ell"])
+                    and numpy.array_equal(record["k"], products["k"])
+                    and all(
+                        name in record["spectra"]
+                        and numpy.array_equal(record["spectra"][name], values)
+                        for name, values in products["spectra"].items()
+                    )
+                    and set(record["quadratures"]) == set(record["spectra"])
+                ),
+                None,
+            )
         if (
             kind != "spectrum_quadrature"
             or len(report["observations"]) % 64 == 0
@@ -968,6 +1485,30 @@ def run_completion_point(
 
     started = time.perf_counter()
     try:
+        photon_screen = _screen_completion_photon_density(runtime, reference)
+        report["photon_density_screen"] = photon_screen
+        if (
+            photon_screen["relative_difference"]
+            > photon_screen["screen_threshold"]
+        ):
+            raise ValueError(
+                "Declared and reference photon densities differ beyond "
+                "the physical-matching budget"
+            )
+        screening = _screen_completion_reionization(runtime, reference)
+        report["reionization_screen"] = screening
+        if screening["maximum_relative_difference"] > (
+            screening["screen_threshold"]
+            + screening["background_resolution_difference"]
+        ):
+            raise ValueError(
+                "Declared and reference reionization histories differ "
+                "beyond the physical-matching budget"
+            )
+        if _experimental_reference_inputs(reference) is not None:
+            report["experimental_background_screen"] = (
+                _screen_experimental_background(runtime, reference)
+            )
         with evidence.capture_completed_cmb_products(retain):
             cmb.compute_cmb_spectrum_from_contract(
                 runtime,
@@ -1008,7 +1549,10 @@ def run_completion_point(
             requirement,
         )
         report["parity_accepted"] = report["comparison"]["accepted"]
-        previous_count = len(report["observations"])
+        previous_count = sum(
+            row["kind"] != "accepted_numerical_spectrum"
+            for row in report["observations"]
+        )
         with evidence.capture_completed_cmb_products(retain):
             repeated = cmb.compute_cmb_spectrum_from_contract(
                 runtime,
@@ -1022,7 +1566,10 @@ def run_completion_point(
                 numpy.array_equal(result.spectra[name], repeated[name])
                 for name in request["spectra"]
             ),
-            "new_numerical_products": len(report["observations"])
+            "new_numerical_products": sum(
+                row["kind"] != "accepted_numerical_spectrum"
+                for row in report["observations"]
+            )
             - previous_count,
         }
         if (
@@ -1037,37 +1584,32 @@ def run_completion_point(
         report["cancelled"] = isinstance(error, KeyboardInterrupt)
     # Failed numerical attempts may still contain useful completed products.
     # Keep their chain without manufacturing a completion certificate.
-    sources = [
-        row["artifact"]
-        for row in report["observations"]
-        if row["kind"] == "sources"
-    ]
-    projections = [
-        row["artifact"]
-        for row in report["observations"]
-        if row["kind"] == "projection"
-    ]
-    quadratures = [
-        row["artifact"]
-        for row in report["observations"]
-        if row["kind"] == "spectrum_quadrature"
-    ]
-    if sources and projections and quadratures:
+    if accepted_projection is not None:
         report["raw_products"] = evidence_assets.write_json_artifact(
             root,
             f"{prefix}/raw-products.json",
             {
-                "schema_version": 2,
-                "source": sources[-1],
-                "projection": projections[-1],
-                "quadratures": quadratures,
+                "schema_version": 3,
+                "source": accepted_projection["source"],
+                "projection": accepted_projection["projection"],
+                "quadratures": accepted_projection["quadratures"],
             },
         )
-    report["incomplete_requirements"] = [
-        "accepted ordinary full-window physical comparison",
-        "independent physical-domain and numerical-axis verification",
-        "durable graph and real-consumer verification",
-    ]
+    report["incomplete_requirements"] = []
+    if not report["parity_accepted"]:
+        report["incomplete_requirements"].append(
+            "accepted ordinary full-window physical comparison"
+        )
+    if "raw_products" not in report:
+        report["incomplete_requirements"].append(
+            "accepted projection and quadrature readback"
+        )
+    report["incomplete_requirements"].extend(
+        (
+            "independent physical-domain and numerical-axis verification",
+            "durable graph and real-consumer verification",
+        )
+    )
     report["elapsed_seconds"] = time.perf_counter() - started
     report["performance"] = diagnostics._jsonable(
         cache.latest_cmb_performance_record()

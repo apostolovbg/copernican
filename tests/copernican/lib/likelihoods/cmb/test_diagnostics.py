@@ -2773,6 +2773,49 @@ class CompletionContractTestCase(unittest.TestCase):
             )["accepted"]
         )
 
+    def test_experimental_reference_refinement_consumes_error_allowance(self):
+        """Reference error remains part of the parity decision."""
+        from math import pi as circle_constant
+
+        requirement = {"ells": [2], "surfaces": ["TT"]}
+        reference = {
+            "reference_identity": "camb:experimental:test",
+            "ell_values": [2],
+            "spectra": {
+                "TT": {"C_ell": [100.0], "D_ell": [300.0 / circle_constant]}
+            },
+        }
+        actual = copy.deepcopy(reference)
+        self.assertFalse(
+            diagnostics.compare_cmb_completion_spectra(
+                actual, reference, requirement
+            )["accepted"]
+        )
+        coarse = {
+            "ell_values": [2],
+            "spectra": {
+                "TT": {"C_ell": [98.0], "D_ell": [294.0 / circle_constant]}
+            },
+        }
+        reference["reference_refinement"] = coarse
+        actual["spectra"]["TT"]["C_ell"] = [100.5]
+        actual["spectra"]["TT"]["D_ell"] = [301.5 / circle_constant]
+        result = diagnostics.compare_cmb_completion_spectra(
+            actual, reference, requirement
+        )
+        self.assertFalse(result["accepted"])
+        self.assertAlmostEqual(
+            result["metrics"]["TT:C_ell"]["reference_refinement_error"][0],
+            2.0,
+        )
+        coarse["spectra"]["TT"]["C_ell"] = [99.5]
+        coarse["spectra"]["TT"]["D_ell"] = [298.5 / circle_constant]
+        self.assertTrue(
+            diagnostics.compare_cmb_completion_spectra(
+                actual, reference, requirement
+            )["accepted"]
+        )
+
     def test_retained_artifacts_reject_tampering_missing_and_escape(self):
         from copernican.lib.likelihoods.cmb import diagnostics as d
 
@@ -2829,6 +2872,13 @@ class CompletionContractTestCase(unittest.TestCase):
                                 "status": "validated_bound",
                                 "error": 0,
                                 "limit": 0.0001,
+                                "validation": {
+                                    "domain": "claimed",
+                                    "assumptions": ["claimed"],
+                                    "artifact": scientific_acceptance._retain(
+                                        root / "bound.json", {}
+                                    ),
+                                },
                             }
                             for name in d.CMB_COMPLETION_AXES
                         }
@@ -2855,6 +2905,12 @@ class CompletionContractTestCase(unittest.TestCase):
         self.assertIn("independent reference identity is stale", issues)
         self.assertIn("independent reference version differs", issues)
         self.assertTrue(any("momentum_q:" in issue for issue in issues))
+        self.assertTrue(
+            any(
+                "validated bound has no supported verifier" in issue
+                for issue in issues
+            )
+        )
         self.assertFalse(result["accepted"])
 
 
@@ -2898,6 +2954,96 @@ class CompletionPersistenceTestCase(unittest.TestCase):
 class CompletionDependencyTestCase(unittest.TestCase):
     """Product reuse follows numerical dependencies, not rendering code."""
 
+    def test_measured_completion_axis_requires_actual_refinement_arrays(self):
+        """Rehashed metadata cannot replace observed calculations."""
+
+        from copernican.lib.likelihoods.cmb import evidence_assets
+        from copernican.lib.likelihoods.cmb.runtime.evidence import (
+            _projection_array_digest,
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+
+            def record(name, grid, spectra, ell=(2, 3)):
+                grid = numpy.asarray(grid, dtype=float)
+                artifact = evidence_assets.write_array_products(
+                    directory,
+                    name,
+                    {
+                        "effective_grid": grid,
+                        "ell": numpy.asarray(ell),
+                        "spectra": spectra,
+                    },
+                )
+                return {
+                    "artifact": artifact,
+                    "effective_grid": _projection_array_digest(grid),
+                }
+
+            base = record(
+                "base",
+                [1, 2],
+                {
+                    "TT": numpy.array([2.0, 4.0]),
+                    "TE": numpy.zeros(2),
+                },
+            )
+            fine = record(
+                "fine",
+                [1, 1.5, 2],
+                {
+                    "TT": numpy.array([2.0, 4.004]),
+                    "TE": numpy.zeros(2),
+                },
+            )
+            axis = {"base": base, "refined": fine, "error": 0.001}
+            measured = diagnostics._validate_measured_completion_axis(
+                directory, axis, ("TT", "TE"), (2, 3)
+            )
+            self.assertGreater(measured, 0)
+            self.assertLess(measured, 0.001)
+            with self.assertRaisesRegex(ValueError, "understates"):
+                diagnostics._validate_measured_completion_axis(
+                    directory, {**axis, "error": 0.0}, ("TT", "TE"), (2, 3)
+                )
+            with self.assertRaisesRegex(ValueError, "surfaces"):
+                diagnostics._validate_measured_completion_axis(
+                    directory, axis, ("TT", "TE", "EE"), (2, 3)
+                )
+            with self.assertRaisesRegex(ValueError, "multipoles"):
+                diagnostics._validate_measured_completion_axis(
+                    directory, axis, ("TT", "TE"), (2, 4)
+                )
+            with self.assertRaisesRegex(ValueError, "effective grid"):
+                diagnostics._validate_measured_completion_axis(
+                    directory, {**axis, "refined": base}, ("TT", "TE"), (2, 3)
+                )
+            forged = {**fine, "effective_grid": base["effective_grid"]}
+            with self.assertRaisesRegex(
+                ValueError, "grid is missing or stale"
+            ):
+                diagnostics._validate_measured_completion_axis(
+                    directory,
+                    {**axis, "refined": forged},
+                    ("TT", "TE"),
+                    (2, 3),
+                )
+            tiny_cross = record(
+                "tiny-cross",
+                [1, 1.5, 2],
+                {
+                    "TT": numpy.array([2.0, 4.0]),
+                    "TE": numpy.array([1e-300, 0.0]),
+                },
+            )
+            with self.assertRaisesRegex(ValueError, "understates"):
+                diagnostics._validate_measured_completion_axis(
+                    directory,
+                    {**axis, "refined": tiny_cross},
+                    ("TT", "TE"),
+                    (2, 3),
+                )
+
     def test_retained_quadratures_recompute_rule_and_integral(self):
         """Rehashed storage claims cannot replace the actual operator."""
 
@@ -2912,6 +3058,11 @@ class CompletionDependencyTestCase(unittest.TestCase):
             primary=numpy.asarray((1.0, -2.0, 3.0)),
             secondary=numpy.asarray((2.0, 1.0, -1.0)),
             product_observer=lambda kind, products: observed.append(products),
+            product_identity={
+                "observable": "TT",
+                "primary_component": "t",
+                "secondary_component": "u",
+            },
         )
         with tempfile.TemporaryDirectory() as directory:
             source = assets.write_array_products(
@@ -2932,12 +3083,21 @@ class CompletionDependencyTestCase(unittest.TestCase):
                 {
                     "k": waves,
                     "ell": numpy.asarray((2,)),
-                    "transfers": {"t": numpy.ones((1, 3))},
+                    "eta": numpy.arange(3.0),
+                    "eta_weights": spectrum_projection._simpson_weights(
+                        numpy.arange(3.0)
+                    ),
+                    "chi": numpy.asarray((2.0, 1.0, 0.0)),
+                    "source_chi": 2.0,
+                    "transfers": {
+                        "t": numpy.asarray(((1.0, -2.0, 3.0),)),
+                        "u": numpy.asarray(((2.0, 1.0, -1.0),)),
+                    },
                     "spectra": {"TT": values},
                 },
             )
 
-            def chain(payload):
+            def chain(payload, projected=projection):
                 quadrature = assets.write_array_products(
                     directory, "quadrature", payload
                 )
@@ -2945,10 +3105,16 @@ class CompletionDependencyTestCase(unittest.TestCase):
                     directory,
                     "chain.json",
                     {
-                        "schema_version": 2,
+                        "schema_version": 3,
                         "source": source,
-                        "projection": projection,
-                        "quadratures": [quadrature],
+                        "projection": projected,
+                        "quadratures": {
+                            "TT": {
+                                "artifact": quadrature,
+                                "primary_component": "t",
+                                "secondary_component": "u",
+                            }
+                        },
                     },
                 )
 
@@ -2956,7 +3122,10 @@ class CompletionDependencyTestCase(unittest.TestCase):
                 directory, chain(observed[0])
             )
             diagnostics.validate_cmb_completion_products(loaded)
-            with self.assertRaisesRegex(ValueError, "reproduce"):
+            numpy.testing.assert_array_equal(
+                loaded["projection_grid"], numpy.arange(3.0)
+            )
+            with self.assertRaisesRegex(ValueError, "match its projection"):
                 diagnostics.read_cmb_completion_products(
                     directory,
                     chain(
@@ -2966,17 +3135,92 @@ class CompletionDependencyTestCase(unittest.TestCase):
                         }
                     ),
                 )
+            with self.assertRaisesRegex(ValueError, "auto fallback"):
+                diagnostics.read_cmb_completion_products(
+                    directory,
+                    chain(
+                        {
+                            **observed[0],
+                            "positive_fallback_rows": numpy.array([True]),
+                        }
+                    ),
+                )
+            changed_projection = assets.write_array_products(
+                directory,
+                "changed-projection",
+                {
+                    "k": waves,
+                    "ell": numpy.asarray((2,)),
+                    "eta": numpy.arange(3.0),
+                    "eta_weights": spectrum_projection._simpson_weights(
+                        numpy.arange(3.0)
+                    ),
+                    "chi": numpy.asarray((2.0, 1.0, 0.0)),
+                    "source_chi": 2.0,
+                    "transfers": {
+                        "t": numpy.asarray(((1.0, -2.0, 3.0),)),
+                        "u": numpy.asarray(((2.0, 1.0, -1.0),)),
+                    },
+                    "spectra": {"TT": values + 1},
+                },
+            )
+            with self.assertRaisesRegex(ValueError, "reproduce"):
+                diagnostics.read_cmb_completion_products(
+                    directory,
+                    chain(
+                        {**observed[0], "C_ell": values + 1},
+                        changed_projection,
+                    ),
+                )
+            wrong_radial = assets.write_array_products(
+                directory,
+                "wrong-radial",
+                {
+                    "k": waves,
+                    "ell": numpy.asarray((2,)),
+                    "eta": numpy.arange(3.0),
+                    "eta_weights": numpy.ones(3),
+                    "chi": numpy.asarray((2.0, 1.0, 0.0)),
+                    "source_chi": 2.0,
+                    "transfers": {
+                        "t": numpy.asarray(((1.0, -2.0, 3.0),)),
+                        "u": numpy.asarray(((2.0, 1.0, -1.0),)),
+                    },
+                    "spectra": {"TT": values},
+                },
+            )
+            with self.assertRaisesRegex(ValueError, "radial projection"):
+                diagnostics.read_cmb_completion_products(
+                    directory, chain(observed[0], wrong_radial)
+                )
             with self.assertRaisesRegex(ValueError, "operator"):
                 diagnostics.read_cmb_completion_products(
                     directory,
                     chain(
                         {
                             **observed[0],
-                            "C_ell": 2 * values,
                             "weights": 2 * observed[0]["weights"],
                         }
                     ),
                 )
+            wrong_transfer = dict(observed[0])
+            wrong_transfer["weighted_transfer_products"] = numpy.zeros((1, 3))
+            with self.assertRaisesRegex(ValueError, "weighted transfers"):
+                diagnostics.read_cmb_completion_products(
+                    directory, chain(wrong_transfer)
+                )
+            for changed in (
+                {"log_k": observed[0]["log_k"] + 0.01},
+                {"observable": "EE"},
+                {"auto_spectrum": True},
+            ):
+                with self.subTest(changed=tuple(changed)):
+                    with self.assertRaisesRegex(
+                        ValueError, "match its projection"
+                    ):
+                        diagnostics.read_cmb_completion_products(
+                            directory, chain({**observed[0], **changed})
+                        )
 
     def test_completion_products_require_archive_arrays_with_matching_grids(
         self,
