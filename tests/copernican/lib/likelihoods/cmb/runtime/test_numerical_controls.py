@@ -40,6 +40,10 @@ class NumericalControlsTestCase(unittest.TestCase):
             len(rows) * numpy.sum(group["schedule_max"]),
             2 * group["native_work"],
         )
+        self.assertEqual(group["schedule_work"], 1040)
+        self.assertLessEqual(
+            len(rows) * group["schedule_work"], 2 * group["native_work"]
+        )
         rows[-1]["eta"] = eta + 0.1
         self.assertEqual(len(numerical_controls.group_mode_schedules(rows)), 2)
         self.assertEqual(
@@ -51,9 +55,37 @@ class NumericalControlsTestCase(unittest.TestCase):
             2,
         )
         rows[0]["schedule"][0] = 8
-        self.assertGreater(
+        self.assertEqual(
             len(numerical_controls.group_mode_schedules(rows[:-1])), 1
         )
+        self.assertGreater(
+            len(
+                numerical_controls.group_mode_schedules(
+                    rows[:-1], split_intervals=False
+                )
+            ),
+            1,
+        )
+        costly = []
+        for index in range(4):
+            schedule = numpy.ones(4, dtype=int)
+            schedule[index] = 1024
+            costly.append(
+                {
+                    "index": index,
+                    "k": index + 1,
+                    "eta": eta[:5],
+                    "grids": {"eta": eta[:5]},
+                    "schedule": schedule,
+                }
+            )
+        groups = numerical_controls.group_mode_schedules(costly)
+        self.assertGreater(len(groups), 1)
+        for group in groups:
+            self.assertLessEqual(
+                len(group["indices"]) * group["schedule_work"],
+                2 * group["native_work"],
+            )
 
     def test_unrecognized_failure_does_not_promote_a_grid(self):
         self.assertIsNone(
@@ -180,6 +212,17 @@ class NumericalControlsTestCase(unittest.TestCase):
         self.assertEqual(next_trial["axis"], "evolution")
         self.assertEqual(next_trial["unproductive_budget_axes"], ["source"])
         self.assertAlmostEqual(next_trial["relative_error"], 1.11)
+        self.assertEqual(
+            next_trial["refinement_metric"],
+            {
+                "kind": "observable_budget_ratio",
+                "value": next_trial["relative_error"],
+                "threshold": 1.0,
+            },
+        )
+        self.assertAlmostEqual(
+            next_trial["products"]["TT"]["relative_error_bound"], 0.0111
+        )
         self.assertEqual(
             changed["_numerical_overrides"]["evolution_eta_sample_count"], 256
         )

@@ -13,6 +13,7 @@ import math
 from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
+from ....cmb_output import canonical_cmb_spectrum_name, split_cmb_spectrum_name
 from ....phase_space import phase_space_grid_name, plan_distribution_grid
 
 _ENGINE_VERSION = "cmb-engine-planner-v4"
@@ -154,9 +155,17 @@ def plan_cmb_numerics(
     ell_max = int(requested_ell_values[-1])
     spectrum_order = ("TT", "TE", "EE", "BB", "PP", "TP", "EP")
     requested_spectra = tuple(
-        name
-        for name in spectrum_order
-        if name in {str(value).upper() for value in spectra}
+        sorted(
+            {canonical_cmb_spectrum_name(value) for value in spectra},
+            key=lambda name: (
+                (
+                    spectrum_order.index(split_cmb_spectrum_name(name)[2])
+                    if split_cmb_spectrum_name(name)[2] in spectrum_order
+                    else len(spectrum_order)
+                ),
+                name,
+            ),
+        )
     )
     perturbations = _mapping(contract.get("perturbations"))
     compiled_perturbations = contract.get("perturbation_data")
@@ -448,11 +457,7 @@ def plan_cmb_numerics(
         # Every normal request, including an explicit ell array, carries the
         # final numerical envelope owned by the engine.  Reduced-grid tests
         # must opt into the diagnostic boundary explicitly.
-        required_spectra = tuple(
-            name
-            for name in requested_spectra
-            if name in {"TT", "TE", "EE", "PP"}
-        ) or ("TT", "TE", "EE")
+        required_spectra = requested_spectra or ("TT", "TE", "EE")
         accuracy_controls.update(
             {
                 # Ordinary production requests carry one engine-owned
@@ -698,7 +703,7 @@ def plan_cmb_numerics(
                 "status": "required",
             },
             "physical_limits": {
-                "method": "measured_k_eta_tail_and_lensing_support",
+                "method": "independent_physical_domain_refinement",
                 "status": "required",
             },
         }

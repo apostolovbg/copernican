@@ -52,10 +52,17 @@ def _thermal_derivative(
     hydrogen_today,
     temperature_today,
     helium_ratio,
+    hydrogen_early_branch=None,
+    hydrogen_neutral=None,
 ):
     """Return coupled atomic and thermal derivatives with respect to ln a."""
 
-    hydrogen = min(max(float(state[0]), 0.0), 1.0)
+    if hydrogen_neutral is None:
+        hydrogen = min(max(float(state[0]), 0.0), 1.0)
+        neutral_hydrogen = 1.0 - hydrogen
+    else:
+        neutral_hydrogen = min(max(float(hydrogen_neutral), 0.0), 1.0)
+        hydrogen = 1.0 - neutral_hydrogen
     helium = min(max(float(state[1]), 0.0), 1.0)
     ratio_temperature = max(float(state[2]), 1e-12)
     radiation_temperature = temperature_today / scale_factor
@@ -63,7 +70,6 @@ def _thermal_derivative(
     number_hydrogen = hydrogen_today / scale_factor**3
     number_helium = helium_ratio * number_hydrogen
     electrons = hydrogen + helium_ratio * helium
-    neutral_hydrogen = max(1.0 - hydrogen, 0.0)
     neutral_helium = max(1.0 - helium, 0.0)
     saha_prefactor = (_SAHA_FACTOR * temperature) ** 1.5
 
@@ -104,7 +110,12 @@ def _thermal_derivative(
         (1.0 + 8.2245809 * hydrogen_trapping) / 1.125
         + beta_hydrogen * hydrogen_trapping
     )
-    if hydrogen > 0.985:
+    use_early_branch = (
+        hydrogen > 0.985
+        if hydrogen_early_branch is None
+        else hydrogen_early_branch
+    )
+    if use_early_branch:
         hydrogen_c = 1.0
     derivative_hydrogen = -hydrogen_balance * hydrogen_c / hubble_si
 
@@ -311,33 +322,80 @@ def evolve_thermal_history(
         raise ValueError("Thermal evolution requires physical atomic inputs")
     log_a = numpy.log(scale_factors)
     expansion = PchipInterpolator(log_a, numpy.log(hubble_rates_si))
+    # An initially ionized plasma can relax on a time scale shorter than
+    # the spacing of floating-point values near its absolute log(a).  An
+    # origin at zero retains those early steps without changing the ODE.
+    log_origin = float(log_a[0])
+    elapsed_log_a = log_a - log_origin
 
-    def derivative(log_scale, state):
-        """Evaluate atomic rates against the caller's physical expansion."""
-
-        return _thermal_derivative(
-            math.exp(log_scale),
-            state,
-            hubble_si=math.exp(float(expansion(log_scale))),
-            hydrogen_today=hydrogen_today,
-            temperature_today=temperature_today,
-            helium_ratio=helium_ratio,
-        )
-
-    solution = solve_ivp(
-        derivative,
-        (log_a[0], log_a[-1]),
-        (initial_hydrogen, initial_helium, 1.0),
-        t_eval=log_a,
-        method="BDF",
-        rtol=rtol,
-        atol=(1e-11, 1e-11, 1e-10),
+    # Evolving the neutral fraction retains its significant digits when the
+    # gas is almost fully ionized. The returned public history is ionized H.
+    state = numpy.asarray(
+        (1.0 - initial_hydrogen, initial_helium, 1.0), dtype=float
     )
-    if not solution.success or not numpy.all(numpy.isfinite(solution.y)):
-        raise ValueError(
-            "Coupled thermal evolution failed: " + solution.message
+    samples = numpy.empty((3, log_a.size), dtype=float)
+    cursor = 0
+    start = 0.0
+    stop = float(elapsed_log_a[-1])
+    early_branch = initial_hydrogen > 0.985
+    previous_transition = None
+    while start < stop:
+
+        def derivative(elapsed, values):
+            """Keep the exact atomic branch fixed until its crossing."""
+
+            log_scale = log_origin + elapsed
+            derivatives = _thermal_derivative(
+                math.exp(log_scale),
+                (1.0 - values[0], values[1], values[2]),
+                hubble_si=math.exp(float(expansion(log_scale))),
+                hydrogen_today=hydrogen_today,
+                temperature_today=temperature_today,
+                helium_ratio=helium_ratio,
+                hydrogen_early_branch=early_branch,
+                hydrogen_neutral=values[0],
+            )
+            return numpy.asarray((-derivatives[0], *derivatives[1:]))
+
+        def transition(_elapsed, values):
+            """Locate the declared discontinuous hydrogen escape switch."""
+
+            return (1.0 - 0.985) - float(values[0])
+
+        transition.terminal = True
+        transition.direction = -1 if early_branch else 1
+        solution = solve_ivp(
+            derivative,
+            (start, stop),
+            state,
+            events=transition,
+            dense_output=True,
+            method="BDF",
+            rtol=rtol,
+            atol=(1e-11, 1e-11, 1e-10),
         )
-    hydrogen, helium, ratio_temperature = solution.y
+        if not solution.success or not numpy.all(numpy.isfinite(solution.y)):
+            raise ValueError(
+                "Coupled thermal evolution failed: " + solution.message
+            )
+        end = float(solution.t[-1])
+        next_cursor = int(numpy.searchsorted(elapsed_log_a, end, side="right"))
+        samples[:, cursor:next_cursor] = solution.sol(
+            elapsed_log_a[cursor:next_cursor]
+        )
+        cursor = next_cursor
+        if not solution.t_events[0].size:
+            break
+        if previous_transition is not None and end <= previous_transition:
+            raise ValueError("Hydrogen escape transition did not advance")
+        previous_transition = end
+        state = numpy.asarray(solution.y_events[0][-1], dtype=float)
+        early_branch = not early_branch
+        start = end
+    if cursor != log_a.size or not numpy.all(numpy.isfinite(samples)):
+        raise ValueError("Coupled thermal evolution omitted requested samples")
+    neutral_hydrogen, helium, ratio_temperature = samples
+    hydrogen = 1.0 - neutral_hydrogen
     if (
         numpy.any(hydrogen < -1e-7)
         or numpy.any(hydrogen > 1 + 1e-7)

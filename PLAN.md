@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-11-12
+**Last Updated:** 2026-11-14
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -1398,6 +1398,88 @@ projection, caches, numerical work accounting, and their direct tests.
    Test changing totals, unequal interval costs, batching, cache hits and
    phase transitions; completed work must not exceed its stated total.
 
+### Practical solver recovery sequence, 2026-11-14
+
+Execute this sequence before another completion-matrix attempt. The ordinary
+LCDM TT request at ell 2 was interrupted without a spectrum after 17,600.7
+seconds of measured execution and about 15 hours 16 minutes of elapsed wall
+time. Its log records repeated evolution and hierarchy promotions, including
+later evolution values 2.1979 and 1.37375. The log alone does not identify
+whether those latter values are raw errors or normalized budget ratios.
+Retain the stopped attempt's log and report under the configured output
+root's `ccmbs-acceptance/completion-evidence/` directory in
+`ordinary-bounded-interpolation-20261113/`.
+
+A bounded single-model reproduction captured the first low-k failure as a
+source-history relative error of 0.01000830254 against 0.01, for
+`temperature_isw` at k=1e-6 Mpc^-1 and eta=271.6259 Mpc. The capture
+stopped the request deliberately after retaining the failure; it is not a
+completed solve. The stopped ordinary run's later 2.1979 and 1.37375 values
+remain unidentified. A separate cold-repeat investigation found that a
+projection-chunk regression fails its 5e-14 comparison; identical settings
+also produced differences already in source histories before projection.
+The cause remains unresolved. Retain these investigations under
+`completion-evidence/refinement-evidence-bounded-20261114/` and
+`completion-evidence/projection-repeat-bounded-20261114/` respectively.
+
+A follow-up bounded investigation traced one cold-repeat discrepancy to
+the synthetic fixture's recombination and continuous evolution. Independent
+Radau recombination solves produced a maximum hydrogen-fraction difference
+of 3.6e-17 after their first 1,058 recorded RHS evaluations matched. With
+the same recombination result, fresh evolution and different projection
+chunk sizes produced identical spectra in the controlled check. Changing
+the recombination result by one floating-point step changed the adaptive
+work in all 12 modes and produced native-history differences; the fixture's
+continuous ODE controls are 1e-5 relative and 1e-8 absolute. Tightening
+those controls in a separate diagnostic reduced the largest measured source
+difference, but did not establish scientific acceptance. The strict 5e-14
+projection regression still fails intermittently on independent cold runs;
+its expectation and the actual cold-repeat sensitivity remain unresolved.
+Retain the controlled evidence in
+`completion-evidence/repeat-root-20261114/`.
+
+1. **Diagnose the actual refinements.** Record each failure label, numerical
+   axis, product, mode, physical interval, threshold, normalization and value.
+   Distinguish raw errors from ratios to a budget. Use retained independent
+   histories and bounded reproductions to identify whether each evolution or
+   hierarchy failure arises from the physical equations, numerical
+   resolution, interpolation, or error accounting. Fix demonstrated causes
+   in their owners; do not weaken or bypass a failing check.
+2. **Make useful work resumable.** Persist completed histories, grids, source
+   and transfer products, and refinement results through the existing
+   evidence owners. Use atomic manifests, payload validation and identities
+   covering actual physics, declarations, grids, numerical controls, backend
+   and relevant source dependencies. Resume matching products after producer
+   exit or interruption; invalidate changed dependencies. Do not reuse an
+   old certificate for a different request or replace an independent
+   refinement with a cached base trajectory. Test cold, valid-warm, exact
+   repeat, interrupted-resume, changed-dependency and invalid-reuse paths.
+3. **Optimize measured bottlenecks.** Profile real LCDM, massive-neutrino and
+   PPF executions, including evolution, hierarchy, projection, memory and
+   repeated work. Repair the dominant owning kernels and scheduling or reuse
+   paths. Keep the solver general across declarations and sectors. Validate
+   every interpolation or approximation independently, with its own error
+   bound, applicability and negative controls; retain ordinary-route parity.
+4. **Set and demonstrate practical budgets.** Measure cold and valid-warm
+   time, memory and actual work for bounded checks, ordinary sparse requests
+   and frozen full-window cases on this machine. From those measurements,
+   record proposed per-machine time and memory budgets and obtain human
+   agreement before the full matrix. Define a time or work limit before each
+   bounded investigation, retain its outcome, and stop at that limit rather
+   than letting an unbounded attempt consume the development loop. A timing
+   target never substitutes for numerical or physical acceptance.
+5. **Restore scientific acceptance.** Preserve the frozen cases, reference
+   identities, windows, surfaces, tolerances and combined 0.5% observable
+   numerical budget. Establish actual extended k-domain support and every
+   applicable independent numerical axis. Then run matched LCDM, Planck and
+   all remaining required cases with durable products and readback, following
+   Slice Seven's existing physical and consumer criteria.
+
+Slice Six remains open until its existing closure conditions and the agreed
+budgets are met. Slice Seven remains in progress until its existing scientific
+closure passes. A passing preflight, bounded component test or green gate is
+not a scientific acceptance decision.
+
 ### Measured baseline and work in progress, 2026-10-27
 
 The unmodified ordinary public LCDM request for ell=(2,10,20), TT/TE/EE,
@@ -2124,6 +2206,121 @@ this is not scientific acceptance.
 After the PPF declaration and reference changes, the same preflight passed
 in 135.585 seconds before the subsequent integration changes. It likewise
 did not run or accept a CCMBS spectrum.
+
+### Independent reference support investigation (2026-11-12)
+
+On the new arm64 machine, stock CAMB reproduced the frozen initial LCDM
+reference within the existing rebuild envelope. Increasing its
+`max_eta_k` from 7,375 to 14,750 changed raw PP at ell 2500 by 17.48%
+relative to the finer calculation; 14,750 to 29,500 changed it by 2.20%.
+The next changes, 29,500 to 59,000 and 59,000 to 118,000, were 0.217%
+and 0.0199%, respectively. These are CAMB-only numerical diagnostics,
+not CCMBS acceptance or proof of support for another declaration.
+For ell 2500, independently integrating the sampled CAMB lensing transfer
+through k=0.407 retained about 48.5% of its sampled integral through
+k=1.242 inverse Mpc. That diagnostic neither verifies CAMB's internal
+quadrature nor bounds the remaining contribution above the sampled endpoint.
+
+An input-matched temporary wCDM reference changed raw PP at ell 2500 by
+18.95% between the frozen setting and `max_eta_k=118000`. Its retained
+input-table comparison at 118,000 and its independent 59,000-to-118,000
+support comparison together passed the existing reference error budget.
+Across nine input-matched points, the same combined check rejected the
+`w0wa` `wa_plus_02` EP surface. At ell 50, the 59,000-to-118,000
+support change alone was 2.54 times the existing numerical allowance.
+The subsequent 118,000-to-236,000 and 236,000-to-472,000 support
+comparisons passed across that point's frozen surfaces and multipoles. At
+236,000, the combined independent input-table and 118,000-to-236,000
+support comparison passed for all nine input-matched points. The three
+stock-CAMB points also passed that support comparison. The independently
+regenerated candidates now own the completion references, with the original
+archive preserved byte-for-byte. One input-matched point's independent
+neutrino density differed by two floating-point units across machines; its
+new calculations use the exact frozen density. All frozen physical inputs,
+windows, cases and tolerances are unchanged. Independent production-domain
+evidence remains required before scientific acceptance. Runtime endpoint
+checks now report this domain as unresolved instead of calling the planner's
+own endpoint heuristic a measured tail bound.
+The named-point report distinguishes a completed production solve from
+numerical acceptance while independent completion axes remain unverified.
+
+A full-surface numerical-budget probe reproduced a missing BB threshold;
+TP and EP were also absent from the production refinement inventory. The
+planner and convergence checks now retain these surfaces with the existing
+0.5% numerical budget. Cross refinements use their matching auto spectra,
+including component-specific autos, and subset requests retain declared
+normalization inputs. This repairs numerical routing, not physical parity.
+
+The low-ell ordinary LCDM background failed when BDF reached the discontinuous
+hydrogen escape switch at ionization fraction 0.985. The atomic integrator now
+locates that transition and restarts from the same state on the other exact
+branch, including reverse crossings. A finer background also exposed loss of
+precision in the almost fully ionized initial relaxation. Evolving the neutral
+fraction with elapsed logarithmic time preserves the same atomic equations
+without changing tolerances. Both reproduced failures pass; against the
+earlier full-plan history, the largest hydrogen and helium absolute changes
+were 6.5e-8 and 1.7e-8. This is a thermal component check, not matched
+angular acceptance.
+
+The comparator now adds supplied input-sampling and k-support reference
+errors, preventing opposite-signed changes from cancelling. Reference helpers
+validate the preserved candidates, source identities and previous archive.
+Fixed-history LCDM source probes at k=0.2 and k=0.4 retained all 306 native
+state histories and reevaluated sources on 5,143 and 10,286 time samples.
+Their largest peak-scaled discrepancies were 0.000537 and 0.000242,
+respectively, for the ISW source. Under concurrent load, the k=0.4 probe
+took 252.6 seconds. A further extended-domain probe at k=0.8 completed in
+515.2 seconds for one native history; it did not compare a refined history
+or establish a spectrum error. These modes do not give an observable error
+bound or a practical full-window timing. Raw products are
+retained under `ccmbs-acceptance/completion-evidence/` in the configured
+output root, in `domain-probe-20261112T173431Z/`.
+
+Compatible generated, kinetic and final-accuracy mode batches now split at
+intervals with differing subdivision requirements and rejoin on the shared
+mesh. Every split mode retains its own schedule. Other diagnostic graphs
+retain their earlier grouping. Numerical limits, collision behavior,
+relaxation and independent acceptance checks remain in force. The full-window
+physical domain and matched acceptance remain open.
+
+For the LCDM high-k pair at 0.79 and 0.8 per Mpc, independently evolved
+histories and eight source arrays per mode matched the split result exactly.
+The measured separate runs took 1,023.0 seconds and the shared run took
+414.8 seconds, including source preparation. This is a two-mode diagnostic,
+not an end-to-end speed estimate. A real ordinary LCDM TT request at ell 2
+was stopped after 1,197.8 seconds. Its first two evolution refinements
+reported relative errors of 0.0100083 and 0.0104218 against the unchanged
+0.01 target; a third attempt had started. It returned no spectrum, so the
+ordinary request's completion and full-window practicality remain unresolved.
+The complete histories and measurement records are retained in
+`ccmbs-acceptance/completion-evidence/production-split-retest-20261113/`
+under the configured output root.
+
+The first ordinary evolution failure was isolated to the low-k ISW source
+at k=1e-6 per Mpc and eta=271.63 Mpc. Its error decreased from 0.0100083
+to 0.00632623 after the ordinary evolution promotion. The second failure was
+the k=0.3 photon hierarchy state `theta_gamma26` at eta=345.79 Mpc. Its
+0.0104218 error is also present at common native nodes, and decreased to
+0.00606284 after the next promotion. These isolated histories are not a
+whole-request convergence result. Native pilot validation now checks the
+central and endpoint modes first, preserving all selected checks while
+avoiding unrelated high-k work before an endpoint rejection. Raw diagnostic
+histories are retained under the output root's
+`ccmbs-acceptance/completion-evidence/` in
+`evolution-investigation-isolated-20261113/`,
+`evolution-second-tier-20261113/` and `evolution-third-tier-20261113/`.
+
+The subsequent ordinary ell 2 request also promoted hierarchy depth after
+measured errors of 0.04492, 0.0472409 and 0.0127818. During its 16-mode
+native-history resampling, the process reached a 13.2 GiB peak footprint on
+an 8 GiB machine and was interrupted after 10,331 seconds without a result.
+Native-state interpolation now works in bounded column blocks without
+changing the individual splines. On a retained physical 119,441-by-306
+history, the previous and blocked outputs were bit-for-bit equal. One local
+run measured 7.90 versus 1.39 seconds and 2.10 versus 0.74 GB peak RSS.
+This isolated comparison does not establish end-to-end runtime or physical
+acceptance. Its retained data and script are under the output root's
+`ccmbs-acceptance/completion-evidence/history-interpolation-20261113/`.
 
 **Work:**
 

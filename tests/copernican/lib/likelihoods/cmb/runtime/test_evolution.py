@@ -122,6 +122,108 @@ def _compiled_graph_fixture():
 class EvolutionModuleTestCase(unittest.TestCase):
     """Exercise declared evolution helpers directly."""
 
+    def test_split_rejoins_independent_collision_and_relaxation_histories(
+        self,
+    ):
+        """Four modes retain independent full states across split intervals."""
+
+        eta = numpy.linspace(0.0, 0.6, 7)
+        initial = numpy.array([[1.0, 0.1], [0.8, 0.2], [1.2, 0.3], [0.7, 0.4]])
+        schedules = numpy.ones((4, 6), dtype=int)
+        schedules[:, 2] = (1, 4, 16, 4)
+        schedules[:, 4] = (8, 1, 4, 8)
+        active = numpy.array(
+            [
+                [True, True, False, False, True, True],
+                [True, False, False, True, True, False],
+                [False, True, True, False, False, True],
+                [True, True, False, True, False, False],
+            ]
+        )
+        strengths = numpy.array([2.0, 3.0, 4.0, 5.0])
+        work = []
+
+        def callbacks(indices):
+            """Build the same row-local dynamics for independent modes."""
+
+            rates = strengths[indices]
+
+            def rate(states, *, step_index, blend, active):
+                del states, active
+                return rates * (1 + 0.1 * (step_index + blend))
+
+            def rhs(states, *, step_index, blend, active):
+                damping = rate(
+                    states, step_index=step_index, blend=blend, active=active
+                )
+                return numpy.column_stack(
+                    (
+                        -0.2 * states[:, 0] + states[:, 1],
+                        states[:, 0] - damping * states[:, 1],
+                    )
+                )
+
+            def collision(states, *, step_index, blend, dt, active):
+                del step_index, blend
+                states[:, 0] *= numpy.where(active, 1.0, numpy.exp(-dt))
+                return states
+
+            return rate, rhs, collision
+
+        rate, rhs, collision = callbacks(numpy.arange(4))
+        histories, _, stats = evolution._integrate_batched_rk4(
+            initial,
+            eta,
+            required_substeps=schedules,
+            active_intervals=active,
+            rhs=rhs,
+            pre_step=collision,
+            post_step=collision,
+            relaxation_slot=1,
+            relaxation_rate=rate,
+            split_interval_ratio=2,
+            progress=lambda done, total, **unused: work.append((done, total)),
+        )
+        self.assertEqual(stats.split_interval_count, 2)
+        self.assertEqual(stats.split_group_count, 6)
+        # split_progress counts full-width evaluations without losing work.
+        self.assertEqual(work[-1][0], work[-1][1])
+        expected_work = 4 * sum(
+            int(numpy.sum(numpy.unique(schedules[:, index])))
+            for index in range(schedules.shape[1])
+        )
+        self.assertEqual(work[-1][1], expected_work)
+        self.assertEqual(stats.rk_stage_count, expected_work)
+        self.assertTrue(
+            all(
+                earlier[0] <= later[0]
+                for earlier, later in zip(work, work[1:])
+            ),
+            "split_progress stays monotonic",
+        )
+        for index in range(4):
+            rate, rhs, collision = callbacks(numpy.array([index]))
+            reference = evolution._integrate_batched_rk4(
+                initial[index : index + 1],
+                eta,
+                required_substeps=schedules[index : index + 1],
+                active_intervals=active[index : index + 1],
+                rhs=rhs,
+                pre_step=collision,
+                post_step=collision,
+                relaxation_slot=1,
+                relaxation_rate=rate,
+            )[0]
+            # selected_rhs, selected_rate, selected_step and apply must
+            # preserve the independently integrated complete state history.
+            self.assertTrue(
+                numpy.allclose(
+                    histories[index], reference[0], rtol=1e-13, atol=1e-14
+                ),
+                "selected_rhs, selected_rate, selected_step and apply "
+                "must preserve independently evolved states",
+            )
+
     def test_exponential_rk4_resolves_coupled_variable_stiffness(self):
         """Compare both mode rows with independently integrated stiff ODEs."""
         from scipy.integrate import solve_ivp
@@ -353,6 +455,56 @@ class EvolutionModuleTestCase(unittest.TestCase):
             evolution._interpolate_declared_histories(
                 native, histories, [-1.0]
             )
+
+    def test_native_history_interpolation_bounds_state_blocks(self):
+        """Bound large mapped-state work without changing any spline."""
+
+        native = numpy.linspace(0.0, 3.0, 257) ** 1.2
+        query = numpy.linspace(native[0], native[-1], 1201)
+        histories = {
+            f"state_{index}": numpy.sin(native * (index + 1)) / (index + 1)
+            for index in range(7)
+        }
+        histories["tiny"] = numpy.exp(-native) * 1e-310
+        histories["zero"] = numpy.zeros_like(native)
+        with mock.patch.object(
+            evolution, "_HISTORY_INTERPOLATION_CELL_BUDGET", 1_000_000
+        ):
+            reference = evolution._interpolate_declared_histories(
+                native, histories, query
+            )
+        original = evolution.CubicHermiteSpline
+        widths = []
+
+        def track(grid, values, derivatives, **kwargs):
+            widths.append(values.shape[1])
+            return original(grid, values, derivatives, **kwargs)
+
+        with (
+            mock.patch.object(
+                evolution,
+                "_HISTORY_INTERPOLATION_CELL_BUDGET",
+                native.size * 2,
+            ),
+            mock.patch.object(
+                evolution, "CubicHermiteSpline", side_effect=track
+            ),
+        ):
+            sampled = evolution._interpolate_declared_histories(
+                native, histories, query
+            )
+        self.assertGreater(len(widths), 1)
+        self.assertLessEqual(max(widths), 2)
+        for name in histories:
+            numpy.testing.assert_array_equal(sampled[name], reference[name])
+        invalid = {**histories, "invalid": numpy.full(native.size, numpy.nan)}
+        with (
+            mock.patch.object(
+                evolution, "_HISTORY_INTERPOLATION_CELL_BUDGET", native.size
+            ),
+            self.assertRaises(ValueError),
+        ):
+            evolution._interpolate_declared_histories(native, invalid, query)
 
     def test_inactive_split_resolves_driven_collision_equilibrium(self):
         """Stable exact damping alone misses the analytic forced solution."""

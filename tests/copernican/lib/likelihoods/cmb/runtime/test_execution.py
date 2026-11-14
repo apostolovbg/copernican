@@ -13,6 +13,39 @@ from copernican.lib.likelihoods.cmb.runtime import execution
 class ExecutionModuleTestCase(unittest.TestCase):
     """Exercise public numerical execution composition directly."""
 
+    def test_observable_budget_covers_all_declared_standard_surfaces(self):
+        """BB, TP and EP have numerical budgets alongside TT/TE/EE/PP."""
+        from copernican.lib.likelihoods.cmb.runtime import convergence
+
+        names = ("TT", "TE", "EE", "BB", "PP", "TP", "EP")
+        spectra = {
+            name: numpy.asarray([0.0 if name == "BB" else 1.0])
+            for name in names
+        }
+        bounds = {name: numpy.zeros(1) for name in names}
+        result = SimpleNamespace(
+            spectra=spectra,
+            runtime_envelope={
+                "observable_axis_error_bounds": {"source": bounds}
+            },
+        )
+        controls = convergence.resolve_production_scalar_convergence(
+            {
+                "_engine_accuracy_controls": {
+                    "production_scalar_convergence": {
+                        "enabled": True,
+                        "required_spectra": names,
+                    }
+                }
+            }
+        )
+        budget = execution._require_observable_budget(result, controls)
+        self.assertTrue(budget["converged"])
+        self.assertEqual(set(budget["products"]), set(names))
+        bounds["EP"] = numpy.asarray([0.01])
+        with self.assertRaises(execution.AdaptiveNonConvergenceError):
+            execution._require_observable_budget(result, controls)
+
     def test_independent_source_times_rebind_and_restore_physical_context(
         self,
     ):
@@ -273,6 +306,105 @@ class ExecutionModuleTestCase(unittest.TestCase):
         self.assertGreater(calls[0][0], raw["numerical"]["k_min"])
         self.assertLess(calls[0][0], raw["numerical"]["k_max"])
 
+    def test_native_pilot_checks_endpoint_before_admitting_remaining_modes(
+        self,
+    ):
+        """A failing endpoint cannot trigger unrelated high-k evolution."""
+
+        from copernican.lib.likelihoods.cmb.runtime import evidence
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._speedup_contract(
+            test_cmb._declared_scalar_hierarchy_contract()
+        )
+        raw["perturbations"]["accuracy_controls"] = {
+            "adaptive_evolution": {
+                "enabled": True,
+                "minimum_nodes": 32,
+                "maximum_nodes": 1024,
+                "relative_tolerance": 0.02,
+            }
+        }
+        contract = test_cmb._prepare_declared_contract(raw)
+        build = execution.build_declared_mode_evolution
+        estimate = execution.estimate_history_convergence
+        admitted, context = [], {}
+
+        def capture(inputs):
+            runtime = build(inputs)
+            context["waves"] = numpy.asarray(inputs.k_values)
+            evolve = runtime.evolve_declared_modes_batched
+
+            def admit(waves, **kwargs):
+                if kwargs.get("evolution_sample_count_override") is None:
+                    admitted.extend(float(wave) for wave in waves)
+                return evolve(waves, **kwargs)
+
+            return replace(runtime, evolve_declared_modes_batched=admit)
+
+        def observe(kind, products):
+            if kind == "native_refinement":
+                context["validated_wave"] = float(products["k"])
+
+        def compare(*args, **kwargs):
+            result = estimate(*args, **kwargs)
+            fails = context["validated_wave"] == float(
+                context["waves"][context["failure_index"]]
+            )
+            return replace(
+                result,
+                converged=not fails,
+                relative_error=0.5 if fails else 0.0,
+            )
+
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        for failure_index, expected in ((0, (2, 0)), (4, (2, 0, 4))):
+            with self.subTest(failing_endpoint=failure_index):
+                execution.cache.clear_cmb_caches()
+                admitted.clear()
+                context["failure_index"] = failure_index
+                with (
+                    evidence.capture_completed_cmb_products(observe),
+                    mock.patch.object(
+                        execution, "build_declared_mode_evolution", capture
+                    ),
+                    mock.patch.object(
+                        execution,
+                        "informative_k_indices",
+                        return_value=(0, 1, 2, 3, 4),
+                    ),
+                    mock.patch.object(
+                        execution, "estimate_history_convergence", compare
+                    ),
+                ):
+                    with self.assertRaises(
+                        execution.AdaptiveNonConvergenceError
+                    ) as caught:
+                        execution._compute_custom_cmb_spectrum_data_impl(
+                            contract,
+                            (2,),
+                            requested_spectra=("TT",),
+                            performance_timer=execution.PhaseTimer(),
+                        )
+                self.assertEqual(
+                    caught.exception.evidence["history_kind"], "state"
+                )
+                self.assertEqual(
+                    caught.exception.evidence["relative_normalization"],
+                    "history_amplitude",
+                )
+                self.assertEqual(
+                    caught.exception.evidence["relative_tolerance"], 0.02
+                )
+                self.assertEqual(
+                    caught.exception.evidence["mode_k"],
+                    float(context["waves"][failure_index]),
+                )
+                self.assertEqual(
+                    admitted,
+                    [float(context["waves"][index]) for index in expected],
+                )
+
     def test_ordinary_background_and_source_controls_remain_independent(
         self,
     ):
@@ -441,6 +573,129 @@ class ExecutionModuleTestCase(unittest.TestCase):
                 rtol=5e-14,
                 atol=0,
             )
+
+    def test_split_modes_match_independent_kinetic_and_ppf_histories(self):
+        """Real four-mode state and source histories survive split/rejoin."""
+
+        from copernican.lib.likelihoods.cmb.runtime import mode_evolution
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._speedup_contract(
+            test_cmb._declared_scalar_hierarchy_contract(
+                include_massive_neutrino=True
+            )
+        )
+        raw["perturbations"]["species"]["arbitrary_component"] = {
+            "sector": "scalar",
+            "equation_of_state": "-0.9",
+            "anisotropic_stress": "zero",
+            "scalar_closure": {
+                "kind": "ppf",
+                "density_fraction": "0.7",
+                "other_enthalpy": "0.3",
+                "transition": "0.4",
+                "initial": "0.0",
+            },
+        }
+        raw["numerical"].update(k_sample_count=4, k_max=0.03)
+        raw["_engine_numerical_plan"] = dict(raw["numerical"])
+        raw["_engine_accuracy_controls"] = {
+            "accuracy_tier": "final",
+            "adaptive_evolution": {
+                "minimum_nodes": 64,
+                "maximum_nodes": 512,
+                "relative_tolerance": 0.02,
+            },
+            "adaptive_source": {
+                "minimum_nodes": 64,
+                "maximum_nodes": 512,
+                "relative_tolerance": 0.02,
+            },
+            "adaptive_projection": {
+                "minimum_nodes": 64,
+                "maximum_nodes": 512,
+                "relative_tolerance": 0.02,
+            },
+        }
+        contract = test_cmb._prepare_declared_contract(raw)
+        waves = (0.02, 0.021, 0.022, 0.023)
+        group = mode_evolution.group_mode_schedules
+        integrate = mode_evolution._integrate_batched_rk4
+        self.addCleanup(execution.cache.clear_cmb_caches)
+
+        def run(*, independently):
+            """Capture native states with selected grouping."""
+
+            execution.cache.clear_cmb_caches()
+            pending, states = [], {}
+
+            def select(rows, **kwargs):
+                if independently:
+                    kwargs["maximum_modes"] = 1
+                groups = group(rows, **kwargs)
+                pending.extend(tuple(item["k_values"]) for item in groups)
+                return groups
+
+            def capture(initial, eta, **kwargs):
+                result = integrate(initial, eta, **kwargs)
+                selected = pending.pop(0)
+                for index, wave in enumerate(selected):
+                    states[float(wave)] = (
+                        numpy.array(eta),
+                        numpy.array(result[0][index]),
+                    )
+                return result
+
+            with (
+                mock.patch.object(
+                    mode_evolution, "group_mode_schedules", side_effect=select
+                ),
+                mock.patch.object(
+                    mode_evolution,
+                    "_integrate_batched_rk4",
+                    side_effect=capture,
+                ),
+            ):
+                result = execution._compute_custom_cmb_spectrum_data_impl(
+                    contract,
+                    (2,),
+                    source_probe=waves,
+                    requested_spectra=("TT", "TE", "EE"),
+                    performance_timer=execution.PhaseTimer(),
+                )
+            self.assertFalse(pending)
+            return result, states
+
+        reference, separate = run(independently=True)
+        batched, shared = run(independently=False)
+        envelope = batched.runtime_envelope
+        self.assertEqual(envelope["schedule_max_group_size"], 4)
+        self.assertGreater(envelope["schedule_split_interval_count"], 0)
+        self.assertTrue(envelope["ppf_batched_relaxation"])
+        self.assertEqual(envelope["schedule_max_overintegration_ratio"], 1.0)
+        for wave in waves:
+            numpy.testing.assert_array_equal(
+                shared[wave][0], separate[wave][0]
+            )
+            state_scale = numpy.maximum(
+                numpy.max(numpy.abs(shared[wave][1]), axis=0),
+                numpy.max(numpy.abs(separate[wave][1]), axis=0),
+            )
+            numpy.testing.assert_array_less(
+                numpy.abs(shared[wave][1] - separate[wave][1]),
+                numpy.broadcast_to(
+                    1e-11 * state_scale + 1e-300, shared[wave][1].shape
+                ),
+            )
+            for name in reference.sources[wave]:
+                left = batched.sources[wave][name]
+                right = reference.sources[wave][name]
+                scale = max(
+                    numpy.max(numpy.abs(left)), numpy.max(numpy.abs(right))
+                )
+                numpy.testing.assert_array_less(
+                    numpy.abs(left - right), 1e-11 * scale + 1e-300
+                )
 
     def test_transfer_refinement_batches_new_kinetic_modes(self):
         """Independent refined nodes preserve the original scalar authority."""
@@ -801,6 +1056,8 @@ class ExecutionModuleTestCase(unittest.TestCase):
     def test_joint_budget_retry_uses_earlier_measured_trials(self):
         """The public controller rotates flat axes and retains its trials."""
 
+        from copernican.lib.likelihoods.cmb.runtime import evidence
+
         contract = {
             "_engine_numerical_plan": {
                 "eta_sample_count": 192,
@@ -821,6 +1078,7 @@ class ExecutionModuleTestCase(unittest.TestCase):
             execution.AdaptiveNonConvergenceError(
                 "Measured joint budget is unresolved",
                 label="observable-error-budget",
+                failed_products=("TT",),
                 evidence={
                     "products": {
                         "TT": {
@@ -839,7 +1097,11 @@ class ExecutionModuleTestCase(unittest.TestCase):
         ]
         execution.cache.clear_cmb_caches()
         self.addCleanup(execution.cache.clear_cmb_caches)
+        observed = []
         with (
+            evidence.capture_completed_cmb_products(
+                lambda kind, products: observed.append((kind, products))
+            ),
             mock.patch.object(
                 execution,
                 "resolve_production_scalar_convergence",
@@ -877,6 +1139,24 @@ class ExecutionModuleTestCase(unittest.TestCase):
         )
         self.assertEqual(last["evolution_eta_sample_count"], 256)
         self.assertEqual(trials[1]["unproductive_budget_axes"], ["source"])
+        failures_observed = [
+            products
+            for kind, products in observed
+            if kind == "numerical_refinement_failure"
+        ]
+        self.assertEqual(len(failures_observed), 2)
+        self.assertEqual(failures_observed[1]["axis"], "evolution")
+        self.assertEqual(failures_observed[1]["failed_products"], ("TT",))
+        self.assertEqual(
+            failures_observed[1]["metric"]["kind"], "observable_budget_ratio"
+        )
+        self.assertAlmostEqual(failures_observed[1]["metric"]["value"], 1.11)
+        self.assertAlmostEqual(
+            failures_observed[1]["evidence"]["products"]["TT"][
+                "relative_error_bound"
+            ],
+            0.0111,
+        )
         for call in compute.call_args_list:
             self.assertNotIn("initialize_resolution", call.kwargs)
 

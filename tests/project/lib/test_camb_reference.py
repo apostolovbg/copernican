@@ -134,6 +134,119 @@ class CambReferenceModuleTestCase(unittest.TestCase):
                 bad, fine, requirement, input_tables=tables
             )
 
+        preserved, preserved_requirement = (
+            camb_reference.build_experimental_completion_reference(
+                coarse,
+                fine,
+                updated,
+                input_tables=tables,
+                preserve_windows=True,
+            )
+        )
+        self.assertEqual(preserved_requirement["ells"], updated["ells"])
+        self.assertEqual(preserved["features"], updated["features"])
+        self.assertEqual(
+            preserved["damping_windows"], updated["damping_windows"]
+        )
+        support_coarse = candidate("fine", 0.999999)
+        for payload, limit in (
+            (coarse, 200),
+            (fine, 200),
+            (support_coarse, 100),
+        ):
+            payload["resolved_defaults"] = f" max_eta_k = {limit}\n"
+            payload.pop("fixture_sha256")
+            payload["fixture_sha256"] = (
+                camb_reference.reference_fixture_sha256(payload)
+            )
+        preserved, preserved_requirement = (
+            camb_reference.build_experimental_completion_reference(
+                coarse,
+                fine,
+                updated,
+                input_tables=tables,
+                preserve_windows=True,
+            )
+        )
+        supported = camb_reference.build_completion_reference_support(
+            preserved, support_coarse, preserved_requirement
+        )
+        camb_reference.validate_completion_reference_support(
+            supported, preserved_requirement
+        )
+        scientific_acceptance._validate_experimental_refinement(
+            supported, preserved_requirement
+        )
+        changed = copy.deepcopy(supported)
+        changed["reference_refinement"]["candidate_payloads"]["coarse"][
+            "resolved_defaults"
+        ] = " max_eta_k = 100\n"
+        with self.assertRaisesRegex(ValueError, "changes k-support"):
+            camb_reference.validate_completion_reference_support(
+                changed, preserved_requirement
+            )
+
+    def test_reference_support_requires_matched_numerical_candidates(self):
+        """Retained support samples must come from distinct matched solves."""
+        import copy
+        import math
+
+        requirement = {"ells": [2], "surfaces": ["TT"]}
+
+        def candidate(limit, value):
+            """Digest one independently configured stock CAMB candidate."""
+            result = {
+                "reference_identity": "camb:test",
+                "ell_values": [2],
+                "spectra": {
+                    "TT": {
+                        "C_ell": [value],
+                        "D_ell": [3.0 * value / math.pi],
+                    }
+                },
+                "model": "model_lcdm.yml",
+                "resolved_defaults": f" max_eta_k = {limit}\n other = 1\n",
+            }
+            result["fixture_sha256"] = camb_reference.reference_fixture_sha256(
+                result
+            )
+            return result
+
+        fine = candidate(200, 100.0)
+        coarse = candidate(100, 99.9)
+        result = camb_reference.build_completion_reference_support(
+            fine, coarse, requirement
+        )
+        camb_reference.validate_completion_reference_support(
+            result, requirement
+        )
+        changed = copy.deepcopy(result)
+        changed["reference_support_refinement"]["spectra"]["TT"]["C_ell"][
+            0
+        ] = 99.8
+        with self.assertRaisesRegex(ValueError, "Changed coarse support"):
+            camb_reference.validate_completion_reference_support(
+                changed, requirement
+            )
+        for altered, error in (
+            (candidate(200, 99.9), "independently extend k"),
+            (candidate(100, 90.0), "support refinement failed"),
+        ):
+            with self.assertRaisesRegex(ValueError, error):
+                camb_reference.build_completion_reference_support(
+                    fine, altered, requirement
+                )
+        mismatched = candidate(100, 99.9)
+        mismatched["model"] = "different.yml"
+        mismatched.pop("fixture_sha256")
+        mismatched["fixture_sha256"] = camb_reference.reference_fixture_sha256(
+            mismatched
+        )
+        with self.assertRaisesRegex(ValueError, "candidate model differs"):
+            camb_reference.build_completion_reference_support(
+                fine, mismatched, requirement
+            )
+
     def test_newtonian_history_mapping_preserves_entropy_and_curvature(self):
         """Gauge changes retain entropy and the fixed seed convention."""
 
@@ -741,6 +854,71 @@ if __name__ == "__main__":  # pragma: no cover
 
 class CompletionReferenceWindowTestCase(unittest.TestCase):
     """Freeze window selection independently from the engine residuals."""
+
+    def test_support_generation_preserves_frozen_inputs_and_provenance(self):
+        """Reject rehashed candidate changes and altered frozen windows."""
+        import copy
+        import json
+
+        from tests.project.lib import scientific_acceptance
+
+        fixtures = Path(__file__).resolve().parents[1] / "fixtures"
+        contract = json.loads(
+            (fixtures / "ccmbs_completion_contract.json").read_text()
+        )
+        archive = json.loads(
+            gzip.decompress(
+                (fixtures / "ccmbs_comparable_camb.json.gz").read_bytes()
+            )
+        )
+        previous = (fixtures / "ccmbs_superseded_support.json.gz").read_bytes()
+        scientific_acceptance._validate_support_generation(
+            archive, contract, previous
+        )
+        changed_contract = copy.deepcopy(contract)
+        case = "model_lcdm.yml:initial"
+        changed_contract["cases"][case]["ells"].pop()
+        with self.assertRaisesRegex(ValueError, "physical requirements"):
+            scientific_acceptance._validate_support_generation(
+                archive, changed_contract, previous
+            )
+
+        changed_archive = dict(archive)
+        generation = dict(archive["support_generation"])
+        manifests = list(generation["manifests"])
+        reference = copy.deepcopy(archive["references"][case])
+        manifest_id = reference["reference_support_refinement"][
+            "generation_manifest_sha256"
+        ]
+        index = next(
+            index
+            for index, manifest in enumerate(manifests)
+            if manifest["sha256"] == manifest_id
+        )
+        manifest = copy.deepcopy(manifests[index])
+        row = next(
+            row for row in manifest["candidates"] if row["case"] == case
+        )
+        row["file_sha256"] = "0" * 64
+        manifest.pop("sha256")
+        manifest["sha256"] = cmb_diagnostics._canonical_sha256(manifest)
+        reference["reference_support_refinement"][
+            "generation_manifest_sha256"
+        ] = manifest["sha256"]
+        generation["manifests"] = [*manifests, manifest]
+        generation["runner_sha256"] = [
+            *generation["runner_sha256"],
+            generation["runner_sha256"][index],
+        ]
+        changed_archive["support_generation"] = generation
+        changed_archive["references"] = {
+            **archive["references"],
+            case: reference,
+        }
+        with self.assertRaisesRegex(ValueError, "candidate identity differs"):
+            scientific_acceptance._validate_support_generation(
+                changed_archive, contract, previous
+            )
 
     def test_portable_references_preserve_all_frozen_numeric_products(self):
         import json

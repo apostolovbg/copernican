@@ -21,6 +21,25 @@ from copernican.lib.likelihoods.cmb.runtime.error_budget import (
 class ObservableErrorBudgetTestCase(unittest.TestCase):
     """Operator conditioning and axis cancellation must remain visible."""
 
+    def test_sector_cross_budget_includes_matching_auto_uncertainty(self):
+        """A component's covariance uses auto spectra in the same sector."""
+        spectra = {
+            "scalar_TT": numpy.ones(2),
+            "scalar_PP": numpy.ones(2),
+            "scalar_TP": numpy.full(2, 0.1),
+        }
+        errors = {name: numpy.zeros(2) for name in spectra}
+        errors["scalar_TT"][:] = 0.2
+        tolerances = {"scalar_TT": 0.5, "scalar_PP": 0.5, "scalar_TP": 0.005}
+        result = combine_observable_errors(
+            spectra, {"source": errors}, tolerances
+        )
+        self.assertFalse(result["products"]["scalar_TP"]["converged"])
+        self.assertGreater(
+            result["products"]["scalar_TP"]["normalized_cross_bound"],
+            tolerances["scalar_TP"],
+        )
+
     def test_native_samples_bound_unresolved_source_time_oscillations(self):
         """Envelope resampling cannot erase an error between source nodes."""
 

@@ -1421,8 +1421,10 @@ def _compute_custom_cmb_spectrum_data_impl(
         ),
     }
     physical_limit_evidence = {
-        "status": (
-            "measured" if all(physical_limit_checks.values()) else "unresolved"
+        "status": "unresolved",
+        "checks_passed": bool(all(physical_limit_checks.values())),
+        "reason": (
+            "Endpoint checks do not measure omitted k-domain contributions"
         ),
         "checks": physical_limit_checks,
         "k_domain": [float(k_values[0]), float(k_values[-1])],
@@ -3070,7 +3072,16 @@ def _compute_custom_cmb_spectrum_data_impl(
                     intermediate_history_sink,
                     base_history_sink,
                 )
-                for estimate in (state_estimate, source_estimate):
+                evolution_relative_tolerance = (
+                    adaptive_controls.evolution_relative_tolerance
+                )
+                evolution_absolute_tolerance = (
+                    adaptive_controls.evolution_absolute_tolerance
+                )
+                for history_kind, estimate in (
+                    ("state", state_estimate),
+                    ("source", source_estimate),
+                ):
                     evolution_local_relative_error = max(
                         evolution_local_relative_error,
                         estimate.local_relative_error,
@@ -3086,6 +3097,14 @@ def _compute_custom_cmb_spectrum_data_impl(
                             evidence={
                                 "relative_error": estimate.relative_error,
                                 "absolute_error": estimate.absolute_error,
+                                "relative_tolerance": (
+                                    evolution_relative_tolerance
+                                ),
+                                "absolute_tolerance": (
+                                    evolution_absolute_tolerance
+                                ),
+                                "history_kind": history_kind,
+                                "relative_normalization": "history_amplitude",
                                 "mode_k": float(k_value),
                                 "worst_history": estimate.worst_history,
                                 "worst_eta": estimate.worst_eta,
@@ -3276,12 +3295,24 @@ def _compute_custom_cmb_spectrum_data_impl(
 
             if pilot_indices:
                 first_pilot = pilot_indices[len(pilot_indices) // 2]
-                evolve_pilots([first_pilot])
-                _validate_native_mode(
-                    first_pilot, cached_mode_source_arrays[first_pilot]
+                # Reject an unresolved central or endpoint history before
+                # paying for the other selected high-k reference modes.
+                priority_indices = tuple(
+                    dict.fromkeys(
+                        (first_pilot, pilot_indices[0], pilot_indices[-1])
+                    )
                 )
+                for index in priority_indices:
+                    evolve_pilots([index])
+                    _validate_native_mode(
+                        index, cached_mode_source_arrays[index]
+                    )
                 evolve_pilots(
-                    [index for index in pilot_indices if index != first_pilot]
+                    [
+                        index
+                        for index in pilot_indices
+                        if index not in priority_indices
+                    ]
                 )
             if (
                 adaptive_controls.evolution_enabled
@@ -5230,7 +5261,7 @@ def _compute_custom_cmb_spectrum_data_impl(
             ),
         },
         "physical_limits": {
-            "method": "measured_k_eta_tail_and_lensing_support",
+            "method": "endpoint_visibility_and_lensing_coverage_checks",
             **physical_limit_evidence,
         },
     }
@@ -6910,6 +6941,50 @@ def _compute_custom_cmb_spectrum_data(
                 if promotion is None:
                     raise
                 updated_contract, attempt = promotion
+                metric = attempt.get(
+                    "refinement_metric",
+                    {
+                        "kind": (
+                            "relative_error"
+                            if "relative_error" in error.evidence
+                            else "derived_relative_error"
+                        ),
+                        "value": float(attempt["relative_error"]),
+                    },
+                )
+                details = {
+                    key: attempt[key]
+                    for key in (
+                        "mode_k",
+                        "worst_eta",
+                        "worst_history",
+                        "history_kind",
+                        "relative_tolerance",
+                        "absolute_tolerance",
+                        "products",
+                    )
+                    if key in attempt
+                }
+                publish_completed_cmb_products(
+                    "numerical_refinement_failure",
+                    {
+                        "label": error.label,
+                        "failed_products": error.failed_products,
+                        "axis": attempt["axis"],
+                        "metric": metric,
+                        "evidence": attempt,
+                    },
+                )
+                _LOGGER.info(
+                    "CCMBS numerical refinement: label=%s; axis=%s; "
+                    "products=%s; metric=%s; value=%.6g; evidence=%s",
+                    error.label,
+                    attempt["axis"],
+                    error.failed_products,
+                    metric["kind"],
+                    metric["value"],
+                    details,
+                )
                 matching = [
                     row
                     for row in evolution_attempts
@@ -6927,11 +7002,6 @@ def _compute_custom_cmb_spectrum_data(
                     )
                     raise
                 evolution_attempts.append(attempt)
-                _LOGGER.info(
-                    "CCMBS numerical refinement: axis=%s; relative_error=%.6g",
-                    attempt["axis"],
-                    measured_error,
-                )
                 contract_or_params = updated_contract
                 timer.failed_phase = None
         if evolution_attempts:

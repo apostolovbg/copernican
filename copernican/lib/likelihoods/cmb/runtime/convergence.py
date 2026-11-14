@@ -10,6 +10,11 @@ from typing import Any, Iterable, Mapping
 
 import numpy
 
+from ....cmb_output import (
+    canonical_cmb_spectrum_name,
+    compose_cmb_spectrum_name,
+    split_cmb_spectrum_name,
+)
 from ....phase_space import sample_distribution
 
 FINAL_SPECTRUM_RELATIVE_TOLERANCES = {
@@ -19,6 +24,16 @@ FINAL_SPECTRUM_RELATIVE_TOLERANCES = {
     "PP": 3.0e-2,
     "lensed_BB": 5.0e-2,
 }
+COMPLETION_NUMERICAL_RELATIVE_BUDGET = 5.0e-3
+_ADDITIONAL_SPECTRUM_RELATIVE_TOLERANCES = {
+    name: COMPLETION_NUMERICAL_RELATIVE_BUDGET for name in ("BB", "TP", "EP")
+}
+_SUPPORTED_SPECTRUM_RELATIVE_TOLERANCES = {
+    **FINAL_SPECTRUM_RELATIVE_TOLERANCES,
+    **_ADDITIONAL_SPECTRUM_RELATIVE_TOLERANCES,
+}
+
+
 FINAL_Q_GRID_RELATIVE_TOLERANCE = 2.0e-2
 FINAL_HIERARCHY_RELATIVE_TOLERANCE = 1.0e-2
 
@@ -229,6 +244,17 @@ def _accuracy_controls(contract: Mapping[str, Any]) -> Mapping[str, Any]:
     return {}
 
 
+def _spectrum_refinement_tolerance(name: str) -> float:
+    """Resolve a named sector's bound without changing its physical role."""
+
+    canonical = canonical_cmb_spectrum_name(name)
+    lensed, _, base = split_cmb_spectrum_name(canonical)
+    key = f"lensed_{base}" if lensed else base
+    if key not in _SUPPORTED_SPECTRUM_RELATIVE_TOLERANCES:
+        raise ValueError(f"Unknown final convergence spectrum '{canonical}'")
+    return _SUPPORTED_SPECTRUM_RELATIVE_TOLERANCES[key]
+
+
 def resolve_production_scalar_convergence(
     contract: Mapping[str, Any],
 ) -> ProductionScalarConvergenceControls:
@@ -255,16 +281,19 @@ def resolve_production_scalar_convergence(
         raise ValueError(
             "production_scalar_convergence.required_spectra must be a list"
         )
-    required = tuple(str(name).upper() for name in raw_required)
+    required = tuple(
+        canonical_cmb_spectrum_name(name) for name in raw_required
+    )
     if not required:
         raise ValueError(
             "production_scalar_convergence.required_spectra must not be empty"
         )
-    unknown = [
-        name
-        for name in required
-        if name not in FINAL_SPECTRUM_RELATIVE_TOLERANCES
-    ]
+    unknown = []
+    for name in required:
+        try:
+            _spectrum_refinement_tolerance(name)
+        except ValueError:
+            unknown.append(name)
     if unknown:
         raise ValueError(
             "Unknown production scalar spectrum(s): " + ", ".join(unknown)
@@ -279,10 +308,7 @@ def resolve_production_scalar_convergence(
         name: float(
             raw_tolerances.get(
                 name,
-                _PRODUCTION_SCALAR_DEFAULT_TOLERANCES.get(
-                    name,
-                    FINAL_SPECTRUM_RELATIVE_TOLERANCES[name],
-                ),
+                _spectrum_refinement_tolerance(name),
             )
         )
         for name in required
@@ -725,30 +751,32 @@ def _fractional_refinement_error(
     return float(numpy.max(numpy.abs(fine - coarse), initial=0.0) / scale)
 
 
-def _normalized_te(
+def _normalized_cross(
     spectra: Mapping[str, Any],
     *,
+    name: str,
+    first: str,
+    second: str,
     label: str,
 ) -> numpy.ndarray:
-    """Return the TE correlation coefficient for one refinement level."""
+    """Return a physical cross-correlation for one refinement level."""
 
-    missing = [name for name in ("TT", "TE", "EE") if name not in spectra]
+    missing = [item for item in (first, name, second) if item not in spectra]
     if missing:
         raise ValueError(
-            f"Normalized TE {label} refinement requires " + ", ".join(missing)
+            f"Normalized {name} {label} refinement requires "
+            + ", ".join(missing)
         )
-    temperature_power = _finite_array(spectra["TT"], name=f"{label} TT")
-    temperature_electric_power = _finite_array(
-        spectra["TE"], name=f"{label} TE"
-    )
-    electric_power = _finite_array(spectra["EE"], name=f"{label} EE")
+    first_power = _finite_array(spectra[first], name=f"{label} {first}")
+    cross_power = _finite_array(spectra[name], name=f"{label} {name}")
+    second_power = _finite_array(spectra[second], name=f"{label} {second}")
     if (
-        temperature_power.shape != temperature_electric_power.shape
-        or electric_power.shape != temperature_electric_power.shape
+        first_power.shape != cross_power.shape
+        or second_power.shape != cross_power.shape
     ):
-        raise ValueError("Normalized TE surfaces must have equal shapes")
-    denominator = numpy.sqrt(numpy.abs(temperature_power)) * numpy.sqrt(
-        numpy.abs(electric_power)
+        raise ValueError(f"Normalized {name} surfaces must have equal shapes")
+    denominator = numpy.sqrt(numpy.abs(first_power)) * numpy.sqrt(
+        numpy.abs(second_power)
     )
     floor = max(
         numpy.max(denominator, initial=numpy.longdouble(0.0))
@@ -756,7 +784,7 @@ def _normalized_te(
         numpy.finfo(numpy.longdouble).tiny,
     )
     return numpy.asarray(
-        temperature_electric_power / numpy.maximum(denominator, floor),
+        cross_power / numpy.maximum(denominator, floor),
         dtype=numpy.longdouble,
     )
 
@@ -778,23 +806,56 @@ def evaluate_spectrum_refinement(
     tolerance_overrides = dict(relative_tolerances or {})
     metrics: dict[str, RefinementMetric] = {}
     for raw_name in required:
-        name = str(raw_name)
-        if name not in FINAL_SPECTRUM_RELATIVE_TOLERANCES:
-            raise ValueError(f"Unknown final convergence spectrum '{name}'")
-        if name == "TE":
-            coarse_te = _finite_array(coarse_spectra["TE"], name="coarse TE")
-            fine_te = _finite_array(fine_spectra["TE"], name="fine TE")
-            coarse = _normalized_te(coarse_spectra, label="coarse")
-            fine = _normalized_te(fine_spectra, label="fine")
-            coarse_tt = _finite_array(coarse_spectra["TT"], name="coarse TT")
-            coarse_ee = _finite_array(coarse_spectra["EE"], name="coarse EE")
-            fine_tt = _finite_array(fine_spectra["TT"], name="fine TT")
-            fine_ee = _finite_array(fine_spectra["EE"], name="fine EE")
+        name = canonical_cmb_spectrum_name(raw_name)
+        default_tolerance = _spectrum_refinement_tolerance(name)
+        lensed, component, base_name = split_cmb_spectrum_name(name)
+        if not lensed and base_name in {"TE", "TP", "EP"}:
+            first_base, second_base = {
+                "TE": ("TT", "EE"),
+                "TP": ("TT", "PP"),
+                "EP": ("EE", "PP"),
+            }[base_name]
+            first, second = (
+                compose_cmb_spectrum_name(
+                    lensed=False, component=component, base_name=base
+                )
+                for base in (first_base, second_base)
+            )
+            coarse_cross = _finite_array(
+                coarse_spectra[name], name=f"coarse {name}"
+            )
+            fine_cross = _finite_array(fine_spectra[name], name=f"fine {name}")
+            coarse = _normalized_cross(
+                coarse_spectra,
+                name=name,
+                first=first,
+                second=second,
+                label="coarse",
+            )
+            fine = _normalized_cross(
+                fine_spectra,
+                name=name,
+                first=first,
+                second=second,
+                label="fine",
+            )
+            coarse_first = _finite_array(
+                coarse_spectra[first], name=f"coarse {first}"
+            )
+            coarse_second = _finite_array(
+                coarse_spectra[second], name=f"coarse {second}"
+            )
+            fine_first = _finite_array(
+                fine_spectra[first], name=f"fine {first}"
+            )
+            fine_second = _finite_array(
+                fine_spectra[second], name=f"fine {second}"
+            )
             denominator = numpy.minimum(
-                numpy.sqrt(numpy.abs(coarse_tt))
-                * numpy.sqrt(numpy.abs(coarse_ee)),
-                numpy.sqrt(numpy.abs(fine_tt))
-                * numpy.sqrt(numpy.abs(fine_ee)),
+                numpy.sqrt(numpy.abs(coarse_first))
+                * numpy.sqrt(numpy.abs(coarse_second)),
+                numpy.sqrt(numpy.abs(fine_first))
+                * numpy.sqrt(numpy.abs(fine_second)),
             )
             signal_floor = numpy.max(denominator, initial=0.0) * 1.0e-2
             supported = denominator >= signal_floor
@@ -805,14 +866,14 @@ def evaluate_spectrum_refinement(
                 if numpy.any(supported)
                 else 0.0
             )
-            te_scale = max(
-                numpy.max(numpy.abs(coarse_te), initial=0.0),
-                numpy.max(numpy.abs(fine_te), initial=0.0),
+            cross_scale = max(
+                numpy.max(numpy.abs(coarse_cross), initial=0.0),
+                numpy.max(numpy.abs(fine_cross), initial=0.0),
                 numpy.finfo(numpy.longdouble).tiny,
             )
             amplitude_error = float(
-                numpy.max(numpy.abs(fine_te - coarse_te), initial=0.0)
-                / te_scale
+                numpy.max(numpy.abs(fine_cross - coarse_cross), initial=0.0)
+                / cross_scale
             )
             relative_error = max(normalized_error, amplitude_error)
         else:
@@ -827,7 +888,7 @@ def evaluate_spectrum_refinement(
         tolerance = float(
             tolerance_overrides.get(
                 name,
-                FINAL_SPECTRUM_RELATIVE_TOLERANCES[name],
+                default_tolerance,
             )
         )
         if not numpy.isfinite(tolerance) or tolerance <= 0.0:

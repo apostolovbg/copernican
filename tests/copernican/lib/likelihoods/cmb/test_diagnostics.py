@@ -2816,6 +2816,53 @@ class CompletionContractTestCase(unittest.TestCase):
             )["accepted"]
         )
 
+    def test_reference_support_and_input_errors_cannot_cancel(self):
+        """Independent reference errors both consume the numerical budget."""
+        from math import pi as circle_constant
+
+        requirement = {"ells": [2], "surfaces": ["TT"]}
+
+        def payload(value):
+            """Build one physical spectrum with its independent units."""
+            return {
+                "ell_values": [2],
+                "spectra": {
+                    "TT": {
+                        "C_ell": [value],
+                        "D_ell": [3.0 * value / circle_constant],
+                    }
+                },
+            }
+
+        actual = payload(100.0)
+        reference = payload(100.0)
+        reference["reference_refinement"] = payload(99.7)
+        reference["reference_support_refinement"] = payload(100.3)
+        result = diagnostics.compare_cmb_completion_spectra(
+            actual, reference, requirement
+        )
+        self.assertFalse(result["accepted"])
+        self.assertAlmostEqual(
+            result["metrics"]["TT:C_ell"]["reference_refinement_error"][0],
+            0.6,
+        )
+        reference["reference_support_refinement"] = payload(100.1)
+        result = diagnostics.compare_cmb_completion_spectra(
+            actual, reference, requirement
+        )
+        self.assertTrue(result["accepted"])
+        self.assertEqual(
+            set(result["metrics"]["TT:C_ell"]["reference_refinement_errors"]),
+            {"input_sampling", "k_support"},
+        )
+        reference["reference_support_refinement"]["ell_values"] = [3]
+        self.assertIn(
+            "reference support refinement coverage differs from the contract",
+            diagnostics.compare_cmb_completion_spectra(
+                actual, reference, requirement
+            )["issues"],
+        )
+
     def test_retained_artifacts_reject_tampering_missing_and_escape(self):
         from copernican.lib.likelihoods.cmb import diagnostics as d
 
@@ -2953,6 +3000,25 @@ class CompletionPersistenceTestCase(unittest.TestCase):
 
 class CompletionDependencyTestCase(unittest.TestCase):
     """Product reuse follows numerical dependencies, not rendering code."""
+
+    def test_completion_identity_tracks_superseded_support_archive(self):
+        """Historical reference integrity participates in source identity."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            archive = (
+                root
+                / "tests/project/fixtures/ccmbs_superseded_support.json.gz"
+            )
+            archive.parent.mkdir(parents=True)
+            archive.write_bytes(b"original reference")
+            original = diagnostics.cmb_completion_source_identity(root)
+            archive.write_bytes(b"changed reference")
+            changed = diagnostics.cmb_completion_source_identity(root)
+            self.assertNotEqual(original["sha256"], changed["sha256"])
+            self.assertIn(
+                "tests/project/fixtures/ccmbs_superseded_support.json.gz",
+                original["files"],
+            )
 
     def test_measured_completion_axis_requires_actual_refinement_arrays(self):
         """Rehashed metadata cannot replace observed calculations."""

@@ -327,6 +327,42 @@ class ConvergenceTestCase(unittest.TestCase):
         self.assertTrue(metric.converged)
         self.assertTrue(numpy.isfinite(metric.relative_error))
 
+    def test_lensing_cross_refinement_uses_matching_auto_spectra(self) -> None:
+        """TP and EP cannot pass by ignoring changes in their covariance."""
+        coarse = {
+            "TT": numpy.asarray((1.0, 1.0)),
+            "EE": numpy.asarray((1.0, 1.0)),
+            "PP": numpy.asarray((1.0, 1.0)),
+            "BB": numpy.zeros(2),
+            "TP": numpy.asarray((0.1, -0.1)),
+            "EP": numpy.asarray((0.1, -0.1)),
+        }
+        fine = {name: values.copy() for name, values in coarse.items()}
+        required = ("BB", "TP", "EP")
+        self.assertTrue(
+            evaluate_spectrum_refinement(
+                coarse, fine, required_spectra=required
+            ).converged
+        )
+        fine["TT"] *= 0.25
+        fine["EE"] *= 0.25
+        report = evaluate_spectrum_refinement(
+            coarse, fine, required_spectra=required
+        )
+        self.assertTrue(report.metrics["BB"].converged)
+        self.assertFalse(report.metrics["TP"].converged)
+        self.assertFalse(report.metrics["EP"].converged)
+        sector_coarse = {
+            f"scalar_{name}": coarse[name] for name in ("TT", "PP", "TP")
+        }
+        sector_fine = {
+            f"scalar_{name}": fine[name] for name in ("TT", "PP", "TP")
+        }
+        sector_report = evaluate_spectrum_refinement(
+            sector_coarse, sector_fine, required_spectra=("scalar_TP",)
+        )
+        self.assertFalse(sector_report.metrics["scalar_TP"].converged)
+
     def test_q_bound_measures_count_and_both_thermal_tails(self) -> None:
         """A resolved q surface passes an independent support refinement."""
 

@@ -14,6 +14,8 @@ import numpy
 from scipy.interpolate import CubicSpline
 from scipy.linalg import solve_banded
 
+from ....cmb_output import compose_cmb_spectrum_name, split_cmb_spectrum_name
+
 
 @dataclass(frozen=True)
 class NativeSourceProbe:
@@ -208,11 +210,21 @@ def combine_observable_errors(
                 peak <= max(absolute_tolerance, tolerance * scale)
             ),
         }
-    for cross, first, second in (
-        ("TE", "TT", "EE"),
-        ("TP", "TT", "PP"),
-        ("EP", "EE", "PP"),
-    ):
+    for cross in spectra:
+        lensed, component, base_name = split_cmb_spectrum_name(cross)
+        if lensed or base_name not in {"TE", "TP", "EP"}:
+            continue
+        first_base, second_base = {
+            "TE": ("TT", "EE"),
+            "TP": ("TT", "PP"),
+            "EP": ("EE", "PP"),
+        }[base_name]
+        first, second = (
+            compose_cmb_spectrum_name(
+                lensed=False, component=component, base_name=base
+            )
+            for base in (first_base, second_base)
+        )
         if not {cross, first, second}.issubset(spectra):
             continue
         power_first = numpy.asarray(spectra[first])

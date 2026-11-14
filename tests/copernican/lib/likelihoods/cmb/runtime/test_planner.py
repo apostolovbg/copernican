@@ -32,6 +32,45 @@ class AutomaticCMBPlannerTestCase(unittest.TestCase):
         )
         return yaml.safe_load(path.read_text(encoding="utf-8"))["cmb"]
 
+    def test_production_plan_retains_all_standard_spectrum_budgets(self):
+        """Full requests include the BB and lensing cross refinements."""
+        from copernican.lib.likelihoods.cmb.runtime.convergence import (
+            resolve_production_scalar_convergence,
+        )
+
+        spectra = ("TT", "TE", "EE", "BB", "PP", "TP", "EP")
+        plan = plan_cmb_numerics(
+            self._lcdm_contract(), ells=(2, 20), spectra=spectra
+        )
+        required = plan.accuracy_controls["production_scalar_convergence"][
+            "required_spectra"
+        ]
+        self.assertEqual(set(required), set(spectra))
+        sector = ("scalar_TT", "scalar_PP", "scalar_TP")
+        plan = plan_cmb_numerics(
+            self._lcdm_contract(), ells=(2, 20), spectra=sector
+        )
+        self.assertEqual(
+            set(
+                plan.accuracy_controls["production_scalar_convergence"][
+                    "required_spectra"
+                ]
+            ),
+            set(sector),
+        )
+        controls = resolve_production_scalar_convergence(
+            {"_engine_accuracy_controls": plan.accuracy_controls}
+        )
+        self.assertEqual(set(controls.required_spectra), set(sector))
+        self.assertEqual(controls.relative_tolerances["scalar_TP"], 0.005)
+        unknown = plan_cmb_numerics(
+            self._lcdm_contract(), ells=(2, 20), spectra=("new_surface",)
+        )
+        with self.assertRaisesRegex(ValueError, "Unknown production scalar"):
+            resolve_production_scalar_convergence(
+                {"_engine_accuracy_controls": unknown.accuracy_controls}
+            )
+
     def test_bundled_declarations_have_no_solver_controls(self) -> None:
         """Bundled model files contain equations, not numerical recipes."""
 

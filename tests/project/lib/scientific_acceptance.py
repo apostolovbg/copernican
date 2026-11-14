@@ -678,6 +678,171 @@ def _validate_experimental_refinement(reference, requirement):
         )
 
 
+def _validate_support_generation(archive, frozen, previous_bytes):
+    """Verify support candidates and preserve the former frozen contract."""
+    generation = archive["support_generation"]
+    descriptor = archive["superseded_support_archive"]
+    for name in ("assembly_script", "preparation_script"):
+        script = generation[name]
+        if (
+            hashlib.sha256(script["source"].encode()).hexdigest()
+            != script["sha256"]
+        ):
+            raise ValueError(f"Support fixture {name} differs")
+    old_digest = hashlib.sha256(previous_bytes).hexdigest()
+    if (
+        descriptor.get("path")
+        != "tests/project/fixtures/ccmbs_superseded_support.json.gz"
+        or descriptor.get("sha256") != old_digest
+    ):
+        raise ValueError("Superseded reference archive differs")
+    previous_archive = json.loads(gzip.decompress(previous_bytes))
+    previous_text = generation["previous_contract_text"]
+    previous_contract = json.loads(previous_text)
+    previous_digest = hashlib.sha256(previous_text.encode()).hexdigest()
+    if {
+        key: value
+        for key, value in previous_contract.items()
+        if key not in {"cases", "reference_updates"}
+    } != {
+        key: value
+        for key, value in frozen.items()
+        if key not in {"cases", "reference_updates"}
+    }:
+        raise ValueError("Frozen completion requirements changed")
+    previous_cases = previous_contract["cases"]
+    if previous_cases.keys() != frozen["cases"].keys():
+        raise ValueError("Frozen completion case inventory changed")
+    references = archive["references"]
+    old_references = previous_archive["references"]
+    if references.keys() != old_references.keys():
+        raise ValueError("Comparable reference inventory changed")
+    for case, old_case in previous_cases.items():
+        current = copy.deepcopy(frozen["cases"][case])
+        if case in references:
+            if (
+                old_case["reference_sha256"]
+                != old_references[case]["fixture_sha256"]
+                or current["reference_sha256"]
+                != references[case]["fixture_sha256"]
+            ):
+                raise ValueError(f"{case}: reference history differs")
+            current["reference_sha256"] = old_case["reference_sha256"]
+        if current != old_case:
+            raise ValueError(f"{case}: frozen physical requirements changed")
+    old_updates = previous_contract["reference_updates"]
+    updates = frozen["reference_updates"]
+    if updates[: len(old_updates)] != old_updates:
+        raise ValueError("Previous reference update history changed")
+    added = updates[len(old_updates) :]
+    if len(added) != len(references) or {
+        row.get("case_id") for row in added
+    } != set(references):
+        raise ValueError("Support reference update history is incomplete")
+    for row in added:
+        case = row["case_id"]
+        if (
+            row.get("previous_sha256")
+            != old_references[case]["fixture_sha256"]
+            or row.get("reference_sha256")
+            != references[case]["fixture_sha256"]
+        ):
+            raise ValueError(f"{case}: support update identity differs")
+
+    manifests = generation["manifests"]
+    runners = generation["runner_sha256"]
+    if not manifests or len(runners) != len(manifests):
+        raise ValueError("Support generation identities are incomplete")
+    by_digest = {}
+    for manifest, runner in zip(manifests, runners):
+        if (
+            not isinstance(runner, str)
+            or len(runner) != 64
+            or any(char not in "0123456789abcdef" for char in runner)
+        ):
+            raise ValueError("Support generation runner identity is invalid")
+        digest = manifest["sha256"]
+        body = {
+            key: value for key, value in manifest.items() if key != "sha256"
+        }
+        if (
+            diagnostics._canonical_sha256(body) != digest
+            or digest in by_digest
+            or manifest.get("scientific_acceptance") is not False
+            or manifest.get("reference_archive_sha256") != old_digest
+            or manifest.get("completion_contract_sha256") != previous_digest
+        ):
+            raise ValueError("Support generation manifest differs")
+        checkout = manifest["checkout_provenance"]
+        checkout_body = {
+            key: value for key, value in checkout.items() if key != "sha256"
+        }
+        if diagnostics._canonical_sha256(checkout_body) != checkout["sha256"]:
+            raise ValueError("Support checkout provenance differs")
+        for name, script in manifest["scripts"].items():
+            if (
+                hashlib.sha256(script["source"].encode()).hexdigest()
+                != script["sha256"]
+            ):
+                raise ValueError(f"Support generator {name} differs")
+        by_digest[digest] = manifest
+
+    for case, reference in references.items():
+        support = reference["reference_support_refinement"]
+        manifest = by_digest.get(support["generation_manifest_sha256"])
+        if manifest is None:
+            raise ValueError(f"{case}: support generation manifest is missing")
+        refinement = reference.get("reference_refinement")
+        if refinement is None:
+            fine = {
+                key: value
+                for key, value in reference.items()
+                if key
+                not in {"reference_support_refinement", "fixture_sha256"}
+            }
+            fine["fixture_sha256"] = support["fine_fixture_sha256"]
+            candidates = (
+                ("stock", "native", 16, support["candidate"]),
+                ("stock", "native", 32, fine),
+            )
+        else:
+            candidates = (
+                ("experimental", "fine", 16, support["candidate"]),
+                (
+                    "experimental",
+                    "coarse",
+                    32,
+                    refinement["candidate_payloads"]["coarse"],
+                ),
+                (
+                    "experimental",
+                    "fine",
+                    32,
+                    refinement["candidate_payloads"]["fine"],
+                ),
+            )
+        for kind, level, factor, candidate in candidates:
+            matching = [
+                row
+                for row in manifest["candidates"]
+                if (row["case"], row["kind"], row["level"], row["factor"])
+                == (case, kind, level, factor)
+            ]
+            if len(matching) != 1:
+                raise ValueError(f"{case}: support candidate is missing")
+            row = matching[0]
+            serialized = json.dumps(
+                candidate, sort_keys=True, separators=(",", ":")
+            ).encode()
+            if (
+                row["fixture_sha256"] != candidate["fixture_sha256"]
+                or row["file_sha256"] != hashlib.sha256(serialized).hexdigest()
+                or row["old_fixture_sha256"]
+                != old_references[case]["fixture_sha256"]
+            ):
+                raise ValueError(f"{case}: support candidate identity differs")
+
+
 def materialize_completion_contract(root: Path, *, model_records=None) -> dict:
     """Freeze exact points, independent references, and applicability.
 
@@ -692,14 +857,19 @@ def materialize_completion_contract(root: Path, *, model_records=None) -> dict:
         repository / "tests/project/fixtures/ccmbs_completion_contract.json"
     )
     frozen = json.loads(frozen_path.read_text())
-    independent_references = json.loads(
+    reference_archive = json.loads(
         gzip.decompress(
             (
                 repository
                 / "tests/project/fixtures/ccmbs_comparable_camb.json.gz"
             ).read_bytes()
         )
-    )["references"]
+    )
+    previous_archive = (
+        repository / "tests/project/fixtures/ccmbs_superseded_support.json.gz"
+    ).read_bytes()
+    _validate_support_generation(reference_archive, frozen, previous_archive)
+    independent_references = reference_archive["references"]
     if frozen["metrics"] != diagnostics._jsonable(
         diagnostics.CMB_COMPLETION_METRICS
     ):
@@ -786,6 +956,10 @@ def materialize_completion_contract(root: Path, *, model_records=None) -> dict:
                     f"{record.model_filename}:{point}",
                     expected_identity=requirement["reference_identity"],
                 )
+                if "reference_support_refinement" in reference:
+                    camb_reference.validate_completion_reference_support(
+                        reference, requirement
+                    )
                 if reference["reference_identity"].startswith(
                     "camb:experimental:"
                 ):
@@ -1392,6 +1566,7 @@ def run_completion_point(
         "accepted": False,
         "completion_accepted": False,
         "numerical_accepted": False,
+        "production_solve_completed": False,
         "parity_accepted": False,
         "source_identity": diagnostics.cmb_completion_source_identity(),
         "checkout_provenance": checkout_provenance(repository),
@@ -1542,7 +1717,9 @@ def run_completion_point(
                 "public_spectra": dict(result.spectra),
             },
         )
-        report["numerical_accepted"] = True
+        # A returned production spectrum has not yet established the
+        # independent completion axes, including physical-domain support.
+        report["production_solve_completed"] = True
         report["comparison"] = diagnostics.compare_cmb_completion_spectra(
             actual,
             reference,
@@ -1823,6 +2000,7 @@ def main(argv: list[str] | None = None) -> int:
                     key: report.get(key)
                     for key in (
                         "case_id",
+                        "production_solve_completed",
                         "numerical_accepted",
                         "parity_accepted",
                         "completion_accepted",

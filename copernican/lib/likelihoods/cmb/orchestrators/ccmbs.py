@@ -354,6 +354,19 @@ def _requested_base_spectra(
             base_spectra.add(spectrum_name)
         else:
             base_spectra.add(_base_spectrum_name(spectrum_name))
+    for spectrum_name in tuple(base_spectra):
+        _, component, base_name = _split_canonical_spectrum_name(spectrum_name)
+        autos = {
+            "TE": ("TT", "EE"),
+            "TP": ("TT", "PP"),
+            "EP": ("EE", "PP"),
+        }.get(base_name, ())
+        for auto in autos:
+            name = _compose_canonical_spectrum_name(
+                lensed=False, component=component, base_name=auto
+            )
+            if name in declared_spectra:
+                base_spectra.add(name)
     return tuple(sorted(base_spectra))
 
 

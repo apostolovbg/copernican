@@ -47,6 +47,7 @@ _NEUTRINO_TEMPERATURE_EV_PER_K = (4.0 / 11.0) ** (
     1.0 / 3.0
 ) * 8.617_333_262_145e-5
 _NEUTRINO_DENSITY_EV_H2 = 93.14
+_HISTORY_INTERPOLATION_CELL_BUDGET = 2_000_000
 _COMPILED_CONTEXT_GLOBALS = {
     "__builtins__": {},
     **_ALLOWED_CONSTANTS,
@@ -287,6 +288,8 @@ class BatchedEvolutionStats:
     rk_stage_count: int
     substep_count: int
     maximum_substeps: int
+    split_interval_count: int = 0
+    split_group_count: int = 0
 
 
 def describe_declared_execution_schedule(
@@ -505,68 +508,93 @@ def _interpolate_declared_histories(
         raise ValueError(
             "History interpolation requires ordered supported coordinates"
         )
-    samples = numpy.stack(
-        [numpy.asarray(histories[name], dtype=float) for name in names], axis=1
-    )
-    if samples.shape != (grid.size, len(names)) or not numpy.all(
-        numpy.isfinite(samples)
-    ):
-        raise ValueError("Native histories must be finite matching vectors")
-    amplitudes = numpy.max(numpy.abs(samples), axis=0)
-    amplitudes = numpy.where(amplitudes > 0, amplitudes, 1.0)
-    scaled = samples / amplitudes
-    intervals = numpy.diff(grid)
-    slopes = numpy.diff(scaled, axis=0) / intervals[:, numpy.newaxis]
-    derivatives = numpy.zeros_like(scaled)
-    if grid.size == 2:
-        derivatives[:] = slopes[0]
-    else:
-        left, right = slopes[:-1], slopes[1:]
-        same_sign = (
-            (numpy.sign(left) == numpy.sign(right))
-            & (left != 0)
-            & (right != 0)
+    # Large native histories are often mapped to disk. Bound temporary
+    # interpolation arrays by state columns while preserving the same
+    # per-state spline, support, and arithmetic.
+    block_size = max(1, _HISTORY_INTERPOLATION_CELL_BUDGET // grid.size)
+    result = {}
+    for start in range(0, len(names), block_size):
+        selected_names = names[start : start + block_size]
+        samples = numpy.stack(
+            [
+                numpy.asarray(histories[name], dtype=float)
+                for name in selected_names
+            ],
+            axis=1,
         )
-        smaller = numpy.copysign(numpy.minimum(abs(left), abs(right)), left)
-        left_ratio = numpy.divide(
-            smaller, left, out=numpy.zeros_like(left), where=same_sign
-        )
-        right_ratio = numpy.divide(
-            smaller, right, out=numpy.zeros_like(right), where=same_sign
-        )
-        weight_left = (2 * intervals[1:] + intervals[:-1])[:, numpy.newaxis]
-        weight_right = (intervals[1:] + 2 * intervals[:-1])[:, numpy.newaxis]
-        denominator = weight_left * left_ratio + weight_right * right_ratio
-        derivatives[1:-1] = numpy.divide(
-            (weight_left + weight_right) * smaller,
-            denominator,
-            out=numpy.zeros_like(left),
-            where=same_sign,
-        )
-        for endpoint, first, second, width, next_width in (
-            (0, slopes[0], slopes[1], intervals[0], intervals[1]),
-            (-1, slopes[-1], slopes[-2], intervals[-1], intervals[-2]),
+        if samples.shape != (grid.size, len(selected_names)) or not numpy.all(
+            numpy.isfinite(samples)
         ):
-            edge = ((2 * width + next_width) * first - width * second) / (
-                width + next_width
+            raise ValueError(
+                "Native histories must be finite matching vectors"
             )
-            edge = numpy.where(
-                numpy.sign(edge) != numpy.sign(first), 0.0, edge
+        amplitudes = numpy.max(numpy.abs(samples), axis=0)
+        amplitudes = numpy.where(amplitudes > 0, amplitudes, 1.0)
+        scaled = samples / amplitudes
+        intervals = numpy.diff(grid)
+        slopes = numpy.diff(scaled, axis=0) / intervals[:, numpy.newaxis]
+        derivatives = numpy.zeros_like(scaled)
+        if grid.size == 2:
+            derivatives[:] = slopes[0]
+        else:
+            left, right = slopes[:-1], slopes[1:]
+            same_sign = (
+                (numpy.sign(left) == numpy.sign(right))
+                & (left != 0)
+                & (right != 0)
             )
-            edge = numpy.where(
-                (numpy.sign(first) != numpy.sign(second))
-                & (abs(edge) > 3 * abs(first)),
-                3 * first,
-                edge,
+            smaller = numpy.copysign(
+                numpy.minimum(abs(left), abs(right)), left
             )
-            derivatives[endpoint] = edge
-    interpolated = (
-        CubicHermiteSpline(
-            grid, scaled, derivatives, axis=0, extrapolate=False
-        )(target)
-        * amplitudes
-    )
-    return {name: interpolated[:, index] for index, name in enumerate(names)}
+            left_ratio = numpy.divide(
+                smaller, left, out=numpy.zeros_like(left), where=same_sign
+            )
+            right_ratio = numpy.divide(
+                smaller, right, out=numpy.zeros_like(right), where=same_sign
+            )
+            weight_left = (2 * intervals[1:] + intervals[:-1])[
+                :, numpy.newaxis
+            ]
+            weight_right = (intervals[1:] + 2 * intervals[:-1])[
+                :, numpy.newaxis
+            ]
+            denominator = weight_left * left_ratio + weight_right * right_ratio
+            derivatives[1:-1] = numpy.divide(
+                (weight_left + weight_right) * smaller,
+                denominator,
+                out=numpy.zeros_like(left),
+                where=same_sign,
+            )
+            for endpoint, first, second, width, next_width in (
+                (0, slopes[0], slopes[1], intervals[0], intervals[1]),
+                (-1, slopes[-1], slopes[-2], intervals[-1], intervals[-2]),
+            ):
+                edge = ((2 * width + next_width) * first - width * second) / (
+                    width + next_width
+                )
+                edge = numpy.where(
+                    numpy.sign(edge) != numpy.sign(first), 0.0, edge
+                )
+                edge = numpy.where(
+                    (numpy.sign(first) != numpy.sign(second))
+                    & (abs(edge) > 3 * abs(first)),
+                    3 * first,
+                    edge,
+                )
+                derivatives[endpoint] = edge
+        interpolated = (
+            CubicHermiteSpline(
+                grid, scaled, derivatives, axis=0, extrapolate=False
+            )(target)
+            * amplitudes
+        )
+        result.update(
+            {
+                name: interpolated[:, index]
+                for index, name in enumerate(selected_names)
+            }
+        )
+    return result
 
 
 def _split_collision_phase_scale(
@@ -635,13 +663,13 @@ def _integrate_batched_rk4(
     progress: Callable[..., None] | None = None,
     relaxation_slot: int | None = None,
     relaxation_rate: Callable[..., numpy.ndarray] | None = None,
+    split_interval_ratio: float | None = None,
 ) -> tuple[numpy.ndarray, numpy.ndarray, BatchedEvolutionStats]:
     """Integrate mode rows on a shared grid with a common RK4 schedule.
 
-    ``required_substeps`` may vary by mode, but each interval uses the next
-    power of two above the largest requested mode count.  This removes the
-    per-mode adaptive control path while retaining the declared stiffness
-    budget for every row.  Callbacks operate on all rows at once.
+    Each interval uses a common power-of-two schedule. When the optional
+    local ratio is exceeded, partition that interval by requested schedule
+    and rejoin at its end. Callbacks continue to see the full mode batch.
     """
 
     states = numpy.asarray(initial_states, dtype=float).copy()
@@ -650,6 +678,12 @@ def _integrate_batched_rk4(
     if (relaxation_slot is None) != (relaxation_rate is None):
         raise ValueError(
             "A relaxation slot and rate must be supplied together"
+        )
+    if split_interval_ratio is not None and (
+        not numpy.isfinite(split_interval_ratio) or split_interval_ratio < 1
+    ):
+        raise ValueError(
+            "Split interval ratio must be finite and at least one"
         )
     if (
         relaxation_slot is not None
@@ -698,15 +732,148 @@ def _integrate_batched_rk4(
     rk_stage_count = 0
     total_substep_count = 0
     maximum_substeps = 0
+    split_interval_count = 0
+    split_group_count = 0
+    rounded = None
+    split_intervals = numpy.zeros(interval_count, dtype=bool)
+    if split_interval_ratio is not None and mode_count > 1:
+        rounded = numpy.asarray(
+            [
+                [1 << (max(int(value), 1) - 1).bit_length() for value in row]
+                for row in required
+            ],
+            dtype=int,
+        )
+        split_intervals = numpy.max(rounded, axis=0) > (
+            split_interval_ratio * numpy.min(rounded, axis=0)
+        )
     interval_substeps = tuple(
         1 << (max(int(numpy.max(required[:, index])), 1) - 1).bit_length()
         for index in range(interval_count)
     )
     scheduled_work = sum(interval_substeps) * mode_count
+    if rounded is not None:
+        scheduled_work -= sum(
+            interval_substeps[index] * mode_count
+            - mode_count * int(numpy.sum(numpy.unique(rounded[:, index])))
+            for index in numpy.flatnonzero(split_intervals)
+        )
     completed_work = 0
     if progress is not None:
         progress(0, scheduled_work, interval=0, intervals=interval_count)
     for step_index in range(interval_count):
+        if split_intervals[step_index]:
+            split_interval_count += 1
+            counts = rounded[:, step_index]
+            for count in numpy.unique(counts):
+                selected = counts == count
+                outer_step = step_index
+                starting_work = completed_work
+
+                def selected_rhs(values, *, step_index, blend, active):
+                    """Evaluate the selected modes without advancing others."""
+
+                    result = numpy.array(
+                        rhs(
+                            values,
+                            step_index=outer_step,
+                            blend=blend,
+                            active=active,
+                        ),
+                        copy=True,
+                    )
+                    result[~selected] = 0.0
+                    return result
+
+                def selected_step(callback):
+                    """Preserve the unselected states across a split step."""
+
+                    if callback is None:
+                        return None
+
+                    def apply(values, *, step_index, blend, dt, active):
+                        """Run a collision step and restore other modes."""
+
+                        unselected = values[~selected].copy()
+                        result = numpy.array(
+                            callback(
+                                values,
+                                step_index=outer_step,
+                                blend=blend,
+                                dt=dt,
+                                active=active,
+                            ),
+                            copy=True,
+                        )
+                        result[~selected] = unselected
+                        return result
+
+                    return apply
+
+                def selected_rate(values, *, step_index, blend, active):
+                    """Leave inactive relaxation states unchanged."""
+
+                    rates = numpy.broadcast_to(
+                        numpy.asarray(
+                            relaxation_rate(
+                                values,
+                                step_index=outer_step,
+                                blend=blend,
+                                active=active,
+                            ),
+                            dtype=float,
+                        ),
+                        (mode_count,),
+                    )
+                    return numpy.where(selected, rates, 0.0)
+
+                def split_progress(done, total, *, interval, intervals):
+                    """Count full-width evaluations in the original scope."""
+
+                    if progress is not None:
+                        progress(
+                            starting_work + done,
+                            scheduled_work,
+                            interval=outer_step + 1,
+                            intervals=interval_count,
+                        )
+
+                _, split_states, split_stats = _integrate_batched_rk4(
+                    states,
+                    eta_values[step_index : step_index + 2],
+                    required_substeps=int(count),
+                    active_intervals=(active[:, step_index] & selected)[
+                        :, numpy.newaxis
+                    ],
+                    rhs=selected_rhs,
+                    pre_step=selected_step(pre_step),
+                    post_step=selected_step(post_step),
+                    progress=split_progress if progress is not None else None,
+                    relaxation_slot=relaxation_slot,
+                    relaxation_rate=(
+                        selected_rate if relaxation_rate is not None else None
+                    ),
+                )
+                states[selected] = split_states[selected]
+                rk_stage_count += split_stats.rk_stage_count
+                total_substep_count += split_stats.substep_count
+                completed_work += int(count) * mode_count
+                maximum_substeps = max(maximum_substeps, int(count))
+                split_group_count += 1
+            if record_step is not None:
+                record_active = (
+                    active[:, step_index + 1]
+                    if step_index + 1 < interval_count
+                    else active[:, step_index]
+                )
+                states = record_step(
+                    states,
+                    step_index=step_index + 1,
+                    blend=0.0,
+                    active=record_active,
+                )
+            histories[:, step_index + 1, :] = states
+            continue
         dt = float(eta_values[step_index + 1] - eta_values[step_index])
         substep_count = interval_substeps[step_index]
         maximum_substeps = max(maximum_substeps, substep_count)
@@ -873,6 +1040,8 @@ def _integrate_batched_rk4(
             rk_stage_count=rk_stage_count,
             substep_count=total_substep_count,
             maximum_substeps=maximum_substeps,
+            split_interval_count=split_interval_count,
+            split_group_count=split_group_count,
         ),
     )
 

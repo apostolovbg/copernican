@@ -98,6 +98,103 @@ class RecombinationTestCase(unittest.TestCase):
                     initial_helium=1.0,
                 )
 
+    def test_discontinuous_hydrogen_switch_crosses_in_both_directions(self):
+        """Each branch is integrated to the exact switch without smoothing."""
+        log_time = numpy.linspace(0.0, 0.1, 101)
+        scale = numpy.exp(log_time - 0.1)
+
+        def derivative(
+            scale_factor, _state, *, hydrogen_early_branch, **_options
+        ):
+            time = numpy.log(scale_factor) + 0.1
+            speed = 2.0 if hydrogen_early_branch else 1.0
+            return numpy.asarray((-speed if time < 0.05 else speed, 0.0, 0.0))
+
+        with mock.patch.object(
+            recombination, "_thermal_derivative", side_effect=derivative
+        ):
+            result = recombination.evolve_thermal_history(
+                scale,
+                numpy.ones_like(scale),
+                hydrogen_today=1.0,
+                temperature_today=1.0,
+                helium_ratio=0.0,
+                initial_hydrogen=0.99,
+                initial_helium=0.0,
+                rtol=1e-9,
+            )
+        expected = numpy.where(
+            log_time <= 0.0025,
+            0.99 - 2.0 * log_time,
+            numpy.where(
+                log_time <= 0.05,
+                0.985 - (log_time - 0.0025),
+                numpy.where(
+                    log_time <= 0.0975,
+                    0.9375 + (log_time - 0.05),
+                    0.985 + 2.0 * (log_time - 0.0975),
+                ),
+            ),
+        )
+        numpy.testing.assert_allclose(
+            result.hydrogen_fraction,
+            expected,
+            rtol=0,
+            atol=2e-7,
+            err_msg="The transition must preserve both physical branches.",
+        )
+        transition = 0.985
+        self.assertGreater(result.hydrogen_fraction[2], transition)
+        self.assertLess(result.hydrogen_fraction[3], transition)
+        self.assertLess(result.hydrogen_fraction[97], transition)
+        self.assertGreater(result.hydrogen_fraction[98], transition)
+
+    def test_ionized_initial_state_resolves_sub_ulp_relaxation(self):
+        """An early neutral fraction can relax faster than absolute log(a)."""
+        scale = numpy.geomspace(0.01, 0.02, 9)
+        equilibrium_neutral = 1e-8
+
+        def derivative(_scale_factor, _state, *, hydrogen_neutral, **_options):
+            return numpy.asarray(
+                (1e16 * (hydrogen_neutral - equilibrium_neutral), 0.0, 0.0)
+            )
+
+        with mock.patch.object(
+            recombination, "_thermal_derivative", side_effect=derivative
+        ):
+            result = recombination.evolve_thermal_history(
+                scale,
+                numpy.ones_like(scale),
+                hydrogen_today=1.0,
+                temperature_today=1.0,
+                helium_ratio=0.0,
+                initial_hydrogen=1.0,
+                initial_helium=0.0,
+            )
+        self.assertEqual(result.hydrogen_fraction[0], 1.0)
+        numpy.testing.assert_allclose(
+            result.hydrogen_fraction[1:],
+            1.0 - equilibrium_neutral,
+            rtol=0,
+            atol=1e-11,
+        )
+
+    def test_neutral_coordinate_preserves_atomic_derivatives(self):
+        """The conditioned coordinate evaluates the same physical rates."""
+        neutral = 2.0**-34
+        state = (1.0 - neutral, 0.5, 0.99)
+        options = {
+            "hubble_si": 1e-13,
+            "hydrogen_today": 0.26,
+            "temperature_today": 2.7255,
+            "helium_ratio": 0.08,
+        }
+        original = recombination._thermal_derivative(0.0003, state, **options)
+        conditioned = recombination._thermal_derivative(
+            0.0003, state, hydrogen_neutral=neutral, **options
+        )
+        numpy.testing.assert_array_equal(conditioned, original)
+
     def test_derivative_uses_logarithmic_expansion_time(self):
         """At T_m=T_gamma, expansion alone gives d(T_m/T_gamma)/d ln a=-1."""
 

@@ -566,6 +566,8 @@ class ScientificAcceptanceHandoffTestCase(unittest.TestCase):
                     ],
                 )
             self.assertTrue(report["parity_accepted"])
+            self.assertTrue(report["production_solve_completed"])
+            self.assertFalse(report["numerical_accepted"])
             self.assertFalse(report["completion_accepted"])
             self.assertNotIn(
                 "accepted ordinary full-window physical comparison",
@@ -679,6 +681,8 @@ class ScientificAcceptanceHandoffTestCase(unittest.TestCase):
                 )
             self.assertFalse(result["accepted"])
             self.assertFalse(result["completion_accepted"])
+            self.assertFalse(result["production_solve_completed"])
+            self.assertFalse(result["numerical_accepted"])
             self.assertIn(
                 "independent numerical rejection", result["failure"]["message"]
             )

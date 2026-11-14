@@ -148,7 +148,8 @@ The archive itself has a separate checksum in `tmp/SHA256SUMS`.
    The first import must resolve under the temporary source tree and the
    second under `.venv`. A newly built library has its own binary hash; it is
    not expected to match the old machine's compiler and architecture. The
-   fixture's recorded original binary hash remains historical provenance.
+   previous machine's binary hash remains in the superseded support archive;
+   the extended-support references record the newer build separately.
    If compilation or loading fails, inspect the compiler and build output;
    do not alter the frozen references or silently switch implementations.
 

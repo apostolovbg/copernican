@@ -40,6 +40,7 @@ from .errors import (
     classify_exception,
 )
 from .runtime import cache
+from .runtime.convergence import COMPLETION_NUMERICAL_RELATIVE_BUDGET
 from .runtime.execution import _compute_custom_cmb_spectrum_data
 
 _DEFAULT_SPECTRA = ("TT", "TE", "EE")
@@ -174,7 +175,7 @@ CMB_COMPLETION_METRICS = {
     "feature_location_tolerance_ell": 2,
     "window_half_width_ell": 8,
     "window_maximum_spacing_ell": 1,
-    "numerical_relative_budget": 0.005,
+    "numerical_relative_budget": COMPLETION_NUMERICAL_RELATIVE_BUDGET,
 }
 
 
@@ -4702,6 +4703,7 @@ def cmb_completion_source_identity(
         paths.add(root / "tests/project/lib" / name)
     paths.add(root / "tests/project/fixtures/ccmbs_completion_contract.json")
     paths.add(root / "tests/project/fixtures/ccmbs_comparable_camb.json.gz")
+    paths.add(root / "tests/project/fixtures/ccmbs_superseded_support.json.gz")
     paths.add(root / "tests/copernican/lib/likelihoods/cmb/test_cmb.py")
     files = {}
     for path in sorted(paths):
@@ -5137,19 +5139,22 @@ def compare_cmb_completion_spectra(
     ell = numpy.asarray(requirement["ells"], dtype=int)
     expected = set(requirement["surfaces"])
     refinement = reference.get("reference_refinement")
+    support_refinement = reference.get("reference_support_refinement")
     experimental = str(reference.get("reference_identity", "")).startswith(
         "camb:experimental:"
     )
     if experimental and not isinstance(refinement, Mapping):
         issues.append("experimental reference refinement is missing")
-    if refinement is not None and (
-        not isinstance(refinement, Mapping)
-        or list(refinement.get("ell_values", ())) != ell.tolist()
-        or set(refinement.get("spectra", {})) != expected
+    for label, candidate in (
+        ("reference refinement", refinement),
+        ("reference support refinement", support_refinement),
     ):
-        issues.append(
-            "reference refinement coverage differs from the contract"
-        )
+        if candidate is not None and (
+            not isinstance(candidate, Mapping)
+            or list(candidate.get("ell_values", ())) != ell.tolist()
+            or set(candidate.get("spectra", {})) != expected
+        ):
+            issues.append(f"{label} coverage differs from the contract")
     for label, payload in (("actual", actual), ("reference", reference)):
         if list(payload.get("ell_values", ())) != ell.tolist():
             issues.append(f"{label} ell coverage differs from the contract")
@@ -5239,17 +5244,26 @@ def compare_cmb_completion_spectra(
                     issues.append(f"{name} auto-spectrum is negative")
                 residual = numpy.abs(values - truth)
                 reference_error = numpy.zeros_like(residual)
-                if refinement is not None:
+                reference_errors = {}
+                for axis, candidate in (
+                    ("input_sampling", refinement),
+                    ("k_support", support_refinement),
+                ):
+                    if candidate is None:
+                        continue
                     coarse = numpy.asarray(
-                        refinement["spectra"][name][representation]
+                        candidate["spectra"][name][representation]
                     )
                     if representation == "C_ell":
-                        coarse = _native_c(refinement, name)
+                        coarse = _native_c(candidate, name)
                     if coarse.shape != ell.shape or not numpy.all(
                         numpy.isfinite(coarse)
                     ):
                         raise ValueError("invalid reference refinement")
-                    reference_error = numpy.abs(truth - coarse)
+                    axis_error = numpy.abs(truth - coarse)
+                    reference_errors[axis] = axis_error.tolist()
+                    reference_error = reference_error + axis_error
+                if reference_errors:
                     reference_allowance = (
                         CMB_COMPLETION_METRICS["numerical_relative_budget"]
                         * numpy.abs(truth)
@@ -5267,6 +5281,7 @@ def compare_cmb_completion_spectra(
                 metrics[f"{name}:{representation}"] = {
                     "absolute_residual": residual.tolist(),
                     "reference_refinement_error": reference_error.tolist(),
+                    "reference_refinement_errors": reference_errors,
                     "allowance": numpy.asarray(allowance).tolist(),
                     "accepted": passed,
                 }

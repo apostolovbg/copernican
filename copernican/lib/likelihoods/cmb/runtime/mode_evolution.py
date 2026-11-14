@@ -4994,9 +4994,15 @@ def build_declared_mode_evolution(
                     "schedule": schedule_values,
                 }
             )
+        common_schedule_allowed = bool(
+            momentum_runtimes
+            or generated_scalar_hierarchy
+            or declared_accuracy_controls.get("accuracy_tier") == "final"
+        )
         grouped_modes = group_mode_schedules(
             scheduled_modes,
             maximum_modes=schedule_group_width,
+            split_intervals=common_schedule_allowed,
         )
 
         results: dict[int, dict[str, numpy.ndarray]] = {}
@@ -5989,6 +5995,30 @@ def build_declared_mode_evolution(
                 scalar_substeps == batch_substeps[numpy.newaxis, :],
                 axis=1,
             )
+            split_intervals = batch_substeps > numpy.min(
+                scalar_substeps, axis=0
+            )
+            if not common_schedule_allowed:
+                split_intervals[:] = False
+            actual_substeps = numpy.where(
+                split_intervals[numpy.newaxis, :],
+                scalar_substeps,
+                batch_substeps[numpy.newaxis, :],
+            )
+            vector_substeps = (
+                mode_count
+                * sum(
+                    int(count)
+                    * int(
+                        numpy.count_nonzero(
+                            numpy.any(scalar_substeps == count, axis=0)
+                        )
+                    )
+                    for count in numpy.unique(scalar_substeps)
+                )
+                if common_schedule_allowed
+                else mode_count * int(numpy.sum(batch_substeps))
+            )
             runtime_envelope["schedule_group_count"] = (
                 int(runtime_envelope.get("schedule_group_count", 0)) + 1
             )
@@ -6001,7 +6031,7 @@ def build_declared_mode_evolution(
             ) + int(numpy.sum(scalar_substeps))
             runtime_envelope["schedule_batched_substeps"] = int(
                 runtime_envelope.get("schedule_batched_substeps", 0)
-            ) + int(mode_count * numpy.sum(batch_substeps))
+            ) + int(vector_substeps)
             runtime_envelope["schedule_total_overintegration_ratio"] = (
                 runtime_envelope["schedule_batched_substeps"]
                 / max(runtime_envelope["schedule_scalar_substeps"], 1)
@@ -6014,23 +6044,13 @@ def build_declared_mode_evolution(
                 ),
                 float(
                     numpy.max(
-                        batch_substeps[numpy.newaxis, :]
-                        / numpy.maximum(scalar_substeps, 1)
+                        actual_substeps / numpy.maximum(scalar_substeps, 1)
                     )
                 ),
             )
             runtime_envelope["schedule_forced_overintegration"] = int(
                 runtime_envelope.get("schedule_forced_overintegration", 0)
-            ) + int(
-                numpy.count_nonzero(
-                    scalar_substeps != batch_substeps[numpy.newaxis, :]
-                )
-            )
-            common_schedule_allowed = bool(
-                momentum_runtimes
-                or generated_scalar_hierarchy
-                or declared_accuracy_controls.get("accuracy_tier") == "final"
-            )
+            ) + int(numpy.count_nonzero(scalar_substeps != actual_substeps))
             if (
                 int(numpy.count_nonzero(schedule_matches)) < 2
                 and not common_schedule_allowed
@@ -6136,6 +6156,17 @@ def build_declared_mode_evolution(
                 progress=_report_batch_work,
                 relaxation_slot=relaxation_slot,
                 relaxation_rate=relaxation_rate,
+                split_interval_ratio=(
+                    1.0 if common_schedule_allowed else None
+                ),
+            )
+            runtime_envelope["schedule_split_interval_count"] = (
+                int(runtime_envelope.get("schedule_split_interval_count", 0))
+                + batch_stats.split_interval_count
+            )
+            runtime_envelope["schedule_split_group_count"] = (
+                int(runtime_envelope.get("schedule_split_group_count", 0))
+                + batch_stats.split_group_count
             )
             scheduled_background_contexts = None
             momentum_context_by_stage = None

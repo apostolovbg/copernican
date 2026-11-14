@@ -387,7 +387,7 @@
       "reference_identity": "camb:1.6.0",
       "reference_kind": "camb",
       "reference_sha256":
-        "38f9737fcb63520d62c4f0cbd491b98ebc502340bd8b77fb5a7d76e491d23b26",
+        "c69a974cfa54cabb965273507b06a4ae1c1213cd5fd293628b6d49321a8bee77",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -774,7 +774,7 @@
       "reference_identity": "camb:1.6.0",
       "reference_kind": "camb",
       "reference_sha256":
-        "ed7d232adc9a0888f79821a6df3190cb0859c951148be6be5fe199c7df954f93",
+        "dee50679db43eb8f11d175a3fbb5e071f0b80da385290f6da4b3e0ac414edf99",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -1224,7 +1224,7 @@
         "camb:experimental:1.6.0:eg9o_4lZRQCxjtYNgbv2eYfMf7a3KKXHickRUAR484Q",
       "reference_kind": "camb",
       "reference_sha256":
-        "c3075e6290d7c888c641495e55c3b8a5fda44cd279eb665f3b391ed235a3500a",
+        "5db00cf856495420b565f69e5f05b2b872a532594e1b6a37a3a8474dcca10fa5",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -1673,7 +1673,7 @@
         "camb:experimental:1.6.0:eg9o_4lZRQCxjtYNgbv2eYfMf7a3KKXHickRUAR484Q",
       "reference_kind": "camb",
       "reference_sha256":
-        "0002830a39f69bacda9d986c8a090f8d641bf5d73ec53cd952332ca1afdbbc1f",
+        "a7fc743ece589f54fb18be321e8e9006e2f245ee23377fd63645d8ffd8d21ee4",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -2122,7 +2122,7 @@
         "camb:experimental:1.6.0:eg9o_4lZRQCxjtYNgbv2eYfMf7a3KKXHickRUAR484Q",
       "reference_kind": "camb",
       "reference_sha256":
-        "408a66a244167391a52a638be29500c255b06f0dd1eb4538ce77436315d2b54d",
+        "4e355e9c12c11b546583e3f5966ea9ce763d9ee02045f87db3eab860c3fa3b7e",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -2575,7 +2575,7 @@
         "camb:experimental:1.6.0:eg9o_4lZRQCxjtYNgbv2eYfMf7a3KKXHickRUAR484Q",
       "reference_kind": "camb",
       "reference_sha256":
-        "7de5d6e5da5799d15e7ddc409805716cacdba5d5db9417669116e60b9de30074",
+        "3d0e7ba7f4931d1c0e13769dff95fdaf66cc0417d04dff018aa46b0318684b1d",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -3037,7 +3037,7 @@
       "reference_identity": "camb:1.6.0",
       "reference_kind": "camb",
       "reference_sha256":
-        "7f23ae11b641aa9f02aff6c6ead03fdeeedce76b1196ec6fe8ab297e5d40d769",
+        "6924cbe823141d3a8d7816577c0f3c9cab63be280a1294969f7522c376f90d9e",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -3607,7 +3607,7 @@
         "camb:experimental:1.6.0:2pD9xAqKN0ro2saUjkx4N8R7Hww2VKvQM5zapceotpU",
       "reference_kind": "camb",
       "reference_sha256":
-        "ae685f36445c9235a394c6a3370d5121f2fe9ef5c6c0197d435b03e018f0d025",
+        "238963007d6c178251b7ea6ad9b82c3d88ec9593f6c6a40209428add1a52d83b",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -4057,7 +4057,7 @@
         "camb:experimental:1.6.0:2pD9xAqKN0ro2saUjkx4N8R7Hww2VKvQM5zapceotpU",
       "reference_kind": "camb",
       "reference_sha256":
-        "0412fa25490a17656e3d6a0f757f62796faf04548abcf5e2e21071003ed93af1",
+        "2c9e2aa52c60b484b998833c476973b7470b1d6d52ebca24bf3426d05128db06",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -4507,7 +4507,7 @@
         "camb:experimental:1.6.0:2pD9xAqKN0ro2saUjkx4N8R7Hww2VKvQM5zapceotpU",
       "reference_kind": "camb",
       "reference_sha256":
-        "a6b7983df52773252063bcef22d1805e245ad37e953d5852d03f42f7a8b9a797",
+        "5cf68d5a85e39e852d4ae007edced61911fbcc8aa107d62cf8722ec3b3781e0e",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -4956,7 +4956,7 @@
         "camb:experimental:1.6.0:2pD9xAqKN0ro2saUjkx4N8R7Hww2VKvQM5zapceotpU",
       "reference_kind": "camb",
       "reference_sha256":
-        "aae13ed6805eaaa5e9d893b9854fe0dccc99d19784778e616efa0c4c08cd1215",
+        "c3c4d0ea78f9ec5105ba57a7a0f0ac765a3db17156d164fa7aaa705524672b71",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -5406,7 +5406,7 @@
         "camb:experimental:1.6.0:2pD9xAqKN0ro2saUjkx4N8R7Hww2VKvQM5zapceotpU",
       "reference_kind": "camb",
       "reference_sha256":
-        "99ab5ba56876b4f2d2baf7412010570ec406ceb6d8063b7b78168fee616983ea",
+        "f6ceed9319ec57ee4fa9c7c7958e56bc4e787331b9c5d8dcadbcae01c66fa16d",
       "required_invariants": [
         "equation_residuals",
         "conservation",
@@ -7536,6 +7536,234 @@
         "metrics",
         "case_sha256",
         "prior_ell_coverage"
+      ]
+    },
+    {
+      "case_id": "model_lcdm.yml:amplitude_up",
+      "date": "2026-11-12",
+      "previous_sha256":
+        "38f9737fcb63520d62c4f0cbd491b98ebc502340bd8b77fb5a7d76e491d23b26",
+      "reason": "Refined and independently checked CAMB k support.",
+      "reference_sha256":
+        "c69a974cfa54cabb965273507b06a4ae1c1213cd5fd293628b6d49321a8bee77",
+      "unchanged_requirements": [
+        "case_inventory",
+        "physical_inputs",
+        "ells",
+        "surfaces",
+        "features",
+        "damping_windows",
+        "metrics",
+        "case_sha256"
+      ]
+    },
+    {
+      "case_id": "model_lcdm.yml:initial",
+      "date": "2026-11-12",
+      "previous_sha256":
+        "ed7d232adc9a0888f79821a6df3190cb0859c951148be6be5fe199c7df954f93",
+      "reason": "Refined and independently checked CAMB k support.",
+      "reference_sha256":
+        "dee50679db43eb8f11d175a3fbb5e071f0b80da385290f6da4b3e0ac414edf99",
+      "unchanged_requirements": [
+        "case_inventory",
+        "physical_inputs",
+        "ells",
+        "surfaces",
+        "features",
+        "damping_windows",
+        "metrics",
+        "case_sha256"
+      ]
+    },
+    {
+      "case_id": "model_lcdm_mnu.yml:initial",
+      "date": "2026-11-12",
+      "previous_sha256":
+        "c3075e6290d7c888c641495e55c3b8a5fda44cd279eb665f3b391ed235a3500a",
+      "reason": "Refined and independently checked CAMB k support.",
+      "reference_sha256":
+        "5db00cf856495420b565f69e5f05b2b872a532594e1b6a37a3a8474dcca10fa5",
+      "unchanged_requirements": [
+        "case_inventory",
+        "physical_inputs",
+        "ells",
+        "surfaces",
+        "features",
+        "damping_windows",
+        "metrics",
+        "case_sha256"
+      ]
+    },
+    {
+      "case_id": "model_lcdm_mnu.yml:mass_006",
+      "date": "2026-11-12",
+      "previous_sha256":
+        "0002830a39f69bacda9d986c8a090f8d641bf5d73ec53cd952332ca1afdbbc1f",
+      "reason": "Refined and independently checked CAMB k support.",
+      "reference_sha256":
+        "a7fc743ece589f54fb18be321e8e9006e2f245ee23377fd63645d8ffd8d21ee4",
+      "unchanged_requirements": [
+        "case_inventory",
+        "physical_inputs",
+        "ells",
+        "surfaces",
+        "features",
+        "damping_windows",
+        "metrics",
+        "case_sha256"
+      ]
+    },
+    {
+      "case_id": "model_lcdm_mnu.yml:mass_050",
+      "date": "2026-11-12",
+      "previous_sha256":
+        "408a66a244167391a52a638be29500c255b06f0dd1eb4538ce77436315d2b54d",
+      "reason": "Refined and independently checked CAMB k support.",
+      "reference_sha256":
+        "4e355e9c12c11b546583e3f5966ea9ce763d9ee02045f87db3eab860c3fa3b7e",
+      "unchanged_requirements": [
+        "case_inventory",
+        "physical_inputs",
+        "ells",
+        "surfaces",
+        "features",
+        "damping_windows",
+        "metrics",
+        "case_sha256"
+      ]
+    },
+    {
+      "case_id": "model_lcdm_mnu.yml:mass_zero",
+      "date": "2026-11-12",
+      "previous_sha256":
+        "7de5d6e5da5799d15e7ddc409805716cacdba5d5db9417669116e60b9de30074",
+      "reason": "Refined and independently checked CAMB k support.",
+      "reference_sha256":
+        "3d0e7ba7f4931d1c0e13769dff95fdaf66cc0417d04dff018aa46b0318684b1d",
+      "unchanged_requirements": [
+        "case_inventory",
+        "physical_inputs",
+        "ells",
+        "surfaces",
+        "features",
+        "damping_windows",
+        "metrics",
+        "case_sha256"
+      ]
+    },
+    {
+      "case_id": "model_ref_planck2018.yml:initial",
+      "date": "2026-11-12",
+      "previous_sha256":
+        "7f23ae11b641aa9f02aff6c6ead03fdeeedce76b1196ec6fe8ab297e5d40d769",
+      "reason": "Refined and independently checked CAMB k support.",
+      "reference_sha256":
+        "6924cbe823141d3a8d7816577c0f3c9cab63be280a1294969f7522c376f90d9e",
+      "unchanged_requirements": [
+        "case_inventory",
+        "physical_inputs",
+        "ells",
+        "surfaces",
+        "features",
+        "damping_windows",
+        "metrics",
+        "case_sha256"
+      ]
+    },
+    {
+      "case_id": "model_w0wa.yml:initial",
+      "date": "2026-11-12",
+      "previous_sha256":
+        "ae685f36445c9235a394c6a3370d5121f2fe9ef5c6c0197d435b03e018f0d025",
+      "reason": "Refined and independently checked CAMB k support.",
+      "reference_sha256":
+        "238963007d6c178251b7ea6ad9b82c3d88ec9593f6c6a40209428add1a52d83b",
+      "unchanged_requirements": [
+        "case_inventory",
+        "physical_inputs",
+        "ells",
+        "surfaces",
+        "features",
+        "damping_windows",
+        "metrics",
+        "case_sha256"
+      ]
+    },
+    {
+      "case_id": "model_w0wa.yml:w0_minus_09",
+      "date": "2026-11-12",
+      "previous_sha256":
+        "0412fa25490a17656e3d6a0f757f62796faf04548abcf5e2e21071003ed93af1",
+      "reason": "Refined and independently checked CAMB k support.",
+      "reference_sha256":
+        "2c9e2aa52c60b484b998833c476973b7470b1d6d52ebca24bf3426d05128db06",
+      "unchanged_requirements": [
+        "case_inventory",
+        "physical_inputs",
+        "ells",
+        "surfaces",
+        "features",
+        "damping_windows",
+        "metrics",
+        "case_sha256"
+      ]
+    },
+    {
+      "case_id": "model_w0wa.yml:wa_plus_02",
+      "date": "2026-11-12",
+      "previous_sha256":
+        "a6b7983df52773252063bcef22d1805e245ad37e953d5852d03f42f7a8b9a797",
+      "reason": "Refined and independently checked CAMB k support.",
+      "reference_sha256":
+        "5cf68d5a85e39e852d4ae007edced61911fbcc8aa107d62cf8722ec3b3781e0e",
+      "unchanged_requirements": [
+        "case_inventory",
+        "physical_inputs",
+        "ells",
+        "surfaces",
+        "features",
+        "damping_windows",
+        "metrics",
+        "case_sha256"
+      ]
+    },
+    {
+      "case_id": "model_wcdm.yml:initial",
+      "date": "2026-11-12",
+      "previous_sha256":
+        "aae13ed6805eaaa5e9d893b9854fe0dccc99d19784778e616efa0c4c08cd1215",
+      "reason": "Refined and independently checked CAMB k support.",
+      "reference_sha256":
+        "c3c4d0ea78f9ec5105ba57a7a0f0ac765a3db17156d164fa7aaa705524672b71",
+      "unchanged_requirements": [
+        "case_inventory",
+        "physical_inputs",
+        "ells",
+        "surfaces",
+        "features",
+        "damping_windows",
+        "metrics",
+        "case_sha256"
+      ]
+    },
+    {
+      "case_id": "model_wcdm.yml:w_minus_09",
+      "date": "2026-11-12",
+      "previous_sha256":
+        "99ab5ba56876b4f2d2baf7412010570ec406ceb6d8063b7b78168fee616983ea",
+      "reason": "Refined and independently checked CAMB k support.",
+      "reference_sha256":
+        "f6ceed9319ec57ee4fa9c7c7958e56bc4e787331b9c5d8dcadbcae01c66fa16d",
+      "unchanged_requirements": [
+        "case_inventory",
+        "physical_inputs",
+        "ells",
+        "surfaces",
+        "features",
+        "damping_windows",
+        "metrics",
+        "case_sha256"
       ]
     }
   ],

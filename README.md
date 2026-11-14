@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-11-12
+**Last Updated:** 2026-11-14
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -146,6 +146,9 @@ k endpoint. It compares the resulting spectra per product and retains both
 grid identities and measured differences. The runtime separately reports
 evolution-history, source-representation, k-refinement, and line-of-sight
 errors.
+Native pilot validation checks the central and endpoint modes before
+admitting the remaining selected modes, avoiding unrelated expensive
+evolution when a required history is already unresolved.
 
 Evolved scalar Einstein residuals use the sum of absolute declared equation
 terms as their dimensionless normalization. Copernican records the maximum
@@ -316,6 +319,12 @@ same fixture on another compiler or platform checks identical metadata and
 numerical spectra within `rtol=1e-6` plus `1e-8` times each reference array's
 peak magnitude. This rebuild envelope preserves exact zero spectra and leaves
 the separate CCMBS scientific parity tolerances unchanged.
+When independent input-sampling and k-support reference refinements are
+both supplied, the completion comparator in
+`copernican.lib.likelihoods.cmb.diagnostics` adds their per-surface errors
+before applying the unchanged numerical and physical allowances.
+When supplied in a completion reference, the reference helper checks the
+matched candidate digests, numerical settings, support limits and samples.
 `build_final_cmb_certification_report()` extends that boundary with solver
 and dataset identities, fixture hashes, per-model raw evidence digests, and
 explicit integrity decisions. `assess_bao_cmb_isolation()` compares captured
@@ -348,9 +357,10 @@ twelve canonical reference arrays and the approved Planck density update;
 no acceptance window or tolerance changes with that update.
 The explicit `--completion-point CASE_ID` option retains named ordinary
 attempts and completed numerical arrays, including failed or interrupted
-attempts. Its quantitative parity flags remain separate from completion;
-the full physical-domain, independent-axis and consumer evidence is still
-required. `PLAN.md` records the unresolved low-ell high-k-tail defect.
+attempts. A completed production solve and quantitative parity remain
+separate from numerical and scientific acceptance; the full physical-domain,
+independent-axis and consumer evidence is still required. `PLAN.md` records
+the unresolved low-ell high-k-tail defect.
 The `evidence_assets` owner retains immutable compressed arrays with
 atomic manifests, verifies every array on readback, and rejects missing,
 tampered or escaped artifacts. Completion diagnostics require actual grid,
@@ -461,6 +471,9 @@ references retain independent thermal tables, complete coarse and refined
 spectra, source digests, and their earlier stock reference arrays. Reference
 refinement error consumes the same physical comparison allowance; it does
 not certify CCMBS parity by itself.
+The comparable references also retain independently extended CAMB k-support
+calculations and their generation identities. The complete previous archive
+is preserved for verification, with frozen physical inputs and windows intact.
 The wCDM and w0wa comparison points select the stock CAMB PPF closure in
 the temporary input-matched build; their superseded no-stress arrays remain
 available as historical references.
@@ -487,14 +500,20 @@ The ordinary production planner owns transfer, source, projection, and
 evolution refinement. Independently evolved dense feature histories and
 compact evidence for background, q, hierarchy, evolution, source, projection,
 and physical limits are retained in the public performance record. Physical
-limit evidence checks both k and eta endpoints, integration start, omitted
-visibility tails, thermal background support, and lensing ell support. The
+limit checks cover k and eta endpoints, integration start, omitted visibility
+tails, thermal background support, and lensing ell support. Their physical
+domain status remains unresolved until an independent k-domain comparison
+measures omitted contributions. The
 bounded production graph test uses that ordinary route, confirms wave-bearing
 TT/TE/EE output, and proves exact-repeat reuse without a diagnostic bypass or
 a second cold solve. A compact ordinary final-tier graph also runs both a
-multi-spectrum request and its TT subset, requires every active numerical
-axis to meet its measured budget, and verifies that the shared TT result is
+multi-spectrum request and its TT subset, checks measured numerical axes,
+reports the unresolved domain, and verifies that the shared TT result is
 unchanged.
+Production refinement accounts for BB, TP and EP as well as TT, TE, EE and
+PP. Cross-spectrum checks use their matching declared auto spectra, including
+the same sector for component outputs; subset requests retain those internal
+normalization inputs when they are declared.
 The production planner separates native wave modes, saved source times and
 angular quadrature. `spectrum_projection` interpolates independently evolved
 source meshes onto a common angular mesh and evaluates the radial kernels
@@ -595,6 +614,10 @@ matching the parameters used during hierarchy evolution.
 Their `effective_three_level` recombination prescription uses coupled
 hydrogen, helium and gas-temperature evolution in `runtime/recombination.py`,
 including helium escape/continuum/triplet channels and Compton scattering.
+It integrates each side of the hydrogen escape switch to the same transition
+state, preserving the declared branch equations across that discontinuity.
+Its neutral-hydrogen coordinate and elapsed logarithmic time retain precision
+through the rapid initial relaxation of an almost fully ionized gas.
 Custom atomic quantities and generic recombination roles remain separate
 explicit prescriptions. No production background calls CAMB.
 
@@ -640,9 +663,12 @@ Background refinement starts from its accepted internal seed through a
 separate control, so an obsolete input cannot cause a no-op refinement or
 silently increase the unrelated LOS sampling seed.
 Native and LOS densities remain independent of the background node count.
-Native wave cohorts share phase-resolved meshes, and compatible schedule
-groups preserve every mode's required subdivisions while bounding total
-extra work. Promoted coarse/intermediate/fine comparisons apply the same
+Native wave cohorts share phase-resolved meshes. Generated, kinetic and
+final-accuracy schedule groups split and rejoin at intervals with different
+required subdivisions. Each split mode retains its own schedule, including
+collision and relaxation steps; runtime evidence records the split work.
+Other diagnostic graphs retain their earlier grouping. Promoted
+coarse/intermediate/fine comparisons apply the same
 resolution criteria at every level. Every independent native and observable
 check still runs; no starting proposal is an acceptance certificate.
 Fresh requests still perform their numerical checks; exact accepted results
@@ -653,6 +679,8 @@ Evolution retains its full independently planned native history. Large saved
 batch trajectories use temporary file-backed arrays; live RK working arrays
 determine mode chunking. Resident ndarray cells and mapped history cells are
 reported separately; the operating system can also cache mapped pages.
+`runtime/evolution.py` interpolates native histories in bounded state blocks,
+preserving each shape-preserving spline while limiting temporary memory.
 Reordering an observation request preserves compatible physical histories.
 Changed physical parameters, equations, distributions or effective controls
 require fresh work. `runtime/equation_kernel.py` groups validated equations by
@@ -694,9 +722,12 @@ before scheduling the remaining modes; successful pilot work is retained.
 An unresolved engine-owned evolution mesh is refined without a fixed node
 ceiling; measured stagnation remains a failure. Each state's own amplitude
 and absolute tolerance govern its history error, while pointwise errors at
-zero crossings remain diagnostic. `runtime/evolution.py` includes collision
-phase after leaving the declared fast manifold: exact damping alone does not
-make a split, driven collision solution accurate.
+zero crossings remain diagnostic. Automatic refinement logs identify failure
+labels, products and metrics; optional captured failure evidence retains the
+measured bounds and tolerances. Combined observable budget ratios are labeled
+separately from relative history errors. `runtime/evolution.py` includes
+collision phase after leaving the declared fast manifold: exact damping alone
+does not make a split, driven collision solution accurate.
 Native states use a shape-preserving cubic Hermite interpolant before source
 evaluation. Its stable harmonic slopes retain tiny moments and avoid
 artificial ISW corners caused by differentiating linearly resampled metric

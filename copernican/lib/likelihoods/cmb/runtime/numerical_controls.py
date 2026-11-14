@@ -20,13 +20,14 @@ _EVOLUTION_WORK_CELL_BUDGET = 16_000_000
 _WORK_ESTIMATE_VERSION = 1
 
 
-def group_mode_schedules(rows, *, maximum_modes=256, work_multiplier=2.0):
+def group_mode_schedules(
+    rows, *, maximum_modes=256, work_multiplier=2.0, split_intervals=True
+):
     """Batch compatible meshes while bounding total extra integration work.
 
-    Every interval uses the largest required schedule among its modes.
-    Bound both total work and each interval's increase. The latter keeps
-    batched collision splitting close to independently scheduled scalar
-    trajectories; a total bound alone can conceal a large local change.
+    Account for full-width callbacks at every distinct per-mode schedule.
+    The integrator partitions unequal schedules and rejoins the modes on
+    their shared mesh; inactive rows still incur vector evaluation work.
     """
 
     if (
@@ -59,13 +60,27 @@ def group_mode_schedules(rows, *, maximum_modes=256, work_multiplier=2.0):
             ):
                 continue
             combined = numpy.maximum(group["schedule_max"], schedule)
-            if numpy.any(combined > work_multiplier * schedule):
-                continue
-            if numpy.any(combined > work_multiplier * group["schedule_min"]):
-                continue
-            actual_work = (len(group["indices"]) + 1) * int(
-                numpy.sum(combined)
-            )
+            if split_intervals:
+                added_work = 0
+                for count in numpy.unique(schedule):
+                    present = group["schedule_levels"].get(int(count))
+                    new = schedule == count
+                    if present is not None:
+                        new &= ~present
+                    added_work += int(count) * int(numpy.count_nonzero(new))
+                actual_work = (len(group["indices"]) + 1) * (
+                    group["schedule_work"] + added_work
+                )
+            else:
+                if numpy.any(combined > work_multiplier * schedule):
+                    continue
+                if numpy.any(
+                    combined > work_multiplier * group["schedule_min"]
+                ):
+                    continue
+                actual_work = (len(group["indices"]) + 1) * int(
+                    numpy.sum(combined)
+                )
             if actual_work <= work_multiplier * (
                 group["native_work"] + native_work
             ):
@@ -79,6 +94,8 @@ def group_mode_schedules(rows, *, maximum_modes=256, work_multiplier=2.0):
                 "eta_signature": signature,
                 "schedule_max": schedule.copy(),
                 "schedule_min": schedule.copy(),
+                "schedule_levels": {},
+                "schedule_work": 0,
                 "native_work": 0,
             }
             groups.append(selected)
@@ -91,6 +108,19 @@ def group_mode_schedules(rows, *, maximum_modes=256, work_multiplier=2.0):
         selected["schedule_min"] = numpy.minimum(
             selected["schedule_min"], schedule
         )
+        for count in numpy.unique(schedule):
+            mask = schedule == count
+            present = selected["schedule_levels"].get(int(count))
+            if present is None:
+                selected["schedule_levels"][int(count)] = mask
+                selected["schedule_work"] += int(count) * int(
+                    numpy.count_nonzero(mask)
+                )
+            else:
+                selected["schedule_work"] += int(count) * int(
+                    numpy.count_nonzero(mask & ~present)
+                )
+                present |= mask
     return groups
 
 
@@ -178,6 +208,11 @@ def promote_failed_resolution(
         evidence["observable_axis_contributions"] = contributors
         evidence["unproductive_budget_axes"] = sorted(unproductive)
         evidence["relative_error"] = severity
+        evidence["refinement_metric"] = {
+            "kind": "observable_budget_ratio",
+            "value": severity,
+            "threshold": 1.0,
+        }
     if axis is None:
         return None
     evidence["failure_label"] = error.label

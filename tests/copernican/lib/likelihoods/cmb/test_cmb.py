@@ -4531,6 +4531,43 @@ class CMBCustomAnalyticValidationTestCase(unittest.TestCase):
 class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
     """Runtime-response coverage for declared-graph execution."""
 
+    def test_cross_requests_include_declared_normalizing_auto_spectra(self):
+        """A TP or EP subset keeps its own covariance inputs internal."""
+        graph = SimpleNamespace(
+            observables={
+                name: SimpleNamespace(kind="angular_power_spectrum")
+                for name in ("TT", "TE", "EE", "BB", "PP", "TP", "EP")
+            }
+        )
+        for cross, expected in (
+            ("TE", {"TT", "TE", "EE"}),
+            ("TP", {"TT", "TP", "PP"}),
+            ("EP", {"EE", "EP", "PP"}),
+        ):
+            with self.subTest(cross=cross):
+                self.assertEqual(
+                    set(
+                        cmb_solver._requested_base_spectra(
+                            (cross,), perturbation_data=graph
+                        )
+                    ),
+                    expected,
+                )
+        graph.observables.update(
+            {
+                name: SimpleNamespace(kind="angular_power_spectrum")
+                for name in ("scalar_TT", "scalar_PP", "scalar_TP")
+            }
+        )
+        self.assertEqual(
+            set(
+                cmb_solver._requested_base_spectra(
+                    ("scalar_TP",), perturbation_data=graph
+                )
+            ),
+            {"scalar_TT", "scalar_PP", "scalar_TP"},
+        )
+
     def test_stage_diagnostic_captures_raw_state_and_source_histories(self):
         """Stage diagnostics retain aligned histories for one requested k."""
 
@@ -6743,10 +6780,10 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
         for values in spectrum_data.spectra.values():
             self.assertTrue(numpy.all(numpy.isfinite(values)))
 
-    def test_ordinary_production_refinement_accepts_request_subset(
+    def test_ordinary_refinement_reports_unresolved_domain_for_subset(
         self,
     ) -> None:
-        """A bounded ordinary request passes every active numerical axis."""
+        """Endpoint coverage does not certify the physical wave domain."""
 
         raw_contract = _analytic_signal_contract(decay_rate=1.0e-5)
         raw_contract.pop("numerical", None)
@@ -6790,7 +6827,7 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             "evolution": "measured",
             "source": "measured",
             "projection": "measured",
-            "physical_limits": "measured",
+            "physical_limits": "unresolved",
             "k": "measured",
             "angular_k": "measured",
         }
@@ -6836,6 +6873,13 @@ class CMBCustomRuntimeBehaviorTestCase(unittest.TestCase):
             )
             self.assertTrue(
                 all(evidence["physical_limit_evidence"]["checks"].values())
+            )
+            self.assertTrue(
+                evidence["physical_limit_evidence"]["checks_passed"]
+            )
+            self.assertIn(
+                "do not measure omitted k-domain",
+                evidence["physical_limit_evidence"]["reason"],
             )
             self.assertTrue(
                 evidence["production_scalar_k_convergence"]["converged"]

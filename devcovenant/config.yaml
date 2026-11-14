@@ -476,6 +476,7 @@ ignore:
   - htmlcov/**
   - devcovenant/logs/**
   - devcovenant/registry/runtime/**
+  - copernican/rng_minigames/alien_invasion/_storage/**
 
 # -------------------------------------------------------------------
 # Gitignore generation

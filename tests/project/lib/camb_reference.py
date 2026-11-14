@@ -1616,12 +1616,14 @@ def build_experimental_completion_reference(
     requirement: Mapping[str, Any],
     *,
     input_tables: Mapping[str, Mapping[str, Any]],
+    preserve_windows: bool = False,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Bind independently refined experimental arrays to preserved windows.
 
     The supplied candidates must contain dense ell 2..2500. Original required
     multipoles remain sampled while new feature windows follow the changed
-    physical reference. Both complete candidate calculations and their
+    physical reference, unless an unchanged physical case explicitly retains
+    its frozen windows. Both complete candidate calculations and their
     physical tables survive so acceptance can recompute reference uncertainty.
     """
     from copernican.lib.likelihoods.cmb import diagnostics
@@ -1680,10 +1682,15 @@ def build_experimental_completion_reference(
         ):
             raise ValueError(f"{name} refinement did not increase sampling")
 
-    features = completion_reference_windows(fine)
+    features = (
+        copy.deepcopy(requirement["features"])
+        if preserve_windows
+        else completion_reference_windows(fine)
+    )
     ells = set(int(value) for value in requirement["ells"])
-    for feature in features:
-        ells.update(range(feature["lower"], feature["upper"] + 1))
+    if not preserve_windows:
+        for feature in features:
+            ells.update(range(feature["lower"], feature["upper"] + 1))
     if not ells or min(ells) < 2 or max(ells) > 2500:
         raise ValueError("Experimental feature windows exceed dense coverage")
     selected = sorted(ells)
@@ -1746,3 +1753,164 @@ def build_experimental_completion_reference(
             + "; ".join(comparison["issues"])
         )
     return result, updated
+
+
+def validate_completion_reference_support(
+    reference: Mapping[str, Any], requirement: Mapping[str, Any]
+) -> None:
+    """Verify retained, physically matched CAMB k-support candidates.
+
+    The full lower-support calculation is retained with its original digest.
+    The finer calculation is either the experimental input-refinement
+    candidate or the original stock candidate reconstructed from the result.
+    Numerical settings may differ only in the recorded maximum k-eta.
+    """
+    support = reference["reference_support_refinement"]
+    coarse = support["candidate"]
+    input_refinement = reference.get("reference_refinement")
+    if input_refinement is None:
+        fine = {
+            key: value
+            for key, value in reference.items()
+            if key not in {"reference_support_refinement", "fixture_sha256"}
+        }
+        fine["fixture_sha256"] = support["fine_fixture_sha256"]
+    else:
+        fine = input_refinement["candidate_payloads"]["fine"]
+        input_coarse = input_refinement["candidate_payloads"]["coarse"]
+        if input_coarse.get("resolved_defaults") != fine.get(
+            "resolved_defaults"
+        ):
+            raise ValueError("Input refinement changes k-support settings")
+    for label, candidate in (("coarse", coarse), ("fine", fine)):
+        body = {
+            name: value
+            for name, value in candidate.items()
+            if name != "fixture_sha256"
+        }
+        if (
+            candidate.get("fixture_sha256")
+            != support[f"{label}_fixture_sha256"]
+            or reference_fixture_sha256(body) != candidate["fixture_sha256"]
+        ):
+            raise ValueError(f"Invalid {label} support candidate digest")
+    if coarse.keys() != fine.keys():
+        raise ValueError("Support candidate fields differ")
+    for name in coarse.keys() - {
+        "fixture_sha256",
+        "resolved_defaults",
+        "spectra",
+    }:
+        left, right = coarse.get(name), fine.get(name)
+        if name == "experimental_inputs":
+            # These derived diagnostics can differ in the last bits while
+            # their retained background samples and physical inputs agree.
+            if not isinstance(left, Mapping) or not isinstance(right, Mapping):
+                raise ValueError("Support candidate inputs are invalid")
+            left = {
+                key: value
+                for key, value in left.items()
+                if key != "background_checks"
+            }
+            right = {
+                key: value
+                for key, value in right.items()
+                if key != "background_checks"
+            }
+        if left != right:
+            raise ValueError(f"Support candidate {name} differs")
+    defaults = []
+    limits = []
+    expression = re.compile(r"(?m)^(\s*max_eta_k\s*=\s*)([0-9.eE+-]+)\s*$")
+    for candidate in (coarse, fine):
+        settings = str(candidate.get("resolved_defaults", ""))
+        matches = list(expression.finditer(settings))
+        if len(matches) != 1:
+            raise ValueError("Support candidate lacks a unique k-eta limit")
+        limit = float(matches[0].group(2))
+        if not numpy.isfinite(limit) or limit <= 0:
+            raise ValueError("Support candidate k-eta limit is invalid")
+        limits.append(limit)
+        defaults.append(expression.sub(r"\1<support>", settings))
+    if defaults[0] != defaults[1] or limits[0] >= limits[1]:
+        raise ValueError("Support candidates do not independently extend k")
+    selected = list(requirement["ells"])
+    if (
+        list(reference["ell_values"]) != selected
+        or list(support["ell_values"]) != selected
+    ):
+        raise ValueError("Support candidate multipoles differ")
+    dense = list(fine["ell_values"])
+    if len(set(dense)) != len(dense):
+        raise ValueError("Support candidate multipoles are not unique")
+    positions = {ell: index for index, ell in enumerate(dense)}
+    if any(ell not in positions for ell in selected):
+        raise ValueError("Support candidate lacks required multipoles")
+    expected = set(requirement["surfaces"])
+    if any(
+        set(candidate.get("spectra", {})) != expected
+        for candidate in (coarse, fine, reference, support)
+    ):
+        raise ValueError("Support candidate surfaces differ")
+    for label, candidate, retained in (
+        ("coarse", coarse, support),
+        ("fine", fine, reference),
+    ):
+        for name in expected:
+            for unit in ("C_ell", "D_ell"):
+                values = numpy.asarray(candidate["spectra"][name][unit])
+                if values.shape != (len(dense),) or not numpy.all(
+                    numpy.isfinite(values)
+                ):
+                    raise ValueError(f"Invalid {label} support samples")
+                sampled = values[[positions[ell] for ell in selected]]
+                if not numpy.array_equal(
+                    sampled, numpy.asarray(retained["spectra"][name][unit])
+                ):
+                    raise ValueError(f"Changed {label} support samples")
+    from copernican.lib.likelihoods.cmb import diagnostics
+
+    comparison = diagnostics.compare_cmb_completion_spectra(
+        reference, reference, requirement
+    )
+    if not comparison["accepted"]:
+        raise ValueError(
+            "Reference support refinement failed: "
+            + "; ".join(comparison["issues"])
+        )
+
+
+def build_completion_reference_support(
+    reference: Mapping[str, Any],
+    coarse: Mapping[str, Any],
+    requirement: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Add a retained independent k-support comparison to a reference."""
+    result = copy.deepcopy(dict(reference))
+    if "reference_support_refinement" in result:
+        raise ValueError("Reference already contains a support comparison")
+    positions = {ell: index for index, ell in enumerate(coarse["ell_values"])}
+    selected = list(requirement["ells"])
+    indices = [positions[ell] for ell in selected]
+    fine = (
+        result["reference_refinement"]["candidate_payloads"]["fine"]
+        if "reference_refinement" in result
+        else result
+    )
+    result["reference_support_refinement"] = {
+        "ell_values": selected,
+        "spectra": {
+            name: {
+                unit: numpy.asarray(surface[unit])[indices].tolist()
+                for unit in ("C_ell", "D_ell")
+            }
+            for name, surface in coarse["spectra"].items()
+        },
+        "candidate": copy.deepcopy(dict(coarse)),
+        "coarse_fixture_sha256": coarse["fixture_sha256"],
+        "fine_fixture_sha256": fine["fixture_sha256"],
+    }
+    validate_completion_reference_support(result, requirement)
+    result.pop("fixture_sha256", None)
+    result["fixture_sha256"] = reference_fixture_sha256(result)
+    return result
