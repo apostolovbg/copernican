@@ -66,7 +66,11 @@ class ConvergenceEstimate:
 
 @dataclass(frozen=True, slots=True)
 class HistoryConvergence:
-    """Convergence errors for histories on a dense common physical surface."""
+    """Convergence errors for histories on a dense common physical surface.
+
+    The global absolute maximum may belong to a different history than the
+    maximum normalized error. Keep the latter's own value and scale too.
+    """
 
     absolute_error: float
     relative_error: float
@@ -77,6 +81,8 @@ class HistoryConvergence:
     local_relative_error: float
     worst_history: str
     worst_eta: float
+    worst_absolute_error: float
+    worst_normalization_scale: float
 
 
 class AdaptiveNonConvergenceError(ConvergenceError):
@@ -1419,6 +1425,8 @@ def estimate_history_convergence(
     maximum_local_relative = 0.0
     worst_history = ""
     worst_eta = float(sample_eta[0])
+    worst_absolute_error = 0.0
+    worst_normalization_scale = 0.0
     history_samples: dict[str, tuple[numpy.ndarray, numpy.ndarray, float]] = {}
     for name in coarse_histories:
         coarse_values = numpy.asarray(coarse_histories[name], dtype=float)
@@ -1468,6 +1476,16 @@ def estimate_history_convergence(
             maximum_relative = float(normalized[peak_index])
             worst_history = str(name)
             worst_eta = float(sample_eta[peak_index])
+            worst_absolute_error = float(difference[peak_index])
+            worst_normalization_scale = (
+                scale
+                if relative_scale == "history_amplitude"
+                else max(
+                    abs(float(fine_sample[peak_index])),
+                    abs(float(coarse_sample[peak_index])),
+                    local_floor,
+                )
+            )
         history_samples[str(name)] = (coarse_sample, fine_sample, scale)
     for anchor_name, coordinate in anchor_coordinates.items():
         anchor_absolute = 0.0
@@ -1514,6 +1532,8 @@ def estimate_history_convergence(
         local_relative_error=float(maximum_local_relative),
         worst_history=worst_history,
         worst_eta=worst_eta,
+        worst_absolute_error=worst_absolute_error,
+        worst_normalization_scale=worst_normalization_scale,
     )
 
 

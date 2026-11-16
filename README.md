@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-11-14
+**Last Updated:** 2026-11-16
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -228,10 +228,11 @@ manifest. The named final tier requires bounded background, transfer,
 source, hierarchy, momentum-grid, and lensing controls and rejects
 under-resolved requests before expensive evolution. Momentum acceptance
 compares doubled-count quadrature with independently extended low- and high-q
-tails across the active thermal mass domain. Hierarchy acceptance uses a
-free-streaming spherical-tail bound tied to its closure assumptions, terminal
-multipole, and visibility-phase domain; configured floors alone do not earn a
-validated status. Cross-sector refinement tests enforce the documented `TT`,
+tails across the active thermal mass domain. The planner records an
+unvalidated free-streaming hierarchy candidate with its closure assumptions,
+terminal multipole and visibility-phase domain. The chosen k support can
+extend beyond that domain; actual independent source refinements remain
+required. Cross-sector refinement tests enforce the documented `TT`,
 `TE`, `EE`, `PP`, lensed `BB`, q-grid, and hierarchy thresholds. Explicit
 graphs without a sector registry retain their active sector identity from
 compiled observable and tensor-character metadata, so runtime envelopes
@@ -361,6 +362,26 @@ attempts. A completed production solve and quantitative parity remain
 separate from numerical and scientific acceptance; the full physical-domain,
 independent-axis and consumer evidence is still required. `PLAN.md` records
 the unresolved low-ell high-k-tail defect.
+Completion-point attempts retain completed background tables, source and
+selected native histories, and projection chunks under the evidence root.
+A later attempt checks the physical and numerical identities and payloads
+before reusing them. Background and other refinement comparisons are
+recomputed from their independently retained raw products; an earlier
+certificate is not substituted for the current assessment. Retained
+products support interruption and resume without establishing acceptance.
+For source refinement probes, the runtime persists each completed mode as
+soon as it is available, so interruption does not discard earlier modes.
+Ordinary and independently refined source batches also retain completed
+modes before the rest of a batch finishes.
+Identity-bound batched RK4 and scalar split trajectories checkpoint completed
+time intervals as incremental chunks, allowing matching work to resume
+mid-mode. Continuous BDF checkpoints preserve the pinned SciPy solver's
+adaptive state, sampled history and reusable factorization, which is verified
+exactly when restored. Sampled output alone is never used to restart BDF.
+Background tables are reusable across k-only refinements; their identity
+still includes the actual massive-neutrino momentum grid and parameters.
+Refinement records retain measured absolute errors where available and do
+not invent an aggregate value when only per-source measurements exist.
 The `evidence_assets` owner retains immutable compressed arrays with
 atomic manifests, verifies every array on readback, and rejects missing,
 tampered or escaped artifacts. Completion diagnostics require actual grid,
@@ -641,6 +662,9 @@ compiler reuses each condition's common symbol domain, and `runtime/cache.py`
 measures array payloads only for stores with a byte budget, retaining those
 sizes through replacement and eviction. These changes preserve equations,
 scalar conversion and numerical controls.
+`runtime/evolution.py` evaluates the same nonuniform three-point gradient
+stencil across array interiors, reducing background-grid preparation work
+without changing the endpoint formulas or the numerical controls.
 `runtime/history_store.py` retains raw mode sources across one request's
 nested refinements even when the global LRU evicts them. Its memory budget
 spills exact arrays into request-local files with checked digests; those
@@ -687,7 +711,9 @@ require fresh work. `runtime/equation_kernel.py` groups validated equations by
 their arithmetic structure, preserving operand bindings and operation order.
 Scalar execution remains an independent comparison. A single pending compatible
 mode keeps that executor after cache reuse; new independent transfer nodes use
-chunked batches with separately recorded reference work. Split collision
+chunked batches with separately recorded reference work. Singleton batches
+reuse the equation-name order and direct state bindings; operand shapes are
+still checked at every stage. Split collision
 schedules resolve the spectral scale of the actual declared interaction
 operator, including its coefficients, rather than assuming every interaction is
 Thomson opacity. Stiff declared blocks without a fast manifold use error-
@@ -725,7 +751,11 @@ and absolute tolerance govern its history error, while pointwise errors at
 zero crossings remain diagnostic. Automatic refinement logs identify failure
 labels, products and metrics; optional captured failure evidence retains the
 measured bounds and tolerances. Combined observable budget ratios are labeled
-separately from relative history errors. `runtime/evolution.py` includes
+separately from relative history errors. Native physical-axis checks record
+each sampled mode, source, worst conformal time and error normalization.
+History failures retain the worst relative history's own absolute error and
+scale separately from the largest absolute error across all histories.
+`runtime/evolution.py` includes
 collision phase after leaving the declared fast manifold: exact damping alone
 does not make a split, driven collision solution accurate.
 Native states use a shape-preserving cubic Hermite interpolant before source
@@ -761,6 +791,11 @@ remaining surface. Evolution and source comparisons remain independent.
 `runtime/error_budget.py` propagates measured source uncertainties through the
 absolute line-of-sight operators and signed-spline quadrature weights, then
 sums all applicable axis bounds with projection and Fourier refinement errors.
+The combined observable numerical budget is at most 0.5%; a stricter
+declared spectrum tolerance still applies. The independent Fourier-grid
+refinement keeps its own spectrum tolerances. Budget evidence records peak
+multipoles for each axis and product, normalization scales and cross-spectrum
+normalization peaks.
 Cross-spectrum checks include uncertainty in their normalization. Joint
 transfer products include interactions between different source-error axes,
 and the final budget retains the larger coarse/finer-grid axis bounds.

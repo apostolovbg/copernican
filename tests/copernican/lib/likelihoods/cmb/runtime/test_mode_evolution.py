@@ -317,6 +317,104 @@ class ModeEvolutionTestCase(unittest.TestCase):
                 2e-5 * scale,
             )
 
+    def test_singleton_rhs_rechecks_context_shape_at_each_stage(self):
+        """A changed operand shape selects the grouped equation executor."""
+
+        from copernican.lib.likelihoods.cmb.runtime.equation_kernel import (
+            GroupedEquationProgram,
+        )
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._speedup_contract(
+            test_cmb._declared_scalar_hierarchy_contract()
+        )
+        raw["numerical"].update(k_sample_count=4, k_max=0.03)
+        contract = test_cmb._prepare_declared_contract(raw)
+        original_resolve = (
+            mode_evolution._resolve_declared_graph_context_ordered
+        )
+        original_grouped = GroupedEquationProgram.__call__
+        original_build = mode_evolution.build_declared_mode_evolution
+        grouped_shapes = []
+        direct_names = set()
+        selected = []
+        stage_count = 0
+
+        def remember_direct_names(inputs):
+            direct_names.update(inputs.equation_direct_names)
+            return original_build(inputs)
+
+        def alternate_context(*args, **kwargs):
+            nonlocal stage_count
+            result = original_resolve(*args, **kwargs)
+            if "derivative_steps" in kwargs:
+                stage_count += 1
+                result = dict(result)
+                if not selected:
+                    selected.append(
+                        next(
+                            name
+                            for name in sorted(direct_names)
+                            if name in result and numpy.isscalar(result[name])
+                        )
+                    )
+                if stage_count == 2:
+                    name = selected[0]
+                    result[name] = numpy.asarray([result[name]])
+            return result
+
+        def record_grouped(program, context, states, derivative, rates):
+            grouped_shapes.append(numpy.asarray(context[selected[0]]).shape)
+            return original_grouped(
+                program, context, states, derivative, rates
+            )
+
+        def inspect_stages(initial, eta, **kwargs):
+            rhs = kwargs["rhs"]
+            active = numpy.ones(initial.shape[0], dtype=bool)
+            with (
+                mock.patch.object(
+                    mode_evolution,
+                    "_resolve_declared_graph_context_ordered",
+                    side_effect=alternate_context,
+                ),
+                mock.patch.object(
+                    GroupedEquationProgram, "__call__", record_grouped
+                ),
+            ):
+                stages = [
+                    rhs(initial, step_index=0, blend=0.0, active=active)
+                    for _ in range(3)
+                ]
+            self.assertEqual(stage_count, 3)
+            self.assertEqual(grouped_shapes, [(1,)])
+            for stage in stages[1:]:
+                numpy.testing.assert_array_equal(stages[0], stage)
+            raise _ModeHistoryCaptured()
+
+        self.addCleanup(test_cmb.cache.clear_cmb_caches)
+        test_cmb.cache.clear_cmb_caches()
+        with (
+            mock.patch.object(
+                test_cmb.cmb_execution,
+                "build_declared_mode_evolution",
+                side_effect=remember_direct_names,
+            ),
+            mock.patch.object(
+                mode_evolution,
+                "_integrate_batched_rk4",
+                side_effect=inspect_stages,
+            ),
+            self.assertRaises(_ModeHistoryCaptured),
+        ):
+            test_cmb.cmb_execution._compute_custom_cmb_spectrum_data_impl(
+                contract,
+                (2,),
+                performance_timer=test_cmb.cmb_execution.PhaseTimer(),
+                source_probe=(0.001,),
+                requested_spectra=("TT",),
+            )
+
     def test_stiff_declared_block_uses_full_local_interval_equations(self):
         from tests.copernican.lib.likelihoods.cmb import test_cmb
 

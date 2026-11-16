@@ -147,6 +147,12 @@ class AdaptiveControlsTestCase(unittest.TestCase):
         self.assertTrue(physical.converged)
         self.assertLess(physical.relative_error, 0.002)
         self.assertGreater(physical.local_relative_error, 0.9)
+        for estimate in (pointwise, physical):
+            self.assertAlmostEqual(
+                estimate.relative_error,
+                estimate.worst_absolute_error
+                / estimate.worst_normalization_scale,
+            )
         tiny = 1e-20 * fine
         arguments["coarse_histories"]["tiny"] = 1.2 * tiny
         arguments["fine_histories"]["tiny"] = tiny
@@ -193,6 +199,33 @@ class AdaptiveControlsTestCase(unittest.TestCase):
         self.assertLess(estimate.relative_error, 0.002)
         self.assertTrue(estimate.converged)
         self.assertAlmostEqual(estimate.local_relative_error, 0.004)
+
+    def test_history_failure_retains_its_own_absolute_error_and_scale(self):
+        """The worst relative history need not own the global absolute peak."""
+
+        eta = numpy.asarray((0.0, 1.0, 2.0))
+        estimate = estimate_history_convergence(
+            eta,
+            {
+                "large": numpy.asarray((100.0, 100.0, 100.0)),
+                "small": numpy.asarray((0.8, 0.8, 0.8)),
+            },
+            eta,
+            {
+                "large": numpy.asarray((100.0, 101.0, 100.0)),
+                "small": numpy.asarray((0.8, 1.0, 0.8)),
+            },
+            relative_tolerance=0.05,
+            absolute_tolerance=1e-12,
+            relative_scale="history_amplitude",
+        )
+        self.assertFalse(estimate.converged)
+        self.assertEqual(estimate.worst_history, "small")
+        self.assertEqual(estimate.worst_eta, 1.0)
+        self.assertEqual(estimate.absolute_error, 1.0)
+        self.assertAlmostEqual(estimate.worst_absolute_error, 0.2)
+        self.assertEqual(estimate.worst_normalization_scale, 1.0)
+        self.assertAlmostEqual(estimate.relative_error, 0.2)
 
     def test_public_symbols_are_exposed(self) -> None:
         """The adaptive module keeps its control and diagnostic API stable."""

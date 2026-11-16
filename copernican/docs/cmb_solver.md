@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-11-12
+**Last Updated:** 2026-11-16
 **Project Version:** 12.0.26
 
 ## Overview
@@ -246,7 +246,9 @@ ending on the same adaptive grid is insufficient. Generated hierarchy/q
 comparisons must materialize more states. Their actual compiled source
 errors join independently measured evolution and source-sampling errors.
 Theoretical free-streaming tail estimates initialize candidate depth; they
-are not measured acceptance evidence.
+are not measured acceptance evidence. The ell-scaled candidate phase can
+be smaller than the actual phase admitted by the independently chosen
+Fourier support, so it cannot replace the native-source comparison.
 
 `runtime/error_budget.py` propagates each per-source pointwise uncertainty
 through absolute LOS operators, then bounds transfer products using the
@@ -1865,10 +1867,16 @@ schedule for the remaining declared RHS together with the compiled exact or
 implicit collision blocks. Both routes execute the same equation program;
 neither introduces alternate scalar physics. Background values,
 tight-coupling masks, collision updates, and source dependencies are resolved
-from the declared graph at every stage. Projection kernels may use radial work
-batches, but no batched scalar RHS or alternate scalar hierarchy is permitted.
+from the declared graph at every stage. Compatible modes may share a batched
+scalar RHS and schedule without introducing an alternate scalar hierarchy.
+Projection kernels may also use radial work batches.
 q-resolved momentum states and declared vector or tensor states retain their
 declared state-slot layouts.
+
+For a singleton compatible batch, `runtime/mode_evolution.py` prepares the
+direct equation-name order and state bindings once. It still checks the actual
+operand shapes at each stage and falls back to the grouped executor when
+they differ from the compiled row program's shape signature.
 
 The envelope records wall time for `compilation`, `background`,
 `initial_data`, `evolution`, `projection`, `lensing`, and
@@ -2283,6 +2291,34 @@ It validates frozen reference identities and physical inputs before any
 CCMBS evolution. Each attempt remains under `preflight/` in the configured
 evidence root; `completion-preflight.json` identifies the latest attempt.
 A successful preflight is a prerequisite, never scientific acceptance.
+Completion-point attempts retain identity-bound background tables, source
+and selected native histories, and direct or independently sampled angular
+projection chunks. A later attempt verifies and reloads matching raw products
+after interruption. It reconstructs the background interpolators and reruns
+the independent convergence assessments from their distinct raw inputs.
+`runtime/mode_evolution.py` and `runtime/execution.py` persist each completed
+source-probe mode as its source histories are evaluated. Batched modes can
+share an integration schedule. Each mode's independent native history and
+sources retain their own identity and numerical controls.
+The same execution owner retains each completed ordinary or independently
+refined source mode before the enclosing batch returns. Batched RK4 evolution
+also checkpoints completed intervals and accumulated work in incremental,
+identity-bound chunks. Matching groups resume from a validated prefix;
+changed schedules or inputs do not reuse it. Scalar split trajectories also
+retain their projected state, coupling hysteresis and work counters at native
+interval boundaries. Restored work is reported separately from full logical
+integration counts. `runtime/bdf_checkpoint.py` preserves continuous BDF
+adaptive state, sampled output, work counters and the matrix behind any
+reusable factorization. Restoration verifies the reconstructed LU factors
+exactly and rejects changed solver code or numerical identity. This depends
+on the pinned SciPy implementation; sampled states alone cannot restart the
+trajectory. Diagnostic stage audits do not reuse partial checkpoints.
+`runtime/background.py` shares a background across k-only refinements,
+while retaining the actual momentum quadrature, its parameters and the
+diagnostic grid mode in the background identity.
+`runtime/numerical_controls.py` preserves measured refinement errors and
+does not report an unmeasured aggregate absolute error as zero. Individual
+source errors remain available by mode and product.
 Changed physical parameters require a reviewed independent-reference update;
 the runner rejects a mismatch instead of quietly replacing a frozen hash.
 Affected nonstandard models use separately identified experimental CAMB

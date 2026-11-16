@@ -18,6 +18,8 @@ from zipfile import BadZipFile
 
 import numpy
 
+from ..durable_history import active_durable_histories
+
 _NATIVE_HISTORY_RESOURCES: ContextVar[list | None] = ContextVar(
     "native_history_resources", default=None
 )
@@ -157,6 +159,9 @@ class RequestSourceHistoryStore:
             )
         if len({values.shape for values in arrays.values()}) != 1:
             raise ValueError("Retained source histories must share a grid")
+        durable = active_durable_histories()
+        if durable is not None:
+            durable.set(key, arrays)
         for values in arrays.values():
             values.setflags(write=False)
         previous = self._entries.pop(key, None)
@@ -192,6 +197,15 @@ class RequestSourceHistoryStore:
 
         entry = self._entries.get(key)
         if entry is None:
+            durable = active_durable_histories()
+            if durable is not None:
+                sources = durable.get(key)
+                if sources is not None:
+                    # Populate request-local retention without republishing a
+                    # validated product under a new producer identity.
+                    self._retain_loaded(key, sources)
+                    self.hits += 1
+                    return dict(sources)
             self.misses += 1
             return None
         if isinstance(entry, _SpilledSourceHistory):
@@ -227,6 +241,25 @@ class RequestSourceHistoryStore:
             values.setflags(write=False)
         self.hits += 1
         return dict(sources)
+
+    def _retain_loaded(self, key, sources):
+        """Keep readback request-local without writing it a second time."""
+
+        # The persistent store remains authoritative for later lookups when
+        # the request's memory budget cannot hold this bundle.
+        if sum(values.nbytes for values in sources.values()) > self.max_bytes:
+            return
+        self._entries[key] = sources
+        size = sum(int(values.nbytes) for values in sources.values())
+        self._sizes[key] = size
+        self._resident_bytes += size
+        self._peak_resident_bytes = max(
+            self._peak_resident_bytes, self._resident_bytes
+        )
+        while self._resident_bytes > self.max_bytes:
+            oldest = next(iter(self._sizes))
+            self._resident_bytes -= self._sizes.pop(oldest)
+            self._entries.pop(oldest)
 
     def snapshot(self) -> dict[str, int]:
         """Expose retained work and memory accounting without local paths."""

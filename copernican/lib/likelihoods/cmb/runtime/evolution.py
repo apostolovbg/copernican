@@ -664,6 +664,7 @@ def _integrate_batched_rk4(
     relaxation_slot: int | None = None,
     relaxation_rate: Callable[..., numpy.ndarray] | None = None,
     split_interval_ratio: float | None = None,
+    checkpoint: Any | None = None,
 ) -> tuple[numpy.ndarray, numpy.ndarray, BatchedEvolutionStats]:
     """Integrate mode rows on a shared grid with a common RK4 schedule.
 
@@ -721,14 +722,6 @@ def _integrate_batched_rk4(
     histories = allocate_native_history(
         (mode_count, eta_values.size, states.shape[1]),
     )
-    if record_step is not None and interval_count:
-        states = record_step(
-            states,
-            step_index=0,
-            blend=0.0,
-            active=active[:, 0],
-        )
-    histories[:, 0, :] = states
     rk_stage_count = 0
     total_substep_count = 0
     maximum_substeps = 0
@@ -759,9 +752,52 @@ def _integrate_batched_rk4(
             for index in numpy.flatnonzero(split_intervals)
         )
     completed_work = 0
+    start_interval = 0
+    restored = None if checkpoint is None else checkpoint.restore(histories)
+    if restored is None:
+        if record_step is not None and interval_count:
+            states = record_step(
+                states,
+                step_index=0,
+                blend=0.0,
+                active=active[:, 0],
+            )
+        histories[:, 0, :] = states
+    else:
+        start_interval, saved_stats = restored
+        states = numpy.array(histories[:, start_interval, :], copy=True)
+        rk_stage_count = saved_stats["rk_stage_count"]
+        total_substep_count = saved_stats["total_substep_count"]
+        maximum_substeps = saved_stats["maximum_substeps"]
+        split_interval_count = saved_stats["split_interval_count"]
+        split_group_count = saved_stats["split_group_count"]
+        completed_work = saved_stats["completed_work"]
+
+    def retain_interval(completed_interval):
+        """Save only a fully rejoined interval and its accumulated work."""
+
+        if checkpoint is not None:
+            checkpoint.record(
+                histories,
+                completed_interval,
+                {
+                    "rk_stage_count": rk_stage_count,
+                    "total_substep_count": total_substep_count,
+                    "maximum_substeps": maximum_substeps,
+                    "split_interval_count": split_interval_count,
+                    "split_group_count": split_group_count,
+                    "completed_work": completed_work,
+                },
+            )
+
     if progress is not None:
-        progress(0, scheduled_work, interval=0, intervals=interval_count)
-    for step_index in range(interval_count):
+        progress(
+            completed_work,
+            scheduled_work,
+            interval=start_interval,
+            intervals=interval_count,
+        )
+    for step_index in range(start_interval, interval_count):
         if split_intervals[step_index]:
             split_interval_count += 1
             counts = rounded[:, step_index]
@@ -873,6 +909,7 @@ def _integrate_batched_rk4(
                     active=record_active,
                 )
             histories[:, step_index + 1, :] = states
+            retain_interval(step_index + 1)
             continue
         dt = float(eta_values[step_index + 1] - eta_values[step_index])
         substep_count = interval_substeps[step_index]
@@ -1031,6 +1068,7 @@ def _integrate_batched_rk4(
                 active=record_active,
             )
         histories[:, step_index + 1, :] = states
+        retain_interval(step_index + 1)
     return (
         histories,
         states,
@@ -3015,17 +3053,16 @@ def _nonuniform_gradient(
         + left_span * samples[1] / (left_step * right_step)
         - left_step * samples[2] / (right_step * left_span)
     )
-    for index in range(1, samples.size - 1):
-        left_step = float(steps[index - 1])
-        right_step = float(steps[index])
-        span = left_step + right_step
-        derivative[index] = (
-            -right_step * samples[index - 1] / (left_step * span)
-            + (right_step - left_step)
-            * samples[index]
-            / (left_step * right_step)
-            + left_step * samples[index + 1] / (right_step * span)
-        )
+    left_steps = steps[:-1]
+    right_steps = steps[1:]
+    spans = left_steps + right_steps
+    derivative[1:-1] = (
+        -right_steps * samples[:-2] / (left_steps * spans)
+        + (right_steps - left_steps)
+        * samples[1:-1]
+        / (left_steps * right_steps)
+        + left_steps * samples[2:] / (right_steps * spans)
+    )
     left_step = float(steps[-2])
     right_step = float(steps[-1])
     right_span = left_step + right_step

@@ -122,6 +122,133 @@ def _compiled_graph_fixture():
 class EvolutionModuleTestCase(unittest.TestCase):
     """Exercise declared evolution helpers directly."""
 
+    def test_nonuniform_gradient_preserves_scalar_stencil(self):
+        """Every vectorized interior derivative matches scalar arithmetic."""
+
+        rng = numpy.random.default_rng(154)
+        for size in (2, 3, 17, 7017):
+            with self.subTest(size=size):
+                grid = numpy.cumsum(rng.uniform(0.01, 0.9, size))
+                samples = numpy.sin(grid * 0.031) + rng.normal(
+                    0.0, 0.001, size
+                )
+                actual = evolution._nonuniform_gradient(samples, grid)
+                steps = numpy.diff(grid)
+                if size == 2:
+                    slope = (samples[1] - samples[0]) / steps[0]
+                    numpy.testing.assert_array_equal(actual, [slope, slope])
+                    continue
+                expected = []
+                for index in range(1, size - 1):
+                    left = float(steps[index - 1])
+                    right = float(steps[index])
+                    span = left + right
+                    expected.append(
+                        -right * samples[index - 1] / (left * span)
+                        + (right - left) * samples[index] / (left * right)
+                        + left * samples[index + 1] / (right * span)
+                    )
+                numpy.testing.assert_array_equal(actual[1:-1], expected)
+
+    def test_rk_checkpoint_restores_split_history_and_work(self):
+        """An interrupted split schedule resumes with identical raw work."""
+
+        import inspect
+        import tempfile
+
+        from copernican.lib.likelihoods.cmb.durable_history import (
+            DurableHistories,
+            RKCheckpoint,
+        )
+
+        eta = numpy.linspace(0.0, 1.0, 9)
+        initial = numpy.array([[1.0, 0.2], [0.7, -0.1]])
+        required = numpy.ones((2, 8), dtype=int)
+        required[:, 2] = (1, 4)
+        required[:, 5] = (8, 1)
+        active = numpy.ones((2, 8), dtype=bool)
+        calls = []
+        checkpoint_callers = []
+
+        def rate(states, *, step_index, blend, active):
+            del states, active
+            return numpy.array([2.0, 4.0]) * (1 + 0.1 * (step_index + blend))
+
+        def rhs(states, *, step_index, blend, active):
+            damping = rate(
+                states, step_index=step_index, blend=blend, active=active
+            )
+            del active
+            calls.append(step_index)
+            return numpy.column_stack(
+                (
+                    states[:, 1],
+                    -states[:, 0] * (1 + step_index + blend)
+                    - damping * states[:, 1],
+                )
+            )
+
+        def collision(states, *, step_index, blend, dt, active):
+            del step_index, blend
+            result = states.copy()
+            result[:, 0] *= numpy.where(active, numpy.exp(-0.1 * dt), 1.0)
+            return result
+
+        def record(states, *, step_index, blend, active):
+            del step_index, blend, active
+            return states.copy()
+
+        options = {
+            "required_substeps": required,
+            "active_intervals": active,
+            "rhs": rhs,
+            "pre_step": collision,
+            "post_step": collision,
+            "record_step": record,
+            "relaxation_slot": 1,
+            "relaxation_rate": rate,
+            "split_interval_ratio": 1.0,
+        }
+        uninterrupted = evolution._integrate_batched_rk4(
+            initial, eta, **options
+        )
+        calls.clear()
+        identity = {"physical": "a" * 64, "numerical": "b" * 64}
+        with tempfile.TemporaryDirectory() as directory:
+            durable = DurableHistories(directory, identity, "cases/first")
+            first = RKCheckpoint(durable, ("two-modes",), interval_seconds=0)
+            original = first.record
+
+            def interrupt(histories, interval, stats):
+                original(histories, interval, stats)
+                if interval == 3:
+                    checkpoint_callers.extend(
+                        frame.function for frame in inspect.stack()
+                    )
+                    raise InterruptedError("checkpoint published")
+
+            first.record = interrupt
+            with self.assertRaisesRegex(InterruptedError, "published"):
+                evolution._integrate_batched_rk4(
+                    initial, eta, checkpoint=first, **options
+                )
+            self.assertEqual(first.saved_nodes, 4)
+            self.assertIn("retain_interval", checkpoint_callers)
+            calls.clear()
+            resumed = RKCheckpoint(
+                DurableHistories(directory, identity, "cases/resume"),
+                ("two-modes",),
+                interval_seconds=0,
+            )
+            actual = evolution._integrate_batched_rk4(
+                initial, eta, checkpoint=resumed, **options
+            )
+            numpy.testing.assert_array_equal(actual[0], uninterrupted[0])
+            numpy.testing.assert_array_equal(actual[1], uninterrupted[1])
+            self.assertEqual(actual[2], uninterrupted[2])
+            self.assertTrue(calls)
+            self.assertGreaterEqual(min(calls), 3)
+
     def test_split_rejoins_independent_collision_and_relaxation_histories(
         self,
     ):

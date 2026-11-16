@@ -371,7 +371,6 @@ def refine_numerical_axis(contract, axis, *, evidence=None):
             default=0.0,
         ),
     )
-    evidence.setdefault("absolute_error", 0.0)
     return updated, evidence
 
 

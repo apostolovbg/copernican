@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-11-14
+**Last Updated:** 2026-11-16
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -78,6 +78,1004 @@ suffixes. Follow this template:
 ## Log changes here
 
 ## Version 12.0.26
+
+- 2026-11-16:
+  Change: Assessed retained evolution refinement histories.
+  Why: Checked next-tier errors and missing pilot work.
+  Impact: Recorded the pending ordinary pilot retention gap.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/durable_history.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/bdf_checkpoint.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  handoff/HANDOFF.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_bdf_checkpoint.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_durable_history.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_superseded_support.json.gz
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-16:
+  Change: Verified a bounded LCDM checkpoint continuation.
+  Why: Traced retained history and adaptive work reuse.
+  Impact: Recorded exact checkpoint and history readback evidence.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/durable_history.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/bdf_checkpoint.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  handoff/HANDOFF.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_bdf_checkpoint.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_durable_history.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_superseded_support.json.gz
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-16:
+  Change: Measured a bounded LCDM continuation.
+  Why: Checked identity-bound history and checkpoint reuse.
+  Impact: Recorded reuse, failures and the hard-stop outcome.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/durable_history.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/bdf_checkpoint.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  handoff/HANDOFF.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_bdf_checkpoint.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_durable_history.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_superseded_support.json.gz
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-16:
+  Change: Measured a bounded ordinary LCDM refinement attempt.
+  Why: Reproduced current failures and retained checkpointed work.
+  Impact: Recorded elapsed time, memory and numerical evidence.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/durable_history.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/bdf_checkpoint.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  handoff/HANDOFF.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_bdf_checkpoint.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_durable_history.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_superseded_support.json.gz
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-16:
+  Change: Assessed retained cold source-history differences.
+  Why: Compared reproduced variation with existing axis checks.
+  Impact: Recorded the bounded result without claiming acceptance.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/durable_history.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/bdf_checkpoint.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  handoff/HANDOFF.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_bdf_checkpoint.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_durable_history.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_superseded_support.json.gz
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-16:
+  Change: Optimized singleton equation-name and state bindings.
+  Why: Removed repeated work measured in native RK stages.
+  Impact: Reduced selected-mode time while preserving exact results.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/durable_history.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/bdf_checkpoint.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  handoff/HANDOFF.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_bdf_checkpoint.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_mode_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_durable_history.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_superseded_support.json.gz
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-16:
+  Change: Profiled integration and investigated background variation.
+  Why: Localized numerical differences and measured callback costs.
+  Impact: Recorded bounded next investigations for Slice Seven.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/durable_history.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/bdf_checkpoint.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  handoff/HANDOFF.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_bdf_checkpoint.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_durable_history.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_superseded_support.json.gz
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-16:
+  Change: Added exact adaptive BDF trajectory checkpoints.
+  Why: Preserved solver state and measured interrupted evolution costs.
+  Impact: Enabled validated continuation while retaining scientific checks.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/durable_history.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/bdf_checkpoint.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  handoff/HANDOFF.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_bdf_checkpoint.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_durable_history.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_superseded_support.json.gz
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-15:
+  Change: Added scalar split trajectory checkpoints.
+  Why: Diagnosed resumable native scalar boundaries.
+  Impact: Enabled validated scalar and PPF history reuse.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/durable_history.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  handoff/HANDOFF.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_durable_history.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_superseded_support.json.gz
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+
+
+
+
+- 2026-11-15:
+  Change: Added resumable batched RK4 interval checkpoints.
+  Why: Diagnosed lost work inside interrupted native trajectories.
+  Impact: Enabled validated partial-history reuse with work accounting.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/durable_history.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  handoff/HANDOFF.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_durable_history.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_superseded_support.json.gz
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+
+
+
+- 2026-11-15:
+  Change: Retained source modes and corrected background reuse.
+  Why: Diagnosed interrupted batches and redundant background solves.
+  Impact: Enabled validated reuse across interruptions and k refinements.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/durable_history.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  handoff/HANDOFF.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_durable_history.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_superseded_support.json.gz
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+
+
+- 2026-11-15:
+  Change: Persisted source probes and corrected failure evidence.
+  Why: Diagnosed lost work and an unmeasured zero error.
+  Impact: Enabled mode reuse and accurate refinement diagnostics.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/durable_history.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  handoff/HANDOFF.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_durable_history.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_superseded_support.json.gz
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+
+- 2026-11-15:
+  Change: Clarified the hierarchy candidate phase domain.
+  Why: Identified support beyond the original phase estimate.
+  Impact: Preserved independent native hierarchy validation.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/durable_history.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  handoff/HANDOFF.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_durable_history.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_superseded_support.json.gz
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-15:
+  Change: Identified the historical observable failure product.
+  Why: Traced the original request through its retained sources.
+  Impact: Recorded TT at ell 2 and the applicable normalization.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/durable_history.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  handoff/HANDOFF.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_durable_history.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_superseded_support.json.gz
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-15:
+  Change: Optimized the nonuniform background gradient stencil.
+  Why: Reduced measured sampling work during refinement diagnosis.
+  Impact: Preserved the stencil while improving grid preparation.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/durable_history.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  handoff/HANDOFF.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_durable_history.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_superseded_support.json.gz
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-15:
+  Change: Resumed validated background and projection products.
+  Why: Preserved independently calculated work after interruption.
+  Impact: Recomputed refinement checks from reusable raw products.
+  Files:
+CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/durable_history.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/background.py
+  copernican/lib/likelihoods/cmb/runtime/cache.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  copernican/lib/likelihoods/cmb/runtime/spectrum_projection.py
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  handoff/HANDOFF.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_background.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_spectrum_projection.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_durable_history.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_superseded_support.json.gz
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-15:
+  Change: Added durable identity-bound source and native histories.
+  Why: Preserved completed physical work across interrupted attempts.
+  Impact: Enabled verified raw-history reuse and retained its limits.
+  Files:
+CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  copernican/docs/cmb_solver.md
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/durable_history.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/history_store.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  handoff/HANDOFF.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/copernican/lib/likelihoods/cmb/test_durable_history.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_superseded_support.json.gz
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-15:
+  Change: Measured independent hierarchy refinements and error locations.
+  Why: Diagnosed repeated failures using actual physical histories.
+  Impact: Preserved source evidence and identified native discrepancies.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  handoff/HANDOFF.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_superseded_support.json.gz
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-14:
+  Change: Corrected the budget and measured a hierarchy discrepancy.
+  Why: Detected looser limits and incomplete refinement evidence.
+  Impact: Enforced the frozen budget and retained source locations.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/adaptive.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  handoff/HANDOFF.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_adaptive.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_superseded_support.json.gz
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
+
+- 2026-11-14:
+  Change: Corrected the projection fixture and measured low-k repeatability.
+  Why: Detected unrelated cold-solve variation in the fixture's inputs.
+  Impact: Preserved strict checks and recorded bounded LCDM evidence.
+  Files:
+  CHANGELOG.md
+  PLAN.md
+  README.md
+  copernican/README.md
+  devcovenant/config.yaml
+  devcovenant/registry/registry.yaml
+  copernican/lib/likelihoods/cmb/diagnostics.py
+  copernican/lib/likelihoods/cmb/orchestrators/ccmbs.py
+  copernican/lib/likelihoods/cmb/runtime/convergence.py
+  copernican/lib/likelihoods/cmb/runtime/error_budget.py
+  copernican/lib/likelihoods/cmb/runtime/evolution.py
+  copernican/lib/likelihoods/cmb/runtime/execution.py
+  copernican/lib/likelihoods/cmb/runtime/mode_evolution.py
+  copernican/lib/likelihoods/cmb/runtime/numerical_controls.py
+  copernican/lib/likelihoods/cmb/runtime/planner.py
+  copernican/lib/likelihoods/cmb/runtime/recombination.py
+  handoff/HANDOFF.md
+  tests/copernican/lib/likelihoods/cmb/runtime/test_convergence.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_error_budget.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_evolution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_execution.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_numerical_controls.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_planner.py
+  tests/copernican/lib/likelihoods/cmb/runtime/test_recombination.py
+  tests/copernican/lib/likelihoods/cmb/test_cmb.py
+  tests/copernican/lib/likelihoods/cmb/test_diagnostics.py
+  tests/project/fixtures/ccmbs_comparable_camb.json.gz
+  tests/project/fixtures/ccmbs_completion_contract.json
+  tests/project/fixtures/ccmbs_superseded_support.json.gz
+  tests/project/lib/camb_reference.py
+  tests/project/lib/scientific_acceptance.py
+  tests/project/lib/test_camb_reference.py
+  tests/project/lib/test_scientific_acceptance.py
 
 - 2026-11-14:
   Change: Excluded local Alien Invasion runtime storage from checks.

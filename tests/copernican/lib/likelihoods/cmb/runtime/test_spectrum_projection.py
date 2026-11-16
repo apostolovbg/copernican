@@ -1,5 +1,6 @@
 """Direct tests for line-of-sight projection and spectrum quadrature."""
 
+import tempfile
 import unittest
 import warnings
 from pathlib import Path
@@ -19,6 +20,133 @@ from tests.copernican.lib import test_perturbation_contract as contract_tests
 
 class SpectrumProjectionTestCase(unittest.TestCase):
     """Exercise projection kernels without execution orchestration."""
+
+    def test_source_projection_resumes_completed_angular_chunks(self):
+        """Interrupted projection reloads real base and refined transfers."""
+
+        import hashlib
+
+        from copernican.lib.likelihoods.cmb.durable_history import (
+            DurableHistories,
+            product_fingerprint,
+        )
+
+        base = numpy.array([0.001, 0.004, 0.008, 0.012])
+        refined = numpy.sort(numpy.r_[base, (base[:-1] + base[1:]) / 2])
+        angular = numpy.linspace(base[0], base[-1], 51)
+        eta = numpy.linspace(0, 500, 129)
+        weights = spectrum_projection._simpson_weights(eta)
+        profile = numpy.exp(-(((eta - 120) / 30) ** 2))
+        component = SimpleNamespace(
+            projection="line_of_sight_temperature",
+            kernel=None,
+            sector="scalar",
+            source_terms={"monopole": "s"},
+        )
+        calls = []
+
+        def kernels(orders, arguments):
+            calls.append(1)
+            return background._get_cached_declared_projection_kernel_batch(
+                orders,
+                hashlib.sha256(arguments.tobytes()).hexdigest(),
+                x_values=arguments,
+                required_sectors=("scalar",),
+            )
+
+        def sources(nodes):
+            return {"s": (1 + 3 * nodes + 8 * nodes**2)[:, None] * profile}
+
+        arguments = dict(
+            base_k=base,
+            base_sources=sources(base),
+            refined_k=refined,
+            refined_sources=sources(refined),
+            angular_k=angular,
+            ell_values=(2, 10),
+            eta=eta,
+            eta_weights=weights,
+            chi=500 - eta,
+            source_chi=500,
+            components={"T": component},
+            kernel_provider=kernels,
+            coarse_indices=numpy.arange(0, eta.size, 2),
+            coarse_weights=spectrum_projection._simpson_weights(eta[::2]),
+            uncertainty_axes=("evolution", "background"),
+            uncertainty_projector=(
+                lambda axis, entry, sources, kernels, wave: numpy.full(
+                    2,
+                    numpy.max(numpy.abs(sources["s"]))
+                    * wave
+                    * (1.0 if axis == "evolution" else 2.0),
+                )
+            ),
+        )
+        reference = spectrum_projection.project_interpolated_source_histories(
+            **arguments
+        )
+        identity = product_fingerprint(
+            {
+                key: value
+                for key, value in arguments.items()
+                if key
+                not in {
+                    "components",
+                    "kernel_provider",
+                    "uncertainty_projector",
+                }
+            }
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            store = DurableHistories(
+                directory,
+                {"physical": "a" * 64, "numerical": "b" * 64},
+                "cases/producer",
+            )
+
+            def interrupt(completed, total):
+                if completed == 40:
+                    raise RuntimeError("stopped")
+
+            with self.assertRaisesRegex(RuntimeError, "stopped"):
+                spectrum_projection.project_interpolated_source_histories(
+                    **arguments,
+                    checkpoint=store,
+                    checkpoint_key=identity,
+                    heartbeat=interrupt,
+                )
+            calls.clear()
+            resumed = (
+                spectrum_projection.project_interpolated_source_histories(
+                    **arguments,
+                    checkpoint=store,
+                    checkpoint_key=identity,
+                )
+            )
+            self.assertEqual(len(calls), 19)
+            for group in ("base", "refined", "coarse_eta"):
+                numpy.testing.assert_array_equal(
+                    resumed[group]["T"], reference[group]["T"]
+                )
+            for axis in arguments["uncertainty_axes"]:
+                numpy.testing.assert_array_equal(
+                    resumed["uncertainties"][axis]["T"],
+                    reference["uncertainties"][axis]["T"],
+                )
+            calls.clear()
+            spectrum_projection.project_interpolated_source_histories(
+                **arguments,
+                checkpoint=store,
+                checkpoint_key=identity,
+            )
+            self.assertEqual(calls, [])
+            calls.clear()
+            spectrum_projection.project_interpolated_source_histories(
+                **arguments,
+                checkpoint=store,
+                checkpoint_key=identity + "x",
+            )
+            self.assertEqual(len(calls), 51)
 
     def test_independent_source_meshes_share_exact_radial_quadrature(self):
         """Quadratic sources reproduce direct Bessel integration at new k."""

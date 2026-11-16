@@ -354,12 +354,10 @@ def plan_cmb_numerics(
         eta_nodes = max(528, eta_nodes)
         evolution_nodes = max(264, evolution_nodes)
 
-    # The hierarchy must resolve the phase accumulated before last
-    # scattering, not just the requested angular multipole.  For the CMB
-    # visibility surface eta_* / chi_* is about 1/50, so ell / 32 is a
-    # conservative engine estimate of k eta_*; retain a closure margin for
-    # the terminal recurrence.  This keeps low-ell work bounded while
-    # growing automatically for acoustic and damping-tail requests.
+    # This ell-scaled seed includes a closure margin, but the independently
+    # chosen k_max floor can admit phases larger than this candidate domain.
+    # It is not a validated bound on the actual physical support. Independent
+    # native-source refinement remains necessary for every accepted depth.
     visibility_phase = max(8, int(math.ceil(float(ell_max) / 32.0)))
     photon_l_max = max(20, visibility_phase + 20)
     polarization_l_max = max(photon_l_max, 16)

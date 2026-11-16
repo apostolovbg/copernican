@@ -19,6 +19,12 @@ from ....cmb_projection_contract import (
     resolve_declared_source_kernel,
 )
 from ....model_adapter import FrozenMapping, _freeze_for_cache
+from ..durable_history import (
+    BDFCheckpoint,
+    RKCheckpoint,
+    active_durable_histories,
+    product_fingerprint,
+)
 from ..errors import ConvergenceError, classify_exception, failure_context
 from . import cache
 from .adaptive import (
@@ -57,8 +63,10 @@ from .background import (
     _resolve_custom_cmb_physical_parameters,
     _resolve_declared_accuracy_controls,
 )
+from .bdf_checkpoint import bdf_implementation_identity
 from .collisions import _compile_split_collision_operator_runtimes
 from .convergence import (
+    COMPLETION_NUMERICAL_RELATIVE_BUDGET,
     evaluate_hierarchy_truncation_bounds,
     evaluate_momentum_grid_refinement_bounds,
     evaluate_spectrum_refinement,
@@ -1012,6 +1020,26 @@ def _compute_custom_cmb_spectrum_data_impl(
             _declared_graph_execution_plan_cache_token(perturbation_data)
         ).encode("utf-8")
     ).hexdigest()
+    # A persistent source must also identify the actual background tables,
+    # not merely the parameters from which they were constructed.
+    background_digest = hashlib.sha256()
+    background_tables = {
+        entry.name: getattr(background, entry.name)
+        for entry in fields(background)
+        if isinstance(
+            getattr(background, entry.name),
+            (numpy.ndarray, float, int, numpy.number),
+        )
+    }
+    for table in (background_tables, source_grids):
+        for name, raw in sorted(table.items()):
+            values = numpy.asarray(raw)
+            if values.dtype.kind not in "biufc":
+                continue
+            background_digest.update(
+                repr((name, values.dtype.str, values.shape)).encode()
+            )
+            background_digest.update(values.tobytes())
     source_history_cache_prefix = (
         _freeze_for_cache(
             {
@@ -1042,6 +1070,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                 not in {"k_sample_count", "k_grid_refinement_factor"}
             }
         ),
+        background_digest.hexdigest(),
     )
 
     def _source_history_cache_key(mode_k_value: float) -> tuple[Any, ...]:
@@ -1982,12 +2011,14 @@ def _compute_custom_cmb_spectrum_data_impl(
     runtime_envelope["evolution_history_storage"] = (
         "bounded_ndarray_or_temporary_full_state_mapping"
     )
-    _evolve_declared_mode = mode_evolution_runtime.evolve_declared_mode
+    original_scalar_evolution = mode_evolution_runtime.evolve_declared_mode
     original_batched_evolution = (
         mode_evolution_runtime.evolve_declared_modes_batched
     )
     native_key_cache = {}
     native_reused_primary_waves = set()
+    streamed_source_probe_waves = set()
+    streamed_primary_source_waves = set()
     runtime_envelope["native_history_cache_hits"] = 0
     runtime_envelope["native_history_identity"] = native_history_identity
 
@@ -2016,18 +2047,171 @@ def _compute_custom_cmb_spectrum_data_impl(
             )
         return native_key_cache[token]
 
+    def make_scalar_checkpoint(wave, override, initial_state):
+        """Bind scalar split work to its native inputs and initial state."""
+
+        key = (
+            "scalar_split_evolution",
+            _native_history_key(float(wave), override),
+            product_fingerprint(
+                {"initial_state": numpy.asarray(initial_state)}
+            ),
+        )
+        return RKCheckpoint(
+            active_durable_histories(),
+            key,
+            stats_fields=(
+                "tight_coupling_active",
+                "scalar_rhs_calls",
+                "stiff_collision_intervals",
+            ),
+        )
+
+    def make_bdf_checkpoint(
+        wave, override, initial, eta, scales, rtol, atol, affine, vectorized
+    ):
+        """Bind continuous solver state to its exact inputs and algorithm."""
+
+        key = (
+            "continuous_bdf",
+            _native_history_key(float(wave), override),
+            bdf_implementation_identity(),
+            product_fingerprint(
+                {
+                    "initial": numpy.asarray(initial),
+                    "eta": numpy.asarray(eta),
+                    "scales": numpy.asarray(scales),
+                    "rtol": float(rtol),
+                    "atol": float(atol),
+                    "affine": bool(affine),
+                    "vectorized": bool(vectorized),
+                }
+            ),
+        )
+        return BDFCheckpoint(active_durable_histories(), key)
+
+    def _evolve_declared_mode(wave, **kwargs):
+        """Retain eligible scalar split trajectories at native boundaries."""
+
+        retain = (
+            active_durable_histories() is not None
+            and not diagnostic_source_audit
+            and not stage_diagnostic_k_values
+        )
+        sink = None
+        if retain:
+            override = kwargs.get("evolution_sample_count_override")
+            if kwargs.get("history_sink") is None:
+                retained = cache.get_cmb_evolution_history(
+                    _native_history_key(wave, override)
+                )
+                if retained is not None:
+                    epoch, histories = retained
+                    runtime_envelope["native_history_cache_hits"] += 1
+                    if override is None:
+                        native_reused_primary_waves.add(float(wave))
+                    return mode_evolution_runtime.resample_mode_history(
+                        float(wave),
+                        epoch,
+                        histories,
+                        collect_diagnostics=kwargs.get(
+                            "collect_diagnostics", True
+                        ),
+                    )
+            kwargs["scalar_checkpoint_factory"] = lambda initial: (
+                make_scalar_checkpoint(wave, override, initial)
+            )
+            kwargs["bdf_checkpoint_factory"] = lambda *args: (
+                make_bdf_checkpoint(wave, override, *args)
+            )
+            if kwargs.get("history_sink") is None:
+                sink = {}
+                kwargs["history_sink"] = sink
+        result = original_scalar_evolution(wave, **kwargs)
+        if sink is not None:
+            cache.set_cmb_evolution_history(
+                _native_history_key(wave, override),
+                sink["evolution_eta"],
+                sink["evolution_histories"],
+            )
+        return result
+
     def _evolve_declared_modes_batched(
         waves, *, evolution_sample_count_override=None, history_sinks=None
     ):
         """Reuse only raw matching pilots, then recompute current sources."""
 
         override = evolution_sample_count_override
+        durable = active_durable_histories()
 
-        if (
-            history_sinks is None
-            or diagnostic_source_audit
-            or stage_diagnostic_k_values
+        def make_rk_checkpoint(
+            group_waves, eta, states, required, active, split, relaxation
         ):
+            """Bind a partial trajectory to its exact modes and schedule."""
+
+            numerical_identity = product_fingerprint(
+                {
+                    "waves": numpy.asarray(group_waves),
+                    "eta": numpy.asarray(eta),
+                    "initial_states": numpy.asarray(states),
+                    "required_substeps": numpy.asarray(required),
+                    "active_intervals": numpy.asarray(active),
+                    "split_interval_ratio": split,
+                    "relaxation_slot": relaxation,
+                }
+            )
+            key = (
+                "batched_native_rk4",
+                tuple(
+                    _native_history_key(float(wave), override)
+                    for wave in group_waves
+                ),
+                numerical_identity,
+            )
+            return RKCheckpoint(durable, key)
+
+        checkpoint_options = (
+            {
+                "rk_checkpoint_factory": make_rk_checkpoint,
+                "scalar_checkpoint_factory": make_scalar_checkpoint,
+                "bdf_checkpoint_factory": make_bdf_checkpoint,
+            }
+            if durable is not None
+            and not diagnostic_source_audit
+            and not stage_diagnostic_k_values
+            else {}
+        )
+
+        if history_sinks is None:
+            if (
+                source_probe is None
+                and override is None
+                and not diagnostic_source_audit
+                and not stage_diagnostic_k_values
+                and durable is not None
+            ):
+
+                def retain_completed_primary_mode(wave, sink):
+                    """Publish a source before the rest of its batch ends."""
+
+                    cache.set_cmb_source_history(
+                        _source_history_cache_key(wave), sink["source_arrays"]
+                    )
+                    streamed_primary_source_waves.add(float(wave))
+
+                return original_batched_evolution(
+                    waves,
+                    evolution_sample_count_override=override,
+                    completed_mode_callback=retain_completed_primary_mode,
+                    **checkpoint_options,
+                )
+            return original_batched_evolution(
+                waves,
+                evolution_sample_count_override=override,
+                history_sinks=history_sinks,
+                **checkpoint_options,
+            )
+        if diagnostic_source_audit or stage_diagnostic_k_values:
             return original_batched_evolution(
                 waves,
                 evolution_sample_count_override=override,
@@ -2061,20 +2245,49 @@ def _compute_custom_cmb_spectrum_data_impl(
                 native_reused_primary_waves.add(float(wave))
         fresh_sinks = {}
         if missing:
+            stream_completed = (
+                source_probe is not None
+                and override is None
+                and durable is not None
+            )
+
+            def retain_completed_probe_mode(wave, sink):
+                """Publish one independently evolved probe before its peers."""
+
+                cache.set_cmb_evolution_history(
+                    _native_history_key(wave, override),
+                    sink["evolution_eta"],
+                    sink["evolution_histories"],
+                )
+                cache.set_cmb_source_history(
+                    _source_history_cache_key(wave), sink["source_arrays"]
+                )
+                streamed_source_probe_waves.add(float(wave))
+
+            callback_options = (
+                {"completed_mode_callback": retain_completed_probe_mode}
+                if stream_completed
+                else {}
+            )
             fresh = original_batched_evolution(
                 numpy.asarray(waves)[missing],
                 evolution_sample_count_override=override,
                 history_sinks=fresh_sinks,
+                **callback_options,
+                **checkpoint_options,
             )
             results.update(
                 {missing[index]: values for index, values in fresh.items()}
             )
             for wave, sink in fresh_sinks.items():
-                cache.set_cmb_evolution_history(
-                    _native_history_key(wave, evolution_sample_count_override),
-                    sink["evolution_eta"],
-                    sink["evolution_histories"],
-                )
+                if float(wave) not in streamed_source_probe_waves:
+                    cache.set_cmb_evolution_history(
+                        _native_history_key(
+                            wave, evolution_sample_count_override
+                        ),
+                        sink["evolution_eta"],
+                        sink["evolution_histories"],
+                    )
                 history_sinks[wave] = sink
         return results
 
@@ -2115,9 +2328,10 @@ def _compute_custom_cmb_spectrum_data_impl(
                         count_as_primary_evolution=False,
                     )
                 collected[wave] = arrays
-                cache.set_cmb_source_history(
-                    _source_history_cache_key(wave), arrays
-                )
+                if float(wave) not in streamed_source_probe_waves:
+                    cache.set_cmb_source_history(
+                        _source_history_cache_key(wave), arrays
+                    )
         runtime_envelope["state_history_max_abs_by_k"] = {
             name: dict(values)
             for name, values in state_history_max_abs_by_k.items()
@@ -2128,6 +2342,9 @@ def _compute_custom_cmb_spectrum_data_impl(
         )
         runtime_envelope["probe_new_modes"] = len(missing) - len(
             native_reused_primary_waves
+        )
+        runtime_envelope["durable_source_modes_checkpointed"] = len(
+            streamed_source_probe_waves
         )
         runtime_envelope["probe_background_grid_sha256"] = (
             _projection_array_digest(background.eta_grid)
@@ -3097,6 +3314,13 @@ def _compute_custom_cmb_spectrum_data_impl(
                             evidence={
                                 "relative_error": estimate.relative_error,
                                 "absolute_error": estimate.absolute_error,
+                                "absolute_error_scope": "all_histories",
+                                "worst_history_absolute_error": (
+                                    estimate.worst_absolute_error
+                                ),
+                                "worst_history_normalization_scale": (
+                                    estimate.worst_normalization_scale
+                                ),
                                 "relative_tolerance": (
                                     evolution_relative_tolerance
                                 ),
@@ -3435,6 +3659,13 @@ def _compute_custom_cmb_spectrum_data_impl(
                         )
                     maximum_error = 0.0
                     source_errors_by_k = {}
+                    failed_axis_products = set()
+                    axis_absolute_tolerance = (
+                        adaptive_controls.evolution_absolute_tolerance
+                    )
+                    axis_relative_tolerance = (
+                        adaptive_controls.evolution_relative_tolerance
+                    )
                     ratio = probe.eta0 / float(background.eta0)
                     for index in pilot_indices:
                         wave = float(k_values[index])
@@ -3454,33 +3685,29 @@ def _compute_custom_cmb_spectrum_data_impl(
                             comparison_sources,
                             absolute_envelope=absolute_source_errors[axis],
                         )
-                        source_errors = {}
-                        for name, values in native_sources.items():
-                            absolute = float(
-                                numpy.max(
-                                    abs(
-                                        numpy.asarray(values)
-                                        - comparison_sources[name]
-                                    )
-                                )
+                        source_errors, mode_error, failed = (
+                            _measure_native_axis_errors(
+                                source_grids["eta"],
+                                native_sources,
+                                comparison_sources,
+                                absolute_tolerance=axis_absolute_tolerance,
+                                relative_tolerance=axis_relative_tolerance,
                             )
-                            relative = absolute / max(
-                                float(numpy.max(abs(values))), 1e-30
-                            )
-                            source_errors[name] = {
-                                "absolute_error": absolute,
-                                "relative_error": relative,
-                            }
-                            allowance = (
-                                adaptive_controls.evolution_absolute_tolerance
-                            )
-                            if absolute > allowance:
-                                maximum_error = max(maximum_error, relative)
+                        )
+                        maximum_error = max(maximum_error, mode_error)
+                        failed_axis_products.update(failed)
                         source_errors_by_k[f"{wave:.12g}"] = source_errors
                     physical_axis_probe_records[axis] = {
                         "method": "independent_native_source_axis_refinement",
                         "mode_count": len(pilot_indices),
                         "relative_error": maximum_error,
+                        "relative_tolerance": axis_relative_tolerance,
+                        "absolute_tolerance": axis_absolute_tolerance,
+                        "relative_normalization": "native_source_peak",
+                        "source_eta_interval": (
+                            float(source_grids["eta"][0]),
+                            float(source_grids["eta"][-1]),
+                        ),
                         "eta0_ratio": ratio,
                         "probe_new_modes": probe.runtime_envelope[
                             "probe_new_modes"
@@ -3517,6 +3744,9 @@ def _compute_custom_cmb_spectrum_data_impl(
                             "Independent native-source resolution "
                             "is unresolved",
                             label=label,
+                            failed_products=tuple(
+                                sorted(failed_axis_products)
+                            ),
                             evidence=physical_axis_probe_records[axis],
                         )
         runtime_envelope["evolution_preflight_mode_count"] = (
@@ -3571,6 +3801,18 @@ def _compute_custom_cmb_spectrum_data_impl(
                 for local_index, source_arrays in chunk_results.items():
                     global_index = int(missing_chunk[int(local_index)])
                     batched_mode_source_arrays[global_index] = source_arrays
+                    if (
+                        not diagnostic_source_audit
+                        and not stage_diagnostic_k_values
+                        and float(k_values[global_index])
+                        not in streamed_primary_source_waves
+                    ):
+                        cache.set_cmb_source_history(
+                            _source_history_cache_key(
+                                float(k_values[global_index])
+                            ),
+                            source_arrays,
+                        )
                 runtime_envelope["evolution_modes_evolved"] = int(
                     runtime_envelope["evolution_modes_evolved"]
                 ) + len(chunk_results)
@@ -3609,6 +3851,15 @@ def _compute_custom_cmb_spectrum_data_impl(
                     batched_mode_source_arrays[int(missing_index)] = (
                         scalar_sources
                     )
+                    if not diagnostic_source_audit and not (
+                        stage_diagnostic_k_values
+                    ):
+                        cache.set_cmb_source_history(
+                            _source_history_cache_key(
+                                float(k_values[missing_index])
+                            ),
+                            scalar_sources,
+                        )
                     performance_timer.heartbeat(
                         "evolution",
                         scope="primary_modes",
@@ -3625,20 +3876,6 @@ def _compute_custom_cmb_spectrum_data_impl(
                 completed=int(k_values.size),
                 total=int(k_values.size),
             )
-            for k_index, source_arrays in batched_mode_source_arrays.items():
-                if (
-                    not diagnostic_source_audit
-                    and not stage_diagnostic_k_values
-                ):
-                    cache.set_cmb_source_history(
-                        _source_history_cache_key(float(k_values[k_index])),
-                        {
-                            str(name): numpy.asarray(
-                                values, dtype=float
-                            ).copy()
-                            for name, values in source_arrays.items()
-                        },
-                    )
             if cached_mode_source_arrays:
                 batched_mode_source_arrays = {
                     **batched_mode_source_arrays,
@@ -3761,6 +3998,9 @@ def _compute_custom_cmb_spectrum_data_impl(
         projection_peak_kernel_bytes = 0
         projection_peak_live_modes = 0
         projection_peak_bessel_cells = 0
+        direct_durable = active_durable_histories()
+        direct_hits = 0
+        direct_writes = 0
 
         def prepare_projection_chunk(first_index):
             """Retain one mode chunk and its adaptive projection work."""
@@ -3921,6 +4161,96 @@ def _compute_custom_cmb_spectrum_data_impl(
                 mode_ell_indices,
                 _,
             ) = mode_projection
+            direct_key = None
+            if direct_durable is not None:
+                direct_key = (
+                    "direct_projection",
+                    product_fingerprint(
+                        {
+                            "wave": float(k_value),
+                            "ells": ell_arr,
+                            "source_arrays": source_arrays,
+                            "source_eta": source_grids["eta"],
+                            "weights": eta_integration_weights,
+                            "chi": source_grids["chi"],
+                            "source_chi": float(source_chi),
+                            "coarse_indices": projection_eta_indices,
+                            "coarse_weights": projection_coarse_weights,
+                            "relative_errors": source_error_profiles,
+                            "absolute_errors": absolute_source_errors,
+                            "geometry_profiles": other_source_profiles,
+                            "geometry_reference": geometry_reference,
+                            "components": {
+                                str(name): {
+                                    "projection": str(
+                                        component.projection or ""
+                                    ),
+                                    "kernel": component.kernel,
+                                    "sector": component.sector,
+                                    "source_terms": dict(
+                                        component.source_terms
+                                    ),
+                                }
+                                for name, component in (
+                                    transfer_component_observables.items()
+                                )
+                            },
+                            "source_graph": declared_source_graph.digest,
+                            "execution_graph": source_graph_identity,
+                        }
+                    ),
+                )
+                saved = direct_durable.get_product(direct_key)
+                if saved is not None:
+                    if (
+                        not isinstance(saved, Mapping)
+                        or set(saved)
+                        != {"transfer", "coarse", "uncertainties"}
+                        or set(saved["uncertainties"])
+                        != set(transfer_uncertainties)
+                    ):
+                        raise ValueError("Durable direct projection differs")
+                    groups = [
+                        (transfer_components, saved["transfer"]),
+                        (coarse_projection_components, saved["coarse"]),
+                    ] + [
+                        (
+                            transfer_uncertainties[axis],
+                            saved["uncertainties"][axis],
+                        )
+                        for axis in transfer_uncertainties
+                    ]
+                    for target, rows in groups:
+                        if not isinstance(rows, Mapping) or set(rows) != set(
+                            target
+                        ):
+                            raise ValueError(
+                                "Durable direct components differ"
+                            )
+                        for name, values in rows.items():
+                            if (
+                                not isinstance(values, numpy.ndarray)
+                                or values.shape != (ell_arr.size,)
+                                or not numpy.all(numpy.isfinite(values))
+                            ):
+                                raise ValueError(
+                                    "Durable direct array differs"
+                                )
+                            target[name][:, k_index] = values
+                    direct_hits += 1
+                    projection_work_completed += int(
+                        mode_ell_indices.size
+                    ) * int(source_grids["eta"].size)
+                    performance_timer.heartbeat(
+                        "projection",
+                        scope="mode_quadrature",
+                        completed=int(k_index + 1),
+                        total=int(k_values.size),
+                        weighted_completed=float(projection_work_completed),
+                        weighted_total=float(projection_work_total),
+                        details={"work_unit": "ell_eta_cells"},
+                    )
+                    continue
             if int(k_index) not in mode_kernel_batches:
                 prepare_projection_chunk(int(k_index))
             cached_batches = mode_kernel_batches.pop(int(k_index))
@@ -4042,6 +4372,30 @@ def _compute_custom_cmb_spectrum_data_impl(
                         ] = coarse_values
             cached_batches.clear()
             del kernel_batch, cached_batches
+            if direct_durable is not None:
+                direct_durable.set_product(
+                    direct_key,
+                    {
+                        "transfer": {
+                            name: values[:, k_index]
+                            for name, values in transfer_components.items()
+                        },
+                        "coarse": {
+                            name: values[:, k_index]
+                            for name, values in (
+                                coarse_projection_components.items()
+                            )
+                        },
+                        "uncertainties": {
+                            axis: {
+                                name: values[:, k_index]
+                                for name, values in rows.items()
+                            }
+                            for axis, rows in transfer_uncertainties.items()
+                        },
+                    },
+                )
+                direct_writes += 1
             performance_timer.add(
                 "projection",
                 perf_counter() - mode_projection_started,
@@ -4063,6 +4417,11 @@ def _compute_custom_cmb_spectrum_data_impl(
             model_label,
             performance_timer.phase_seconds.get("projection", 0.0),
         )
+        if direct_durable is not None:
+            runtime_envelope["durable_projection_checkpoints"] = {
+                "hits": direct_hits,
+                "writes": direct_writes,
+            }
         for component_name, component_matrix in transfer_components.items():
             if not numpy.all(numpy.isfinite(component_matrix)):
                 raise ValueError(
@@ -4218,9 +4577,10 @@ def _compute_custom_cmb_spectrum_data_impl(
                     for index, arrays in refined_batch.items():
                         wave = float(waves[index])
                         retained_refined_sources[wave] = arrays
-                        cache.set_cmb_source_history(
-                            _source_history_cache_key(wave), arrays
-                        )
+                        if wave not in streamed_primary_source_waves:
+                            cache.set_cmb_source_history(
+                                _source_history_cache_key(wave), arrays
+                            )
                         refined_new_mode_count += 1
             refined_rows: list[dict[str, numpy.ndarray]] = []
             for refined_k_value in refined_k_values:
@@ -4462,18 +4822,61 @@ def _compute_custom_cmb_spectrum_data_impl(
                     total=total,
                 )
 
+            base_projected_sources = {
+                name: numpy.vstack(
+                    [
+                        batched_mode_source_arrays[index][name]
+                        for index in range(len(base_k_values))
+                    ]
+                )
+                for name in source_names
+            }
+            durable_projection = active_durable_histories()
+            projection_checkpoint_key = None
+            projection_previous_hits = 0
+            projection_previous_writes = 0
+            if durable_projection is not None:
+                projection_checkpoint_key = product_fingerprint(
+                    {
+                        "base_k": base_k_values,
+                        "base_sources": base_projected_sources,
+                        "refined_k": refined_k_values,
+                        "refined_sources": refined_sources,
+                        "angular_k": angular_k,
+                        "ells": ell_arr,
+                        "eta": projection_eta,
+                        "source_eta": source_grids["eta"],
+                        "weights": angular_eta_weights,
+                        "chi": projection_grids["chi"],
+                        "source_chi": float(source_chi),
+                        "coarse_indices": projection_eta_indices,
+                        "coarse_weights": projection_coarse_weights,
+                        "relative_errors": projection_error_profiles,
+                        "absolute_errors": projection_absolute_profiles,
+                        "geometry_profiles": projection_geometry_profiles,
+                        "geometry_reference": projection_geometry_reference,
+                        "uncertainty_axes": tuple(transfer_uncertainties),
+                        "components": {
+                            str(name): {
+                                "projection": str(component.projection or ""),
+                                "kernel": component.kernel,
+                                "sector": component.sector,
+                                "source_terms": dict(component.source_terms),
+                            }
+                            for name, component in (
+                                transfer_component_observables.items()
+                            )
+                        },
+                        "source_graph": declared_source_graph.digest,
+                        "execution_graph": source_graph_identity,
+                    }
+                )
+                projection_previous_hits = durable_projection.product_hits
+                projection_previous_writes = durable_projection.product_writes
             with performance_timer.phase("projection"):
                 projected = project_interpolated_source_histories(
                     base_k=base_k_values,
-                    base_sources={
-                        name: numpy.vstack(
-                            [
-                                batched_mode_source_arrays[index][name]
-                                for index in range(len(base_k_values))
-                            ]
-                        )
-                        for name in source_names
-                    },
+                    base_sources=base_projected_sources,
                     refined_k=refined_k_values,
                     refined_sources=refined_sources,
                     angular_k=angular_k,
@@ -4490,10 +4893,20 @@ def _compute_custom_cmb_spectrum_data_impl(
                     uncertainty_projector=source_uncertainty_projector,
                     uncertainty_axes=tuple(transfer_uncertainties),
                     heartbeat=projection_progress,
+                    checkpoint=durable_projection,
+                    checkpoint_key=projection_checkpoint_key,
                 )
+            if durable_projection is not None:
+                runtime_envelope["durable_projection_checkpoints"] = {
+                    "hits": durable_projection.product_hits
+                    - projection_previous_hits,
+                    "writes": durable_projection.product_writes
+                    - projection_previous_writes,
+                    "input_sha256": projection_checkpoint_key,
+                }
             refined_transfer_components = projected["refined"]
             refined_uncertainties = projected["uncertainties"]
-            refined_kernel_work_units = int(angular_k.size * ell_arr.size)
+            refined_kernel_work_units = int(bessel_mode_count * ell_arr.size)
             refined_projection_elapsed = perf_counter() - projected_started
 
             def integrate_projected(components, nodes):
@@ -6438,6 +6851,18 @@ def _compute_custom_cmb_spectrum_data_impl(
         total_seconds=elapsed_seconds,
     )
     runtime_envelope.update(timing_snapshot)
+    durable_sources = active_durable_histories()
+    if durable_sources is not None:
+        runtime_envelope["durable_source_waves"] = [
+            {"k": float(wave), "key_sha256": token}
+            for wave in k_values
+            if (
+                token := durable_sources.verified_history_token(
+                    _source_history_cache_key(float(wave))
+                )
+            )
+            is not None
+        ]
     if transfer_cache_reuse_allowed:
         cache.set_cmb_transfer(
             transfer_cache_key,
@@ -6494,6 +6919,48 @@ def _compute_custom_cmb_spectrum_data_impl(
     return spectrum_data
 
 
+def _measure_native_axis_errors(
+    eta,
+    native_sources,
+    comparison_sources,
+    *,
+    absolute_tolerance,
+    relative_tolerance,
+):
+    """Locate each measured source discrepancy on its physical time grid."""
+
+    coordinates = numpy.asarray(eta, dtype=float)
+    errors = {}
+    maximum_error = 0.0
+    failed = []
+    for name, values in native_sources.items():
+        native = numpy.asarray(values, dtype=float)
+        reference = numpy.asarray(comparison_sources[name], dtype=float)
+        if (
+            coordinates.ndim != 1
+            or not coordinates.size
+            or native.shape != coordinates.shape
+            or reference.shape != coordinates.shape
+        ):
+            raise ValueError(
+                "Native source comparisons require matching grids"
+            )
+        differences = abs(native - reference)
+        index = int(numpy.argmax(differences))
+        absolute = float(differences[index])
+        relative = absolute / max(float(numpy.max(abs(native))), 1e-30)
+        errors[name] = {
+            "absolute_error": absolute,
+            "relative_error": relative,
+            "worst_eta": float(coordinates[index]),
+        }
+        if absolute > absolute_tolerance:
+            maximum_error = max(maximum_error, relative)
+            if relative > relative_tolerance:
+                failed.append(name)
+    return errors, maximum_error, tuple(failed)
+
+
 def _refined_adaptive_transfer_controls(
     contract: Mapping[str, Any],
     *,
@@ -6522,7 +6989,9 @@ def _require_observable_budget(result, production_controls, refined=None):
     Every contribution is a nonnegative bound. Adding an independent k
     discrepancy cannot repair an excessive native/physical-axis bound.
     The final decision still combines the base and finer physical bounds
-    with the measured k discrepancy after the independent solve.
+    with the measured k discrepancy after the independent solve. The joint
+    numerical budget is distinct from per-spectrum k-refinement tolerances;
+    a stricter declared tolerance still applies.
     """
 
     axis_bounds = result.runtime_envelope.get("observable_axis_error_bounds")
@@ -6556,12 +7025,39 @@ def _require_observable_budget(result, production_controls, refined=None):
         result.spectra,
         combined_bounds,
         {
-            name: production_controls.relative_tolerances[
-                canonical_cmb_spectrum_name(name)
-            ]
+            name: min(
+                COMPLETION_NUMERICAL_RELATIVE_BUDGET,
+                production_controls.relative_tolerances[
+                    canonical_cmb_spectrum_name(name)
+                ],
+            )
             for name in result.spectra
         },
     )
+    ell_grid = getattr(result, "ell_grid", None)
+    if ell_grid is not None:
+        ell_grid = numpy.asarray(ell_grid)
+        if ell_grid.ndim == 1 and all(
+            numpy.asarray(values).shape == ell_grid.shape
+            for values in result.spectra.values()
+        ):
+            budget["ell_interval"] = (
+                int(numpy.min(ell_grid)),
+                int(numpy.max(ell_grid)),
+            )
+            for row in budget["products"].values():
+                row["absolute_error_peak_ell"] = int(
+                    ell_grid[row["absolute_error_peak_index"]]
+                )
+                row["axis_peak_ells"] = {
+                    axis: int(ell_grid[index])
+                    for axis, index in row["axis_peak_indices"].items()
+                }
+                cross_index = row.get("normalized_cross_peak_index")
+                if cross_index is not None:
+                    row["normalized_cross_peak_ell"] = int(
+                        ell_grid[cross_index]
+                    )
     if not budget["converged"]:
         raise AdaptiveNonConvergenceError(
             "Combined observable error budget did not converge",
@@ -6737,7 +7233,35 @@ def _compute_production_refinement(
     exact_refinement_reuse = bool(
         refined_timer.cache_state == "exact_cache_hit"
     )
-    if not exact_refinement_reuse and measured_new_work <= 0:
+    durable = active_durable_histories()
+    durable_new_waves = set()
+    if durable is not None:
+        base_native = {
+            float(wave)
+            for wave in result.runtime_envelope.get("native_source_k_grid", ())
+        }
+        refined_native = {
+            float(wave)
+            for wave in refined_runtime_envelope.get(
+                "native_source_k_grid", ()
+            )
+        }
+        new_native = refined_native - base_native
+        verified = {
+            float(row["k"])
+            for row in refined_runtime_envelope.get("durable_source_waves", ())
+            if durable.verifies_history_wave(row["key_sha256"], row["k"])
+        }
+        if base_native and new_native and new_native <= verified:
+            durable_new_waves = new_native
+    durable_refinement_reuse = bool(
+        durable_new_waves and measured_new_work <= 0
+    )
+    if (
+        not exact_refinement_reuse
+        and not durable_refinement_reuse
+        and measured_new_work <= 0
+    ):
         raise ValueError(
             "Cold production scalar refinement recorded no measured "
             "new work"
@@ -6762,8 +7286,11 @@ def _compute_production_refinement(
             refined_runtime_envelope.get("evolution_cached_mode_count", 0)
         ),
         "refined_cache_state": refined_timer.cache_state,
-        "cold_refinement": bool(not exact_refinement_reuse),
-        "warm_reuse": exact_refinement_reuse,
+        "cold_refinement": bool(
+            not exact_refinement_reuse and not durable_refinement_reuse
+        ),
+        "warm_reuse": bool(exact_refinement_reuse or durable_refinement_reuse),
+        "durable_independent_source_waves": tuple(sorted(durable_new_waves)),
         "matching_accepted_finer_calculation": bool(
             exact_refinement_reuse
             and distinct
@@ -6958,6 +7485,10 @@ def _compute_custom_cmb_spectrum_data(
                         "mode_k",
                         "worst_eta",
                         "worst_history",
+                        "worst_history_absolute_error",
+                        "worst_history_normalization_scale",
+                        "absolute_error",
+                        "absolute_error_scope",
                         "history_kind",
                         "relative_tolerance",
                         "absolute_tolerance",

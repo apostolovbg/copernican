@@ -1,6 +1,8 @@
 """Focused tests for the declared CMB background module."""
 
+import copy
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from unittest import mock
 
@@ -15,6 +17,145 @@ from copernican.lib.likelihoods.cmb.runtime import (
 
 class BackgroundModuleTestCase(unittest.TestCase):
     """Exercise declared background helpers directly."""
+
+    def test_background_cache_reuses_k_sampling_but_not_momentum(self):
+        """A k ladder reuses its background; independent q grids do not."""
+
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._speedup_contract(
+            test_cmb._declared_scalar_hierarchy_contract(
+                include_massive_neutrino=True
+            )
+        )
+        changed_raw = copy.deepcopy(raw)
+        changed_raw["perturbations"]["numerics"]["momentum_grids"][
+            "massive_neutrino_default"
+        ]["count"] = 16
+        contract = test_cmb._prepare_declared_contract(raw)
+        changed = test_cmb._prepare_declared_contract(changed_raw)
+        physical = background._resolve_custom_cmb_physical_parameters(contract)
+        numerics = background._CustomCMBNumerics(eta_sample_count=128)
+        refined_k = replace(
+            numerics, k_sample_count=128, k_grid_refinement_factor=2
+        )
+        refined_eta = replace(numerics, eta_sample_count=256)
+        key = background._custom_cmb_background_cache_key
+        self.assertEqual(
+            key(contract, physical, numerics, None),
+            key(contract, physical, refined_k, None),
+        )
+        self.assertNotEqual(
+            key(contract, physical, numerics, None),
+            key(contract, physical, refined_eta, None),
+        )
+        self.assertNotEqual(
+            key(contract, physical, numerics, None),
+            key(changed, physical, numerics, None),
+        )
+        self.assertNotEqual(
+            key(contract, physical, numerics, None),
+            key(
+                {**contract, "_diagnostic_matrix_fast_path": True},
+                physical,
+                numerics,
+                None,
+            ),
+        )
+        cache.clear_cmb_caches()
+        self.addCleanup(cache.clear_cmb_caches)
+        original = background._build_custom_cmb_background_impl(
+            contract, physical, numerics
+        )
+        reused = background._build_custom_cmb_background_impl(
+            contract, physical, refined_k
+        )
+        refined = background._build_custom_cmb_background_impl(
+            changed, physical, numerics
+        )
+        self.assertIs(reused, original)
+        self.assertIsNot(refined, original)
+        self.assertFalse(numpy.array_equal(original.H_grid, refined.H_grid))
+
+    def test_durable_background_tables_rebuild_actual_interpolators(self):
+        """The same raw background can be assessed again after reload."""
+
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        self.addCleanup(cache.clear_cmb_caches)
+        contract = test_cmb._prepare_declared_contract(
+            test_cmb._speedup_contract(test_cmb._custom_contract())
+        )
+        physical = background._resolve_custom_cmb_physical_parameters(contract)
+        original = background._build_custom_cmb_background_impl(
+            contract,
+            physical,
+            background._CustomCMBNumerics(eta_sample_count=128),
+        )
+        original.resolution_evidence = {
+            **original.resolution_evidence,
+            "refinement": {"converged": True},
+        }
+        product = background._background_raw_product(original)
+        restored = background._background_from_raw_product(product)
+        self.assertNotIn("refinement", restored.resolution_evidence)
+        numpy.testing.assert_array_equal(restored.eta_grid, original.eta_grid)
+        sample = numpy.linspace(
+            original.eta_grid[0], original.eta_grid[-1], 60
+        )
+        for name, values in original.sample(sample).items():
+            numpy.testing.assert_array_equal(
+                restored.sample(sample)[name], values
+            )
+        bad = dict(product, visibility_grid=numpy.ones(2))
+        with self.assertRaisesRegex(ValueError, "background table"):
+            background._background_from_raw_product(bad)
+
+    def test_durable_background_reassesses_independent_refinement(self):
+        """Warm raw backgrounds must repeat the original resolution test."""
+
+        import tempfile
+
+        from copernican.lib.likelihoods.cmb.durable_history import (
+            retain_durable_histories,
+        )
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        contract = test_cmb._prepare_declared_contract(
+            test_cmb._speedup_contract(test_cmb._custom_contract())
+        )
+        contract["_engine_accuracy_controls"] = {"accuracy_tier": "final"}
+        physical = background._resolve_custom_cmb_physical_parameters(contract)
+        numerics = background._CustomCMBNumerics(eta_sample_count=384)
+        self.addCleanup(cache.clear_cmb_caches)
+        with tempfile.TemporaryDirectory() as directory:
+            identity = {"physical": "a" * 64, "numerical": "b" * 64}
+            results = []
+            for attempt in ("cold", "warm"):
+                cache.clear_cmb_caches()
+                with retain_durable_histories(
+                    directory, identity, "cases/" + attempt
+                ) as durable:
+                    result = background._build_custom_cmb_background(
+                        contract, physical, numerics
+                    )
+                    results.append(
+                        (result, durable.product_hits, durable.product_writes)
+                    )
+            cold, warm = results
+            self.assertGreaterEqual(cold[2], 2)
+            self.assertGreaterEqual(warm[1], 2)
+            self.assertEqual(warm[2], 0)
+            numpy.testing.assert_array_equal(
+                cold[0].eta_grid, warm[0].eta_grid
+            )
+            self.assertEqual(
+                cold[0].resolution_evidence["refinement"],
+                warm[0].resolution_evidence["refinement"],
+            )
+            self.assertTrue(
+                warm[0].resolution_evidence["refinement"]["converged"]
+            )
 
     def test_momentum_model_parameters_preserve_declared_precedence(self):
         """Kinetic parameters include both sources without shadowing maps."""

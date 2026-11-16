@@ -165,6 +165,35 @@ class NumericalControlsTestCase(unittest.TestCase):
             ),
         )
         self.assertEqual(record["axis"], "source")
+        self.assertNotIn("absolute_error", record)
+        source_errors = {
+            "0.3": {"temperature_isw": {"absolute_error": 1.321e-6}}
+        }
+        _, hierarchy_record = numerical_controls.promote_failed_resolution(
+            contract,
+            SimpleNamespace(
+                label="hierarchy-depth",
+                evidence={
+                    "relative_error": 0.04492,
+                    "source_errors_by_k": source_errors,
+                },
+            ),
+        )
+        self.assertNotIn("absolute_error", hierarchy_record)
+        self.assertEqual(
+            hierarchy_record["source_errors_by_k"]["0.3"]["temperature_isw"][
+                "absolute_error"
+            ],
+            1.321e-6,
+        )
+        _, measured_record = numerical_controls.promote_failed_resolution(
+            contract,
+            SimpleNamespace(
+                label="hierarchy-depth",
+                evidence={"relative_error": 0.02, "absolute_error": 1e-6},
+            ),
+        )
+        self.assertEqual(measured_record["absolute_error"], 1e-6)
         # refine_numerical_axis preserves the source axis's physical request.
         self.assertEqual(
             changed["_engine_accuracy_controls"]["adaptive_source"][

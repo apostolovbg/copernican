@@ -259,12 +259,51 @@ def set_declared_momentum_grid(cache_key: Any, runtime_bundle: Any) -> None:
 def get_cmb_background(cache_key: Any):
     """Return one cached declared background payload when present."""
 
-    return _CMB_BACKGROUND_CACHE.get(cache_key)
+    cached = _CMB_BACKGROUND_CACHE.get(cache_key)
+    if cached is not None or not isinstance(cache_key, RuntimeCacheIdentity):
+        return cached
+    from ..durable_history import active_durable_histories
+
+    durable = active_durable_histories()
+    if durable is None:
+        return None
+    from .background import _background_from_raw_product
+
+    product = durable.get_product(
+        (
+            "background",
+            cache_key.contract_static,
+            cache_key.model_static,
+            cache_key.request_specific,
+            cache_key.execution_solver,
+        )
+    )
+    if product is None:
+        return None
+    background = _background_from_raw_product(product)
+    _CMB_BACKGROUND_CACHE.set(cache_key, background)
+    return background
 
 
 def set_cmb_background(cache_key: Any, background_data: Any) -> None:
     """Store one declared background payload."""
 
+    from ..durable_history import active_durable_histories
+
+    durable = active_durable_histories()
+    if durable is not None and isinstance(cache_key, RuntimeCacheIdentity):
+        from .background import _background_raw_product
+
+        durable.set_product(
+            (
+                "background",
+                cache_key.contract_static,
+                cache_key.model_static,
+                cache_key.request_specific,
+                cache_key.execution_solver,
+            ),
+            _background_raw_product(background_data),
+        )
     _CMB_BACKGROUND_CACHE.set(cache_key, background_data)
 
 

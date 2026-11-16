@@ -27,6 +27,7 @@ from .background import (
     _physical_runtime_scalars,
     _resolve_declared_background_context,
 )
+from .bdf_checkpoint import integrate_bdf_checkpointed
 from .collisions import (
     _cached_collision_eigendecomposition,
     _CompiledCollisionOperatorRuntime,
@@ -114,6 +115,9 @@ def _integrate_scaled_continuous_history(
     affine_system: bool = False,
     vectorized_rhs=None,
     method: str = "BDF",
+    checkpoint_factory=None,
+    rhs_calls=None,
+    restore_rhs_calls=None,
 ) -> numpy.ndarray:
     """Integrate declared states with component-scaled stiff error control.
 
@@ -127,6 +131,7 @@ def _integrate_scaled_continuous_history(
     unit scale. This avoids unbalanced Jacobians in higher-moment chains.
     """
 
+    initial_rhs_calls = rhs_calls() if rhs_calls is not None else 0
     initial = numpy.asarray(initial_state, dtype=float)
     eta = numpy.asarray(eta_values, dtype=float)
     initial_drive = numpy.asarray(rhs(float(eta[0]), initial), dtype=float)
@@ -242,26 +247,55 @@ def _integrate_scaled_continuous_history(
             use_sparse_jacobian = numpy.count_nonzero(matrix) * 4 < matrix.size
         return csc_matrix(matrix) if use_sparse_jacobian else matrix
 
-    solution = solve_ivp(
-        scaled_rhs,
-        (float(eta[0]), float(eta[-1])),
-        initial / scales,
-        method=method,
-        jac=solver_jacobian,
-        t_eval=eta,
-        rtol=float(rtol),
-        atol=float(atol),
+    checkpoint = (
+        checkpoint_factory(
+            initial,
+            eta,
+            scales,
+            rtol,
+            atol,
+            affine_system,
+            vectorized_rhs is not None,
+        )
+        if method == "BDF" and checkpoint_factory is not None
+        else None
     )
-    if not solution.success:
-        raise ValueError(
-            "Declared CMB continuous evolution failed: " f"{solution.message}"
+    if checkpoint is None:
+        solution = solve_ivp(
+            scaled_rhs,
+            (float(eta[0]), float(eta[-1])),
+            initial / scales,
+            method=method,
+            jac=solver_jacobian,
+            t_eval=eta,
+            rtol=float(rtol),
+            atol=float(atol),
         )
-    if solution.y.shape != (initial.size, eta.size):
-        raise ValueError(
-            "Declared CMB continuous evolution returned an "
-            "incomplete state history"
+        if not solution.success:
+            raise ValueError(
+                "Declared CMB continuous evolution failed: "
+                f"{solution.message}"
+            )
+        if solution.y.shape != (initial.size, eta.size):
+            raise ValueError(
+                "Declared CMB continuous evolution returned an "
+                "incomplete state history"
+            )
+        normalized = solution.y
+    else:
+        normalized = integrate_bdf_checkpointed(
+            scaled_rhs,
+            solver_jacobian,
+            eta,
+            initial / scales,
+            rtol=rtol,
+            atol=atol,
+            checkpoint=checkpoint,
+            rhs_calls=rhs_calls,
+            restore_rhs_calls=restore_rhs_calls,
+            initial_rhs_calls=initial_rhs_calls,
         )
-    history = numpy.asarray(solution.y * scales[:, numpy.newaxis], dtype=float)
+    history = numpy.asarray(normalized * scales[:, numpy.newaxis], dtype=float)
     if not numpy.all(numpy.isfinite(history)):
         raise ValueError(
             "Declared CMB continuous evolution produced non-finite states"
@@ -2486,6 +2520,14 @@ def build_declared_mode_evolution(
         (name, slot.index)
         for name, slot in zip(state_context_names, runtime_spec.state_slots)
     )
+    # These declarations do not change between RK stages. Shape checks
+    # still run against each stage's actual context below.
+    ordered_equation_direct_names = tuple(sorted(equation_direct_names))
+    direct_equation_state_bindings = tuple(
+        (name, index)
+        for name, index in state_context_bindings
+        if name in equation_direct_names
+    )
     rhs_context_names = set(grouped_equation_program.context_names)
     rhs_context_names.update(
         name for step in stage_value_steps for name in step.dependencies
@@ -3626,6 +3668,8 @@ def build_declared_mode_evolution(
         history_sink: dict[str, Any] | None = None,
         collect_diagnostics: bool = True,
         count_as_primary_evolution: bool = True,
+        scalar_checkpoint_factory: Callable[..., Any] | None = None,
+        bdf_checkpoint_factory: Callable[..., Any] | None = None,
     ) -> tuple[dict[str, numpy.ndarray], dict[str, numpy.ndarray]]:
         """Integrate one Fourier mode through the declared graph."""
 
@@ -4307,11 +4351,13 @@ def build_declared_mode_evolution(
                 f"stiffness_scale={stiffness_scale})"
             )
 
+        @with_native_history_storage
         def _integrate_declared_state_history(
             initial_state: numpy.ndarray,
         ) -> tuple[dict[str, numpy.ndarray], numpy.ndarray]:
             """Return mode histories and the final state vector."""
 
+            nonlocal scalar_rhs_calls
             histories = {
                 slot.variable: numpy.empty_like(
                     active_grids["eta"],
@@ -4371,6 +4417,31 @@ def build_declared_mode_evolution(
                     abs(float(initial_background.get("Hconf", 0.0))),
                     1.0 / float(eta_values[-1] - eta_values[0]),
                 )
+                bdf_checkpoints = []
+
+                def _make_bdf_checkpoint(*args):
+                    """Retain checkpoint telemetry for this scalar mode."""
+
+                    checkpoint = bdf_checkpoint_factory(*args)
+                    if checkpoint is not None:
+                        bdf_checkpoints.append(checkpoint)
+                    return checkpoint
+
+                def _restore_scalar_rhs_calls(value):
+                    """Restore logical work without counting reconstruction."""
+
+                    nonlocal scalar_rhs_calls
+                    scalar_rhs_calls = value
+
+                checkpoint_options = (
+                    {
+                        "checkpoint_factory": _make_bdf_checkpoint,
+                        "rhs_calls": lambda: scalar_rhs_calls,
+                        "restore_rhs_calls": _restore_scalar_rhs_calls,
+                    }
+                    if bdf_checkpoint_factory is not None
+                    else {}
+                )
                 continuous_history = _integrate_scaled_continuous_history(
                     _continuous_rhs,
                     state,
@@ -4382,7 +4453,22 @@ def build_declared_mode_evolution(
                     vectorized_rhs=(
                         _continuous_rhs if continuous_affine_system else None
                     ),
+                    **checkpoint_options,
                 )
+                if bdf_checkpoints:
+                    checkpoint = bdf_checkpoints[-1]
+                    runtime_envelope["bdf_checkpoint_restored_steps"] = (
+                        checkpoint.restored_steps
+                    )
+                    runtime_envelope["bdf_checkpoint_restored_nfev"] = (
+                        checkpoint.restored_nfev
+                    )
+                    runtime_envelope["bdf_checkpoint_restored_samples"] = (
+                        checkpoint.restored_samples
+                    )
+                    runtime_envelope["bdf_checkpoint_published_chunks"] = (
+                        checkpoint.published_chunks
+                    )
                 histories = {
                     slot.variable: numpy.asarray(
                         continuous_history[slot.index],
@@ -4401,18 +4487,99 @@ def build_declared_mode_evolution(
                 tight_coupling_ratio=float(numerics.tight_coupling_ratio),
                 exit_ratio=float(numerics.tight_coupling_exit_ratio),
             )
-            for step_index, eta_value in enumerate(active_grids["eta"]):
-                state = _project_declared_fast_collision_state(
-                    state,
-                    step_index=step_index,
-                    blend=0.0,
-                    k_value=float(k_value),
-                    tight_coupling_active=tight_coupling_active,
+            checkpoint = (
+                scalar_checkpoint_factory(initial_state)
+                if scalar_checkpoint_factory is not None
+                else None
+            )
+            saved_history = (
+                allocate_native_history(
+                    (1, active_grids["eta"].size, state.size)
                 )
+                if checkpoint is not None
+                else None
+            )
+            initial_stiff_intervals = int(
+                runtime_envelope.get("stiff_collision_intervals", 0)
+            )
+            initial_rhs_calls = scalar_rhs_calls
+            start_index = 0
+            restored = (
+                checkpoint.restore(saved_history)
+                if checkpoint is not None
+                else None
+            )
+            if restored is not None:
+                start_index, saved_stats = restored
+                if saved_stats["tight_coupling_active"] not in (0, 1):
+                    raise ValueError("Scalar checkpoint activation is invalid")
+                tight_coupling_active = bool(
+                    saved_stats["tight_coupling_active"]
+                )
+                scalar_rhs_calls = (
+                    initial_rhs_calls + saved_stats["scalar_rhs_calls"]
+                )
+                runtime_envelope["stiff_collision_intervals"] = (
+                    initial_stiff_intervals
+                    + saved_stats["stiff_collision_intervals"]
+                )
+                state = numpy.array(saved_history[0, start_index], copy=True)
                 for slot in runtime_spec.state_slots:
-                    if slot.order != 0:
-                        continue
-                    histories[slot.variable][step_index] = state[slot.index]
+                    if slot.order == 0:
+                        histories[slot.variable][: start_index + 1] = (
+                            saved_history[0, : start_index + 1, slot.index]
+                        )
+                runtime_envelope["scalar_checkpoint_restored_intervals"] = (
+                    int(
+                        runtime_envelope.get(
+                            "scalar_checkpoint_restored_intervals", 0
+                        )
+                    )
+                    + start_index
+                )
+                runtime_envelope["scalar_checkpoint_restored_rhs_calls"] = (
+                    int(
+                        runtime_envelope.get(
+                            "scalar_checkpoint_restored_rhs_calls", 0
+                        )
+                    )
+                    + saved_stats["scalar_rhs_calls"]
+                )
+            for step_index in range(start_index, active_grids["eta"].size):
+                eta_value = active_grids["eta"][step_index]
+                if restored is None or step_index != start_index:
+                    state = _project_declared_fast_collision_state(
+                        state,
+                        step_index=step_index,
+                        blend=0.0,
+                        k_value=float(k_value),
+                        tight_coupling_active=tight_coupling_active,
+                    )
+                    for slot in runtime_spec.state_slots:
+                        if slot.order == 0:
+                            histories[slot.variable][step_index] = state[
+                                slot.index
+                            ]
+                    if checkpoint is not None:
+                        saved_history[0, step_index] = state
+                        checkpoint.record(
+                            saved_history,
+                            step_index,
+                            {
+                                "tight_coupling_active": int(
+                                    tight_coupling_active
+                                ),
+                                "scalar_rhs_calls": (
+                                    scalar_rhs_calls - initial_rhs_calls
+                                ),
+                                "stiff_collision_intervals": int(
+                                    runtime_envelope.get(
+                                        "stiff_collision_intervals", 0
+                                    )
+                                )
+                                - initial_stiff_intervals,
+                            },
+                        )
                 if step_index == active_grids["eta"].size - 1:
                     break
                 dt = float(active_grids["eta"][step_index + 1] - eta_value)
@@ -4435,6 +4602,15 @@ def build_declared_mode_evolution(
                     ),
                     tight_coupling_ratio=float(numerics.tight_coupling_ratio),
                     exit_ratio=float(numerics.tight_coupling_exit_ratio),
+                )
+            if checkpoint is not None:
+                runtime_envelope["scalar_checkpoint_published_chunks"] = (
+                    int(
+                        runtime_envelope.get(
+                            "scalar_checkpoint_published_chunks", 0
+                        )
+                    )
+                    + checkpoint.published_chunks
                 )
             return histories, state
 
@@ -4779,6 +4955,10 @@ def build_declared_mode_evolution(
         *,
         evolution_sample_count_override: int | None = None,
         history_sinks: dict[float, dict[str, Any]] | None = None,
+        completed_mode_callback: Callable[..., None] | None = None,
+        rk_checkpoint_factory: Callable[..., Any] | None = None,
+        scalar_checkpoint_factory: Callable[..., Any] | None = None,
+        bdf_checkpoint_factory: Callable[..., Any] | None = None,
     ) -> dict[int, dict[str, numpy.ndarray]]:
         """Evolve compatible declared modes through one shared RK schedule.
 
@@ -5281,15 +5461,12 @@ def build_declared_mode_evolution(
                     # NumPy operands for a single mode. Bind only direct
                     # state names that the pruned graph context omitted;
                     # preserve graph-rebound values already in that context.
-                    for name, index in state_context_bindings:
-                        if (
-                            name in equation_direct_names
-                            and name not in context
-                        ):
+                    for name, index in direct_equation_state_bindings:
+                        if name not in context:
                             context[name] = float(state_rows[0, index])
                     vector_names = tuple(
                         name
-                        for name in sorted(equation_direct_names)
+                        for name in ordered_equation_direct_names
                         if getattr(context[name], "shape", ()) == (mode_count,)
                         or (
                             isinstance(context[name], (tuple, list))
@@ -6060,11 +6237,37 @@ def build_declared_mode_evolution(
                     local_k_values,
                     strict=True,
                 ):
+                    scalar_history_sink = (
+                        {} if completed_mode_callback is not None else None
+                    )
                     _, scalar_source_arrays = _evolve_declared_mode(
                         float(mode_k_value),
                         collect_diagnostics=False,
+                        history_sink=scalar_history_sink,
+                        scalar_checkpoint_factory=(
+                            (
+                                lambda initial: scalar_checkpoint_factory(
+                                    float(mode_k_value), None, initial
+                                )
+                            )
+                            if scalar_checkpoint_factory is not None
+                            else None
+                        ),
+                        bdf_checkpoint_factory=(
+                            (
+                                lambda *args: bdf_checkpoint_factory(
+                                    float(mode_k_value), None, *args
+                                )
+                            )
+                            if bdf_checkpoint_factory is not None
+                            else None
+                        ),
                     )
                     results[int(mode_index)] = scalar_source_arrays
+                    if completed_mode_callback is not None:
+                        completed_mode_callback(
+                            float(mode_k_value), scalar_history_sink
+                        )
                 continue
             scope = "rk_group_" + str(runtime_envelope["schedule_group_count"])
             performance_timer.start_work("evolution", scope)
@@ -6144,6 +6347,20 @@ def build_declared_mode_evolution(
 
                 relaxation_rate = _ppf_relaxation_rate
 
+            split_ratio = 1.0 if common_schedule_allowed else None
+            checkpoint = (
+                rk_checkpoint_factory(
+                    local_k_values,
+                    eta_values,
+                    states,
+                    required_substeps,
+                    active_intervals,
+                    split_ratio,
+                    relaxation_slot,
+                )
+                if rk_checkpoint_factory is not None
+                else None
+            )
             histories, _, batch_stats = _integrate_batched_rk4(
                 states,
                 eta_values,
@@ -6156,10 +6373,19 @@ def build_declared_mode_evolution(
                 progress=_report_batch_work,
                 relaxation_slot=relaxation_slot,
                 relaxation_rate=relaxation_rate,
-                split_interval_ratio=(
-                    1.0 if common_schedule_allowed else None
-                ),
+                split_interval_ratio=split_ratio,
+                checkpoint=checkpoint,
             )
+            if checkpoint is not None:
+                for name, count in (
+                    ("restored_intervals", checkpoint.restored_intervals),
+                    ("restored_rk_stages", checkpoint.restored_rk_stages),
+                    ("published_chunks", checkpoint.published_chunks),
+                ):
+                    key = "rk_checkpoint_" + name
+                    runtime_envelope[key] = int(
+                        runtime_envelope.get(key, 0)
+                    ) + int(count)
             runtime_envelope["schedule_split_interval_count"] = (
                 int(runtime_envelope.get("schedule_split_interval_count", 0))
                 + batch_stats.split_interval_count
@@ -6259,6 +6485,24 @@ def build_declared_mode_evolution(
                         # the expensive raw residual bundle remains gated by
                         # ``diagnostic_source_audit`` inside the evaluator.
                         collect_diagnostics=True,
+                        scalar_checkpoint_factory=(
+                            (
+                                lambda initial: scalar_checkpoint_factory(
+                                    mode_k_value, None, initial
+                                )
+                            )
+                            if scalar_checkpoint_factory is not None
+                            else None
+                        ),
+                        bdf_checkpoint_factory=(
+                            (
+                                lambda *args: bdf_checkpoint_factory(
+                                    float(mode_k_value), None, *args
+                                )
+                            )
+                            if bdf_checkpoint_factory is not None
+                            else None
+                        ),
                     )
                     _record_stage_diagnostic_histories(
                         int(mode_index),
@@ -6274,6 +6518,10 @@ def build_declared_mode_evolution(
                         source_arrays=scalar_source_arrays,
                     )
                     results[int(mode_index)] = scalar_source_arrays
+                    if completed_mode_callback is not None:
+                        completed_mode_callback(
+                            mode_k_value, scalar_history_sink
+                        )
                     continue
                 evaluated_source_arrays = _evaluate_source_histories(
                     mode_k_value,
@@ -6316,6 +6564,16 @@ def build_declared_mode_evolution(
                     name: numpy.array(values, copy=True)
                     for name, values in evaluated_source_arrays.items()
                 }
+                if completed_mode_callback is not None:
+                    completed_mode_callback(
+                        mode_k_value,
+                        {
+                            "evolution_eta": eta_values,
+                            "evolution_histories": native_histories,
+                            "source_eta": source_eta,
+                            "source_arrays": evaluated_source_arrays,
+                        },
+                    )
 
         scheduled_background_contexts = None
         scalar_base_context_cache = {}

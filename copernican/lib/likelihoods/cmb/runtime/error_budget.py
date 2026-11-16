@@ -185,6 +185,7 @@ def combine_observable_errors(
             raise ValueError("Observable products must be finite and nonempty")
         scale = max(float(numpy.max(abs(values))), absolute_tolerance)
         contributions = {}
+        axis_peak_indices = {}
         total = numpy.zeros_like(values)
         for axis, errors in axis_errors.items():
             if name not in errors:
@@ -196,6 +197,7 @@ def combine_observable_errors(
                 raise ValueError("Observable error bounds must match products")
             total += bound
             contributions[axis] = float(numpy.max(bound)) / scale
+            axis_peak_indices[axis] = int(numpy.argmax(bound))
         tolerance = float(tolerances[name])
         if not numpy.isfinite(tolerance) or tolerance <= 0:
             raise ValueError("Observable relative tolerances must be positive")
@@ -204,8 +206,13 @@ def combine_observable_errors(
         products[name] = {
             "relative_error_bound": peak / scale,
             "absolute_error_bound": peak,
+            "absolute_error_peak_index": int(numpy.argmax(total)),
+            "absolute_tolerance": float(absolute_tolerance),
             "relative_tolerance": tolerance,
+            "relative_normalization": "peak_absolute_spectrum",
+            "normalization_scale": scale,
             "axis_relative_bounds": contributions,
+            "axis_peak_indices": axis_peak_indices,
             "converged": bool(
                 peak <= max(absolute_tolerance, tolerance * scale)
             ),
@@ -246,6 +253,16 @@ def combine_observable_errors(
         )
         normalized = float(numpy.max(propagated[supported], initial=0.0))
         products[cross]["normalized_cross_bound"] = normalized
+        products[cross]["normalized_cross_peak_index"] = (
+            int(
+                numpy.flatnonzero(supported)[
+                    numpy.argmax(propagated[supported])
+                ]
+            )
+            if numpy.any(supported)
+            else None
+        )
+        products[cross]["cross_normalization"] = "matching_auto_spectra"
         products[cross]["converged"] &= normalized <= float(tolerances[cross])
     return {
         "method": "absolute_operator_propagation_and_axis_triangle_bound",

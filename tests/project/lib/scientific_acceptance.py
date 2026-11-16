@@ -1502,6 +1502,9 @@ def run_completion_point(
     """
 
     from copernican.lib.likelihoods.cmb import cmb
+    from copernican.lib.likelihoods.cmb.durable_history import (
+        retain_durable_histories,
+    )
     from copernican.lib.likelihoods.cmb.runtime import evidence
 
     root = Path(root)
@@ -1646,17 +1649,38 @@ def run_completion_point(
                 ),
                 None,
             )
-        if (
-            kind != "spectrum_quadrature"
-            or len(report["observations"]) % 64 == 0
-        ):
-            evidence_assets.write_json_artifact(
-                root,
-                f"{prefix}/observations.json",
-                {
-                    "products": report["observations"],
-                },
-            )
+        evidence_assets.write_json_artifact(
+            root,
+            f"{prefix}/observations.json",
+            {"products": report["observations"]},
+        )
+
+    def execute_with_retention():
+        """Resume exact raw histories while measuring this producer's reuse."""
+
+        identity = {
+            name: dependency[name] for name in ("physical", "numerical")
+        }
+        with retain_durable_histories(root, identity, prefix) as durable:
+            try:
+                with evidence.capture_completed_cmb_products(retain):
+                    return cmb.compute_cmb_spectrum_from_contract(
+                        runtime,
+                        request["ells"],
+                        spectra=request["spectra"],
+                        workload="full_spectrum",
+                        solver="ccmbs",
+                    )
+            finally:
+                previous = report.get("durable_histories", {})
+                report["durable_histories"] = {
+                    "hits": previous.get("hits", 0) + durable.hits,
+                    "writes": previous.get("writes", 0) + durable.writes,
+                    "product_hits": previous.get("product_hits", 0)
+                    + durable.product_hits,
+                    "product_writes": previous.get("product_writes", 0)
+                    + durable.product_writes,
+                }
 
     started = time.perf_counter()
     try:
@@ -1684,14 +1708,10 @@ def run_completion_point(
             report["experimental_background_screen"] = (
                 _screen_experimental_background(runtime, reference)
             )
-        with evidence.capture_completed_cmb_products(retain):
-            cmb.compute_cmb_spectrum_from_contract(
-                runtime,
-                request["ells"],
-                spectra=request["spectra"],
-                workload="full_spectrum",
-                solver="ccmbs",
-            )
+        # Do not attribute unrelated process-local cache entries to this
+        # attempt; validated durable products have their own provenance.
+        cache.clear_cmb_caches()
+        execute_with_retention()
         result = cmb._LAST_CMB_RESULT.get()
         result.raise_for_failure()
         if result.solver_id != "ccmbs":
@@ -1730,14 +1750,7 @@ def run_completion_point(
             row["kind"] != "accepted_numerical_spectrum"
             for row in report["observations"]
         )
-        with evidence.capture_completed_cmb_products(retain):
-            repeated = cmb.compute_cmb_spectrum_from_contract(
-                runtime,
-                request["ells"],
-                spectra=request["spectra"],
-                workload="full_spectrum",
-                solver="ccmbs",
-            )
+        repeated = execute_with_retention()
         report["repeat"] = {
             "identical": all(
                 numpy.array_equal(result.spectra[name], repeated[name])

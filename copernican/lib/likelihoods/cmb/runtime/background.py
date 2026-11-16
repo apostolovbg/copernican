@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import ast
 import math
-from dataclasses import astuple, dataclass, field, replace
+from dataclasses import dataclass, field, fields, replace
 from typing import Any, Iterable, Mapping, Sequence
 
 import numpy
@@ -1766,6 +1766,104 @@ class _CustomCMBBackgroundData:
         }
 
 
+_BACKGROUND_INTERPOLATION_FIELDS = {
+    "a_of_eta": "a_grid",
+    "z_of_eta": "z_grid",
+    "H_of_eta": "H_grid",
+    "chi_of_eta": "chi_grid",
+    "da_of_eta": "da_grid",
+    "tau_of_eta": "tau_grid",
+    "tau_dot_of_eta": "tau_dot_grid",
+    "visibility_of_eta": "visibility_grid",
+    "x_e_of_eta": "x_e_grid",
+    "matter_temperature_of_eta": "matter_temperature_grid",
+    "sound_speed_of_eta": "sound_speed_grid",
+    "baryon_sound_speed_sq_of_eta": "baryon_sound_speed_sq_grid",
+}
+
+
+def _background_raw_product(background):
+    """Retain raw background tables without a convergence certificate."""
+
+    excluded = {*_BACKGROUND_INTERPOLATION_FIELDS, "eta_of_a"}
+    product = {
+        entry.name: getattr(background, entry.name)
+        for entry in fields(_CustomCMBBackgroundData)
+        if entry.name not in excluded
+    }
+    product["resolution_evidence"] = {
+        key: value
+        for key, value in background.resolution_evidence.items()
+        if key != "refinement"
+    }
+    return product
+
+
+def _background_from_raw_product(product):
+    """Validate tables and rebuild the original declared interpolators."""
+
+    excluded = {*_BACKGROUND_INTERPOLATION_FIELDS, "eta_of_a"}
+    expected = {
+        entry.name
+        for entry in fields(_CustomCMBBackgroundData)
+        if entry.name not in excluded
+    }
+    if not isinstance(product, Mapping) or set(product) != expected:
+        raise ValueError("durable background fields differ")
+    values = dict(product)
+    eta = values["eta_grid"]
+    scale = values["a_grid"]
+    if (
+        not isinstance(eta, numpy.ndarray)
+        or eta.ndim != 1
+        or eta.size < 2
+        or not isinstance(scale, numpy.ndarray)
+        or scale.shape != eta.shape
+        or not numpy.all(numpy.diff(eta) > 0)
+        or not numpy.all(numpy.diff(scale) > 0)
+    ):
+        raise ValueError("durable background grids are invalid")
+    for name, raw in values.items():
+        if (
+            name.endswith("_grid")
+            and raw is not None
+            and (
+                not isinstance(raw, numpy.ndarray)
+                or raw.shape != eta.shape
+                or not numpy.all(numpy.isfinite(raw))
+            )
+        ):
+            raise ValueError("durable background table is invalid: " + name)
+    for name in (
+        "dark_energy_audit",
+        "modified_background_audit",
+        "resolution_evidence",
+    ):
+        if not isinstance(values[name], Mapping):
+            raise ValueError("durable background metadata is invalid")
+    if "refinement" in values["resolution_evidence"]:
+        raise ValueError("durable background contains a certificate")
+    for name in (
+        "eta0",
+        "sound_horizon_mpc",
+        "reionization_z",
+        "reionization_tau",
+        "eta_rec",
+        "a_rec",
+        "z_rec",
+        "drag_sound_horizon_mpc",
+        "drag_redshift",
+    ):
+        if not isinstance(values[name], (int, float)) or not numpy.isfinite(
+            values[name]
+        ):
+            raise ValueError("durable background scalar is invalid: " + name)
+    values["eta_of_a"] = PchipInterpolator(scale, eta, extrapolate=True)
+    for name, table in _BACKGROUND_INTERPOLATION_FIELDS.items():
+        values[name] = PchipInterpolator(eta, values[table], extrapolate=True)
+    return _CustomCMBBackgroundData(**values)
+
+
 def _physical_runtime_scalars(
     physical_params: _CustomCMBPhysicalParameters,
 ) -> dict[str, float]:
@@ -2566,6 +2664,31 @@ def _custom_cmb_background_cache_key(
         )
         for field_name in _BACKGROUND_CACHE_PHYSICAL_FIELDS
     )
+    momentum_key = ()
+    perturbation_data = contract.get("perturbation_data")
+    if perturbation_data is not None:
+        from .evolution import _resolve_declared_momentum_grid_runtimes
+
+        parameters = _momentum_model_parameters(contract)
+        momentum = _resolve_declared_momentum_grid_runtimes(
+            perturbation_data,
+            model_parameters=parameters,
+            physical_params=physical_params,
+        )
+        if momentum:
+            momentum_key = (
+                _freeze_for_cache(parameters),
+                tuple(
+                    tuple(
+                        (
+                            entry.name,
+                            _freeze_for_cache(getattr(grid, entry.name)),
+                        )
+                        for entry in fields(grid)
+                    )
+                    for grid in momentum
+                ),
+            )
     return cache.RuntimeCacheIdentity(
         contract_static=_freeze_for_cache(
             _get_declared_background_section(contract)
@@ -2576,8 +2699,16 @@ def _custom_cmb_background_cache_key(
             ),
             physical_key,
             _custom_cmb_provider_key(background_provider),
+            momentum_key,
+            bool(contract.get("_diagnostic_matrix_fast_path", False)),
         ),
-        request_specific=astuple(numerics),
+        # The k ladder only changes perturbation sampling, not the
+        # background tables. Preserve every other numerical setting.
+        request_specific=tuple(
+            getattr(numerics, entry.name)
+            for entry in fields(numerics)
+            if entry.name not in {"k_sample_count", "k_grid_refinement_factor"}
+        ),
     )
 
 

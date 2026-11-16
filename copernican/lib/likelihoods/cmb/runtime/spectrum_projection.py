@@ -261,6 +261,8 @@ def project_interpolated_source_histories(
     uncertainty_axes=(),
     heartbeat=None,
     source_eta=None,
+    checkpoint=None,
+    checkpoint_key=None,
 ):
     """Project two independently evolved source meshes on one angular mesh.
 
@@ -362,8 +364,73 @@ def project_interpolated_source_histories(
         axis: {name: numpy.zeros(shape) for name in components}
         for axis in uncertainty_axes
     }
+    if checkpoint is not None and not isinstance(checkpoint_key, str):
+        raise ValueError("Projection checkpoint requires an input identity")
+    checkpoint_chunk_size = 32
+    restored_until = 0
     eta0 = float(eta[-1])
     for wave_index, wave in enumerate(angular_k):
+        chunk_start = (wave_index // checkpoint_chunk_size) * (
+            checkpoint_chunk_size
+        )
+        chunk_end = min(chunk_start + checkpoint_chunk_size, angular_k.size)
+        checkpoint_token = (
+            "source_angular_projection",
+            checkpoint_key,
+            chunk_start,
+            chunk_end,
+        )
+        if checkpoint is not None and wave_index == chunk_start:
+            retained = checkpoint.get_product(checkpoint_token)
+            if retained is not None:
+                if (
+                    not isinstance(retained, Mapping)
+                    or set(retained)
+                    != {
+                        "waves",
+                        "base",
+                        "refined",
+                        "coarse_eta",
+                        "uncertainties",
+                    }
+                    or not numpy.array_equal(
+                        retained["waves"], angular_k[chunk_start:chunk_end]
+                    )
+                    or set(retained["uncertainties"]) != set(uncertainties)
+                ):
+                    raise ValueError("Durable projection checkpoint differs")
+                groups = (
+                    (transfers[0], retained["base"]),
+                    (transfers[1], retained["refined"]),
+                    (coarse_eta, retained["coarse_eta"]),
+                    *(
+                        (uncertainties[axis], retained["uncertainties"][axis])
+                        for axis in uncertainties
+                    ),
+                )
+                for target, saved in groups:
+                    if not isinstance(saved, Mapping) or set(saved) != set(
+                        target
+                    ):
+                        raise ValueError(
+                            "Durable projection components differ"
+                        )
+                    for name, array in saved.items():
+                        if (
+                            not isinstance(array, numpy.ndarray)
+                            or array.shape
+                            != (len(ell_values), chunk_end - chunk_start)
+                            or not numpy.all(numpy.isfinite(array))
+                        ):
+                            raise ValueError(
+                                "Durable projection array differs"
+                            )
+                        target[name][:, chunk_start:chunk_end] = array
+                restored_until = chunk_end
+        if wave_index < restored_until:
+            if heartbeat is not None:
+                heartbeat(wave_index + 1, angular_k.size)
+            continue
         kernels = kernel_provider(
             tuple(int(value) for value in ell_values), wave * (eta0 - eta)
         )
@@ -425,6 +492,32 @@ def project_interpolated_source_histories(
                                 axis, component, sources, kernels, float(wave)
                             )
                         )
+        if checkpoint is not None and wave_index + 1 == chunk_end:
+            checkpoint.set_product(
+                checkpoint_token,
+                {
+                    "waves": angular_k[chunk_start:chunk_end],
+                    "base": {
+                        name: values[:, chunk_start:chunk_end]
+                        for name, values in transfers[0].items()
+                    },
+                    "refined": {
+                        name: values[:, chunk_start:chunk_end]
+                        for name, values in transfers[1].items()
+                    },
+                    "coarse_eta": {
+                        name: values[:, chunk_start:chunk_end]
+                        for name, values in coarse_eta.items()
+                    },
+                    "uncertainties": {
+                        axis: {
+                            name: values[:, chunk_start:chunk_end]
+                            for name, values in rows.items()
+                        }
+                        for axis, rows in uncertainties.items()
+                    },
+                },
+            )
         if heartbeat is not None:
             heartbeat(wave_index + 1, angular_k.size)
     return {

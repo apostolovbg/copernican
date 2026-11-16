@@ -46,6 +46,164 @@ class ExecutionModuleTestCase(unittest.TestCase):
         with self.assertRaises(execution.AdaptiveNonConvergenceError):
             execution._require_observable_budget(result, controls)
 
+    def test_observable_budget_enforces_combined_numerical_limit(self):
+        """Every observable keeps the frozen joint numerical budget."""
+
+        from copernican.lib.likelihoods.cmb.runtime import convergence
+
+        for name in ("TT", "TE", "EE", "BB", "PP", "TP", "EP"):
+            with self.subTest(spectrum=name):
+                controls = convergence.resolve_production_scalar_convergence(
+                    {
+                        "_engine_accuracy_controls": {
+                            "production_scalar_convergence": {
+                                "enabled": True,
+                                "required_spectra": (name,),
+                            }
+                        }
+                    }
+                )
+                result = SimpleNamespace(
+                    spectra={name: numpy.ones(1)},
+                    runtime_envelope={
+                        "observable_axis_error_bounds": {
+                            "evolution": {name: numpy.asarray([0.006])}
+                        }
+                    },
+                )
+                with self.assertRaises(
+                    execution.AdaptiveNonConvergenceError
+                ) as caught:
+                    execution._require_observable_budget(result, controls)
+                self.assertEqual(
+                    caught.exception.evidence["products"][name][
+                        "relative_tolerance"
+                    ],
+                    0.005,
+                )
+                result.runtime_envelope["observable_axis_error_bounds"][
+                    "evolution"
+                ][name] = numpy.asarray([0.005])
+                budget = execution._require_observable_budget(result, controls)
+                self.assertTrue(budget["converged"])
+
+        controls = convergence.resolve_production_scalar_convergence(
+            {
+                "_engine_accuracy_controls": {
+                    "production_scalar_convergence": {
+                        "enabled": True,
+                        "required_spectra": ("TT",),
+                        "relative_tolerances": {"TT": 0.001},
+                    }
+                }
+            }
+        )
+        result = SimpleNamespace(
+            spectra={"TT": numpy.ones(1)},
+            runtime_envelope={
+                "observable_axis_error_bounds": {
+                    "evolution": {"TT": numpy.asarray([0.002])}
+                }
+            },
+        )
+        with self.assertRaises(
+            execution.AdaptiveNonConvergenceError
+        ) as caught:
+            execution._require_observable_budget(result, controls)
+        self.assertEqual(
+            caught.exception.evidence["products"]["TT"]["relative_tolerance"],
+            0.001,
+        )
+
+    def test_observable_budget_locates_spectrum_and_axis_peaks(self):
+        """Retain physical multipoles and the actual normalization scales."""
+
+        from copernican.lib.likelihoods.cmb.runtime import convergence
+
+        spectra = {
+            "TT": numpy.ones(3),
+            "EE": numpy.ones(3),
+            "TE": numpy.full(3, 0.2),
+        }
+        bounds = {
+            "evolution": {
+                "TT": numpy.zeros(3),
+                "EE": numpy.zeros(3),
+                "TE": numpy.asarray((0.0001, 0.001, 0.002)),
+            },
+            "projection": {
+                "TT": numpy.zeros(3),
+                "EE": numpy.zeros(3),
+                "TE": numpy.asarray((0.004, 0.0, 0.0)),
+            },
+        }
+        result = SimpleNamespace(
+            ell_grid=numpy.asarray((2, 10, 20)),
+            spectra=spectra,
+            runtime_envelope={"observable_axis_error_bounds": bounds},
+        )
+        controls = convergence.resolve_production_scalar_convergence(
+            {
+                "_engine_accuracy_controls": {
+                    "production_scalar_convergence": {"enabled": True}
+                }
+            }
+        )
+        with self.assertRaises(
+            execution.AdaptiveNonConvergenceError
+        ) as caught:
+            execution._require_observable_budget(result, controls)
+        evidence = caught.exception.evidence
+        self.assertEqual(evidence["ell_interval"], (2, 20))
+        product = evidence["products"]["TE"]
+        self.assertEqual(product["absolute_error_peak_ell"], 2)
+        self.assertEqual(product["axis_peak_ells"]["evolution"], 20)
+        self.assertEqual(product["axis_peak_ells"]["projection"], 2)
+        self.assertEqual(product["normalized_cross_peak_ell"], 2)
+        self.assertEqual(
+            product["relative_normalization"], "peak_absolute_spectrum"
+        )
+        self.assertEqual(
+            product["cross_normalization"], "matching_auto_spectra"
+        )
+        self.assertAlmostEqual(product["normalization_scale"], 0.2)
+        self.assertAlmostEqual(product["absolute_error_bound"], 0.0041)
+
+    def test_native_axis_errors_locate_actual_failing_sources(self):
+        """Report the source and epoch without rejecting negligible errors."""
+
+        eta = numpy.asarray((10.0, 20.0, 30.0))
+        base = {
+            "temperature_isw": numpy.asarray((2.0, 2.0, 2.0)),
+            "negligible": numpy.asarray((1e-14, 1e-14, 1e-14)),
+        }
+        reference = {
+            "temperature_isw": numpy.asarray((2.0, 1.96, 2.0)),
+            "negligible": numpy.zeros(3),
+        }
+        errors, maximum, failed = execution._measure_native_axis_errors(
+            eta,
+            base,
+            reference,
+            absolute_tolerance=1e-12,
+            relative_tolerance=0.01,
+        )
+        self.assertEqual(failed, ("temperature_isw",))
+        self.assertAlmostEqual(maximum, 0.02)
+        self.assertAlmostEqual(
+            errors["temperature_isw"]["absolute_error"], 0.04
+        )
+        self.assertEqual(errors["temperature_isw"]["worst_eta"], 20.0)
+        self.assertAlmostEqual(errors["negligible"]["relative_error"], 1.0)
+        with self.assertRaisesRegex(ValueError, "matching grids"):
+            execution._measure_native_axis_errors(
+                eta[:-1],
+                base,
+                reference,
+                absolute_tolerance=1e-12,
+                relative_tolerance=0.01,
+            )
+
     def test_independent_source_times_rebind_and_restore_physical_context(
         self,
     ):
@@ -255,6 +413,124 @@ class ExecutionModuleTestCase(unittest.TestCase):
             heartbeat.call_args.kwargs["total"], len(supplied["angular_k"])
         )
 
+    def test_independent_projection_resumes_real_declared_products(self):
+        """Durable angular chunks reproduce a fresh declared calculation."""
+
+        import tempfile
+
+        from copernican.lib.likelihoods.cmb.durable_history import (
+            retain_durable_histories,
+        )
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._speedup_contract(test_cmb._custom_contract())
+        raw["numerical"].update(k_sample_count=8, k_max=0.03, ell_max=20)
+        controls = {
+            "adaptive_transfer": {
+                "enabled": True,
+                "minimum_nodes": 8,
+                "maximum_nodes": 16,
+                "relative_tolerance": 0.01,
+                "algorithm": "independent_source_interpolation",
+            }
+        }
+        raw["perturbations"]["accuracy_controls"] = controls
+        contract = test_cmb._prepare_declared_contract(raw)
+        contract["_engine_numerical_plan"] = contract.pop("numerical")
+        contract["_engine_accuracy_controls"] = controls
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        with tempfile.TemporaryDirectory() as directory:
+            identity = {"physical": "a" * 64, "numerical": "b" * 64}
+            outputs = []
+            for attempt in ("cold", "warm"):
+                execution.cache.clear_cmb_caches()
+                with retain_durable_histories(
+                    directory, identity, "cases/" + attempt
+                ):
+                    outputs.append(
+                        execution._compute_custom_cmb_spectrum_data(
+                            contract,
+                            (2, 10),
+                            requested_spectra=("TT",),
+                            workload="fixed_parameter_diagnostic",
+                        )
+                    )
+            cold, warm = outputs
+            self.assertGreater(
+                cold.runtime_envelope["durable_projection_checkpoints"][
+                    "writes"
+                ],
+                0,
+            )
+            self.assertGreater(
+                warm.runtime_envelope["durable_projection_checkpoints"][
+                    "hits"
+                ],
+                0,
+            )
+            numpy.testing.assert_array_equal(
+                cold.spectra["TT"], warm.spectra["TT"]
+            )
+            for name in cold.transfer_components:
+                numpy.testing.assert_array_equal(
+                    cold.transfer_components[name],
+                    warm.transfer_components[name],
+                )
+
+    def test_direct_projection_resumes_real_declared_products(self):
+        """Direct projection reuses only matching per-wave transfers."""
+
+        import tempfile
+
+        from copernican.lib.likelihoods.cmb.durable_history import (
+            retain_durable_histories,
+        )
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._speedup_contract(test_cmb._custom_contract())
+        raw["numerical"].update(k_sample_count=4, k_max=0.03, ell_max=10)
+        contract = test_cmb._prepare_declared_contract(raw)
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        with tempfile.TemporaryDirectory() as directory:
+            identity = {"physical": "a" * 64, "numerical": "b" * 64}
+            outputs = []
+            for attempt in ("cold", "warm"):
+                execution.cache.clear_cmb_caches()
+                with retain_durable_histories(
+                    directory, identity, "cases/" + attempt
+                ):
+                    outputs.append(
+                        execution._compute_custom_cmb_spectrum_data(
+                            contract,
+                            (2, 10),
+                            requested_spectra=("TT",),
+                            workload="joint_mcmc",
+                        )
+                    )
+            cold, warm = outputs
+            self.assertGreater(
+                cold.runtime_envelope["durable_projection_checkpoints"][
+                    "writes"
+                ],
+                0,
+            )
+            self.assertEqual(
+                warm.runtime_envelope["durable_projection_checkpoints"][
+                    "hits"
+                ],
+                cold.runtime_envelope["durable_projection_checkpoints"][
+                    "writes"
+                ],
+            )
+            numpy.testing.assert_array_equal(
+                cold.spectra["TT"], warm.spectra["TT"]
+            )
+            for name in cold.transfer_components:
+                numpy.testing.assert_array_equal(
+                    cold.transfer_components[name],
+                    warm.transfer_components[name],
+                )
+
     def test_native_pilot_admission_starts_with_one_interior_mode(self):
         """An early pilot failure must precede remaining physical modes."""
 
@@ -397,6 +673,20 @@ class ExecutionModuleTestCase(unittest.TestCase):
                     caught.exception.evidence["relative_tolerance"], 0.02
                 )
                 self.assertEqual(
+                    caught.exception.evidence["absolute_error_scope"],
+                    "all_histories",
+                )
+                self.assertGreaterEqual(
+                    caught.exception.evidence["worst_history_absolute_error"],
+                    0.0,
+                )
+                self.assertGreaterEqual(
+                    caught.exception.evidence[
+                        "worst_history_normalization_scale"
+                    ],
+                    0.0,
+                )
+                self.assertEqual(
                     caught.exception.evidence["mode_k"],
                     float(context["waves"][failure_index]),
                 )
@@ -481,7 +771,7 @@ class ExecutionModuleTestCase(unittest.TestCase):
     def test_prepare_projection_chunk_bounds_live_kernels_and_retains_axes(
         self,
     ):
-        """Dense angular adaptive work retains one chunk, not all modes."""
+        """Compare projection chunks on one real physical background."""
 
         import weakref
 
@@ -513,8 +803,15 @@ class ExecutionModuleTestCase(unittest.TestCase):
         contract = test_cmb._prepare_declared_contract(raw)
         self.addCleanup(execution.cache.clear_cmb_caches)
         original = execution._get_cached_declared_projection_kernel_batch
+        build_background = execution._build_custom_cmb_background
+        backgrounds = []
         references = []
         live = []
+
+        def retain_background(*args, **kwargs):
+            background = build_background(*args, **kwargs)
+            backgrounds.append(background)
+            return background
 
         def observe(*args, **kwargs):
             batch = original(*args, **kwargs)
@@ -525,6 +822,11 @@ class ExecutionModuleTestCase(unittest.TestCase):
         execution.cache.clear_cmb_caches()
         with (
             mock.patch.object(execution, "_BESSEL_WORK_CELL_BUDGET", 10_000),
+            mock.patch.object(
+                execution,
+                "_build_custom_cmb_background",
+                side_effect=retain_background,
+            ),
             mock.patch.object(
                 execution.cache._CMB_BESSEL_BATCH_CACHE, "max_bytes", 0
             ),
@@ -550,15 +852,37 @@ class ExecutionModuleTestCase(unittest.TestCase):
         self.assertGreater(envelope["projection_peak_kernel_bytes"], 0)
         self.assertLessEqual(max(live), 2)
         self.assertGreater(envelope["projection_bessel_batch_count"], 1)
+        self.assertEqual(len(backgrounds), 1)
         execution.cache.clear_cmb_caches()
-        with mock.patch.object(
-            execution, "_BESSEL_WORK_CELL_BUDGET", 8_000_000
+        with (
+            mock.patch.object(
+                execution, "_BESSEL_WORK_CELL_BUDGET", 8_000_000
+            ),
+            mock.patch.object(
+                execution,
+                "_build_custom_cmb_background",
+                return_value=backgrounds[0],
+            ),
         ):
             large = execution._compute_custom_cmb_spectrum_data(
                 contract,
                 tuple(range(2, 101)),
                 requested_spectra=("TT", "TE", "EE"),
             )
+        self.assertGreater(
+            small.runtime_envelope["evolution_modes_evolved"], 0
+        )
+        self.assertGreater(
+            large.runtime_envelope["evolution_modes_evolved"], 0
+        )
+        self.assertGreater(
+            large.runtime_envelope["projection_peak_live_modes"],
+            small.runtime_envelope["projection_peak_live_modes"],
+        )
+        self.assertGreater(
+            small.runtime_envelope["projection_bessel_batch_count"],
+            large.runtime_envelope["projection_bessel_batch_count"],
+        )
         for name in ("TT", "TE", "EE"):
             numpy.testing.assert_allclose(
                 small.spectra[name],
@@ -908,6 +1232,836 @@ class ExecutionModuleTestCase(unittest.TestCase):
                     atol=0,
                     err_msg="_resample_mode_history evaluates current sources",
                 )
+
+    def test_ordinary_scalar_ppf_reuses_completed_native_history(self):
+        """Ordinary scalar work reuses an interrupted producer's BDF mode."""
+
+        import tempfile
+
+        from copernican.lib.likelihoods.cmb.durable_history import (
+            retain_durable_histories,
+        )
+        from copernican.lib.likelihoods.cmb.runtime import mode_evolution
+        from copernican.lib.likelihoods.cmb.runtime.history_store import (
+            retain_source_histories,
+        )
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._speedup_contract(
+            test_cmb._declared_scalar_hierarchy_contract()
+        )
+        raw["perturbations"]["species"]["arbitrary_component"] = {
+            "sector": "scalar",
+            "equation_of_state": "-0.9",
+            "anisotropic_stress": "zero",
+            "scalar_closure": {
+                "kind": "ppf",
+                "density_fraction": "0.7",
+                "other_enthalpy": "0.3",
+                "transition": "0.4",
+                "initial": "0.0",
+            },
+        }
+        raw["numerical"].update(k_sample_count=4, k_min=0.001, k_max=0.02)
+        contract = test_cmb._prepare_declared_contract(raw)
+        identity = {"physical": "a" * 64, "numerical": "b" * 64}
+        backgrounds = []
+        original_background = execution._build_custom_cmb_background
+        original_set = execution.cache.set_cmb_evolution_history
+
+        def remember_background(*args, **kwargs):
+            result = original_background(*args, **kwargs)
+            backgrounds.append(result)
+            return result
+
+        def stop_after_native(key, eta, histories):
+            original_set(key, eta, histories)
+            if key[0] == "native_evolution":
+                raise InterruptedError("continuous history saved")
+
+        def solve(*, selected=False):
+            return execution._compute_custom_cmb_spectrum_data_impl(
+                contract,
+                (2,),
+                source_probe=(0.001,) if selected else None,
+                requested_spectra=("TT",),
+                performance_timer=execution.PhaseTimer(),
+            )
+
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        execution.cache.clear_cmb_caches()
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                retain_durable_histories(directory, identity, "cases/first"),
+                retain_source_histories(max_bytes=0),
+                mock.patch.object(
+                    mode_evolution,
+                    "_can_batch_declared_evolution",
+                    return_value=False,
+                ),
+                mock.patch.object(
+                    execution,
+                    "_build_custom_cmb_background",
+                    side_effect=remember_background,
+                ),
+                mock.patch.object(
+                    execution.cache,
+                    "set_cmb_evolution_history",
+                    side_effect=stop_after_native,
+                ),
+                self.assertRaisesRegex(InterruptedError, "history saved"),
+            ):
+                solve(selected=True)
+            execution.cache.clear_cmb_caches()
+            with (
+                retain_durable_histories(directory, identity, "cases/resume"),
+                retain_source_histories(max_bytes=0),
+                mock.patch.object(
+                    mode_evolution,
+                    "_can_batch_declared_evolution",
+                    return_value=False,
+                ),
+            ):
+                resumed = solve()
+            self.assertGreaterEqual(
+                resumed.runtime_envelope["native_history_cache_hits"], 1
+            )
+            execution.cache.clear_cmb_caches()
+            with (
+                mock.patch.object(
+                    mode_evolution,
+                    "_can_batch_declared_evolution",
+                    return_value=False,
+                ),
+                mock.patch.object(
+                    execution,
+                    "_build_custom_cmb_background",
+                    return_value=backgrounds[0],
+                ),
+            ):
+                cold = solve()
+            numpy.testing.assert_array_equal(
+                resumed.spectra["TT"], cold.spectra["TT"]
+            )
+            for name in cold.transfer_components:
+                numpy.testing.assert_array_equal(
+                    resumed.transfer_components[name],
+                    cold.transfer_components[name],
+                )
+
+    def test_make_bdf_checkpoint_reuses_completed_continuous_history(self):
+        """A completed BDF mode reuses its native history and sources."""
+
+        import tempfile
+
+        from copernican.lib.likelihoods.cmb.durable_history import (
+            retain_durable_histories,
+        )
+        from copernican.lib.likelihoods.cmb.runtime import mode_evolution
+        from copernican.lib.likelihoods.cmb.runtime.history_store import (
+            retain_source_histories,
+        )
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._speedup_contract(
+            test_cmb._declared_scalar_hierarchy_contract()
+        )
+        raw["perturbations"]["species"]["arbitrary_component"] = {
+            "sector": "scalar",
+            "equation_of_state": "-0.9",
+            "anisotropic_stress": "zero",
+            "scalar_closure": {
+                "kind": "ppf",
+                "density_fraction": "0.7",
+                "other_enthalpy": "0.3",
+                "transition": "0.4",
+                "initial": "0.0",
+            },
+        }
+        raw["numerical"].update(k_sample_count=4, k_max=0.03)
+        contract = test_cmb._prepare_declared_contract(raw)
+        identity = {"physical": "a" * 64, "numerical": "b" * 64}
+        backgrounds = []
+        original_background = execution._build_custom_cmb_background
+        original_set = execution.cache.set_cmb_evolution_history
+
+        def remember_background(*args, **kwargs):
+            result = original_background(*args, **kwargs)
+            backgrounds.append(result)
+            return result
+
+        def stop_after_native(key, eta, histories):
+            original_set(key, eta, histories)
+            if key[0] == "native_evolution":
+                raise InterruptedError("continuous history saved")
+
+        def probe():
+            return execution._compute_custom_cmb_spectrum_data_impl(
+                contract,
+                (2,),
+                source_probe=(0.001,),
+                requested_spectra=("TT",),
+                performance_timer=execution.PhaseTimer(),
+            )
+
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        execution.cache.clear_cmb_caches()
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                retain_durable_histories(directory, identity, "cases/first"),
+                retain_source_histories(max_bytes=0),
+                mock.patch.object(
+                    mode_evolution,
+                    "_can_batch_declared_evolution",
+                    return_value=False,
+                ),
+                mock.patch.object(
+                    execution,
+                    "_build_custom_cmb_background",
+                    side_effect=remember_background,
+                ),
+                mock.patch.object(
+                    execution.cache,
+                    "set_cmb_evolution_history",
+                    side_effect=stop_after_native,
+                ),
+                mock.patch.object(execution, "RKCheckpoint") as checkpoint,
+                mock.patch.object(
+                    execution,
+                    "BDFCheckpoint",
+                    wraps=execution.BDFCheckpoint,
+                ) as make_bdf_checkpoint,
+                mock.patch.object(
+                    mode_evolution,
+                    "_integrate_scaled_continuous_history",
+                    wraps=mode_evolution._integrate_scaled_continuous_history,
+                ) as continuous,
+                self.assertRaisesRegex(InterruptedError, "history saved"),
+            ):
+                probe()
+            checkpoint.assert_not_called()
+            self.assertEqual(make_bdf_checkpoint.call_count, 1)
+            self.assertEqual(
+                make_bdf_checkpoint.call_args.args[1][0], "continuous_bdf"
+            )
+            self.assertEqual(continuous.call_count, 1)
+            execution.cache.clear_cmb_caches()
+            with (
+                retain_durable_histories(directory, identity, "cases/resume"),
+                retain_source_histories(max_bytes=0),
+                mock.patch.object(
+                    mode_evolution,
+                    "_can_batch_declared_evolution",
+                    return_value=False,
+                ),
+                mock.patch.object(
+                    mode_evolution,
+                    "_integrate_scaled_continuous_history",
+                    wraps=mode_evolution._integrate_scaled_continuous_history,
+                ) as continuous,
+            ):
+                resumed = probe()
+            self.assertEqual(continuous.call_count, 0)
+            self.assertEqual(
+                resumed.runtime_envelope["native_history_cache_hits"], 1
+            )
+            execution.cache.clear_cmb_caches()
+            with (
+                mock.patch.object(
+                    mode_evolution,
+                    "_can_batch_declared_evolution",
+                    return_value=False,
+                ),
+                mock.patch.object(
+                    execution,
+                    "_build_custom_cmb_background",
+                    return_value=backgrounds[0],
+                ),
+            ):
+                cold = probe()
+            for name, values in cold.sources[0.001].items():
+                numpy.testing.assert_array_equal(
+                    resumed.sources[0.001][name], values
+                )
+
+    def test_ppf_batch_checkpoint_resumes_with_massive_neutrinos(self):
+        """A PPF relaxation history resumes without changing its sources."""
+
+        import tempfile
+
+        from copernican.lib.likelihoods.cmb.durable_history import (
+            RKCheckpoint,
+            retain_durable_histories,
+        )
+        from copernican.lib.likelihoods.cmb.runtime.history_store import (
+            retain_source_histories,
+        )
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._speedup_contract(
+            test_cmb._declared_scalar_hierarchy_contract(
+                include_massive_neutrino=True
+            )
+        )
+        raw["perturbations"]["species"]["arbitrary_component"] = {
+            "sector": "scalar",
+            "equation_of_state": "-0.9",
+            "anisotropic_stress": "zero",
+            "scalar_closure": {
+                "kind": "ppf",
+                "density_fraction": "0.7",
+                "other_enthalpy": "0.3",
+                "transition": "0.4",
+                "initial": "0.0",
+            },
+        }
+        raw["numerical"].update(k_sample_count=4, k_max=0.03)
+        contract = test_cmb._prepare_declared_contract(raw)
+        identity = {"physical": "a" * 64, "numerical": "b" * 64}
+        backgrounds = []
+        original_background = execution._build_custom_cmb_background
+
+        def remember_background(*args, **kwargs):
+            result = original_background(*args, **kwargs)
+            backgrounds.append(result)
+            return result
+
+        def interrupting_checkpoint(store, key, **kwargs):
+            checkpoint = RKCheckpoint(store, key, interval_seconds=0, **kwargs)
+            original_record = checkpoint.record
+
+            def interrupt(histories, interval, stats):
+                original_record(histories, interval, stats)
+                if interval == 3:
+                    raise InterruptedError("PPF checkpoint saved")
+
+            checkpoint.record = interrupt
+            return checkpoint
+
+        def probe():
+            return execution._compute_custom_cmb_spectrum_data_impl(
+                contract,
+                (2,),
+                source_probe=(0.001, 0.003),
+                requested_spectra=("TT",),
+                performance_timer=execution.PhaseTimer(),
+            )
+
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        execution.cache.clear_cmb_caches()
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                retain_durable_histories(directory, identity, "cases/first"),
+                retain_source_histories(max_bytes=0),
+                mock.patch.object(
+                    execution,
+                    "_build_custom_cmb_background",
+                    side_effect=remember_background,
+                ),
+                mock.patch.object(
+                    execution,
+                    "RKCheckpoint",
+                    side_effect=interrupting_checkpoint,
+                ),
+                self.assertRaisesRegex(InterruptedError, "PPF checkpoint"),
+            ):
+                probe()
+            execution.cache.clear_cmb_caches()
+            with (
+                retain_durable_histories(directory, identity, "cases/resume"),
+                retain_source_histories(max_bytes=0),
+            ):
+                resumed = probe()
+            self.assertTrue(resumed.runtime_envelope["ppf_batched_relaxation"])
+            self.assertEqual(
+                resumed.runtime_envelope["rk_checkpoint_restored_intervals"],
+                3,
+            )
+            execution.cache.clear_cmb_caches()
+            with mock.patch.object(
+                execution,
+                "_build_custom_cmb_background",
+                return_value=backgrounds[0],
+            ):
+                cold = probe()
+            for wave in cold.sources:
+                for name, values in cold.sources[wave].items():
+                    numpy.testing.assert_array_equal(
+                        resumed.sources[wave][name], values
+                    )
+
+    def test_scalar_split_checkpoint_resumes_massive_neutrino_mode(self):
+        """A real scalar split history resumes with its coupling state."""
+
+        import inspect
+        import tempfile
+
+        from copernican.lib.likelihoods.cmb.durable_history import (
+            RKCheckpoint,
+            retain_durable_histories,
+        )
+        from copernican.lib.likelihoods.cmb.runtime import mode_evolution
+        from copernican.lib.likelihoods.cmb.runtime.history_store import (
+            retain_source_histories,
+        )
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._speedup_contract(
+            test_cmb._declared_scalar_hierarchy_contract(
+                include_massive_neutrino=True
+            )
+        )
+        raw["numerical"].update(k_sample_count=4, k_max=0.03)
+        contract = test_cmb._prepare_declared_contract(raw)
+        identity = {"physical": "a" * 64, "numerical": "b" * 64}
+        backgrounds, native, saved, callers = [], [], [], []
+        original_background = execution._build_custom_cmb_background
+        original_build = execution.build_declared_mode_evolution
+
+        def remember_background(*args, **kwargs):
+            result = original_background(*args, **kwargs)
+            backgrounds.append(result)
+            return result
+
+        def capture_mode(inputs):
+            runtime = original_build(inputs)
+
+            def evolve(wave, **kwargs):
+                sink = kwargs.setdefault("history_sink", {})
+                result = runtime.evolve_declared_mode(wave, **kwargs)
+                native.append(sink)
+                return result
+
+            return replace(runtime, evolve_declared_mode=evolve)
+
+        def interrupting_checkpoint(store, key, **kwargs):
+            callers.extend(frame.function for frame in inspect.stack())
+            checkpoint = RKCheckpoint(store, key, interval_seconds=0, **kwargs)
+            original_record = checkpoint.record
+
+            def interrupt(histories, interval, stats):
+                original_record(histories, interval, stats)
+                if interval == 3:
+                    saved.append(dict(stats))
+                    raise InterruptedError("scalar checkpoint saved")
+
+            checkpoint.record = interrupt
+            return checkpoint
+
+        def probe():
+            return execution._compute_custom_cmb_spectrum_data_impl(
+                contract,
+                (2,),
+                source_probe=(0.001,),
+                requested_spectra=("TT",),
+                performance_timer=execution.PhaseTimer(),
+            )
+
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        execution.cache.clear_cmb_caches()
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                retain_durable_histories(directory, identity, "cases/first"),
+                retain_source_histories(max_bytes=0),
+                mock.patch.object(
+                    mode_evolution,
+                    "_can_batch_declared_evolution",
+                    return_value=False,
+                ),
+                mock.patch.object(
+                    execution,
+                    "_build_custom_cmb_background",
+                    side_effect=remember_background,
+                ),
+                mock.patch.object(
+                    execution, "build_declared_mode_evolution", capture_mode
+                ),
+                mock.patch.object(
+                    execution,
+                    "RKCheckpoint",
+                    side_effect=interrupting_checkpoint,
+                ),
+                self.assertRaisesRegex(InterruptedError, "checkpoint saved"),
+            ):
+                probe()
+            self.assertEqual(len(saved), 1)
+            self.assertIn("make_scalar_checkpoint", callers)
+            self.assertEqual(saved[0]["tight_coupling_active"], 1)
+            execution.cache.clear_cmb_caches()
+            with (
+                retain_durable_histories(directory, identity, "cases/resume"),
+                retain_source_histories(max_bytes=0),
+                mock.patch.object(
+                    mode_evolution,
+                    "_can_batch_declared_evolution",
+                    return_value=False,
+                ),
+                mock.patch.object(
+                    execution, "build_declared_mode_evolution", capture_mode
+                ),
+            ):
+                resumed = probe()
+            self.assertEqual(
+                resumed.runtime_envelope[
+                    "scalar_checkpoint_restored_intervals"
+                ],
+                3,
+            )
+            self.assertGreater(
+                resumed.runtime_envelope[
+                    "scalar_checkpoint_restored_rhs_calls"
+                ],
+                0,
+            )
+            execution.cache.clear_cmb_caches()
+            with (
+                mock.patch.object(
+                    mode_evolution,
+                    "_can_batch_declared_evolution",
+                    return_value=False,
+                ),
+                mock.patch.object(
+                    execution,
+                    "_build_custom_cmb_background",
+                    return_value=backgrounds[0],
+                ),
+                mock.patch.object(
+                    execution, "build_declared_mode_evolution", capture_mode
+                ),
+            ):
+                cold = probe()
+            for name, values in cold.sources[0.001].items():
+                numpy.testing.assert_array_equal(
+                    resumed.sources[0.001][name], values
+                )
+            self.assertEqual(len(native), 2)
+            numpy.testing.assert_array_equal(
+                native[0]["evolution_eta"], native[1]["evolution_eta"]
+            )
+            for name, values in native[1]["evolution_histories"].items():
+                numpy.testing.assert_array_equal(
+                    native[0]["evolution_histories"][name], values
+                )
+
+    def test_interrupted_native_rk_resumes_the_same_physical_modes(self):
+        """A real hierarchy probe resumes mid-mode without changing sources."""
+
+        import inspect
+        import tempfile
+
+        from copernican.lib.likelihoods.cmb.durable_history import (
+            RKCheckpoint,
+            retain_durable_histories,
+        )
+        from copernican.lib.likelihoods.cmb.runtime.history_store import (
+            retain_source_histories,
+        )
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._speedup_contract(
+            test_cmb._declared_scalar_hierarchy_contract(
+                include_massive_neutrino=True
+            )
+        )
+        raw["numerical"].update(k_sample_count=4, k_max=0.03)
+        contract = test_cmb._prepare_declared_contract(raw)
+        waves = (0.001, 0.03)
+        identity = {"physical": "a" * 64, "numerical": "b" * 64}
+        callbacks, backgrounds, restored = [], [], []
+        original_background = execution._build_custom_cmb_background
+        original_restore = RKCheckpoint.restore
+
+        def remember_background(*args, **kwargs):
+            result = original_background(*args, **kwargs)
+            backgrounds.append(result)
+            return result
+
+        def interrupting_checkpoint(store, key):
+            callbacks.extend(frame.function for frame in inspect.stack())
+            checkpoint = RKCheckpoint(store, key, interval_seconds=0)
+            original_record = checkpoint.record
+
+            def interrupt(histories, interval, stats):
+                original_record(histories, interval, stats)
+                if interval == 3:
+                    callbacks.extend(
+                        frame.function for frame in inspect.stack()
+                    )
+                    raise InterruptedError("native RK checkpoint saved")
+
+            checkpoint.record = interrupt
+            return checkpoint
+
+        def observe_restore(checkpoint, histories):
+            result = original_restore(checkpoint, histories)
+            if result is not None:
+                restored.append(result[0])
+            return result
+
+        def probe():
+            return execution._compute_custom_cmb_spectrum_data_impl(
+                contract,
+                (2,),
+                source_probe=waves,
+                requested_spectra=("TT",),
+                performance_timer=execution.PhaseTimer(),
+            )
+
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        execution.cache.clear_cmb_caches()
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                retain_durable_histories(directory, identity, "cases/first"),
+                retain_source_histories(max_bytes=0),
+                mock.patch.object(
+                    execution,
+                    "_build_custom_cmb_background",
+                    side_effect=remember_background,
+                ),
+                mock.patch.object(
+                    execution,
+                    "RKCheckpoint",
+                    side_effect=interrupting_checkpoint,
+                ),
+                self.assertRaisesRegex(InterruptedError, "checkpoint saved"),
+            ):
+                probe()
+            self.assertIn("make_rk_checkpoint", callbacks)
+            self.assertIn("retain_interval", callbacks)
+            execution.cache.clear_cmb_caches()
+            with (
+                retain_durable_histories(directory, identity, "cases/resume"),
+                retain_source_histories(max_bytes=0),
+                mock.patch.object(RKCheckpoint, "restore", observe_restore),
+            ):
+                resumed = probe()
+            self.assertIn(3, restored)
+            self.assertEqual(
+                resumed.runtime_envelope["rk_checkpoint_restored_intervals"],
+                3,
+            )
+            self.assertGreater(
+                resumed.runtime_envelope["rk_checkpoint_restored_rk_stages"],
+                0,
+            )
+            execution.cache.clear_cmb_caches()
+            with mock.patch.object(
+                execution,
+                "_build_custom_cmb_background",
+                return_value=backgrounds[0],
+            ):
+                cold = probe()
+            for wave in waves:
+                for name, values in cold.sources[wave].items():
+                    numpy.testing.assert_array_equal(
+                        resumed.sources[wave][name], values
+                    )
+
+    def test_interrupted_primary_batch_retains_completed_sources(self):
+        """A stopped ordinary batch resumes its independently saved mode."""
+
+        import inspect
+        import tempfile
+
+        from copernican.lib.likelihoods.cmb.durable_history import (
+            retain_durable_histories,
+        )
+        from copernican.lib.likelihoods.cmb.runtime import mode_evolution
+        from copernican.lib.likelihoods.cmb.runtime.history_store import (
+            retain_source_histories,
+        )
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._speedup_contract(
+            test_cmb._declared_scalar_hierarchy_contract(
+                include_massive_neutrino=True
+            )
+        )
+        raw["numerical"].update(k_sample_count=4, k_max=0.03)
+        contract = test_cmb._prepare_declared_contract(raw)
+        identity = {"physical": "a" * 64, "numerical": "b" * 64}
+        saved_waves = []
+        callback_names = []
+        backgrounds = []
+        original_set = execution.cache.set_cmb_source_history
+        original_background = execution._build_custom_cmb_background
+
+        def remember_background(*args, **kwargs):
+            result = original_background(*args, **kwargs)
+            backgrounds.append(result)
+            return result
+
+        def stop_after_saved(key, sources):
+            original_set(key, sources)
+            callers = {frame.function for frame in inspect.stack()}
+            if "retain_completed_primary_mode" in callers:
+                callback_names.extend(callers)
+                saved_waves.append(float(key[-1]))
+                raise InterruptedError("completed primary mode saved")
+
+        def solve():
+            return execution._compute_custom_cmb_spectrum_data_impl(
+                contract,
+                (2,),
+                requested_spectra=("TT",),
+                performance_timer=execution.PhaseTimer(),
+            )
+
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        execution.cache.clear_cmb_caches()
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                retain_durable_histories(directory, identity, "cases/first"),
+                retain_source_histories(max_bytes=0),
+                mock.patch.object(
+                    execution,
+                    "_build_custom_cmb_background",
+                    side_effect=remember_background,
+                ),
+                mock.patch.object(
+                    execution.cache,
+                    "set_cmb_source_history",
+                    side_effect=stop_after_saved,
+                ),
+                mock.patch.object(
+                    mode_evolution,
+                    "_integrate_batched_rk4",
+                    wraps=mode_evolution._integrate_batched_rk4,
+                ) as integrate,
+                self.assertRaisesRegex(InterruptedError, "primary mode"),
+            ):
+                solve()
+            self.assertEqual(len(saved_waves), 1)
+            self.assertIn("retain_completed_primary_mode", callback_names)
+            self.assertEqual(integrate.call_count, 1)
+            execution.cache.clear_cmb_caches()
+            with (
+                retain_durable_histories(directory, identity, "cases/resume"),
+                retain_source_histories(max_bytes=0),
+            ):
+                resumed = solve()
+            self.assertGreaterEqual(
+                resumed.runtime_envelope["source_history_cache_hit_count"], 1
+            )
+            self.assertIn(saved_waves[0], resumed.k_grid)
+            execution.cache.clear_cmb_caches()
+            with mock.patch.object(
+                execution,
+                "_build_custom_cmb_background",
+                return_value=backgrounds[0],
+            ):
+                cold = solve()
+            numpy.testing.assert_array_equal(
+                resumed.spectra["TT"], cold.spectra["TT"]
+            )
+            for name in cold.transfer_components:
+                numpy.testing.assert_array_equal(
+                    resumed.transfer_components[name],
+                    cold.transfer_components[name],
+                )
+
+    def test_interrupted_source_probe_retains_each_completed_mode(self):
+        """A later physical probe resumes without rerunning completed modes."""
+
+        import inspect
+        import tempfile
+
+        from copernican.lib.likelihoods.cmb.durable_history import (
+            retain_durable_histories,
+        )
+        from copernican.lib.likelihoods.cmb.runtime import mode_evolution
+        from copernican.lib.likelihoods.cmb.runtime.history_store import (
+            retain_source_histories,
+        )
+        from tests.copernican.lib.likelihoods.cmb import test_cmb
+
+        raw = test_cmb._speedup_contract(
+            test_cmb._declared_scalar_hierarchy_contract(
+                include_massive_neutrino=True
+            )
+        )
+        raw["numerical"].update(k_sample_count=4, k_max=0.03)
+        contract = test_cmb._prepare_declared_contract(raw)
+        waves = (0.001, 0.03)
+        identity = {"physical": "a" * 64, "numerical": "b" * 64}
+        saved_waves = []
+        callback_names = []
+        saved_backgrounds = []
+        original_set = execution.cache.set_cmb_source_history
+        original_background = execution._build_custom_cmb_background
+
+        def remember_background(*args, **kwargs):
+            result = original_background(*args, **kwargs)
+            saved_backgrounds.append(result)
+            return result
+
+        def stop_after_saved(key, sources):
+            original_set(key, sources)
+            saved_waves.append(float(key[-1]))
+            callback_names.extend(frame.function for frame in inspect.stack())
+            raise InterruptedError("stopped after first saved source")
+
+        def probe():
+            return execution._compute_custom_cmb_spectrum_data_impl(
+                contract,
+                (2,),
+                source_probe=waves,
+                requested_spectra=("TT",),
+                performance_timer=execution.PhaseTimer(),
+            )
+
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        execution.cache.clear_cmb_caches()
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                retain_durable_histories(directory, identity, "cases/first"),
+                retain_source_histories(max_bytes=0),
+                mock.patch.object(
+                    execution,
+                    "_build_custom_cmb_background",
+                    side_effect=remember_background,
+                ),
+                mock.patch.object(
+                    execution.cache,
+                    "set_cmb_source_history",
+                    side_effect=stop_after_saved,
+                ),
+                mock.patch.object(
+                    mode_evolution,
+                    "_integrate_batched_rk4",
+                    wraps=mode_evolution._integrate_batched_rk4,
+                ) as integrate,
+                self.assertRaisesRegex(InterruptedError, "first saved source"),
+            ):
+                probe()
+            self.assertEqual(integrate.call_count, 1)
+            self.assertIn("retain_completed_probe_mode", callback_names)
+            self.assertEqual(len(saved_waves), 1)
+            self.assertIn(saved_waves[0], waves)
+            self.assertEqual(len(saved_backgrounds), 1)
+            execution.cache.clear_cmb_caches()
+            with (
+                retain_durable_histories(directory, identity, "cases/resume"),
+                retain_source_histories(max_bytes=0),
+            ):
+                resumed = probe()
+            self.assertEqual(resumed.runtime_envelope["probe_new_modes"], 1)
+            self.assertEqual(
+                resumed.runtime_envelope["durable_source_modes_checkpointed"],
+                1,
+            )
+            execution.cache.clear_cmb_caches()
+            with mock.patch.object(
+                execution,
+                "_build_custom_cmb_background",
+                return_value=saved_backgrounds[0],
+            ):
+                cold = probe()
+            for wave in waves:
+                for name, values in cold.sources[wave].items():
+                    numpy.testing.assert_array_equal(
+                        resumed.sources[wave][name], values
+                    )
 
     def test_source_refinement_preserves_actual_background_and_native_grid(
         self,
@@ -1987,6 +3141,92 @@ class ExecutionModuleTestCase(unittest.TestCase):
         self.assertTrue(record["warm_reuse"])
         self.assertTrue(record["matching_accepted_finer_calculation"])
         self.assertEqual(record["new_node_work_units"], 0)
+
+    def test_durable_finer_grid_requires_verified_independent_histories(self):
+        """Raw finer modes are reusable only with their exact wave identity."""
+
+        import tempfile
+
+        from copernican.lib.likelihoods.cmb.durable_history import (
+            retain_durable_histories,
+        )
+
+        contract = {
+            "numerical": {"k_sample_count": 8},
+            "perturbation_data": SimpleNamespace(
+                accuracy_controls={
+                    "production_scalar_convergence": {
+                        "enabled": True,
+                        "required_spectra": ["TT", "TE", "EE"],
+                    }
+                }
+            ),
+        }
+        token = None
+
+        def fake_impl(request, *args, **kwargs):
+            refined = bool(request.get("_numerical_overrides"))
+            return execution.CustomCMBSpectrumData(
+                ell_grid=numpy.array([2, 3]),
+                k_grid=numpy.array(
+                    [0.1, 0.15, 0.2] if refined else [0.1, 0.2]
+                ),
+                transfer_components={},
+                spectra={
+                    "TT": numpy.array([1.0, 2.0]),
+                    "TE": numpy.array([0.1, 0.2]),
+                    "EE": numpy.array([0.5, 0.8]),
+                },
+                runtime_envelope={
+                    "native_source_k_grid": (
+                        [0.1, 0.15, 0.2] if refined else [0.1, 0.2]
+                    ),
+                    "durable_source_waves": (
+                        [{"k": 0.15, "key_sha256": token}] if refined else []
+                    ),
+                },
+            )
+
+        self.addCleanup(execution.cache.clear_cmb_caches)
+        with tempfile.TemporaryDirectory() as directory:
+            with retain_durable_histories(
+                directory,
+                {"physical": "a" * 64, "numerical": "b" * 64},
+                "cases/producer",
+            ) as durable:
+                key = ("source", 0.15)
+                durable.set(key, {"source": numpy.array([1.0, 2.0])})
+                token = durable.verified_history_token(key)
+                with (
+                    mock.patch.object(
+                        execution,
+                        "_compute_custom_cmb_spectrum_data_impl",
+                        side_effect=fake_impl,
+                    ),
+                    mock.patch.object(execution.cache, "set_cmb_spectrum"),
+                ):
+                    result = execution._compute_custom_cmb_spectrum_data(
+                        contract, (2, 3), requested_spectra=("TT", "TE", "EE")
+                    )
+                    record = result.runtime_envelope[
+                        "production_scalar_k_convergence"
+                    ]
+                    self.assertTrue(record["warm_reuse"])
+                    self.assertEqual(
+                        record["durable_independent_source_waves"], (0.15,)
+                    )
+                    self.assertFalse(
+                        record["matching_accepted_finer_calculation"]
+                    )
+                    token = "invalid"
+                    with self.assertRaisesRegex(
+                        ValueError, "no measured new work"
+                    ):
+                        execution._compute_custom_cmb_spectrum_data(
+                            contract,
+                            (2, 3),
+                            requested_spectra=("TT", "TE", "EE"),
+                        )
 
 
 if __name__ == "__main__":  # pragma: no cover

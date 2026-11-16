@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-11-14
+**Last Updated:** 2026-11-16
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -1404,8 +1404,7 @@ Execute this sequence before another completion-matrix attempt. The ordinary
 LCDM TT request at ell 2 was interrupted without a spectrum after 17,600.7
 seconds of measured execution and about 15 hours 16 minutes of elapsed wall
 time. Its log records repeated evolution and hierarchy promotions, including
-later evolution values 2.1979 and 1.37375. The log alone does not identify
-whether those latter values are raw errors or normalized budget ratios.
+later evolution values 2.1979 and 1.37375.
 Retain the stopped attempt's log and report under the configured output
 root's `ccmbs-acceptance/completion-evidence/` directory in
 `ordinary-bounded-interpolation-20261113/`.
@@ -1414,13 +1413,162 @@ A bounded single-model reproduction captured the first low-k failure as a
 source-history relative error of 0.01000830254 against 0.01, for
 `temperature_isw` at k=1e-6 Mpc^-1 and eta=271.6259 Mpc. The capture
 stopped the request deliberately after retaining the failure; it is not a
-completed solve. The stopped ordinary run's later 2.1979 and 1.37375 values
-remain unidentified. A separate cold-repeat investigation found that a
+completed solve. At the reported common source node, the ISW source's own
+absolute difference was 1.7184906e-6 and its history-amplitude scale was
+1.7170650e-4; the separately reported 5.1527132e-6 absolute maximum belongs
+to the whole source collection. The comparison grids are identical at that
+node, so the reported difference is not a comparison-grid interpolation
+artifact. New history failures retain the source-specific absolute value and
+scale separately from the collection-wide absolute maximum. The source
+comparison covered eta=4.5917143 to 11879.968803 Mpc on 7,017 common nodes;
+the coarse, intermediate and base native grids had 410, 582 and 745 nodes.
+A separate
+cold-repeat investigation found that a
 projection-chunk regression fails its 5e-14 comparison; identical settings
 also produced differences already in source histories before projection.
-The cause remains unresolved. Retain these investigations under
+Retain these investigations under
 `completion-evidence/refinement-evidence-bounded-20261114/` and
 `completion-evidence/projection-repeat-bounded-20261114/` respectively.
+
+The next evolution failure at k=0.3 Mpc^-1 was `theta_gamma26` at
+eta=345.7911 Mpc: its own absolute difference was 2.6672831e-5 against a
+history-amplitude scale of 0.0025593261, yielding 0.0104218183 against
+0.01. The logged absolute maximum 20.1707822 covered all state histories and
+was not the error in that moment. An independent next refinement reduced the
+reported state error to 0.00606284. At a shared native node, the earlier
+comparison still differed by 0.0103770, exceeding 0.01 without interpolation.
+The state comparison covered eta=0.0046492764 to 11879.968803 Mpc; its
+three native grids had 30,248, 75,058 and 119,816 nodes. Both checks used a
+0.01 relative and 1e-12 absolute threshold with history-amplitude scaling.
+The original first two errors are thus
+identified resolution failures, not evidence of an observable-spectrum pass.
+
+The exact source files recorded by the interrupted run were recovered from
+Git objects and matched against its SHA-256 provenance. Their controller and
+the recorded phase order identify the later 2.1979 and 1.37375 values as
+ratios to the then-applicable combined observable tolerance, with evolution
+selected as the next axis. They are not raw evolution-history errors. The
+historical request was unlensed TT at ell 2. Its hash-matched orchestrator,
+planner, execution owner and budget code establish that TT was the sole
+budget product and ell 2 its sole multipole. Its then-applicable tolerance
+was 0.01. The logged ratios therefore correspond approximately to combined
+relative bounds 0.021979 and 0.0137375, normalized by
+`max(abs(C_TT(2)), 1e-30)`; they inherit the log's rounding and are bounds,
+not measured spectrum differences. These TT bounds integrate k=1e-6 to
+0.3 Mpc^-1 rather than identifying one wave; each logged angular projection
+used 18,217 k nodes. Both failures occurred before the
+independent production k-grid solve, although the base budgets included
+their own source-k and angular-k contributions. The first budget failure
+selected evolution as its largest estimated axis contribution. The
+massless request had seven nonnegative axis contributions, so that first
+evolution bound was between approximately 0.00314 and 0.021979 of the TT
+normalization; this is a bound on the propagated uncertainty, not the
+actual spectrum error. The later selection also considered the first
+budget trial, but evolution must still have been a largest contributor:
+otherwise an eligible competing axis would have been selected. Its second
+relative bound was between approximately 0.0019625 and 0.0137375. The old
+log did not retain individual axis bounds or the absolute spectrum value.
+The source-hash,
+request and phase-order trace is retained under
+`completion-evidence/historical-observable-inference-20261115/`. The
+first and second TT budget events used nominal evolution controls 512 and
+1024 respectively; their normalized combined bounds fell by approximately
+37.5% after that promotion. Each used its own computed TT normalization,
+so this does not establish an actual spectrum error or convergence. The
+earlier hierarchy values 0.04492, 0.0472409 and 0.0127818 are measured
+native-source relative errors against the 0.01 axis tolerance; their modes,
+products and locations were not retained. The recovered files and their
+hashes are under `completion-evidence/historical-source-priority-20261114/`.
+New physical-axis failures retain every sampled source's worst conformal
+time, both tolerances, normalization, mode and failing product names.
+
+A bounded independent LCDM endpoint probe at k=0.3 Mpc^-1 compared the
+actual post-evolution hierarchy depths 28 and 42. It rebuilt the retained
+base sources identically, performed one new deeper-hierarchy evolution and
+measured a 0.044920735 relative difference in `temperature_isw` at
+eta=325.7515 Mpc. The source grids were identical, and interpolation at
+that node reproduced the deeper source exactly. This closely reproduces the
+first logged 0.04492 hierarchy error but does not prove the original
+limiting mode because the original batch and per-product data were not
+retained. It does not establish physical acceptance. The source arrays,
+controls, provenance and node analysis are retained under
+`completion-evidence/hierarchy-isolated-20261114/`.
+
+The resumed ordinary seven-mode comparison subsequently recorded its actual
+first hierarchy failure. `temperature_isw` at k=0.3 Mpc^-1 and
+eta=325.751509 Mpc differed by 1.3212983e-6, or 0.0449199519 of the
+2.9414509e-5 native source peak, against relative and absolute thresholds
+0.01 and 1e-12. The base and refined source grids were identical at 7,017
+nodes, so the difference exists directly at a shared native source node.
+The same product at k=0.16701075 Mpc^-1 also exceeded the relative
+threshold, at 0.01821718. The first value rounds to the historical 0.04492
+but the old log alone did not retain its individual limiting mode. The new
+raw arrays and analysis are under
+`completion-evidence/resume-ordinary-ell2-bounded-20261115/`.
+
+A second independent endpoint probe compared hierarchy depths 42 and 63 at
+the same k and evolution setting. `temperature_isw` differed by 0.04724085
+at eta=324.4036 Mpc, exceeding the 0.01 source-history tolerance. Its
+reference required a new evolution, and selected native histories were
+retained. The result closely reproduces the logged 0.0472409, but the old
+batch's limiting product and mode remain unavailable. Neither endpoint
+probe proves that the corresponding complete observable budget converges.
+The resumed ordinary seven-mode comparison measured 0.0472409472 for
+`temperature_isw` at k=0.3 Mpc^-1 and eta=324.403588 Mpc, with absolute
+difference 1.3800173e-6 and native peak 2.9212313e-5. Its 7,017 source
+nodes were identical between the base and refined grids. The thresholds
+were 0.01 relative and 1e-12 absolute. This rounds to the historical
+0.0472409 without proving the unavailable original per-product record.
+The retained attempt and analysis are under
+`completion-evidence/resume-ordinary-ell2-bounded-20261115/`.
+
+The third endpoint probe compared hierarchy depths 63 and 95. Its
+`temperature_isw` error was 0.0127817609 at eta=468.6799 Mpc against 0.01;
+the logged third hierarchy value was 0.0127818. The two probes' native grids
+were identical across 239,059 samples. On those nodes, `delta_nu` differed
+by up to 0.0967392 of its peak and `theta_gamma26` by 0.399593, so this is
+not a source-grid interpolation difference. These are isolated, independently
+evolved endpoints, not a full-surface convergence or CAMB comparison.
+All three isolated source comparisons sampled eta from 4.5917143 to
+11879.968803 Mpc on 7,017 common nodes. Their respective absolute ISW
+differences were 1.3213214e-6, 1.3800161e-6 and 3.7646892e-7, against
+the 1e-12 absolute threshold. The relative normalization is the base ISW
+source peak: 2.9414509e-5, 2.9212348e-5 and 2.9453604e-5, respectively.
+The hashed array-level detail is retained in
+`completion-evidence/hierarchy-isolated-20261114/` as
+`recorded-axis-detail-20261115.json`.
+The resumed ordinary comparison also recorded the third hierarchy failure:
+`temperature_isw` at k=0.3 Mpc^-1 and eta=468.679917 Mpc differed by
+3.7646919e-7, or 0.0127817859 of its 2.9453568e-5 native peak. Both
+source grids had the same 7,017 nodes; the thresholds were 0.01 relative
+and 1e-12 absolute. This rounds to the historical 0.0127818, although the
+old log did not retain its limiting mode. Its raw arrays and analysis are
+under `completion-evidence/resume-ordinary-ell2-bounded-20261115/`.
+The old promotion record inserted a zero aggregate absolute error even
+when no aggregate was measured. That placeholder has been removed; the
+measured per-mode, per-source errors remain in the evidence. This corrects
+reporting and does not change the convergence decision.
+An additional one-family probe raised only the massless-neutrino hierarchy
+from 63 to 95 while retaining both photon hierarchies at 63. Its ISW peak
+difference was also 0.0127817609 at eta=468.6799 Mpc. Compared with the
+all-family depth-95 result, the two ISW histories differed by up to
+0.0005098 of their peak, so the photon changes were not identically zero.
+These measurements isolate the dominant response for this one LCDM mode;
+they do not establish the same ordering for other declared models.
+For this request, the initial hierarchy candidate used a phase domain ending
+at 8 and depth 28, while the actual endpoint wave times the measured
+visibility-peak conformal time is about 76. The candidate was explicitly
+marked unvalidated; its phase domain did not cover this measured endpoint.
+
+That source review also exposed a separate numerical-budget mismatch: the
+joint observable check used the looser spectrum k-refinement tolerances
+instead of the frozen 0.5% combined budget for TT, TE, EE and PP. The runtime
+now applies the 0.5% ceiling, or a stricter declared spectrum tolerance,
+while retaining the independent k-refinement tolerances. The old ratios use
+the old TT tolerance and do not establish a result for the revised solver.
+New budget failures retain
+per-axis and combined peak multipoles, normalization scales and the sampled
+multipole interval.
 
 A follow-up bounded investigation traced one cold-repeat discrepancy to
 the synthetic fixture's recombination and continuous evolution. Independent
@@ -1432,11 +1580,21 @@ the recombination result by one floating-point step changed the adaptive
 work in all 12 modes and produced native-history differences; the fixture's
 continuous ODE controls are 1e-5 relative and 1e-8 absolute. Tightening
 those controls in a separate diagnostic reduced the largest measured source
-difference, but did not establish scientific acceptance. The strict 5e-14
-projection regression still fails intermittently on independent cold runs;
-its expectation and the actual cold-repeat sensitivity remain unresolved.
-Retain the controlled evidence in
+difference, but did not establish scientific acceptance. The 5e-14 test was
+introduced to verify projection chunk equivalence. It now builds one actual
+background, clears the numerical caches and independently re-evolves both
+requests against that background, retaining the same spectrum and transfer
+thresholds. Independent cold-run sensitivity and its numerical acceptance
+remain open; holding the background fixed does not resolve them. Retain the
+controlled evidence in
 `completion-evidence/repeat-root-20261114/`.
+
+Two fresh-process ordinary LCDM low-k pilot investigations, each limited to
+45 seconds and stopped at the first failed refinement, retained identical
+values in all 300 recorded arrays at k=1e-6 Mpc^-1. Their common evolution
+failure was 0.01000830254 against 0.01. These isolated pilots do not prove
+full-request repeatability or acceptance; their comparison is retained under
+`completion-evidence/cold-real-low-k-repeat-20261114/`.
 
 1. **Diagnose the actual refinements.** Record each failure label, numerical
    axis, product, mode, physical interval, threshold, normalization and value.
@@ -1454,6 +1612,361 @@ Retain the controlled evidence in
    old certificate for a different request or replace an independent
    refinement with a cached base trajectory. Test cold, valid-warm, exact
    repeat, interrupted-resume, changed-dependency and invalid-reuse paths.
+   Completion attempts now persist actual background tables at each solved
+   resolution, selected native histories, source histories, and direct and
+   independent-angular projection chunks using identity-bound atomic
+   manifests. Background interpolators are rebuilt from verified arrays and
+   the distinct background and numerical refinements are reassessed. A
+   bounded ordinary LCDM low-k probe stopped after saving a native history;
+   a fresh process reloaded five background products and one native history,
+   then reproduced the 0.01000830254 source-history failure against 0.01.
+   The interrupted and resumed portions took 5.69 and 5.91 seconds, each
+   with a 120-second limit. This selected-pilot probe did not complete the
+   frozen case or establish scientific acceptance. Its original provenance,
+   identities, scripts and products are under
+   `completion-evidence/resume-lcdm-bounded-v2-20261115/`.
+   Focused tests also exercise changed dependencies, corruption, atomic
+   interruption, both projection routes, and independent finer-grid reuse.
+   Full frozen-case cold, warm and interrupted-resume evidence remains.
+
+   Two subsequent ordinary LCDM ell=2 attempts each had a 120-second limit.
+   The first retained 36 histories and 10 background products. The second
+   verified and reused 24 histories and all 10 background products, but
+   finished no additional history before its limit: its active high-k mode
+   was still evolving. That implementation did not resume work within a
+   partially integrated mode. Both attempts reproduced the low-k failure;
+   neither reached the historical observable-budget failures or scientific
+   acceptance. Their identities and partial results are retained in
+   `completion-evidence/resume-ordinary-ell2-bounded-20261115/`.
+
+   A third attempt, limited to 240 seconds, reused 24 histories and 10
+   background products and retained three more histories after one high-k
+   mode completed. Another mode remained incomplete at the limit. A
+   subsequent 60-second instrumented run attributed 15.7 seconds to scalar
+   nonuniform derivatives in background-grid sampling and 39.3 cumulative
+   seconds to the active batched RK integrator; profiling adds overhead and
+   these times must not be treated as end-to-end estimates. The derivative
+   owner now evaluates its existing interior stencil using array operations.
+   Three actual LCDM background-grid samples took 0.364 seconds with the
+   original stencil and 0.00903 seconds with the revised stencil; every
+   sampled output array was bitwise identical. Independently evolved low-k
+   LCDM tiers on the same physical background retained 393 matching arrays
+   and reproduced the same failure with both stencils. These are bounded
+   component checks, not numerical or scientific acceptance. The kernel
+   change invalidates prior physical-product identities, so those earlier
+   retained histories cannot be silently relabeled as current work. Profile,
+   scripts and comparison results are retained under
+   `completion-evidence/resume-ordinary-ell2-bounded-20261115/` and
+   `completion-evidence/gradient-benchmark-20261115/`.
+
+   A fresh 240-second ordinary attempt under the revised source identity
+   retained 39 history products and 10 background products. It reproduced
+   the low-k evolution failure and completed a high-k trajectory, but was
+   still integrating another trajectory at its limit. The recorded history
+   count includes separate representations and is not a count of distinct
+   physical modes. No new observable-budget failure was reached; future
+   adaptive work is unknown, so this measurement alone cannot predict the
+   time to the missing product and multipole evidence.
+
+   Four subsequent attempts had 600-second limits. Their history writes
+   were 30, 23, 14 and zero, respectively. The third reached the seven-mode
+   hierarchy probe; the fourth stopped before its final mode completed and
+   discarded every intermediate probe mode. The source-probe execution
+   owner now persists each completed mode and its native history as its
+   sources are evaluated. Modes may share an integration schedule.
+   Interrupted-resume tests check independently
+   evolved hierarchy sources and fresh-process reuse. The source change
+   invalidates earlier product identities; prior attempts remain historical
+   evidence and are not relabeled. The new retention does not establish
+   numerical or scientific acceptance.
+
+   A fresh 900-second ordinary attempt under the new identity reproduced
+   both evolution failures and retained 69 histories and 15 background
+   products. It did not yet reach the hierarchy comparison. Focused tests
+   and the gate ran concurrently, so its elapsed time is not a benchmark.
+   The attempt and its original identity remain under
+   `completion-evidence/resume-ordinary-ell2-bounded-20261115/`.
+   A second 900-second attempt reused 47 histories and 15 background
+   products, retained 35 histories and two background products, and reached
+   the final mode of the independent background probe. That mode was still
+   evolving at the limit. The gate ran concurrently with this attempt.
+   A third attempt, limited to 2,400 seconds, reused 76 histories and 17
+   background products and retained 12 histories and five background
+   products. It completed the independent background comparison and
+   retained its raw arrays, then reached the sixth hierarchy mode before
+   the limit. Paging slowed the active mode; the incomplete trajectory
+   itself could not resume in that implementation. Further hierarchy
+   assessments remained pending.
+   The retained background comparison's largest sampled relative source
+   difference was 0.00170019 against 0.01: `temperature_isw` at
+   k=0.0061865464 Mpc^-1 and eta=545.2016 Mpc. Its absolute difference
+   was 5.63617e-7 against a native source peak of 0.000331503. The base
+   and refined source grids contained 7,017 and 25,011 nodes, and the
+   absolute tolerance was 1e-12. This sampled axis check does not establish
+   convergence of the complete spectrum or scientific acceptance.
+   A fourth bounded attempt reused 82 histories and 22 background products,
+   retained four histories, and captured the first hierarchy failure after
+   712 seconds. Its per-mode source evidence is recorded above.
+   A fifth attempt reused 91 histories and 22 background products,
+   retained 54 histories and seven background products, and captured the
+   second hierarchy failure after 1,817 seconds. Its per-mode source
+   evidence is recorded above.
+   A sixth attempt reused 132 histories and 29 background products,
+   retained 54 histories and seven background products, and captured the
+   third hierarchy failure after 2,281 seconds. The reporting correction
+   changes the source identity, so earlier retained products remain tied
+   to their original identity and are not relabeled.
+
+   Ordinary and independently refined source batches previously saved their
+   results only after a batch returned, losing completed modes if a later
+   mode was interrupted. The execution owner now saves each finished source
+   mode as it becomes available. Focused generated-hierarchy tests interrupt
+   an ordinary batch, reload its completed source in another process, check
+   exact repeated spectra and transfers, and reject a changed numerical
+   identity. At that point partially evolved trajectories were not resumable;
+   full frozen-case cold, warm and interruption evidence remains open.
+
+   A nested-k regression exposed another reuse blocker: background cache
+   keys included k-only sampling settings, causing independent background
+   solves and small differences that invalidated matching source histories.
+   The background owner now shares tables across k-only refinements while
+   distinguishing the actual massive-neutrino momentum quadrature, its
+   parameters, background resolution and diagnostic grid mode. A generated
+   massive-neutrino test checks both reuse and distinct q-grid results.
+
+   Three fresh-identity ordinary LCDM ell=2 attempts were each bounded to
+   600 seconds. The first retained 63 histories and 15 background products;
+   the second reused 42 histories and 15 background products and retained
+   12 histories; the third reused 49 histories and 15 background products
+   and retained 29 histories and two background products. All reproduced
+   both evolution failures. They remained in the early refinement probes and
+   did not exercise ordinary-batch checkpoints. Their unmodified physical
+   request, identities and partial evidence remain under
+   `completion-evidence/resume-ordinary-ell2-bounded-20261115/`. These
+   bounded attempts do not establish frozen-case or scientific acceptance.
+
+   Batched RK4 checkpoints completed time intervals as incremental, atomic
+   history chunks. Its identity includes the actual mode group,
+   initial state, native grids, schedule, active intervals and solver inputs.
+   Resume validates every chunk and restores the logical work counters.
+   Restored intervals and RK stages are reported separately. Focused tests
+   compare interrupted and uninterrupted split schedules and generated
+   hierarchy sources, including fresh-process and changed-identity checks.
+
+   A bounded real LCDM k=0.3 Mpc^-1 source probe interrupted after 32.38
+   seconds and resumed in 82.04 seconds; a separate cold probe took 113.94
+   seconds. The resumed run restored 654 completed intervals and 272,984 of
+   944,088 logical RK stages. All 94 arrays in the native-history product
+   and six in the source product matched exactly; the native grid had 60,118
+   nodes.
+   Peak process RSS was approximately 593 MiB for interruption, 554 MiB
+   for resume and 555 MiB for cold execution. The interrupted and resumed
+   times start after model binding and identity construction and include
+   checkpoint and artifact costs. This single measurement does not establish
+   a speedup, a frozen-case result or scientific acceptance. Identities,
+   bounded scripts and raw evidence are retained in
+   `completion-evidence/rk-midmode-20261115/`.
+
+   Scalar split evolution now also retains completed projected native
+   boundaries, coupling hysteresis and logical work counters. A resumed
+   massive-neutrino scalar test matches its uninterrupted native histories
+   and sources exactly; fresh-process tests cover changed physical identities
+   and numerical schedules. Batched PPF with massive neutrinos also matches
+   after interruption. At that checkpoint, continuous BDF retained completed
+   histories only: its internal adaptive state cannot be reconstructed from
+   sampled output without changing the trajectory. Stage audits do not resume
+   partial checkpoints. Full frozen-case evidence remains open.
+
+   A bounded wCDM PPF probe at w=-0.9, sum_mnu=0.06 eV and
+   k=0.02 Mpc^-1 used a five-second checkpoint cadence for this experiment.
+   Interruption took 16.17 seconds, resume took 51.05 seconds, and a
+   separate cold probe took 65.42 seconds. The resumed run restored 467
+   intervals and 5,960 of 55,020 logical RK stages. All 1,023 arrays in the
+   native-history product and six in the source product matched exactly;
+   the native grid had 4,406 nodes. Peak process RSS was approximately
+   831 MiB for interruption, 818 MiB for resume and 826 MiB for cold
+   execution. Timings start after model binding and identity construction.
+   This selected-mode check does not establish a speedup, full frozen-case
+   convergence or scientific acceptance. Inputs, identities and raw evidence
+   are retained in
+   `completion-evidence/ppf-midmode-20261115/`.
+
+   Continuous BDF now checkpoints accepted adaptive steps, the sampled
+   prefix, multistep differences, Jacobian, counters and the matrix behind
+   any retained LU factorization. Restart is bound to the actual native
+   inputs and pinned SciPy implementation and rejects a factorization whose
+   reconstructed factors differ. Dense and sparse tests cover orders one
+   through five and interrupted checkpoint publication.
+
+   A bounded scalar BDF wCDM PPF probe at w=-0.9, sum_mnu=0.06 eV and
+   k=0.001 Mpc^-1 forced the scalar route for this diagnostic. With a
+   five-second experimental checkpoint cadence, interruption took 13.39
+   seconds and fresh-process resume took 11.53 seconds, restoring 1,289
+   accepted steps, 4,021 RHS evaluations and 248 sampled nodes. With the
+   same retained background, resumed, uninterrupted checkpointed and
+   original SciPy trajectories matched all 1,023 native arrays and six
+   source arrays bit for bit. The independently cold checkpointed run took
+   23.16 seconds; independently cold original SciPy took 23.00 seconds.
+   These selected-mode timings include different background reuse and do
+   not establish a general speedup or scientific acceptance.
+
+   Independently generated cold background products differed in six
+   recombination-related arrays, and the cold checkpointed source differed
+   from the resumed source. The largest source-relative difference using
+   each source's maximum magnitude was about 1.04e-6 for temperature ISW.
+   The cause and effect of those background differences remain unproven;
+   matched-background runs establish trajectory parity only for the same
+   input. Raw products and scripts are retained in
+   `completion-evidence/bdf-production-v2-20261116/`.
+
+   Bounded selected-mode timing with and without RK checkpoint writes
+   measured integration at 106.58/110.80 seconds for LCDM k=0.3, and
+   53.36/52.07 seconds for massive-neutrino k=0.02. Checkpoint writes
+   accounted for 0.49 and 0.10 seconds respectively in those runs. A PPF
+   k=0.02 comparison with the same retained background measured
+   53.73/53.85 seconds in integration and 0.10 seconds in checkpoint writes;
+   its 1,023 native and six source arrays matched exactly. These single
+   observations locate the major measured cost in integration, but do not
+   identify an inner kernel or establish full-case performance. Evidence is
+   retained in `completion-evidence/mode-profile-20261115/`.
+
+   A bounded follow-up reproduced cold-background variation with the same
+   Python hash seed. Independent hydrogen Radau integrations had identical
+   recorded initial values, grids, interpolation coefficients and fixed
+   derivative probes, but their evolved histories differed. In two observed
+   collocation solves, the recorded numerical inputs and all six derivative
+   calls matched bit for bit while the returned convergence rate differed;
+   one also had a stage difference of about 4.34e-19. Differences persisted
+   in a separate single-BLAS-thread diagnostic. This localizes the observed
+   variation to the pinned SciPy Radau collocation computation for those
+   inputs, but does not identify the internal operation or establish its
+   scientific effect. No tolerance or background result has been changed.
+   Scripts and products are in
+   `completion-evidence/background-repro-20261116/`.
+
+   The retained independently cold wCDM PPF k=0.001 source histories
+   have the same 7,017-node grid. The existing native-axis comparator,
+   applied in both directions with its 0.01 relative and 1e-12 absolute
+   thresholds, found no failing source; the largest relative error was
+   1.03641e-6 for temperature ISW, with a 2.05686e-10 absolute difference.
+   The dense history-amplitude comparator also passed at that tolerance.
+   These are the earlier forced-scalar diagnostic products under their
+   original source identity, not a full-window or observable-budget result.
+   The analysis is retained as `cold-source-axis-analysis-20261116.json`
+   alongside the original `bdf-production-v2-20261116` evidence.
+
+   In separately bounded 20-second prefixes of actual single-mode batched
+   integrations, timed RHS callbacks accounted for 10.23 seconds in LCDM
+   k=0.3, 15.83 seconds in massive-neutrino k=0.02 and 14.59 seconds in
+   wCDM PPF k=0.02. LCDM collision pre- and post-steps accounted for another
+   8.84 seconds. These partial, instrumented prefixes are not full-run
+   timings. Sampling one in 100 callbacks with cProfile identified repeated
+   sorting and classification of direct equation names in the singleton
+   RHS, alongside the compiled equation and collision programs. A candidate
+   was to precompute the invariant ordering and direct state bindings while
+   retaining per-call shape checks. The partial profiler stops intentionally
+   and exits with code 1; its recorded status identifies the bounded stop.
+   Evidence is in `completion-evidence/integration-split-20261116/` and
+   `completion-evidence/integration-callback-profile-20261116/`.
+
+   The singleton RHS now prepares that ordering and those bindings once;
+   dynamic operand-shape checks still select the grouped executor when
+   needed. A focused test changes a stage operand from a scalar to a
+   one-element array and back, checking both the fallback and exact RHS
+   values. For bounded real-mode comparisons, a preserved pre-change runtime
+   and the updated runtime used identical numerical controls and verified
+   background products. Their RK work counts, every native-history array and
+   every source array matched bit for bit: 94 and six arrays for LCDM,
+   1,022 and six for massive neutrinos, and 1,023 and six for wCDM PPF.
+
+   Single paired observations of integration time changed from 108.55 to
+   103.84 seconds for LCDM k=0.3, from 53.82 to 43.44 seconds for the
+   massive-neutrino case at k=0.02, and from 54.94 to 46.78 seconds for
+   wCDM PPF at k=0.02. The control generated its background and the updated
+   run loaded the same verified raw background; the quoted integration
+   times exclude that background work. These selected-mode results are not
+   full-case timing or scientific acceptance. Retained scripts, source
+   fingerprints and raw products are in
+   `completion-evidence/row-precompute-20261116/`.
+
+   A fresh-identity ordinary LCDM ell=2 TT attempt used the updated runtime
+   with no numerical overrides. It stopped at 595.23 seconds within its
+   600-second hard limit, leaving five seconds for orderly shutdown. Peak
+   RSS was 641,761,280 bytes and CPU time was 518.29 seconds. It recorded
+   63 history writes and 15 background product writes; those history writes
+   are not a count of distinct physical modes. Three RK checkpoint indexes
+   retained 15 chunks, and no completed primary mode was captured. This
+   attempt has not yet been resumed or reached physical-axis comparisons.
+
+   Its first evolution failure was temperature ISW at k=1e-6 Mpc^-1 and
+   eta=271.62588 Mpc: relative error 0.01000830254 against 0.01, with
+   absolute difference 1.71849e-6 against 1e-12. A second evolution failure
+   was theta_gamma26 at k=0.3 Mpc^-1 and eta=345.79106 Mpc: relative error
+   0.01042181830 against 0.01, with absolute difference 2.66728e-5 against
+   1e-12. These failures reproduce the earlier measured values under the
+   new identity. The attempt did not establish scientific acceptance;
+   its request, hashes, detailed failures and retained work are in
+   `completion-evidence/ordinary-current-600-20261116/`.
+
+   A fresh-process continuation verified the same physical and numerical
+   identities. It reported 42 history hits, 15 background product hits,
+   six new history writes and no new background products. Individual hit
+   keys were not recorded, so those hits cannot be counted as distinct
+   modes. No earlier RK or BDF checkpoint was restored; three new RK
+   checkpoint indexes retained 16 chunks. The two recorded evolution
+   failure payloads matched the first attempt exactly. No completed primary
+   mode or physical-axis comparison was recorded.
+
+   The continuation recorded its time-limit report at 595.30 seconds,
+   with 533.12 CPU seconds and peak RSS of 885,440,512 bytes. It did not
+   exit before the supervisor's 600-second hard limit, which terminated the
+   process after the atomic report was written. The prior checkpoints'
+   lack of reuse and the new checkpoints' fresh-process reuse remain to be
+   investigated; this is not scientific acceptance. Its report, request
+   identity, logs and artifacts remain beside the first attempt.
+
+   A third, instrumented fresh-process continuation verified the same
+   identities and stopped normally after 115.03 seconds under a 120-second
+   hard limit. Its 47 history reads covered 46 distinct keys: 24 native
+   histories, 15 independent-reference sources and eight ordinary sources.
+   Forty-two reads came from the first attempt and five from the second;
+   all 15 background product reads came from the first. The recorded
+   histories include k=1e-6, 0.00927932 and 0.3 Mpc^-1.
+
+   The active RK checkpoint from the second attempt restored 85,442
+   completed intervals and 1,025,736 logical RK stages, then advanced to a
+   later group. The instrumented run recorded six history writes, a peak
+   RSS of 1,331,838,976 bytes and the same two evolution failure payloads.
+   No completed primary mode or physical-axis comparison was recorded.
+   The first attempt's checkpoint keys were not requested in this short
+   run; the exact reason each went unused remains unproven. The hit keys,
+   producers, checkpoint attempts and raw work remain in the same
+   `completion-evidence/ordinary-current-600-20261116/` directory. This
+   is a resume check, not scientific acceptance.
+
+   A read-only replay assessed the retained histories with the production
+   evolution comparator and the actual feature anchors. It read 49 history
+   and 15 background products, wrote none, and recorded 32 state/source
+   comparisons before stopping at the first missing integration. For
+   k=1e-6 Mpc^-1, the intermediate-to-base source error fell from
+   0.01000830 at nominal tier 128 to 0.00632623 at tier 256. For
+   k=0.3 Mpc^-1, the tier-256 state and source errors were 0.01042182 and
+   0.01117624; at tier 512 they fell to 0.00606284 and 0.00650428. The
+   unchanged relative threshold is 0.01 and the absolute threshold is 1e-12.
+   These latest-pair checks pass for those modes; some coarse-to-intermediate
+   comparisons still exceed 0.01, and the complete observable budget and
+   independent physical axes have not been accepted.
+
+   The first missing base history was k=0.0030937732 Mpc^-1: its requested
+   schedule contains 3,338 eta nodes and 18,236 RK stages, with no matching
+   checkpoint. The same checkpoint key was attempted in the preceding
+   short continuation, which proceeded to later groups. The audited
+   four-mode ordinary pilot batch supplied history sinks but no completed-mode
+   callback, so its fresh histories are published only after the whole batch
+   returns. This explains why an earlier completed group can be needed again
+   after interruption. The replay stopped before new integration; its
+   comparisons, hit identities and boundary are retained as
+   `history-audit-v3.json` in the same evidence directory.
 3. **Optimize measured bottlenecks.** Profile real LCDM, massive-neutrino and
    PPF executions, including evolution, hierarchy, projection, memory and
    repeated work. Repair the dominant owning kernels and scheduling or reuse
