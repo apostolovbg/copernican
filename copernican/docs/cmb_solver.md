@@ -1,5 +1,5 @@
 # Declared CMB Solver Convention
-**Last Updated:** 2026-11-16
+**Last Updated:** 2026-11-18
 **Project Version:** 12.0.26
 
 ## Overview
@@ -1876,7 +1876,9 @@ declared state-slot layouts.
 For a singleton compatible batch, `runtime/mode_evolution.py` prepares the
 direct equation-name order and state bindings once. It still checks the actual
 operand shapes at each stage and falls back to the grouped executor when
-they differ from the compiled row program's shape signature.
+they differ from the compiled row program's shape signature. Built-in floats
+are scalar without inspecting their shape; other operand types retain their
+shape and sequence checks.
 
 The envelope records wall time for `compilation`, `background`,
 `initial_data`, `evolution`, `projection`, `lensing`, and
@@ -2300,9 +2302,11 @@ the independent convergence assessments from their distinct raw inputs.
 source-probe mode as its source histories are evaluated. Batched modes can
 share an integration schedule. Each mode's independent native history and
 sources retain their own identity and numerical controls.
-The same execution owner retains each completed ordinary or independently
-refined source mode before the enclosing batch returns. Batched RK4 evolution
-also checkpoints completed intervals and accumulated work in incremental,
+The same execution owner retains each completed ordinary validation pilot's
+native history and sources before the enclosing batch returns. Completed
+ordinary primary sources and independently refined source probes are also
+retained before their batches finish. Batched RK4 evolution checkpoints
+completed intervals and accumulated work in incremental,
 identity-bound chunks. Matching groups resume from a validated prefix;
 changed schedules or inputs do not reuse it. Scalar split trajectories also
 retain their projected state, coupling hysteresis and work counters at native

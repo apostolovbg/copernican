@@ -2,7 +2,7 @@
 **Doc ID:** README
 **Doc Type:** repo-readme
 **Project Version:** 12.0.26
-**Last Updated:** 2026-11-16
+**Last Updated:** 2026-11-18
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -371,8 +371,9 @@ certificate is not substituted for the current assessment. Retained
 products support interruption and resume without establishing acceptance.
 For source refinement probes, the runtime persists each completed mode as
 soon as it is available, so interruption does not discard earlier modes.
-Ordinary and independently refined source batches also retain completed
-modes before the rest of a batch finishes.
+Ordinary validation pilots retain each completed mode's native history and
+sources before the rest of their batch finishes. Ordinary primary sources
+and independently refined source probes also retain completed modes early.
 Identity-bound batched RK4 and scalar split trajectories checkpoint completed
 time intervals as incremental chunks, allowing matching work to resume
 mid-mode. Continuous BDF checkpoints preserve the pinned SciPy solver's
@@ -713,7 +714,8 @@ Scalar execution remains an independent comparison. A single pending compatible
 mode keeps that executor after cache reuse; new independent transfer nodes use
 chunked batches with separately recorded reference work. Singleton batches
 reuse the equation-name order and direct state bindings; operand shapes are
-still checked at every stage. Split collision
+still checked at every stage, with built-in float values recognized as
+scalars directly. Split collision
 schedules resolve the spectral scale of the actual declared interaction
 operator, including its coefficients, rather than assuming every interaction is
 Thomson opacity. Stiff declared blocks without a fast manifold use error-

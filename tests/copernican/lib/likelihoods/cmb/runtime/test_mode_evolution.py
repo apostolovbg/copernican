@@ -340,6 +340,11 @@ class ModeEvolutionTestCase(unittest.TestCase):
         selected = []
         stage_count = 0
 
+        class ShapedFloat(float):
+            """Float subclass whose declared shape must still be checked."""
+
+            shape = (1,)
+
         def remember_direct_names(inputs):
             direct_names.update(inputs.equation_direct_names)
             return original_build(inputs)
@@ -358,9 +363,15 @@ class ModeEvolutionTestCase(unittest.TestCase):
                             if name in result and numpy.isscalar(result[name])
                         )
                     )
-                if stage_count == 2:
-                    name = selected[0]
+                name = selected[0]
+                if stage_count in (1, 5):
+                    result[name] = float(result[name])
+                elif stage_count == 2:
                     result[name] = numpy.asarray([result[name]])
+                elif stage_count == 3:
+                    result[name] = ShapedFloat(result[name])
+                elif stage_count == 4:
+                    result[name] = numpy.float64(result[name])
             return result
 
         def record_grouped(program, context, states, derivative, rates):
@@ -384,10 +395,10 @@ class ModeEvolutionTestCase(unittest.TestCase):
             ):
                 stages = [
                     rhs(initial, step_index=0, blend=0.0, active=active)
-                    for _ in range(3)
+                    for _ in range(5)
                 ]
-            self.assertEqual(stage_count, 3)
-            self.assertEqual(grouped_shapes, [(1,)])
+            self.assertEqual(stage_count, 5)
+            self.assertEqual(grouped_shapes, [(1,), ()])
             for stage in stages[1:]:
                 numpy.testing.assert_array_equal(stages[0], stage)
             raise _ModeHistoryCaptured()

@@ -446,6 +446,146 @@ with retain_durable_histories(sys.argv[1], identity, "cases/" + sys.argv[2]):
         self.assertEqual(outcomes[2]["hits"], 0)
         self.assertEqual(outcomes[0]["digests"], outcomes[1]["digests"])
 
+    def test_interrupted_ordinary_pilot_batch_reuses_native_and_sources(self):
+        """A multi-mode ordinary pilot persists each accepted mode on exit."""
+
+        code = """
+import hashlib, json, os, sys
+from pathlib import Path
+from copernican.lib.likelihoods.cmb.durable_history import (
+    _key_digest, retain_durable_histories,
+)
+from copernican.lib.likelihoods.cmb.runtime import cache, execution
+from copernican.lib.likelihoods.cmb.runtime.history_store import (
+    retain_source_histories,
+)
+from tests.copernican.lib.likelihoods.cmb import test_cmb
+root, attempt = Path(sys.argv[1]), sys.argv[2]
+raw = test_cmb._speedup_contract(
+    test_cmb._declared_scalar_hierarchy_contract())
+raw['numerical'].update(k_sample_count=5, k_min=0.0001, k_max=0.03)
+raw['perturbations']['accuracy_controls'] = {
+    'adaptive_evolution': {'enabled': True, 'minimum_nodes': 32,
+        'maximum_nodes': 1024, 'relative_tolerance': 0.02,
+        'validation_mode_count': 5}}
+contract = test_cmb._prepare_declared_contract(raw)
+identity = {'physical': 'a' * 64, 'numerical': 'b' * 64}
+if attempt == 'changed':
+    identity['physical'] = 'c' * 64
+expected_path = root / 'ordinary-pilot-expected.json'
+expected = (json.loads(expected_path.read_text())
+            if attempt != 'interrupted' else None)
+def digest(values):
+    return hashlib.sha256(values.tobytes()).hexdigest()
+def native_digest(epoch, histories):
+    return {'eta': digest(epoch), 'histories': {
+        name: digest(value) for name, value in histories.items()}}
+def source_digest(sources):
+    return {name: digest(value) for name, value in sources.items()}
+native_saved, observed = {}, {}
+original_set_native = cache.set_cmb_evolution_history
+original_set_source = cache.set_cmb_source_history
+original_get_native = cache.get_cmb_evolution_history
+original_get_source = cache.get_cmb_source_history
+def set_native(key, epoch, histories):
+    original_set_native(key, epoch, histories)
+    if isinstance(key, tuple) and key and key[0] == 'native_evolution':
+        native_saved[float(key[2])] = {
+            'key': list(key), 'digest': native_digest(epoch, histories)}
+def is_multi_pilot_callback():
+    callback, multi = False, False
+    frame = sys._getframe(1)
+    while frame is not None:
+        if frame.f_code.co_name == 'retain_completed_native_mode':
+            callback = True
+        if (frame.f_code.co_name == '_evolve_declared_modes_batched'
+                and frame.f_code.co_filename.endswith('/mode_evolution.py')):
+            multi = len(frame.f_locals['mode_k_values']) > 1
+        frame = frame.f_back
+    return callback and multi
+def set_source(key, sources):
+    original_set_source(key, sources)
+    if attempt == 'interrupted' and is_multi_pilot_callback():
+        wave = float(key[-1])
+        expected_path.write_text(json.dumps({
+            'wave': wave, 'native': native_saved[wave]['digest'],
+            'native_key': native_saved[wave]['key'],
+            'source_key_sha256': _key_digest(key),
+            'source': source_digest(sources)}))
+        os._exit(42)
+def get_source(key):
+    result = original_get_source(key)
+    if (expected is not None and isinstance(key, tuple) and key
+            and key[-1] == expected['wave']):
+        if attempt == 'changed':
+            native = original_get_native(tuple(expected['native_key']))
+            (root / 'ordinary-pilot-changed.json').write_text(
+                json.dumps({'miss': result is None,
+                            'native_miss': native is None}))
+            os._exit(0)
+        if (result is not None
+                and _key_digest(key) == expected['source_key_sha256']):
+            observed['source'] = source_digest(result)
+    return result
+def get_native(key):
+    result = original_get_native(key)
+    matching_wave = (isinstance(key, tuple) and key and (
+        _key_digest(key) == _key_digest(tuple(expected['native_key']))
+        or _key_digest(key) == expected['source_key_sha256']
+    )) if expected is not None else False
+    if matching_wave and result is not None:
+        observed['native'] = native_digest(*result)
+    return result
+cache.set_cmb_evolution_history = set_native
+cache.set_cmb_source_history = set_source
+cache.get_cmb_evolution_history = get_native
+cache.get_cmb_source_history = get_source
+with retain_durable_histories(root, identity, 'cases/' + attempt):
+    with retain_source_histories(max_bytes=0):
+        result = execution._compute_custom_cmb_spectrum_data_impl(
+            contract, (2,), requested_spectra=('TT',),
+            performance_timer=execution.PhaseTimer())
+if attempt == 'interrupted':
+    raise RuntimeError('ordinary pilot boundary was not observed')
+observed['spectra'] = {name: digest(values)
+                       for name, values in result.spectra.items()}
+observed['transfers'] = {name: digest(values) for name, values
+                         in result.transfer_components.items()}
+output = root / ('ordinary-pilot-' + attempt + '.json')
+output.write_text(json.dumps(observed))
+"""
+        for attempt, expected_exit in (
+            ("interrupted", 42),
+            ("resumed", 0),
+            ("repeat", 0),
+            ("changed", 0),
+        ):
+            result = subprocess.run(  # nosec B603 - fixed local test script.
+                [sys.executable, "-c", code, str(self.root), attempt],
+                capture_output=True,
+                text=True,
+                timeout=90,
+            )
+            self.assertEqual(result.returncode, expected_exit, result.stderr)
+        expected = json.loads(
+            (self.root / "ordinary-pilot-expected.json").read_text()
+        )
+        resumed = json.loads(
+            (self.root / "ordinary-pilot-resumed.json").read_text()
+        )
+        repeated = json.loads(
+            (self.root / "ordinary-pilot-repeat.json").read_text()
+        )
+        changed = json.loads(
+            (self.root / "ordinary-pilot-changed.json").read_text()
+        )
+        self.assertEqual(resumed["native"], expected["native"])
+        self.assertEqual(resumed["source"], expected["source"])
+        self.assertEqual(resumed["spectra"], repeated["spectra"])
+        self.assertEqual(resumed["transfers"], repeated["transfers"])
+        self.assertTrue(changed["miss"])
+        self.assertTrue(changed["native_miss"])
+
     def test_interrupted_multi_mode_probe_resumes_in_fresh_process(self):
         """A completed hierarchy mode survives interruption of its peers."""
 

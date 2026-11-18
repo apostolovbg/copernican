@@ -2245,14 +2245,11 @@ def _compute_custom_cmb_spectrum_data_impl(
                 native_reused_primary_waves.add(float(wave))
         fresh_sinks = {}
         if missing:
-            stream_completed = (
-                source_probe is not None
-                and override is None
-                and durable is not None
-            )
+            stream_completed = override is None and durable is not None
+            streamed_mode_waves = set()
 
-            def retain_completed_probe_mode(wave, sink):
-                """Publish one independently evolved probe before its peers."""
+            def retain_completed_native_mode(wave, sink):
+                """Publish one completed pilot or probe before its peers."""
 
                 cache.set_cmb_evolution_history(
                     _native_history_key(wave, override),
@@ -2262,10 +2259,12 @@ def _compute_custom_cmb_spectrum_data_impl(
                 cache.set_cmb_source_history(
                     _source_history_cache_key(wave), sink["source_arrays"]
                 )
-                streamed_source_probe_waves.add(float(wave))
+                streamed_mode_waves.add(float(wave))
+                if source_probe is not None:
+                    streamed_source_probe_waves.add(float(wave))
 
             callback_options = (
-                {"completed_mode_callback": retain_completed_probe_mode}
+                {"completed_mode_callback": retain_completed_native_mode}
                 if stream_completed
                 else {}
             )
@@ -2280,7 +2279,7 @@ def _compute_custom_cmb_spectrum_data_impl(
                 {missing[index]: values for index, values in fresh.items()}
             )
             for wave, sink in fresh_sinks.items():
-                if float(wave) not in streamed_source_probe_waves:
+                if float(wave) not in streamed_mode_waves:
                     cache.set_cmb_evolution_history(
                         _native_history_key(
                             wave, evolution_sample_count_override

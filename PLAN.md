@@ -6,7 +6,7 @@
 **Maintenance Stance:** active
 **Compatibility Policy:** forward-only
 **Versioning Mode:** versioned
-**Last Updated:** 2026-11-16
+**Last Updated:** 2026-11-18
 **DevCovenant Version:** 1.0.1b6
 
 <!-- DEVCOV:BEGIN -->
@@ -1967,6 +1967,922 @@ full-request repeatability or acceptance; their comparison is retained under
    after interruption. The replay stopped before new integration; its
    comparisons, hit identities and boundary are retained as
    `history-audit-v3.json` in the same evidence directory.
+
+   The ordinary pilot path now publishes each completed native history and
+   source before its batch returns. A generated-hierarchy test uses actual
+   adaptive pilot checks, exits its producer after the first completed mode
+   in a multi-mode pilot batch, and reloads matching native and source arrays
+   in a fresh process. The resumed TT and transfer arrays also match a
+   fresh-process repeat exactly. A changed physical identity misses both
+   retained products. The pre-change runtime did not reach that interruption
+   callback. This source change invalidates prior forward-work identities;
+   earlier evidence remains historical, and the test does not establish
+   scientific acceptance.
+
+   One fresh-identity ordinary LCDM ell=2 TT attempt then ran without
+   numerical overrides. Its physical source identity changed while its
+   numerical request identity matched the earlier attempt. It stopped
+   normally at 595.12 seconds under a 600-second limit, with 595.18 CPU
+   seconds and peak RSS of 1,495,482,368 bytes. It recorded 66 history
+   writes, 15 background product writes and four RK checkpoint indexes.
+   These history writes are not a count of distinct physical modes.
+
+   Eight completed-pilot publication events covered the central and endpoint
+   waves across several refinement attempts; all eight were singleton
+   batches. The run did not reach the multi-mode pilot batch or an independent
+   physical-axis comparison. It reproduced the low-k temperature ISW error
+   0.01000830 and the k=0.3 theta_gamma26 error 0.01042182 against 0.01.
+   This bounded execution does not establish scientific acceptance. Its
+   identity, request, events and retained products are in
+   `completion-evidence/ordinary-pilot-fixed-600-20261116/`.
+
+   One matching-identity continuation stopped at the first completed pilot
+   in a four-mode batch, after 267.53 seconds and 268.72 CPU seconds, with
+   peak RSS of 1,665,449,984 bytes. It reused 45 histories and 15 products,
+   wrote nine histories, and restored no RK checkpoints. A fresh process
+   verified the saved pilot at k=0.003093773195876289: all 94 native arrays
+   and five source arrays matched their saved hashes, and the native cache
+   API returned the retained history. Both artifacts record the second
+   attempt as producer. The same two evolution refinement failures remained;
+   this pilot readback is not scientific acceptance. The continuation and
+   readback records are alongside the first attempt in the directory above.
+
+   A further matching-identity continuation stopped at the 595-second
+   shutdown signal under the 600-second limit. It used 594.62 CPU seconds,
+   peaked at 1,904,066,560 bytes RSS, reused 52 histories and 15 products,
+   and wrote 29 histories and two products. The saved pilot source was read
+   once; its native history was not requested in this continuation. Three
+   remaining primary pilots completed. The independent background probe then
+   completed six of seven pilot modes, but the last mode and the comparison
+   did not complete within the limit. Six RK checkpoint indexes were written;
+   none was restored in this attempt.
+
+   The two recorded evolution failures were refinement triggers: the source
+   temperature ISW comparison at k=1e-6 promoted 128 to 256 nodes, then the
+   state theta_gamma26 comparison at k=0.3 promoted 256 to 512 nodes. Their
+   relative errors use each history's amplitude and exceeded the unchanged
+   0.01 tolerance; neither is a completed final acceptance result. The third
+   attempt's records are in the same evidence directory.
+
+   A fourth matching-identity continuation restored 2,801 RK intervals,
+   completed the remaining background-probe mode and measured all seven
+   source comparisons in 232.91 seconds, with 233.92 CPU seconds and
+   2,134,851,584 bytes peak RSS. It read 76 histories and 17 products and
+   wrote two histories. The maximum per-source relative error was
+   0.00170018724 against 0.01, with no failed products; the largest error was
+   temperature ISW at k=0.006186546391752578. A fresh process verified the
+   retained arrays and independently reproduced all seven comparison rows.
+   Instrumentation stopped immediately after the last measurement, before
+   normal production bookkeeping could register the comparison, so this is
+   measured component evidence, not a completed production certificate or
+   scientific acceptance. Records are in the same evidence directory.
+
+   A fifth continuation let production complete the background comparison
+   before starting hierarchy-depth refinement. Background reuse required no
+   new probe modes and reproduced its 0.00170018724 maximum relative error.
+   The independent hierarchy probe increased the state count from 93 to 135
+   and measured all seven modes. Its maximum source relative error was
+   0.04491995193 against 0.01: temperature ISW at k=0.3 and eta=325.7515.
+   Fresh-process readback reproduced both seven-mode comparisons and checked
+   their retained arrays. Instrumentation stopped after the hierarchy
+   measurements, before production could handle their failure and promote
+   the resolution; no hierarchy or scientific acceptance is established.
+   The attempt took 531.55 seconds, with 528.37 CPU seconds and peak RSS of
+   1,820,884,992 bytes. It read 77 histories and 17 products and wrote 14
+   histories and five products. Its records are in the evidence directory.
+
+   A sixth matching-identity continuation reproduced the hierarchy failure
+   and let production handle it. Automatic refinement promoted each photon,
+   polarization, massless-neutrino and massive-neutrino hierarchy limit from
+   28 to 42, without changing tolerances. The promoted calculation reached
+   its new background probe and completed four of seven probe modes before
+   the 595-second shutdown signal; its background comparison and the
+   promoted hierarchy recheck remain unfinished. The run used 591.93 CPU
+   seconds, peaked at 2,132,082,688 bytes RSS, read 91 histories and 22
+   products, and wrote 34 histories and two products. Four RK checkpoint
+   indexes were written; none was restored during this attempt. Its records
+   are in the same evidence directory. No hierarchy or scientific acceptance
+   follows from this partial continuation.
+
+   A seventh matching-identity continuation completed the promoted
+   background probe. Its seven-mode maximum relative error was again
+   0.00170018724 against 0.01, with no failed products; a fresh process
+   independently reproduced all seven rows from the retained arrays.
+   Production then started the promoted hierarchy recheck and completed
+   four of its seven probe modes before the 595-second shutdown signal.
+   The recheck result remains unknown. The attempt used 593.68 CPU seconds,
+   peaked at 2,169,749,504 bytes RSS, read 115 histories and 24 products,
+   and wrote 14 histories and five products. Four RK checkpoint indexes
+   were written; none was restored. Its records are in the same evidence
+   directory. This progress does not establish scientific acceptance.
+
+   An eighth continuation restored 20,552 RK intervals and completed the
+   promoted hierarchy comparison in 562.65 seconds, using 560.58 CPU seconds
+   and 2,705,326,080 bytes peak RSS. It read 122 histories and 29 products
+   and wrote six histories. The independent reference increased state slots
+   from 135 to 198. The seven-mode maximum source relative error was
+   0.04724094724 against 0.01, for temperature ISW at k=0.3 and eta=324.4036;
+   the previous hierarchy comparison was 0.04491995193. A fresh process
+   verified the retained arrays and reproduced all seven comparison rows.
+   Instrumentation stopped before production handled this second failure.
+   The measured increase does not identify its cause, and neither hierarchy
+   nor scientific acceptance is established. The attempt and readback are
+   in the same evidence directory.
+
+   A read-only diagnosis reconstructed the k=0.3 ISW source from retained
+   native Phi, photon quadrupole and neutrino shear for hierarchy limits
+   28, 42 and 63, matching each saved source within 6.1e-11 of its peak.
+   The 42-tier source is identical across the two comparisons. Over
+   eta <= 1000, the successive ISW differences have correlation -0.842 and
+   an L2 norm ratio of 0.909. At each discrepancy peak, the Phi-gradient
+   term accounts for about 76% to 78% of the signed difference, the direct
+   neutrino-shear term about 22% to 24%, and the photon-shear term less than
+   0.01%. This decomposition does not assign the cause of the Phi change.
+
+   Applying the existing neutrino terminal closure to the retained higher
+   tier's moments gives an RHS difference with L2 norm 0.408 and 0.869 times
+   the higher-tier RHS norm, respectively for l=28 and l=42 over eta 250 to
+   400. This identifies substantial boundary sensitivity, but does not by
+   itself prove that the closure is defective or isolate its effect from
+   other hierarchy changes. The two diagnosis records and their scripts are
+   retained in the same evidence directory. A sector-isolated comparison is
+   needed before selecting a root fix; tolerances remain unchanged.
+
+   A bounded single-mode sector isolation reconstructed the ordinary
+   production plan and both earlier evolution promotions. Its retained
+   k=0.3 base and jointly refined source arrays exactly matched production.
+   Raising only massless-neutrino depth from 28 to 42 produced a maximum ISW
+   relative difference of 0.04492073504; raising only photon temperature and
+   polarization depths produced 0.00420709495. At the joint comparison's
+   worst eta, the neutrino-only change was 1.000017 times the joint change;
+   across the source grid their differences had correlation 0.99734. A
+   fresh process verified all four saved cases and comparison metrics.
+   The run took 446.80 seconds, used 444.01 CPU seconds and peaked at
+   1,135,181,824 bytes RSS. This isolates the dominant sensitivity to the
+   massless-neutrino hierarchy for this mode; it does not by itself prove a
+   terminal-closure defect or establish scientific acceptance. Records are
+   under `sector-isolation/` in the evidence directory above.
+
+   A retained-history trace of the sector-isolated k=0.3 comparison
+   reconstructed both ISW sources from their own native states to better
+   than 3.5e-11 of the source peak. Using 5% of each difference's peak over
+   eta 100 to 600 as a diagnostic threshold, the discrepancy reaches l=28
+   by eta 100.1, l=20 at 121.8, l=8 at 160.7, neutrino shear at 181.3,
+   Phi at 185.9 and ISW at 233.9. Interior hierarchy RHS checks agree with
+   sampled-history derivatives to better than 0.00027 in relative L2 over
+   eta 250 to 400. The retained higher-tier trajectory therefore shows a
+   boundary-to-metric propagation pattern, not proof of a unique cause.
+
+   On those fixed higher-tier trajectories over eta 250 to 400, replacing
+   the regularized terminal RHS with its unregularized asymptotic form gives
+   relative RHS errors 0.406 versus 0.408 at l=28 and 0.893 versus 0.869 at
+   l=42. This local comparison does not establish integration stability or
+   justify substituting that formula. A controlled boundary intervention
+   should test the massless-neutrino closure before choosing a replacement.
+   The retained trace and formula-comparison records are in the same
+   `sector-isolation/` directory.
+
+   A controlled subsystem intervention integrated neutrino shear through
+   l=28 from eta 50 to 400, using the retained l=42 initial states and
+   theta_nu history in both runs. Replacing only the terminal equation with
+   the retained l=29 drive reproduced the l=42 shear to 4.65e-6 of its peak
+   over eta 100 to 400; the existing terminal closure differed by 1.507 of
+   that peak. A tighter integration repeated the oracle result within
+   7.73e-8 of the maximum reference state. The diagnostic took 3.73 seconds.
+   It establishes strong boundary sensitivity under prescribed forcing; the
+   metric feedback was not evolved, so it is not a full coupled validation
+   or scientific acceptance. The intervention record and script are in the
+   same `sector-isolation/` directory.
+
+   A second controlled subsystem benchmark tested the existing closure with
+   neutrino-only depth padding against retained l=63 histories, using the
+   same prescribed theta_nu and higher-tier initial states at eta 50. Over
+   eta 100 to 400, maximum shear errors normalized by the reference peak
+   were 3.373 at l=28, 2.848 at l=42, 2.555 at l=56 and 0.1034 at l=62.
+   Oracle l=29 forcing reconstructed the reference shear to 1.04e-5, and
+   a tighter l=63 repeat agreed within 4.55e-8 of the maximum reference
+   state. The diagnostic took 6.29 seconds. Extra moments with the current
+   local closure did not provide a demonstrated compact remedy on this
+   interval. The l=63 trajectory is itself a finite reference, metric
+   feedback was prescribed, and no scientific acceptance follows. The
+   benchmark record is in the same `sector-isolation/` directory.
+
+   A causal angular-streaming diagnostic used retained l<=63 initial
+   moments at eta 50, zero higher initial moments and the same prescribed
+   theta_nu history. Independent l=192 and l=256 hierarchy depths agreed
+   to 6.06e-7 of the peak shear over eta 100 to 400; a tighter integration
+   check agreed to 4.71e-7. The retained l=63 shear differed from the deeper
+   result by 0.02234 of the deeper peak. With 80 Gauss-Legendre angles, the
+   angular transport agreed with the deeper shear to 1.02e-6 of its peak and
+   with nu_l3 to 6.92e-7; 64 angles gave errors 0.02484 and 0.02499. A
+   tighter 80-angle repeat agreed within 8.01e-7 for shear. The controlled
+   diagnostic took 4.97 seconds, but that timing is not a production solver
+   budget. It establishes a candidate only for this forcing and interval;
+   metric feedback, other modes, long times, angular convergence and full
+   scientific acceptance remain to be tested. The record is in the same
+   `sector-isolation/` directory.
+
+   Prescribed-forcing angular scaling used three retained waves, k=0.0371,
+   0.1670 and 0.3, through eta 400 and 1000. At eta 1000, 32, 104 and 167
+   angles respectively gave peak-normalized shear and l=3 errors below
+   1e-5 against independently refined deep hierarchies. For k=0.3, 159
+   angles gave errors 0.00146 and 0.00224. These are measured diagnostic
+   points, not a general angular-count rule or full-window performance
+   budget. The scaling run took 22.76 seconds.
+
+   A separate controlled subsystem coupled neutrino density, velocity and
+   shear to the Newtonian metric while prescribing photon, baryon and other
+   spectator driving from the retained trajectory. For k=0.3 over eta 100
+   to 400, 77 angles agreed with the l=256 reference to 6.47e-8 in shear
+   and 3.68e-9 in the diagnostic-grid ISW source, each normalized by its
+   reference peak. The l=192 and l=256 references agreed within 1.76e-8
+   across the four measured outputs; the l=63 reconstruction agreed with
+   retained states within 9.64e-6. The successful linear-deviation form
+   took 25.46 seconds; an earlier direct formulation reached its 120-second
+   limit. This partial feedback test is not a full coupled solve, practical
+   runtime demonstration or scientific acceptance. Both records are in the
+   same `sector-isolation/` directory.
+
+
+   A bounded cost assessment evolved the retained k=0.3 prescribed-forcing
+   subsystem from eta 50 through 11879.97 and sampled 6,660 source-grid
+   points. The initial 1,799-angle estimate differed from 1,879 angles by
+   0.01624 of the latter's peak shear. The 1,879 versus 1,959 and 1,959
+   versus 2,039 comparisons gave 6.97e-7 and 6.85e-7 respectively; a fresh
+   process verified all four saved arrays and comparison metrics. The
+   1,879-angle diagnostic took 13.98 wall seconds and 103.39 CPU seconds;
+   its two-case process peaked at 868,663,296 bytes RSS, including retained
+   inputs and output sampling. These are not coupled-solver or full-matrix
+   costs, and adjacent angular agreement is not scientific acceptance.
+
+   The frozen LCDM initial point has 231 requested multipoles up to 2500;
+   its ordinary full-surface plan starts with 256 k nodes through 0.40714.
+   This single k=0.3 measurement therefore exposes a material scaling risk
+   without establishing full-window practicality or a general angle rule.
+   The full-support diagnostic and readback records are in the same
+   `sector-isolation/` directory.
+
+
+   A compressed prescribed-forcing experiment expressed the collisionless
+   neutrino response as a spectral memory kernel and evaluated its causal
+   convolution offline with FFTs. Over eta 50 to 11879.875 at k=0.3, its
+   0.125-step shear differed from the retained 2,039-angle result by
+   2.54e-6 of the reference peak on 6,659 source-grid nodes. The 2,048 and
+   2,304 moment tails agreed to 4.93e-13 of peak shear; a fresh process
+   verified the saved arrays and both comparisons. The experiment omitted
+   the final 0.094 eta of retained support. The 2,048-tail process took
+   3.04 wall seconds and 6.21 CPU seconds, peaking at 1,024,114,688 bytes
+   RSS, including input readback and three sampled resolutions. Its step
+   0.25 and 0.5 errors were 2.04e-5 and 1.65e-4 respectively.
+
+   This measured offline convolution assumes the full theta_nu history is
+   already available. It neither implements causal online feedback nor
+   establishes coupled solver performance or scientific acceptance. The
+   spectral experiment and readback are in the same `sector-isolation/`
+   directory. A blocked online convolution with coupled feedback and
+   independent error controls was tested on the shorter coupled subsystem:
+   a dyadic online FFT convolution and implicit trapezoidal metric feedback
+   used only already-computed history. Halving the step from 0.5 to 0.0625
+   reduced peak-normalized shear error from 0.0022825 to 3.59e-5 and the
+   diagnostic ISW error from 3.16e-6 to 4.76e-8 against the independently
+   refined l=256 reference. A future-forcing change left the prefix exactly
+   unchanged, while changing the later shear. Blocked and direct convolution
+   agreed within 6.9e-16; a fresh process verified saved comparison arrays.
+   The four-case diagnostic took 10.74 seconds including reference work;
+   the finest online loop took 0.074 seconds, excluding setup. Prescribed
+   spectators, finite kernel, short interval and diagnostic grids still limit
+   the result. Full-support online cost, general contracts, and scientific
+   acceptance remain to be established before production integration.
+
+   A bounded full-support extension of the online subsystem reached eta
+   11879.9375, 0.0314 before the retained endpoint. Independent 2,048 and
+   2,304 moment kernels agreed within 4.24e-14 in absolute kernel value.
+   With prescribed forcing, step 0.0625 differed from the retained
+   2,039-angle shear by 1.87e-5 of its peak. With neutrino-metric feedback,
+   step 0.125 versus 0.0625 differed by 1.08e-4 in shear, 1.05e-4 in
+   velocity and 2.69e-7 in diagnostic-grid ISW, each peak-normalized. The
+   finest coupled loop took 2.57 seconds; the four-case process, including
+   two kernel constructions and input readback, took 12.68 wall seconds and
+   17.91 CPU seconds, with 1,040,056,320 bytes peak RSS.
+
+   A separate 1,879-angle coupled subsystem completed in 34.61 wall seconds
+   and 245.60 CPU seconds. On six comparison chunks through eta 11878.97,
+   its maximum per-chunk peak-normalized shear and velocity differences from
+   the online 0.0625 result were 2.99e-4 and 3.44e-4. A fresh process
+   verified the prescribed comparison and all six chunk arrays and metrics.
+   Photon, baryon and other spectators were prescribed; neither this test nor
+   its timings establish a full coupled solver, all-model applicability or
+   scientific acceptance. Records are in the same evidence directory.
+
+
+   Two more massless-neutrino feedback probes used retained k=0.03711 and
+   0.16701 modes over eta 100 to 400. At step 0.0625, peak-normalized shear
+   errors against independently refined hierarchies were 1.66e-7 and
+   7.65e-6; diagnostic ISW errors were 2.48e-8 and 3.05e-8. Both causal
+   prefix controls passed, and a fresh process verified the saved metrics.
+   Spectator forcing remained prescribed.
+
+   For each frozen 0.06 and 0.50 eV massive-neutrino point, a separate
+   streaming-distance experiment used the model background and all 32
+   declared Fermi-Dirac q nodes with a synthetic prescribed dipole. The
+   q-weighted shear agreed with independently refined q hierarchies to
+   1.02e-6 of peak over common support through eta 999.5 and 995.0,
+   respectively; a fresh process reconstructed both weighted comparisons.
+   These tests used neither physical q perturbations nor metric feedback.
+   At 0.50 eV and q=0.02, the finest sampled bin still had 1.72e-4
+   peak-normalized error and stopped at eta 998.55: slow streaming makes a
+   uniform streaming-distance step coarse in physical time. Error controls
+   and endpoint handling must cover both coordinates before a coupled
+   implementation. The distribution runs took 22.98 and 19.84 seconds;
+   these timings are diagnostic, not production budgets. All records are in
+   the same evidence directory and do not establish scientific acceptance.
+
+
+   A controlled 0.50 eV, q=0.02 endpoint test capped physical-time steps
+   while retaining a uniform streaming-distance grid. It reached eta 1000
+   exactly; reducing the maximum eta step from 0.50 to 0.125 reduced the
+   synthetic shear error from 2.74e-7 to 4.05e-8 of peak. The finer case used
+   51,273 nodes, so its cost is not evidence of practical full-distribution
+   performance. A fresh process verified endpoint and error readback.
+
+   A separate 0.06 eV test used the retained physical k=0.02 trajectory and
+   q=0.61795, with a one-percent initial shear perturbation. The selected q
+   bin and Newtonian metric responded to each other while the other q bins
+   and species were prescribed. At maximum eta step 0.0588, the largest
+   peak-normalized difference across density, dipole, metric and shear was
+   2.67e-6 against an independently refined hierarchy. Its coefficient
+   interpolation check was 8.25e-7 and its tighter-reference check stayed
+   below 4.00e-7. A fresh process verified the saved comparisons. The
+   retained trajectory has a historical execution identity and was used as
+   prescribed evidence, not as current cached work. This single-bin test
+   took 16.96 seconds and does not establish all-q coupled behavior or
+   scientific acceptance.
+
+   A further controlled 0.06 eV experiment coupled all 32 retained q bins
+   simultaneously to the metric at k=0.02 over eta 50 to 400, with a
+   one-percent initial shear perturbation per bin and other species
+   prescribed. At eta step 0.125, the maximum per-bin shear difference was
+   3.08e-7 of that bin's peak, the q-weighted shear difference was 1.93e-7,
+   and the metric-deviation difference was 7.20e-6 of peak against a
+   depth-refined reference. Halving the step reduced the measured errors;
+   depth and tighter-integrator controls agreed within 1.57e-7. A future
+   forcing change left the earlier prefix unchanged, disabling metric
+   feedback changed weighted shear, and selected reduced linear solves
+   matched dense solves within 6.9e-16. A fresh process reproduced the
+   saved reference and comparison metrics.
+
+   The direct nonuniform-history prototype took 0.53, 1.45 and 4.67 seconds
+   for 701, 1,401 and 2,801 nodes respectively, excluding reference and setup;
+   the complete diagnostic took 27.48 wall seconds and 90.28 CPU seconds.
+   Its pairwise history work grows quadratically with time nodes, and the
+   retained physical trajectory has a historical source identity. Neither
+   this partial coupled test nor its timing establishes practical full-window
+   performance or scientific acceptance. Records are in the same evidence
+   directory.
+
+
+   A causal running-spectral-moment prototype synchronized the same 32 q
+   bins without pairwise history scans. On the sampled k=0.02 interval, a
+   12-moment kernel approximation had maximum sampled absolute kernel error
+   1.27e-11 against a 128-moment kernel. At eta step 0.125, the maximum
+   per-bin shear difference from direct history summation was 1.06e-12 of
+   that bin's peak; the q-weighted shear error against the deep reference
+   remained 1.93e-7. The online loop took 0.172 seconds versus 4.67 seconds
+   for direct summation, excluding their respective setup and reference work.
+   A lower-order kernel, direct-history checks, future-forcing causality test
+   and fresh-process array readback were retained as controls.
+
+   This compression is phase-limited. In a separate sampled kernel study,
+   the first tested candidate below 1e-10 absolute residual required six
+   positive spectral modes at phase 7, 43 at phase 105 and 920 at phase
+   3548.99; these are sampled candidates, not proven minima or observable
+   error bounds. The short controlled trajectory uses historical physical
+   data with prescribed other species. Full-support coupled cost, general
+   applicability and scientific acceptance remain unestablished. The records
+   are in the same evidence directory.
+
+   A full retained-support diagnostic advanced all 32 massive q bins with
+   metric feedback from eta 50 to 11863.672 at k=0.02, retaining the same
+   historical physical inputs and prescribed other species. The sampled
+   kernel residual was 1.06e-14 with 55 positive modes; this is not an
+   observable error bound. The 0.125-step run used 94513 nodes and 8.16
+   seconds in its online loop; the complete process took 32.83 seconds and
+   peaked at 1.58 GB. Halving the step from 0.25 changed peak-normalized
+   maximum-bin shear by 2.61e-7, weighted shear by 4.83e-9 and metric
+   deviation by 2.16e-5. Direct-history spot checks agreed within 1.33e-15.
+   Against the independent deep reference available only through eta 400,
+   the finest run's respective errors were 3.07e-7, 1.92e-7 and 7.19e-6.
+   A fresh-process readback confirmed these results and sampled coefficient
+   interpolation errors below 8.30e-7 after refining the early coefficient
+   grid; the coarser grid had reached 2.22e-5. The records are
+   `sector-isolation/compressed-q-full-refined.json` and
+   `sector-isolation/compressed-q-full-refined-readback.json` in the same
+   evidence directory. Time refinement is not an independent full-support
+   reference, and the prescribed species, single wave and sampled kernel do
+   not establish production applicability or scientific acceptance.
+
+   Adding responding cold dark matter (CDM) density and velocity to that
+   controlled q-and-metric subsystem changed the peak-normalized metric
+   deviation by 0.301 at k=0.02 compared with the CDM-prescribed control.
+   At eta step 0.125, the full-support online loop took 8.66 seconds. Against
+   an independently integrated hierarchy through eta 400, peak-normalized
+   weighted shear, metric, CDM density and CDM velocity errors were
+   2.07e-7, 9.08e-6, 2.73e-5 and 1.52e-5. The 64-to-96-depth and tighter
+   integration controls differed by at most 1.38e-6 across these quantities
+   and maximum-bin shear. Over full support, halving the step from 0.25 to
+   0.125 changed those quantities by 1.66e-8, 2.71e-5, 1.53e-4 and 1.53e-4.
+
+   A higher-wave k=0.04 candidate trajectory completed in 104.37 seconds,
+   including 91.67 seconds of evolution. With 32 q bins, CDM and metric
+   responding, the corresponding full-support diagnostic used 94 positive
+   kernel modes and took 11.35 seconds in its finest online loop. Its
+   eta-400 weighted shear, metric, CDM density and velocity errors against
+   the independent depth-96 reference were 6.93e-7, 4.26e-5, 5.88e-5 and
+   5.23e-5; reference controls differed by at most 1.13e-6. Full-support
+   0.25-to-0.125 differences were 3.27e-8, 1.28e-4, 1.93e-4 and 1.93e-4.
+   Fresh-process readbacks reproduced the comparisons and sampled physical
+   coefficient interpolation errors below 8.37e-7. Both diagnostics use
+   the one-percent initial q-shear perturbation and prescribe remaining
+   species. The independent hierarchy covers only the early interval and the
+   kernel residuals are sampled; these results are not scientific acceptance.
+   Under `sector-isolation/` in the same evidence directory, the diagnostic
+   and readback records are `compressed-q-cdm-full*.json` and
+   `compressed-q-cdm-k004-full*.json`. A k=0.1 massive source attempt
+   reached its 180-second limit without a retained trajectory; its record is
+   `higher-k-massive-20261116/massive/candidate.json` under the completion
+   evidence root. No higher-wave full-subsystem result is claimed for it.
+
+   A later bounded k=0.1 source run completed in 231.02 seconds, with
+   214.51 seconds and 309812 RK stages in evolution. Its controlled 32-q,
+   CDM and metric diagnostic ran through retained eta 11863.672 with 225
+   positive kernel modes. The 0.125-step online loop took 19.10 seconds;
+   its eta-400 weighted-shear, metric, CDM-density and CDM-velocity errors
+   against the depth-96 reference were 5.10e-6, 5.15e-4, 5.57e-4 and
+   5.73e-4. Across full support, halving the step from 0.25 to 0.125 changed
+   those values by 1.08e-6, 1.53e-3, 1.46e-3 and 1.46e-3 respectively.
+   Readback confirmed these comparisons. At k=0.04, a separate depth-96
+   versus depth-128 reference extended from eta 50 through 1000; depth and
+   tolerance controls agreed within 6.22e-7. The 0.125-step weighted-shear,
+   metric, CDM-density and CDM-velocity errors over this interval were
+   6.87e-7, 4.27e-5, 6.35e-5 and 6.51e-5, confirmed by fresh readback.
+   Other species remain prescribed and these are not acceptance results.
+   The k=0.1 source record is under `higher-k010-bounded-20261116/` and
+   the controlled diagnostics and readbacks are in the same earlier
+   `sector-isolation/` directory.
+
+   A 20-second sampled k=0.1 evolution profile attributed 15.25 seconds to
+   RHS calls, with repeated singleton operand classification visible beside
+   the equation program. Built-in floats are now identified directly as
+   scalars while all other types retain per-stage shape and sequence checks.
+   A separately bounded k=0.04 source comparison retained identical physical
+   inputs and RK work; all 1022 native arrays and six source arrays matched
+   bit for bit. Its integration times were 91.67 seconds before and 80.57
+   seconds after, single observations on separate cold backgrounds. Source
+   identities differ because the runtime changed. This is
+   not a full-request speedup or acceptance measurement. The profile and
+   comparison are retained under `high-k-rhs-profile-20261117/` and
+   `high-k-shape-final-20261117/` in the completion evidence root.
+
+   The k=0.1 controlled q, CDM and metric calculation was refined to a
+   maximum eta step of 0.0625 across the same retained support. Its 189025
+   nodes took 37.00 seconds in the online loop. Relative to the 0.125-step
+   result, peak-normalized weighted shear, metric deviation, CDM density
+   and CDM velocity changed by 2.67e-7, 3.86e-4, 3.70e-4 and 3.70e-4.
+   Direct-history spot checks agreed within 1.58e-15. A separate hierarchy
+   reference covered eta 50 through 1000 with depths 160 and 192; its depth
+   and tighter-integrator controls agreed within 9.04e-7 across all reported
+   quantities. Against depth 192, the finest result's respective errors were
+   1.28e-6, 1.29e-4, 1.26e-4 and 1.20e-4. Fresh-process readbacks confirmed
+   both comparisons. The prescribed source trajectory is from the earlier
+   runtime identity, not a current cache entry; spectator species remain
+   prescribed. The independent reference does not cover the full retained
+   support, and these results do not establish scientific acceptance. The
+   refined and extended reference records and their readbacks are named
+   `compressed-q-cdm-k010-refined*.json` and
+   `compressed-q-cdm-k010-extended*.json` in `sector-isolation/`.
+
+   A controlled k=0.02 experiment over eta 200 to 400 coupled all 32
+   massive q bins, CDM, baryons, photon temperature and polarization, and
+   the metric. It used the physical Thomson drag and quadrupole collision
+   block and a one-percent initial q-shear perturbation; massless neutrinos
+   remained prescribed. At eta step 0.125, peak-normalized errors against
+   a separately integrated hierarchy were 1.73e-7 for weighted shear,
+   1.43e-5 for metric deviation, 1.80e-5 for baryon velocity, 1.59e-5 for
+   the photon quadrupole and 5.01e-6 for the polarization quadrupole.
+   Refining the q and photon hierarchy depths from 96 and 24 to 128 and 32,
+   and tightening the integrator, changed reported reference quantities by
+   less than 7.05e-7. Disabling photon and baryon metric feedback changed
+   the metric deviation by 0.145 of its peak. A future-forcing control left
+   the earlier prefix unchanged and changed later photon and q responses;
+   fresh-process readback confirmed the comparisons and causality control.
+
+   A multithreaded dense-solve attempt was stopped after 109 seconds without
+   completing its first step grid. Reusing its retained reference, the
+   single-threaded diagnostic took 0.43 seconds in the finest online loop;
+   that excludes reference generation and setup and is not a production
+   speedup. The source trajectory belongs to an earlier runtime identity.
+   This bounded test does not cover the full window or all coupled species
+   and does not establish scientific acceptance. Its records are
+   `compressed-q-cdm-photon-baryon*.json` in `sector-isolation/`.
+
+   The same controlled sectors were tested earlier, over eta 50 to 200,
+   where the maximum photon-baryon drag rate was 374.06 per eta. An exact
+   frozen-collision split was stable but its photon quadrupole error remained
+   9.46e-3 at step 0.125; its separate collision exponential and momentum
+   conservation checks agreed within 3.60e-15. A two-stage L-stable SDIRK
+   experiment instead coupled each implicit stage to causal q-history
+   quadrature. At step 0.125, peak-normalized weighted-shear, metric,
+   baryon-velocity, photon-quadrupole and polarization-quadrupole errors
+   against the independently integrated hierarchy were 1.52e-7, 3.62e-6,
+   6.85e-6, 1.38e-5 and 1.34e-5. Step halving reduced these errors. The
+   depth and tighter-integrator controls differed by at most 4.37e-7 and
+   9.06e-8 respectively; sampled midpoint coefficient errors were at most
+   1.12e-6. Direct q-history and stage-equation checks, future-forcing
+   causality and fresh-process readback also passed.
+
+   The SDIRK online loop took 1.15 seconds with one BLAS thread at the
+   finest step, excluding physical setup and reference work. These are
+   diagnostic algorithms, not changes to the production integrator. The
+   source trajectory has an earlier runtime identity, massless neutrinos
+   remain prescribed, and the bounded result is not scientific acceptance.
+   The two experiments, coefficient check and readback are recorded as
+   `compressed-q-cdm-photon-baryon-early-*.json` in `sector-isolation/`.
+
+   A single continuous SDIRK diagnostic then advanced the same controlled
+   sectors from eta 50 through 400 at k=0.02. At step 0.125, peak-normalized
+   weighted-shear, metric-deviation, baryon-velocity, photon-quadrupole and
+   polarization-quadrupole errors against a separately integrated hierarchy
+   were 7.64e-8, 3.62e-6, 6.85e-6, 5.70e-6 and 1.60e-5. Each decreased on
+   step halving. Reference depth and tighter-integration controls differed
+   by at most 7.03e-8 and 5.34e-8 across the reported quantities. The
+   independent early reference agreed on common nodes within 1.90e-9;
+   direct q-history, stage-equation and future-forcing causality checks and
+   fresh-process readback also passed. Midpoint physical-coefficient checks
+   reached 1.12e-6 of peak, and the opacity pointwise relative error reached
+   4.30e-6; these samples do not bound historical source interpolation.
+
+   The finest online loop took 2.12 seconds with one BLAS thread, excluding
+   physical setup and reference generation. The photon-baryon feedback-off
+   control changed peak-normalized metric deviation by 0.369. This remains
+   an experimental perturbation from an earlier source identity, with
+   massless neutrinos prescribed; it is not the production integrator or
+   scientific acceptance. The diagnostic, reference, coefficient check and
+   readback are `compressed-q-cdm-photon-baryon-continuous-*.json` in the
+   same `sector-isolation/` directory.
+
+   A separate non-frozen diagnostic used the same total neutrino mass of
+   0.06 eV with one massive species and Neff=3, leaving a nonzero massless
+   component. Its physical source trajectory completed in 45.58 seconds,
+   including 35.28 seconds of evolution. Over eta 50 to 400 at k=0.02,
+   the controlled SDIRK experiment evolved massless-neutrino density,
+   velocity, shear and hierarchy alongside the previous responding sectors.
+   At step 0.125, peak-normalized massless density, velocity and shear errors
+   against an independently integrated hierarchy were 3.60e-6, 5.64e-6 and
+   7.66e-6; metric deviation and q-weighted shear errors were 3.71e-6 and
+   7.22e-8. Refining the step reduced each error. Reference depth and tighter
+   integration controls differed by at most 2.43e-7 and 2.62e-7 across all
+   reported quantities. Disabling massless-neutrino metric feedback changed
+   the peak-normalized metric deviation by 0.135. Direct history and stage
+   checks, future-forcing causality and fresh-process readback passed.
+
+   Midpoint physical-coefficient errors were at most 1.34e-6 of peak; the
+   opacity pointwise relative error reached 3.25e-6. The finest online loop
+   took 2.57 seconds with one BLAS thread, excluding physical setup and
+   reference generation. The massless hierarchy was evolved explicitly in
+   this diagnostic. Its non-frozen physical case and bounded perturbation
+   do not establish production or scientific acceptance. The source record
+   is under `coupled-mixed-neutrino-20261117/` in the completion evidence
+   root; reference, diagnostic, coefficient and readback records are
+   `compressed-q-mixed-neutrino-continuous-*.json` in `sector-isolation/`.
+
+   A follow-up replaced the responding massless-neutrino hierarchy above
+   density and velocity with a causal spectral shear history in the same
+   non-frozen coupled test. Six positive modes gave a sampled kernel
+   residual of 1.27e-11 against independently refined tails; this is not an
+   observable error bound. At step 0.125, the peak-normalized massless
+   density, velocity and shear errors against the independent hierarchy were
+   3.55e-6, 5.59e-6 and 7.75e-6; metric and q-weighted shear errors were
+   3.74e-6 and 7.22e-8. Step halving reduced the errors. Compared with the
+   explicit-hierarchy SDIRK diagnostic at the same step, massless shear
+   differed by 2.22e-7 of the reference peak. Direct-history, stage-equation,
+   causality and fresh-process readback checks passed. The reduced solve had
+   119 variables and the finest online loop took 2.35 seconds on one BLAS
+   thread, excluding setup and reference generation.
+
+   An initial experimental implementation omitted spectral mode weights;
+   the independent massless-history control detected a normalized mismatch
+   of 17.45 and that attempt was rejected. Restoring the weights reduced the
+   corresponding direct-history discrepancies below 9.18e-15. The test
+   starts with zero massless-neutrino perturbations and uses one physical
+   case and bounded interval. It does not establish general initial-state
+   support, production applicability or scientific acceptance. The
+   diagnostic, rejected control and readback are recorded under the same
+   `compressed-q-mixed-neutrino-continuous-compressed*.json` prefix.
+
+   The same non-frozen test was repeated with massless density, velocity,
+   shear and multipoles through l=24 initialized to one percent of their
+   retained physical values; higher initial multipoles were set to zero.
+   The compressed shear included the propagated nonzero initial hierarchy.
+   Its homogeneous response agreed with an independently integrated tail
+   to 8.06e-12 of peak, and omitting it changed massless shear by 0.135 of
+   the reference peak in a negative control. At eta step 0.0625, errors
+   against the independently integrated coupled hierarchy were 2.52e-7 for
+   massless shear, 7.91e-7 for metric deviation and 7.31e-5 for polarization
+   quadrupole, each normalized to the respective reference peak. Errors
+   decreased under step refinement. Reference depth and tighter-integrator
+   controls differed by at most 9.69e-8 across the reported quantities.
+   Direct history, stage, causality and fresh-process readback checks passed.
+
+   The finest online loop took 5.03 seconds with one BLAS thread, excluding
+   setup and reference generation, while the explicit comparison ran
+   concurrently. The compressed output does not reconstruct higher massless
+   multipoles; their padded output slots are not physical results. This
+   isolated initial perturbation was not checked as a constraint-consistent
+   cosmological initial state. The one-case bounded diagnostic is neither a
+   production implementation nor scientific acceptance. Its reference,
+   experiments and readback are `compressed-q-mixed-neutrino-nonzero-*.json`
+   in `sector-isolation/`.
+
+   A further non-frozen mixed-neutrino diagnostic scaled the retained
+   species perturbations by one percent and projected the initial metric onto
+   the Einstein energy and momentum constraints. Initial normalized energy,
+   momentum and shear residuals were below 1.43e-16; a deliberately altered
+   metric produced residuals above 5.91e-3. At 701 sampled times from eta 50
+   to 400, the reconstructed run's maximum normalized energy, momentum and
+   shear residuals were 1.26e-7, 1.85e-7 and 7.67e-13. These local residuals
+   do not establish the full scientific acceptance criteria.
+
+   The compressed massless shear used six positive modes, while a separate
+   128-moment spectral reconstruction recovered multipoles l=3 through 24.
+   At step 0.0625, each reconstructed multipole differed from the deeper
+   coupled hierarchy by at most 4.73e-6 of its own peak, with the largest
+   error at l=24. That reference peak was 4.90e-13 and the maximum absolute
+   difference was 2.32e-18. The l=24 relative error did not consistently
+   decrease with step refinement; compensated summation and a 160-moment
+   reconstruction did not remove it. This numerical limitation remains
+   unresolved. The reference's depth and tighter-integrator controls, direct
+   histories, causality and fresh-process readback were also checked.
+
+   The finest online loop took 5.08 seconds on one BLAS thread, excluding
+   setup and reference generation. This is a bounded diagnostic, not a
+   production implementation or scientific acceptance. The reference,
+   reconstruction variants, constraint series and readback are recorded
+   under `compressed-q-mixed-neutrino-constrained-*.json` in the same
+   `sector-isolation/` directory.
+
+   An offline reconstruction test isolated the l=24 limit using a dense
+   independently integrated reference. The 128-moment tail eigensystem,
+   driven by reference neutrino velocity, retained a 4.97e-6 peak-normalized
+   l=24 error at step 0.0625. A full-hierarchy spherical-Bessel and Gaunt
+   reconstruction, driven by reference metric sources, reduced that error
+   to 1.29e-7; its errors decreased under step refinement. Across l=2 to 24,
+   the largest finest-step error was 1.60e-7 of the respective reference
+   peak. This comparison supports a numerical limitation in the modal
+   reconstruction, but does not prove a unique root cause.
+
+   The full-hierarchy quadrupole kernel is not the truncated-tail kernel:
+   their sampled maximum difference reached 0.663. Including the lower
+   moments and metric sources gave agreement with an independent full
+   eigensystem within 3.92e-15. The Gaunt coefficient, dense-reference,
+   offline future-forcing and fresh-process readback checks also passed.
+   The finest Bessel reconstruction took 0.17 seconds with one BLAS thread,
+   excluding reference and source generation. FFT evaluation used complete
+   reference histories, so this is neither an online coupled algorithm nor
+   scientific acceptance. The reference, sources, boundary comparison and
+   readback are recorded as `mixed-neutrino-constrained-bessel-*.json` and
+   `compressed-q-mixed-neutrino-constrained-dense-reference.json` in the
+   same evidence directory.
+
+   A causal coupled SDIRK diagnostic now reconstructs the full massless
+   hierarchy through multipole 24 from past stage sources and feeds its
+   shear back into the metric and all species. On the same bounded,
+   non-frozen mixed-neutrino case, halving the step from 0.5 to 0.0625
+   reduced the peak-normalized multipole 24 error from 3.68e-6 to 5.78e-8;
+   at the finest step the largest error among multipoles 3 through 24 was
+   3.01e-7. Altering future forcing left both earlier states and stage
+   sources unchanged. Independent direct stage-history reconstruction and
+   fresh-process artifact readback passed. Sampled normalized energy,
+   momentum and shear constraint residuals reached 1.25e-7, 1.85e-7 and
+   8.03e-13 respectively. The finest online solve took 11.75 seconds with
+   one BLAS thread, excluding setup and reference generation. Its direct
+   history calculation has quadratic cost, so it is not yet a practical
+   full-window method or scientific acceptance. The evidence is recorded
+   as `mixed-neutrino-constrained-bessel-online*.json` in the same
+   directory, with stage histories in its `attempts` subdirectory.
+
+   A fixed-step causal dyadic FFT diagnostic handles the two staggered
+   SDIRK stage sequences and feeds the reconstructed shear into the same
+   coupled system. At all four tested steps its state histories agreed
+   with the direct-history solve to within 4.80e-14 of each component's
+   peak; the independent stage reconstruction and future-forcing controls
+   also passed. At step 0.0625 the blocked coupled solve took 7.43 seconds,
+   compared with 11.75 seconds for the direct solve on this machine, both
+   excluding setup and reference generation. In a separate synthetic
+   history check, blocked evaluation took 0.064, 0.124 and 0.237 seconds
+   for 2048, 4096 and 8192 nodes per stage sequence, excluding kernel
+   setup. Offline FFT and sampled direct sums agreed within 3.09e-14 of
+   each moment's peak, and future-source changes left the prefix unchanged.
+   These results are fixed-step, bounded diagnostics; adaptive stepping,
+   other cases and full-window scientific acceptance remain open. Results,
+   controls and readback are recorded as
+   `mixed-neutrino-constrained-bessel-blocked*.json` in the same directory.
+
+   The fixed-step coupled diagnostic was extended to eta 50 through 800
+   for k=0.01 and 0.04, using separate retained mixed-neutrino histories
+   for each wave. Each history generation had a 150-second limit; each
+   reference and blocked investigation had a 230-second alarm within a
+   240-second budget. At step 0.0625 the blocked solves took 15.71 and
+   17.00 seconds respectively with one BLAS thread, excluding setup,
+   retained-history generation and independent references. Against the
+   refined references, the largest peak-normalized errors over massless
+   multipoles 3 through 24 were 6.85e-8 and 1.73e-7. The largest error
+   among the other reported fields was 7.42e-8 and 1.32e-6 respectively;
+   both cases improved under step refinement. Direct stage-history,
+   future-forcing and fresh-process readback checks passed.
+
+   For k=0.04 the first depth comparison differed by 4.38e-4 at
+   multipole 24, so a deeper reference was required. Increasing the
+   q and photon/massless hierarchy depths from 128/48 to 160/64 reduced
+   the largest reported reference-depth difference to 4.08e-8; the
+   tolerance comparison differed by at most 8.72e-9. The separate retained
+   histories took 29.64 and 93.89 seconds to generate for k=0.01 and 0.04.
+   These controlled, non-frozen perturbations do not establish full-window
+   scientific acceptance. The evidence and readback are recorded under
+   `mixed-neutrino-long-*-bessel-blocked*.json` and
+   `compressed-q-mixed-neutrino-long-*-reference.json` in the same
+   directory, including the superseded shallower reference.
+
+   A separate nonuniform-step diagnostic exercised causal history and
+   rejected-step rollback on the earlier k=0.02, eta 50 through 400 case.
+   It uses SDIRK step doubling, reference-derived peak scales for the
+   low states and q shear, and direct Bessel history; higher massless
+   moments are reconstructed but are not included in the error estimator.
+   Tightening the local control from 2e-4 to 2e-8 reduced the reported
+   polarization-quadrupole error from 5.51e-4 to 3.57e-6. At 2e-8 the
+   largest peak-normalized error among massless multipoles 3 through 24
+   was 2.11e-6. The solve used 1151 accepted steps and 160 rejections and
+   took 17.96 seconds with one BLAS thread, excluding setup and reference
+   generation. This local control is not a global error guarantee.
+
+   Rejected histories restored exactly, a repeated trial reproduced its
+   original result, and a future-forcing change left the adaptive prefix
+   unchanged. Fresh-process readback independently reconstructed sampled
+   Bessel and q histories within 2.89e-15 of their respective scales.
+   The initial attempt exposed a floating-point endpoint mismatch; sharing
+   the final endpoint between the full and half-step paths resolved it,
+   and the failed result remains recorded. The bounded runs used 230- and
+   150-second alarms within 240- and 160-second budgets. The adaptive test
+   still uses quadratic direct history and reference-derived scales; it is
+   neither a production algorithm nor scientific acceptance. Results and
+   readback are under `mixed-neutrino-adaptive-bessel*.json` in the same
+   evidence directory.
+
+   A nonuniform running-memory diagnostic replaced direct massless shear
+   history at each adaptive stage with 24-node angular quadrature and
+   causal accumulators. On the same k=0.02 interval, its sampled kernels
+   differed from direct Bessel values by at most 6.06e-15; a four-node
+   negative control differed by up to 0.241. At local control 1e-6, the
+   running solve and a direct-history replay on the identical stage grid
+   agreed within 1.83e-14 of each state or q-shear reference peak, with
+   a 1e-25 denominator floor. The running solve spent 0.074 seconds in
+   stage shear history over 513 trials; an independently adapting direct
+   solve spent 0.872 seconds over 525 trials. These timings exclude setup
+   and do not cover the full
+   history cost: all-multipole output still uses quadratic direct sums.
+
+   The controller now scales its local estimate with the current and
+   proposed states plus a floor of 1e-4 times the initial maximum state
+   or q shear; it does not use reference peaks for its decisions. Changing
+   the comparison reference left the recorded adaptive trajectory exactly
+   unchanged. At control 1e-7, the largest reported field error against
+   the independent reference was 1.26e-5, and the largest massless
+   multipole 3 through 24 error was 6.75e-6. This floor and local estimate
+   are diagnostic choices, not a demonstrated global error bound.
+
+   Independent direct and running adaptive trajectories chose different
+   grids despite agreeing closely when replayed on the same stages. Their
+   largest state difference was 6.88e-5 of its reference peak for the
+   polarization multipole 24, whose peak was 3.68e-22; among the reported
+   low fields and massless multipoles the largest difference was 1.36e-7.
+   Causality, rollback, reference-independence and fresh-process readback
+   checks passed. Both earlier comparison failures remain recorded. The
+   run had a 230-second alarm within a 240-second budget. This bounded
+   investigation is neither production implementation nor scientific
+   acceptance; evidence is under `mixed-neutrino-running-history*.json`
+   in the same directory.
+
+   On that bounded case, a factored 25-term Bessel power series reduced
+   the multipole output reconstruction time from 0.957 to 0.283 seconds
+   on the identical 380-step adaptive trajectory; the corresponding
+   solve times were 2.669 and 1.989 seconds, excluding setup and reference
+   generation. Output moments agreed within 2.43e-15 of their reference
+   peak or a 1e-25 floor. Over the tested phase range 0 through 7, the
+   series kernels agreed with direct Bessel values within 1.09e-14 of
+   each kernel's peak; a five-term negative control failed this check.
+   The series is explicitly limited to this phase range and the history
+   sums remain quadratic.
+
+   The continuous controller's direct and running variants first
+   differed in an accepted time by 4.06e-11; their initially matching
+   trial decisions diverged later, after the grids had drifted. A bounded
+   diagnostic controller using halving and doubling chose identical grids
+   and decisions for the two history variants at controls 1e-6 and 1e-7.
+   Their largest state differences were 5.02e-14 and 6.27e-14 of the
+   corresponding reference peak or floor. At 1e-7 the largest reported
+   field error was 5.41e-6, and the largest massless multipole 3 through
+   24 error was 2.91e-6. The dyadic controller is not a general stability
+   or global accuracy guarantee. Causality, rollback and independent
+   Bessel and q-history readback checks passed. The run used a 230-second
+   alarm within a 240-second budget. These are non-frozen diagnostics,
+   not scientific acceptance; results are recorded as
+   `mixed-neutrino-series*.json` in the same evidence directory.
+
+   The k=0.04, eta 50 through 800 diagnostic extended reconstruction to
+   phase 30 using the series through phase 7 and piecewise Chebyshev
+   interpolation thereafter. Across sampled intervals, the largest
+   local peak-normalized kernel error was 3.41e-14; a lower-order
+   interpolation failed its negative control. On 10385 retained lags,
+   the hybrid and direct Bessel kernels took median times of 0.0082 and
+   0.0631 seconds respectively, excluding coefficient setup. This is a
+   bounded kernel measurement, and the history sums remain quadratic.
+
+   The previous 24-node angular rule was inadequate over the longer
+   phase range: its sampled kernel error reached 3.13e-6. The 40-node
+   rule used here differed by at most 8.80e-15 on the sampled interval.
+   At adaptive control 1e-7 the solve took 78.15 seconds, including
+   57.13 seconds of output-history reconstruction but excluding setup
+   and reference generation. Its largest reported field error was
+   2.81e-6; the largest massless multipole 3 through 24 error was
+   5.66e-7. The deeper reference's largest depth and tolerance
+   differences were 4.08e-8 and 8.72e-9 respectively.
+
+   The main investigation reached its 230-second alarm within the
+   240-second budget before a full direct-output replay completed.
+   Separate bounded controls completed: direct stage replay at 1e-5
+   agreed within 1.41e-14 of reference peaks or the 1e-25 floor, while
+   sampled independent Bessel and q histories agreed within 1.30e-15
+   and 4.01e-13 of their respective scales. Same-process future forcing
+   left the earlier trajectory unchanged. An initial comparison across
+   separate processes differed at 2.23e-16 absolute and is preserved
+   alongside the other diagnostic attempts. These controlled results do
+   not establish scientific acceptance. Evidence is recorded under
+   `mixed-neutrino-hybrid-*.json` and `hybrid-bessel-kernel-probe.json` in
+   the same directory.
+
+   A causal binary-block output history was then tested on the same
+   k=0.04 coupled diagnostic. Completed stage sources are committed only
+   after an adaptive trial succeeds; rejected trials leave the committed
+   blocks unchanged. Each eligible block stores 24 Chebyshev source
+   moments, while nearby sources are summed directly. At control 1e-7,
+   output-history time fell from 57.13 to 5.58 seconds and total solve
+   time from 78.15 to 25.09 seconds in separate runs, excluding setup
+   and reference generation. The adaptive grid matched the prior direct
+   sum, and all stored states and q shears agreed within 1.05e-14 of
+   their reference peak or a 1e-25 denominator floor.
+
+   An independent replay compared every stored output against the prior
+   direct sum at controls 1e-5, 1e-6 and 1e-7. On the 1e-5 trajectory,
+   increasing block order from 24 to 32 changed outputs by at most
+   3.53e-14 of the reference peak or floor; a six-moment negative control
+   differed by 0.0187. Independent sampled Bessel and q-history readback
+   agreed within 1.89e-15 and 4.01e-13 of their respective scales.
+   Future forcing left the coupled prefix unchanged, and rejected-trial
+   rollback checks passed. The replay and coupled runs used 170- and
+   230-second alarms within 180- and 240-second budgets. These bounded
+   checks do not establish an interpolation error bound for arbitrary
+   models or scientific acceptance. Results are recorded as
+   `block-bessel-*.json` in the same evidence directory.
+
+   A subsequent replay added an exact-arithmetic interpolation remainder
+   bound for each source block. For order p, width w, wave k, and L1
+   source weights A0 and A1, the bound is `(k*w)^p / (p!*2^(2*p-1))`
+   times `(A0/(p+1) + 3*A1/(p+2))`. It follows from the angular integral
+   for the spherical Bessel kernel and `|P_l(mu)| <= 1`; A0 and A1 include
+   the respective metric-source and trapezoid weights. Blocks are split
+   when this bound exceeds 1e-10 times their combined source weight. This
+   is a diagnostic interpolation budget, not a global solver tolerance.
+
+   Replays of the retained mixed-neutrino trajectories at k=0.01, 0.02
+   and 0.04 respected that bound budget at every output. The largest
+   accumulated bound was 3.77e-4 of its source-scaled budget; the k=0.04
+   replay opened 1463 blocks. Their outputs differed from the retained
+   direct sums by at most 7.82e-15 of the reference peak or floor, and
+   order 32 refinement differed by at most 8.18e-15. A gated six-moment
+   control made 8734 block-opening decisions; disabling the gate produced
+   an error about 9.97e5 times the source-scaled budget. Future-forcing
+   controls at k=0.02 and 0.04 preserved the earlier output prefix.
+
+   The bound applies to exact Bessel kernels and exact arithmetic. Kernel
+   approximation and floating-point error remain separate: an independent
+   200-case probe found a maximum 7.66e-15 excess over the ideal bound,
+   and sampled exact-kernel sums passed with an explicitly empirical
+   floating-point allowance. The implementation rejects phases outside
+   0 through 30 apart from a roundoff-sized endpoint allowance. These are
+   replays of one non-frozen mixed-neutrino model,
+   not a bound for the full solver or scientific acceptance. Each case
+   had a 110-second alarm within a 120-second budget; evidence and
+   readback are recorded as `block-bessel-bound-*.json` in the same
+   directory.
 3. **Optimize measured bottlenecks.** Profile real LCDM, massive-neutrino and
    PPF executions, including evolution, hierarchy, projection, memory and
    repeated work. Repair the dominant owning kernels and scheduling or reuse

@@ -2035,7 +2035,7 @@ class ExecutionModuleTestCase(unittest.TestCase):
             ):
                 probe()
             self.assertEqual(integrate.call_count, 1)
-            self.assertIn("retain_completed_probe_mode", callback_names)
+            self.assertIn("retain_completed_native_mode", callback_names)
             self.assertEqual(len(saved_waves), 1)
             self.assertIn(saved_waves[0], waves)
             self.assertEqual(len(saved_backgrounds), 1)

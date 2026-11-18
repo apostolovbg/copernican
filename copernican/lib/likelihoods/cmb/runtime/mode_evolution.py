@@ -5464,14 +5464,22 @@ def build_declared_mode_evolution(
                     for name, index in direct_equation_state_bindings:
                         if name not in context:
                             context[name] = float(state_rows[0, index])
+                    # Exact built-in floats cannot be vectors; inspect all
+                    # other values at every stage, including float subclasses.
+                    float_type = float
                     vector_names = tuple(
                         name
                         for name in ordered_equation_direct_names
-                        if getattr(context[name], "shape", ()) == (mode_count,)
-                        or (
-                            isinstance(context[name], (tuple, list))
-                            and numpy.asarray(context[name]).shape
-                            == (mode_count,)
+                        if (
+                            type(value := context[name]) is not float_type
+                            and (
+                                getattr(value, "shape", ()) == (mode_count,)
+                                or (
+                                    isinstance(value, (tuple, list))
+                                    and numpy.asarray(value).shape
+                                    == (mode_count,)
+                                )
+                            )
                         )
                     )
                     nonlocal batched_row_program
